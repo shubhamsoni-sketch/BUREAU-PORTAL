@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 import Icon from '@/components/ui/AppIcon';
+import { useAuth } from '@/context/AuthContext';
 
 type NavItem = {
   id: string;
@@ -61,8 +62,9 @@ const partnerNav: NavGroup[] = [
     groupId: 'partner-main',
     items: [
       { id: 'nav-partner-dashboard', label: 'Dashboard', icon: 'Squares2X2Icon', href: '/partner-dashboard' },
-      { id: 'nav-partner-pull', label: 'Pull CIBIL', icon: 'MagnifyingGlassIcon', href: '/pull-cibil' },
+      { id: 'nav-partner-pull', label: 'Pull Bureau', icon: 'MagnifyingGlassIcon', href: '/pull-cibil' },
       { id: 'nav-partner-wallet', label: 'My Wallet', icon: 'WalletIcon', href: '/my-wallet' },
+      { id: 'nav-partner-accounts', label: 'Accounts', icon: 'BookOpenIcon', href: '/accounts' },
     ],
   },
   {
@@ -76,7 +78,7 @@ const partnerNav: NavGroup[] = [
     groupId: 'partner-account',
     title: 'Account',
     items: [
-      { id: 'nav-partner-profile', label: 'Profile', icon: 'UserCircleIcon', href: '/profile' },
+      { id: 'nav-partner-profile', label: 'Profile', icon: 'UserCircleIcon', href: '/my-profile' },
     ],
   },
 ];
@@ -89,6 +91,7 @@ export default function Sidebar({ role }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const navGroups = role === 'admin' ? adminNav : partnerNav;
 
@@ -105,7 +108,7 @@ export default function Sidebar({ role }: SidebarProps) {
       >
         <AppLogo size={32} />
         {!collapsed && (
-          <span className="font-bold text-base text-foreground tracking-tight">CIBILysis</span>
+          <span className="font-bold text-base text-foreground tracking-tight">Insight</span>
         )}
       </div>
 
@@ -173,14 +176,14 @@ export default function Sidebar({ role }: SidebarProps) {
         {!collapsed && (
           <div className="flex items-center gap-2 px-3 py-2 mb-1 rounded-lg hover:bg-muted transition-colors duration-150 cursor-pointer">
             <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-              {role === 'admin' ? 'A' : 'P'}
+              {role === 'admin' ? 'A' : (user?.name ? user.name.charAt(0).toUpperCase() : 'P')}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">
-                {role === 'admin' ? 'Admin User' : 'Rajesh Kumar'}
+                {role === 'admin' ? 'Admin User' : (user?.name || 'Partner')}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {role === 'admin' ? 'admin@cibilysis.in' : 'rajesh@dsa.in'}
+                {role === 'admin' ? 'admin@insight.in' : (user?.email || '')}
               </p>
             </div>
           </div>

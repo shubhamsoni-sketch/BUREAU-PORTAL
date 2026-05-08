@@ -4,28 +4,18 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
-import {
-  LayoutDashboard,
-  FileSearch,
-  Wallet,
-  History,
-  UserCircle,
-  BookUser,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  Zap,
-} from 'lucide-react';
+import { LayoutDashboard, FileSearch, Wallet, History, UserCircle, BookUser, ChevronLeft, ChevronRight, Zap, BookOpen,  } from 'lucide-react';
 import Icon from '@/components/ui/AppIcon';
 
 
 const partnerNav = [
   { label: 'Dashboard', href: '/partner-dashboard', icon: LayoutDashboard },
-  { label: 'Pull CIBIL', href: '/pull-cibil', icon: FileSearch },
+  { label: 'Pull Bureau', href: '/pull-cibil', icon: FileSearch },
   { label: 'My Wallet', href: '/my-wallet', icon: Wallet },
+  { label: 'Accounts', href: '/accounts', icon: BookOpen },
   { label: 'Customer Master', href: '/customer-master', icon: BookUser },
   { label: 'Reports History', href: '/reports-history', icon: History },
-  { label: 'Profile', href: '/profile', icon: UserCircle },
+  { label: 'My Profile', href: '/my-profile', icon: UserCircle },
 ];
 
 export default function PartnerSidebar() {
@@ -44,7 +34,7 @@ export default function PartnerSidebar() {
       <div className={`flex items-center h-16 px-4 border-b border-slate-700/60 ${collapsed ? 'justify-center' : 'gap-3'}`}>
         <AppLogo size={32} />
         {!collapsed && (
-          <span className="font-semibold text-base text-white tracking-tight">CIBILysis</span>
+          <span className="font-semibold text-base text-white tracking-tight">Insight</span>
         )}
       </div>
       {/* Mode Badge */}
@@ -82,22 +72,6 @@ export default function PartnerSidebar() {
       </nav>
       {/* Bottom */}
       <div className="border-t border-slate-700/60 p-2">
-        <div className={`flex items-center gap-3 px-2.5 py-2 rounded-lg ${collapsed ? 'justify-center' : ''}`}>
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-            RK
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-white truncate">Rajesh Kumar</p>
-              <p className="text-[10px] text-slate-400 truncate">DSA Partner</p>
-            </div>
-          )}
-          {!collapsed && (
-            <button className="text-slate-500 hover:text-white transition-colors">
-              <LogOut size={15} />
-            </button>
-          )}
-        </div>
       </div>
       {/* Collapse Toggle */}
       <button

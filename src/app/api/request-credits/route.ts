@@ -1,0 +1,85 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
+);
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { user_id, amount, note } = body;
+
+    if (!user_id) {
+      return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
+    }
+
+    const requestedAmount = Number(amount);
+    if (!amount || isNaN(requestedAmount) || requestedAmount < 10000) {
+      return NextResponse.json({ error: 'Minimum credit request amount is ₹10,000' }, { status: 400 });
+    }
+
+    // Get partner by user_id
+    const { data: partner, error: partnerError } = await supabaseAdmin
+      .from('partners')
+      .select('id, name, email')
+      .eq('user_id', user_id)
+      .maybeSingle();
+
+    if (partnerError || !partner) {
+      return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
+    }
+
+    // Insert credit request
+    const { data: creditRequest, error: crError } = await supabaseAdmin
+      .from('credit_requests')
+      .insert({
+        partner_id: partner.id,
+        user_id,
+        amount: requestedAmount,
+        note: note || '',
+        status: 'pending',
+      })
+      .select('id')
+      .single();
+
+    if (crError) {
+      console.error('[request-credits] insert error:', crError);
+      return NextResponse.json({ error: crError.message }, { status: 500 });
+    }
+
+    // Find admin user_id to notify
+    const { data: adminProfile } = await supabaseAdmin
+      .from('user_profiles')
+      .select('id')
+      .eq('role', 'admin')
+      .limit(1)
+      .maybeSingle();
+
+    if (adminProfile) {
+      await supabaseAdmin.from('notifications').insert({
+        user_id: adminProfile.id,
+        type: 'credit_request',
+        title: 'Credit Request Received',
+        message: `${partner.name} has requested ₹${requestedAmount.toLocaleString('en-IN')} in wallet credits.`,
+        metadata: {
+          partner_id: partner.id,
+          partner_name: partner.name,
+          amount: requestedAmount,
+          credit_request_id: creditRequest.id,
+        },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Credit request submitted successfully. Admin will be notified.',
+      credit_request_id: creditRequest.id,
+    });
+  } catch (err: any) {
+    console.error('[request-credits] unexpected error:', err);
+    return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
+  }
+}

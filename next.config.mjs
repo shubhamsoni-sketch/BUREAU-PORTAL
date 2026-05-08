@@ -20,11 +20,7 @@ const nextConfig = {
 
   async redirects() {
   return [
-    {
-      source: '/',
-      destination: '/partner-dashboard',
-      permanent: false,
-    },
+    // Removed: redirect from / to /partner-dashboard — / is now the login page
   ];
 }
 };

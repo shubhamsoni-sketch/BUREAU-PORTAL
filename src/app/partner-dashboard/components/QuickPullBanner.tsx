@@ -11,7 +11,7 @@ export default function QuickPullBanner() {
           <FileSearch size={20} className="text-white" />
         </div>
         <div>
-          <p className="text-sm font-semibold">Pull a New CIBIL Report</p>
+          <p className="text-sm font-semibold">Pull a New Bureau Report</p>
           <p className="text-xs text-blue-100 mt-0.5">Enter customer PAN/Aadhaar, get OTP consent, and generate credit analysis instantly.</p>
         </div>
       </div>
@@ -21,7 +21,7 @@ export default function QuickPullBanner() {
           <span className="text-xs font-semibold text-amber-100">Low Balance — ₹350</span>
         </div>
         <button className="flex items-center gap-2 px-4 py-2 bg-white text-blue-700 text-sm font-semibold rounded-lg hover:bg-blue-50 transition-colors active:scale-95">
-          Pull CIBIL
+          Pull Bureau
           <ArrowRight size={14} />
         </button>
       </div>

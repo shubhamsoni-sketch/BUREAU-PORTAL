@@ -1,27 +1,27 @@
 import React from 'react';
 import PartnerStatCards from './PartnerStatCards';
-import PartnerAccountHealth from './PartnerAccountHealth';
-import RecentReportsList from './RecentReportsList';
-import PartnerQuickActions from './PartnerQuickActions';
+import PendingInvoiceBanner from './PendingInvoiceBanner';
+import BureauPullsChart from './BureauPullsChart';
+import WalletHealthBar from './WalletHealthBar';
+import MiniRecentReports from './MiniRecentReports';
 
 export default function PartnerDashboardContent() {
   return (
     <div className="space-y-6">
-      {/* Top: Stat Cards */}
+      {/* Pending Invoice Banner */}
+      <PendingInvoiceBanner />
+
+      {/* Stat Cards */}
       <PartnerStatCards />
 
-      {/* Middle: Account Health + Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <PartnerAccountHealth />
-        </div>
-        <div>
-          <PartnerQuickActions />
-        </div>
+      {/* Chart + Wallet Health */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <BureauPullsChart />
+        <WalletHealthBar />
       </div>
 
-      {/* Bottom: Recent Reports */}
-      <RecentReportsList />
+      {/* Mini Recent Reports */}
+      <MiniRecentReports />
     </div>
   );
 }

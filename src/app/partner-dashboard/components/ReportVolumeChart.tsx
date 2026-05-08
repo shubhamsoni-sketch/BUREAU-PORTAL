@@ -3,7 +3,7 @@
 import React from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, defs, linearGradient, stop,
+  ResponsiveContainer,
 } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 

@@ -121,7 +121,7 @@ export default function CustomerMasterPage() {
     <AppLayout role={role}>
       <Topbar
         title="Customer Master"
-        subtitle={role === 'admin' ? 'All customer CIBIL records across partners' : 'Your customer CIBIL records'}
+        subtitle={role === 'admin' ? 'All customer Bureau records across partners' : 'Your customer Bureau records'}
         role={role}
       />
 

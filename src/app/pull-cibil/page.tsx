@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Topbar from '@/components/Topbar';
-import { useWallet } from '@/context/WalletContext';
-import { useCustomerMaster } from '@/context/CustomerMasterContext';
+import { useAuth } from '@/context/AuthContext';
 import {
   FileSearch,
   User,
@@ -15,7 +14,10 @@ import {
   AlertTriangle,
   Wallet,
   RefreshCw,
+  Users,
+  Building2,
 } from 'lucide-react';
+import { useCustomerMaster } from '@/context/CustomerMasterContext';
 import Icon from '@/components/ui/AppIcon';
 
 
@@ -25,8 +27,13 @@ type Step = 1 | 2 | 3 | 4;
 
 interface CustomerDetails {
   fullName: string;
-  mobile: string;
   pan: string;
+  dob: string;
+  gender: string;
+  addressLine1: string;
+  city: string;
+  state: string;
+  pinCode: string;
   aadhaar: string;
 }
 
@@ -36,6 +43,11 @@ interface CibilResult {
   keyIssues: string[];
   reportId: string;
   generatedAt: string;
+}
+
+interface PartnerRates {
+  consumer_credit_rate: number;
+  commercial_credit_rate: number;
 }
 
 // ─── Mock Data ─────────────────────────────────────────────────────────────────
@@ -56,6 +68,8 @@ const MOCK_CIBIL_COMMERCIAL: CibilResult = {
 };
 
 const MOCK_OTP = '123456';
+const DEFAULT_CONSUMER_RATE = 10;
+const DEFAULT_COMMERCIAL_RATE = 15;
 
 // ─── Step Indicator ────────────────────────────────────────────────────────────
 const steps = [
@@ -115,12 +129,21 @@ function riskBadge(level: string) {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function PullCibilPage() {
-  const { balance, deduct, CREDIT_COST, LOW_BALANCE_THRESHOLD } = useWallet();
+  const { user } = useAuth();
   const { addRecord } = useCustomerMaster();
+
+  // Live wallet balance from Supabase (partners.wallet_balance)
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [partnerId, setPartnerId] = useState<string | null>(null);
+  const [rates, setRates] = useState<PartnerRates>({
+    consumer_credit_rate: DEFAULT_CONSUMER_RATE,
+    commercial_credit_rate: DEFAULT_COMMERCIAL_RATE,
+  });
+  const [ratesLoading, setRatesLoading] = useState(true);
 
   const [step, setStep] = useState<Step>(1);
   const [reportType, setReportType] = useState<ReportType>(null);
-  const [details, setDetails] = useState<CustomerDetails>({ fullName: '', mobile: '', pan: '', aadhaar: '' });
+  const [details, setDetails] = useState<CustomerDetails>({ fullName: '', pan: '', dob: '', gender: '', addressLine1: '', city: '', state: '', pinCode: '', aadhaar: '' });
   const [otpSent, setOtpSent] = useState(false);
   const [otpInput, setOtpInput] = useState('');
   const [otpError, setOtpError] = useState('');
@@ -129,6 +152,57 @@ export default function PullCibilPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<Partial<CustomerDetails>>({});
+
+  const currentRate = reportType === 'commercial' ? rates.commercial_credit_rate : rates.consumer_credit_rate;
+  const LOW_BALANCE_THRESHOLD = 200;
+
+  // Load partner data + rates on mount
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadPartnerData = async () => {
+      setRatesLoading(true);
+      try {
+        // Use service-role API to bypass RLS and get real wallet balance + partner ID
+        const res = await fetch(`/api/partner-wallet-data?user_id=${user.id}`);
+
+        const contentType = res.headers.get('content-type') ?? '';
+        if (!res.ok || !contentType.includes('application/json')) {
+          console.error('[PullCibil] loadPartnerData: non-JSON response', res.status, res.statusText);
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data?.success) {
+          setPartnerId(data.partnerId);
+          setWalletBalance(Number(data.balance ?? 0));
+
+          // Get commercial rates for this partner
+          if (data.commercials) {
+            setRates({
+              consumer_credit_rate: Number(
+                data.commercials.consumer_credit_rate ??
+                data.commercials.credit_rate ??
+                DEFAULT_CONSUMER_RATE
+              ),
+              commercial_credit_rate: Number(
+                data.commercials.commercial_credit_rate ??
+                data.commercials.credit_rate ??
+                DEFAULT_COMMERCIAL_RATE
+              ),
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[PullCibil] loadPartnerData error:', err);
+      } finally {
+        setRatesLoading(false);
+      }
+    };
+
+    loadPartnerData();
+  }, [user?.id]);
 
   // Step 1 → 2
   function handleSelectType(type: ReportType) {
@@ -140,8 +214,13 @@ export default function PullCibilPage() {
   function validateDetails(): boolean {
     const errs: Partial<CustomerDetails> = {};
     if (!details.fullName.trim()) errs.fullName = 'Full name is required';
-    if (!/^\d{10}$/.test(details.mobile)) errs.mobile = 'Enter valid 10-digit mobile';
     if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(details.pan.toUpperCase())) errs.pan = 'Enter valid PAN (e.g. ABCDE1234F)';
+    if (!details.dob) errs.dob = 'Date of birth is required';
+    if (!details.gender) errs.gender = 'Gender is required';
+    if (!details.addressLine1.trim()) errs.addressLine1 = 'Address Line 1 is required';
+    if (!details.city.trim()) errs.city = 'City is required';
+    if (!details.state.trim()) errs.state = 'State is required';
+    if (!/^\d{6}$/.test(details.pinCode)) errs.pinCode = 'Enter valid 6-digit Pin Code';
     if (!/^\d{12}$/.test(details.aadhaar)) errs.aadhaar = 'Enter valid 12-digit Aadhaar';
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
@@ -160,35 +239,62 @@ export default function PullCibilPage() {
     }, 1000);
   }
 
-  function handleVerifyOtp() {
+  async function handleVerifyOtp() {
     if (otpInput !== MOCK_OTP) {
       setOtpError('Invalid OTP. Try 123456 for demo.');
       return;
     }
     setOtpError('');
-    // Check wallet balance
-    if (balance < CREDIT_COST) {
+
+    const rate = reportType === 'commercial' ? rates.commercial_credit_rate : rates.consumer_credit_rate;
+
+    if (walletBalance < rate) {
       setLowBalance(true);
       return;
     }
+
     setLoading(true);
-    setTimeout(() => {
+
+    try {
       const mockResult = reportType === 'commercial' ? MOCK_CIBIL_COMMERCIAL : MOCK_CIBIL_CONSUMER;
-      const description = `${reportType === 'commercial' ? 'Commercial' : 'Consumer'} CIBIL Pull – ${details.fullName}`;
-      const success = deduct(CREDIT_COST, description);
-      if (!success) {
-        setLowBalance(true);
-        setLoading(false);
-        return;
+
+      // Call server-side deduction API (uses service role, writes transaction row)
+      if (partnerId) {
+        const res = await fetch('/api/pull-cibil-deduct', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            partner_id: partnerId,
+            report_type: reportType,
+            customer_name: details.fullName,
+            report_id: mockResult.reportId,
+          }),
+        });
+
+        const deductResult = await res.json();
+
+        if (!res.ok) {
+          if (res.status === 402) {
+            setLowBalance(true);
+            setLoading(false);
+            return;
+          }
+          console.error('[PullCibil] deduct error:', deductResult.error);
+          // Continue anyway — don't block the report
+        } else {
+          // Update local balance from server response
+          setWalletBalance(deductResult.new_balance ?? walletBalance - rate);
+        }
       }
-      // ── Create Customer Master record ──────────────────────────────────────
+
+      // Add to customer master
       addRecord({
         customerName: details.fullName,
-        mobile: details.mobile,
+        mobile: '',
         pan: details.pan.toUpperCase(),
         aadhaar: details.aadhaar,
-        partnerId: 'partner-001',
-        partnerName: 'Rajesh Kumar (DSA)',
+        partnerId: partnerId ?? user?.id ?? 'unknown',
+        partnerName: user?.name ?? 'Partner',
         reportType: reportType === 'commercial' ? 'Commercial CIBIL' : 'Consumer CIBIL',
         creditScore: mockResult.score,
         riskLevel: mockResult.riskLevel,
@@ -209,19 +315,22 @@ export default function PullCibilPage() {
           pan: details.pan.toUpperCase(),
         },
       });
-      // ──────────────────────────────────────────────────────────────────────
+
       setResult(mockResult);
-      setSuccessMsg(`CIBIL report fetched successfully! ₹${CREDIT_COST} credits deducted.`);
+      setSuccessMsg(`Bureau report fetched successfully! ₹${rate} credits deducted.`);
       setStep(4);
+    } catch (err) {
+      console.error('[PullCibil] handleVerifyOtp error:', err);
+    } finally {
       setLoading(false);
-    }, 1200);
+    }
   }
 
   // Reset
   function handleReset() {
     setStep(1);
     setReportType(null);
-    setDetails({ fullName: '', mobile: '', pan: '', aadhaar: '' });
+    setDetails({ fullName: '', pan: '', dob: '', gender: '', addressLine1: '', city: '', state: '', pinCode: '', aadhaar: '' });
     setOtpSent(false);
     setOtpInput('');
     setOtpError('');
@@ -231,18 +340,20 @@ export default function PullCibilPage() {
     setFormErrors({});
   }
 
+  const isLowBalance = walletBalance < LOW_BALANCE_THRESHOLD;
+
   return (
     <AppLayout role="partner">
       <Topbar
-        title="Pull CIBIL Report"
+        title="Pull Bureau Report"
         subtitle="Fetch credit report for your customer"
         role="partner"
         actions={
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${balance < CREDIT_COST ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-border'}`}>
-            <Wallet size={14} className={balance < CREDIT_COST ? 'text-red-500' : 'text-muted-foreground'} />
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${isLowBalance ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-border'}`}>
+            <Wallet size={14} className={isLowBalance ? 'text-red-500' : 'text-muted-foreground'} />
             <span className="text-xs text-muted-foreground">Wallet:</span>
-            <span className={`text-sm font-semibold ${balance < CREDIT_COST ? 'text-red-600' : 'text-foreground'}`}>
-              ₹{balance.toLocaleString('en-IN')}
+            <span className={`text-sm font-semibold ${isLowBalance ? 'text-red-600' : 'text-foreground'}`}>
+              ₹{walletBalance.toLocaleString('en-IN')}
             </span>
           </div>
         }
@@ -259,7 +370,7 @@ export default function PullCibilPage() {
             <div>
               <p className="text-sm font-semibold text-red-700">Insufficient Wallet Balance</p>
               <p className="text-xs text-red-600 mt-0.5">
-                You need ₹{CREDIT_COST} credits to pull a report. Current balance: ₹{balance}. Please top up your wallet.
+                You need ₹{currentRate} credits to pull this report. Current balance: ₹{walletBalance}. Please contact your admin to recharge.
               </p>
             </div>
           </div>
@@ -277,21 +388,29 @@ export default function PullCibilPage() {
         {step === 1 && (
           <div className="bg-white rounded-xl border border-border p-6">
             <h2 className="text-base font-semibold text-foreground mb-1">Select Report Type</h2>
-            <p className="text-sm text-muted-foreground mb-5">Choose the type of CIBIL report to pull.</p>
+            <p className="text-sm text-muted-foreground mb-5">Choose the type of Bureau report to pull.</p>
+            {ratesLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                <RefreshCw size={14} className="animate-spin" /> Loading your rates...
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 onClick={() => handleSelectType('consumer')}
                 className="group flex flex-col items-start gap-3 p-5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary-light transition-all duration-150 text-left"
               >
                 <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                  <User size={20} className="text-primary" />
+                  <Users size={20} className="text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Consumer CIBIL</p>
+                  <p className="text-sm font-semibold text-foreground">Consumer Bureau</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Individual credit report (Score 300–900)</p>
                 </div>
-                <div className="flex items-center gap-1 text-xs font-medium text-primary">
-                  Select <ChevronRight size={13} />
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="text-xs font-semibold text-primary bg-blue-50 px-2 py-0.5 rounded-full">
+                    ₹{rates.consumer_credit_rate} per pull
+                  </span>
+                  <ChevronRight size={13} className="text-primary" />
                 </div>
               </button>
 
@@ -300,19 +419,22 @@ export default function PullCibilPage() {
                 className="group flex flex-col items-start gap-3 p-5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary-light transition-all duration-150 text-left"
               >
                 <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                  <FileSearch size={20} className="text-primary" />
+                  <Building2 size={20} className="text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Commercial CIBIL</p>
+                  <p className="text-sm font-semibold text-foreground">Commercial Bureau</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Business / company credit report (Score 1–100)</p>
                 </div>
-                <div className="flex items-center gap-1 text-xs font-medium text-primary">
-                  Select <ChevronRight size={13} />
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="text-xs font-semibold text-primary bg-blue-50 px-2 py-0.5 rounded-full">
+                    ₹{rates.commercial_credit_rate} per pull
+                  </span>
+                  <ChevronRight size={13} className="text-primary" />
                 </div>
               </button>
             </div>
             <p className="mt-4 text-xs text-muted-foreground">
-              Each report pull costs <span className="font-semibold text-foreground">₹{CREDIT_COST} credits</span> from your wallet.
+              Rates are set by your admin. Consumer: <span className="font-semibold text-foreground">₹{rates.consumer_credit_rate}</span> · Commercial: <span className="font-semibold text-foreground">₹{rates.commercial_credit_rate}</span>
             </p>
           </div>
         )}
@@ -324,7 +446,10 @@ export default function PullCibilPage() {
               <div>
                 <h2 className="text-base font-semibold text-foreground">Customer Details</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Report type: <span className="font-medium text-primary capitalize">{reportType} CIBIL</span>
+                  Report type: <span className="font-medium text-primary capitalize">{reportType} Bureau</span>
+                  <span className="ml-2 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                    ₹{currentRate} per pull
+                  </span>
                 </p>
               </div>
               <button onClick={() => setStep(1)} className="text-xs text-muted-foreground hover:text-primary underline">
@@ -346,19 +471,6 @@ export default function PullCibilPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">Mobile Number</label>
-                <input
-                  type="tel"
-                  className="input-base"
-                  placeholder="10-digit mobile number"
-                  maxLength={10}
-                  value={details.mobile}
-                  onChange={(e) => setDetails({ ...details, mobile: e.target.value.replace(/\D/g, '') })}
-                />
-                {formErrors.mobile && <p className="text-xs text-red-500 mt-1">{formErrors.mobile}</p>}
-              </div>
-
-              <div>
                 <label className="block text-xs font-medium text-foreground mb-1">PAN Number</label>
                 <input
                   type="text"
@@ -369,6 +481,118 @@ export default function PullCibilPage() {
                   onChange={(e) => setDetails({ ...details, pan: e.target.value.toUpperCase() })}
                 />
                 {formErrors.pan && <p className="text-xs text-red-500 mt-1">{formErrors.pan}</p>}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Date of Birth</label>
+                <input
+                  type="date"
+                  className="input-base"
+                  value={details.dob}
+                  onChange={(e) => setDetails({ ...details, dob: e.target.value })}
+                />
+                {formErrors.dob && <p className="text-xs text-red-500 mt-1">{formErrors.dob}</p>}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Gender</label>
+                <select
+                  className="input-base"
+                  value={details.gender}
+                  onChange={(e) => setDetails({ ...details, gender: e.target.value })}
+                >
+                  <option value="">Select gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+                {formErrors.gender && <p className="text-xs text-red-500 mt-1">{formErrors.gender}</p>}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Address Line 1</label>
+                <input
+                  type="text"
+                  className="input-base"
+                  placeholder="House/Flat No., Street, Area"
+                  value={details.addressLine1}
+                  onChange={(e) => setDetails({ ...details, addressLine1: e.target.value })}
+                />
+                {formErrors.addressLine1 && <p className="text-xs text-red-500 mt-1">{formErrors.addressLine1}</p>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">City</label>
+                  <input
+                    type="text"
+                    className="input-base"
+                    placeholder="City"
+                    value={details.city}
+                    onChange={(e) => setDetails({ ...details, city: e.target.value })}
+                  />
+                  {formErrors.city && <p className="text-xs text-red-500 mt-1">{formErrors.city}</p>}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">State</label>
+                  <select
+                    className="input-base"
+                    value={details.state}
+                    onChange={(e) => setDetails({ ...details, state: e.target.value })}
+                  >
+                    <option value="">Select State</option>
+                    <option value="Andhra Pradesh">Andhra Pradesh</option>
+                    <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                    <option value="Assam">Assam</option>
+                    <option value="Bihar">Bihar</option>
+                    <option value="Chhattisgarh">Chhattisgarh</option>
+                    <option value="Goa">Goa</option>
+                    <option value="Gujarat">Gujarat</option>
+                    <option value="Haryana">Haryana</option>
+                    <option value="Himachal Pradesh">Himachal Pradesh</option>
+                    <option value="Jharkhand">Jharkhand</option>
+                    <option value="Karnataka">Karnataka</option>
+                    <option value="Kerala">Kerala</option>
+                    <option value="Madhya Pradesh">Madhya Pradesh</option>
+                    <option value="Maharashtra">Maharashtra</option>
+                    <option value="Manipur">Manipur</option>
+                    <option value="Meghalaya">Meghalaya</option>
+                    <option value="Mizoram">Mizoram</option>
+                    <option value="Nagaland">Nagaland</option>
+                    <option value="Odisha">Odisha</option>
+                    <option value="Punjab">Punjab</option>
+                    <option value="Rajasthan">Rajasthan</option>
+                    <option value="Sikkim">Sikkim</option>
+                    <option value="Tamil Nadu">Tamil Nadu</option>
+                    <option value="Telangana">Telangana</option>
+                    <option value="Tripura">Tripura</option>
+                    <option value="Uttar Pradesh">Uttar Pradesh</option>
+                    <option value="Uttarakhand">Uttarakhand</option>
+                    <option value="West Bengal">West Bengal</option>
+                    <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+                    <option value="Chandigarh">Chandigarh</option>
+                    <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
+                    <option value="Delhi">Delhi</option>
+                    <option value="Jammu and Kashmir">Jammu and Kashmir</option>
+                    <option value="Ladakh">Ladakh</option>
+                    <option value="Lakshadweep">Lakshadweep</option>
+                    <option value="Puducherry">Puducherry</option>
+                  </select>
+                  {formErrors.state && <p className="text-xs text-red-500 mt-1">{formErrors.state}</p>}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Pin Code <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  className="input-base font-mono"
+                  placeholder="6-digit Pin Code"
+                  maxLength={6}
+                  value={details.pinCode}
+                  onChange={(e) => setDetails({ ...details, pinCode: e.target.value.replace(/\D/g, '') })}
+                />
+                {formErrors.pinCode && <p className="text-xs text-red-500 mt-1">{formErrors.pinCode}</p>}
               </div>
 
               <div>
@@ -398,7 +622,7 @@ export default function PullCibilPage() {
           <div className="bg-white rounded-xl border border-border p-6">
             <h2 className="text-base font-semibold text-foreground mb-1">OTP Verification</h2>
             <p className="text-sm text-muted-foreground mb-5">
-              Verify customer consent via OTP sent to <span className="font-medium text-foreground">+91 {details.mobile}</span>
+              Verify customer identity to proceed with the bureau pull.
             </p>
 
             {!otpSent ? (
@@ -419,7 +643,7 @@ export default function PullCibilPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-xs text-emerald-600 font-medium">
                   <CheckCircle2 size={14} />
-                  OTP sent successfully to +91 {details.mobile}
+                  OTP sent successfully
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-foreground mb-1">Enter OTP</label>
@@ -458,7 +682,7 @@ export default function PullCibilPage() {
             <div className="bg-white rounded-xl border border-border p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h2 className="text-base font-semibold text-foreground">CIBIL Report Summary</h2>
+                  <h2 className="text-base font-semibold text-foreground">Bureau Report Summary</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Report ID: <span className="font-mono font-medium">{result.reportId}</span> · {result.generatedAt}
                   </p>
@@ -484,7 +708,7 @@ export default function PullCibilPage() {
                   <p className={`text-2xl font-bold ${result.riskLevel === 'Low' ? 'text-emerald-600' : result.riskLevel === 'Medium' ? 'text-amber-600' : 'text-red-600'}`}>
                     {result.riskLevel}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1 capitalize">{reportType} CIBIL</p>
+                  <p className="text-xs text-muted-foreground mt-1 capitalize">{reportType} Bureau</p>
                 </div>
               </div>
 
@@ -505,8 +729,10 @@ export default function PullCibilPage() {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Customer Details</p>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><span className="text-muted-foreground">Name:</span> <span className="font-medium">{details.fullName}</span></div>
-                <div><span className="text-muted-foreground">Mobile:</span> <span className="font-medium font-mono">+91 {details.mobile}</span></div>
                 <div><span className="text-muted-foreground">PAN:</span> <span className="font-medium font-mono">{details.pan}</span></div>
+                <div><span className="text-muted-foreground">Date of Birth:</span> <span className="font-medium">{details.dob}</span></div>
+                <div><span className="text-muted-foreground">Gender:</span> <span className="font-medium">{details.gender}</span></div>
+                <div className="col-span-2"><span className="text-muted-foreground">Address:</span> <span className="font-medium">{[details.addressLine1, details.city, details.state, details.pinCode].filter(Boolean).join(', ')}</span></div>
                 <div><span className="text-muted-foreground">Aadhaar:</span> <span className="font-medium font-mono">XXXX XXXX {details.aadhaar.slice(-4)}</span></div>
               </div>
             </div>

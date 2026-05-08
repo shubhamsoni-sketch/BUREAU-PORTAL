@@ -1,62 +1,190 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Topbar from '@/components/Topbar';
-import { useWallet } from '@/context/WalletContext';
-import {
-  Wallet,
-  AlertTriangle,
-  CheckCircle2,
-  ArrowDownCircle,
-  ArrowUpCircle,
-  RefreshCw,
-  CreditCard,
-  Package,
-  Zap,
-  TrendingUp,
-} from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Wallet, AlertTriangle, ArrowDownCircle, ArrowUpCircle, CreditCard, Package, TrendingUp, Users, Building2, RefreshCw, Receipt, BarChart3, Send, CheckCircle2, Clock, Zap, Lock } from 'lucide-react';
 
-const PRESET_AMOUNTS = [1000, 5000, 10000];
+interface WalletTransaction {
+  id: string;
+  created_at: string;
+  type: 'credit' | 'debit';
+  amount: number;
+  description: string;
+  transaction_type: string;
+  running_balance: number | null;
+  status?: string;
+  metadata?: Record<string, any>;
+}
+
+interface Commercials {
+  pricing_plan: string;
+  subscription_type: string;
+  consumer_credit_rate: number;
+  commercial_credit_rate: number;
+  bundled_credits: number;
+  credit_limit: number;
+}
+
+const PLAN_COLORS: Record<string, string> = {
+  Basic: 'bg-slate-100 text-slate-700 border-slate-200',
+  Standard: 'bg-blue-50 text-blue-700 border-blue-200',
+  Premium: 'bg-purple-50 text-purple-700 border-purple-200',
+  Custom: 'bg-amber-50 text-amber-700 border-amber-200',
+};
+
+const SUB_LABELS: Record<string, string> = {
+  prepaid: 'Prepaid',
+  monthly_fixed: 'Monthly Fixed',
+  hybrid: 'Hybrid',
+};
+
+type TabType = 'recharges' | 'statement';
 
 export default function MyWalletPage() {
-  const { balance, totalCredits, creditsUsed, transactions, recharge, LOW_BALANCE_THRESHOLD, CREDIT_COST } = useWallet();
+  const { user } = useAuth();
 
-  const [inputAmount, setInputAmount] = useState('');
-  const [recharging, setRecharging] = useState(false);
-  const [rechargeSuccess, setRechargeSuccess] = useState('');
-  const [rechargeError, setRechargeError] = useState('');
+  const [balance, setBalance] = useState<number>(0);
+  const [totalDeducted, setTotalDeducted] = useState<number>(0);
+  const [totalRecharged, setTotalRecharged] = useState<number>(0);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [commercials, setCommercials] = useState<Commercials | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('recharges');
 
+  // Credit request state
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditNote, setCreditNote] = useState('');
+  const [creditAmountError, setCreditAmountError] = useState('');
+  const [creditSubmitting, setCreditSubmitting] = useState(false);
+  const [creditSuccess, setCreditSuccess] = useState(false);
+
+  // Stripe mock state
+  const [stripeAmount, setStripeAmount] = useState('');
+  const [stripeAmountError, setStripeAmountError] = useState('');
+  const [stripeStep, setStripeStep] = useState<'idle' | 'processing' | 'success'>('idle');
+
+  const LOW_BALANCE_THRESHOLD = 200;
   const isLowBalance = balance < LOW_BALANCE_THRESHOLD;
-  const last10 = transactions.slice(0, 10);
 
-  function handlePreset(amount: number) {
-    setInputAmount(String(amount));
-    setRechargeError('');
-    setRechargeSuccess('');
-  }
+  useEffect(() => {
+    if (!user?.id) return;
+    loadWalletData();
+  }, [user?.id]);
 
-  function handleRecharge() {
-    const amt = parseInt(inputAmount, 10);
-    if (!inputAmount || isNaN(amt) || amt <= 0) {
-      setRechargeError('Please enter a valid amount.');
+  const loadWalletData = async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/partner-wallet-data?user_id=${user.id}`);
+      const json = await res.json();
+
+      if (!json.success) {
+        console.error('[MyWallet] API error:', json.error);
+        setLoading(false);
+        return;
+      }
+
+      setBalance(Number(json.balance ?? 0));
+      setTotalRecharged(Number(json.totalRecharged ?? 0));
+      setTotalDeducted(Number(json.totalDeducted ?? 0));
+      setTransactions((json.transactions ?? []) as WalletTransaction[]);
+
+      if (json.commercials) {
+        const c = json.commercials;
+        setCommercials({
+          pricing_plan: c.pricing_plan ?? 'Basic',
+          subscription_type: c.subscription_type ?? 'prepaid',
+          consumer_credit_rate: Number(c.consumer_credit_rate ?? c.credit_rate ?? 10),
+          commercial_credit_rate: Number(c.commercial_credit_rate ?? c.credit_rate ?? 15),
+          bundled_credits: c.bundled_credits ?? 0,
+          credit_limit: c.credit_limit ?? 1000,
+        });
+      }
+    } catch (err) {
+      console.error('[MyWallet] loadWalletData error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreditRequest = async () => {
+    setCreditAmountError('');
+    const amt = Number(creditAmount);
+    if (!creditAmount || isNaN(amt) || amt < 10000) {
+      setCreditAmountError('Minimum credit request amount is ₹10,000');
       return;
     }
-    if (amt < 100) {
-      setRechargeError('Minimum recharge amount is ₹100.');
+    if (!user?.id) return;
+    setCreditSubmitting(true);
+    try {
+      const res = await fetch('/api/request-credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, amount: amt, note: creditNote }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setCreditAmountError(json.error || 'Failed to submit request. Please try again.');
+        return;
+      }
+      setCreditSuccess(true);
+      setCreditAmount('');
+      setCreditNote('');
+      setTimeout(() => setCreditSuccess(false), 5000);
+    } catch {
+      setCreditAmountError('Network error. Please try again.');
+    } finally {
+      setCreditSubmitting(false);
+    }
+  };
+
+  const handleStripePayment = () => {
+    setStripeAmountError('');
+    const amt = Number(stripeAmount);
+    if (!stripeAmount || isNaN(amt) || amt < 10000) {
+      setStripeAmountError('Minimum payment amount is ₹10,000');
       return;
     }
-    setRechargeError('');
-    setRecharging(true);
-    // Mock payment success after 1.2s
+    setStripeStep('processing');
+    // Simulate checkout flow (mock — no live keys)
     setTimeout(() => {
-      recharge(amt);
-      setRechargeSuccess(`₹${amt.toLocaleString('en-IN')} added to your wallet successfully!`);
-      setInputAmount('');
-      setRecharging(false);
-      setTimeout(() => setRechargeSuccess(''), 4000);
-    }, 1200);
+      setStripeStep('success');
+      setStripeAmount('');
+      setTimeout(() => setStripeStep('idle'), 6000);
+    }, 2500);
+  };
+
+  function formatDate(iso: string) {
+    try {
+      return new Date(iso).toLocaleString('en-IN', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false,
+      }).replace(',', '');
+    } catch {
+      return iso;
+    }
   }
+
+  // Separate transactions
+  const rechargeTransactions = transactions.filter((t) => t.type === 'credit');
+  const allStatementTransactions = transactions; // all — credits + debits
+
+  const tabs: { id: TabType; label: string; icon: React.ReactNode; count: number }[] = [
+    {
+      id: 'recharges',
+      label: 'Wallet Recharges',
+      icon: <ArrowUpCircle size={14} />,
+      count: rechargeTransactions.length,
+    },
+    {
+      id: 'statement',
+      label: 'Full Statement',
+      icon: <Receipt size={14} />,
+      count: allStatementTransactions.length,
+    },
+  ];
 
   return (
     <AppLayout role="partner">
@@ -77,20 +205,20 @@ export default function MyWalletPage() {
 
       <div className="max-w-5xl mx-auto space-y-6 fade-in">
 
-        {/* ── Low Balance Alert ── */}
-        {isLowBalance && (
+        {/* Low Balance Alert */}
+        {isLowBalance && !loading && (
           <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
             <AlertTriangle size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-semibold text-red-700">Low Wallet Balance</p>
               <p className="text-xs text-red-600 mt-0.5">
-                Your balance (₹{balance}) is below the threshold of ₹{LOW_BALANCE_THRESHOLD}. Each CIBIL pull costs ₹{CREDIT_COST}. Please recharge to continue pulling reports.
+                Your balance (₹{balance}) is below ₹{LOW_BALANCE_THRESHOLD}. Contact your admin to recharge.
               </p>
             </div>
           </div>
         )}
 
-        {/* ── Wallet Overview ── */}
+        {/* Wallet Overview — 3 separate account cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Current Balance */}
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-5 text-white relative overflow-hidden">
@@ -114,168 +242,423 @@ export default function MyWalletPage() {
             </div>
           </div>
 
-          {/* Total Credits */}
+          {/* Recharge Account */}
           <div className="bg-white rounded-xl border border-border p-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
-                <TrendingUp size={14} className="text-blue-600" />
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+                <ArrowUpCircle size={14} className="text-emerald-600" />
               </div>
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Credits</span>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recharge Account</span>
             </div>
-            <p className="text-3xl font-bold font-mono tabular-nums text-foreground">
-              ₹{totalCredits.toLocaleString('en-IN')}
+            <p className="text-3xl font-bold font-mono tabular-nums text-emerald-600">
+              ₹{totalRecharged.toLocaleString('en-IN')}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">Lifetime credits purchased</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {rechargeTransactions.filter(t => t.status !== 'pending').length} recharge{rechargeTransactions.filter(t => t.status !== 'pending').length !== 1 ? 's' : ''} credited
+            </p>
           </div>
 
-          {/* Credits Used */}
+          {/* Deduction Account */}
           <div className="bg-white rounded-xl border border-border p-5">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
                 <ArrowDownCircle size={14} className="text-amber-600" />
               </div>
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Credits Used</span>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Deduction Account</span>
             </div>
-            <p className="text-3xl font-bold font-mono tabular-nums text-foreground">
-              ₹{creditsUsed.toLocaleString('en-IN')}
+            <p className="text-3xl font-bold font-mono tabular-nums text-amber-600">
+              ₹{totalDeducted.toLocaleString('en-IN')}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">Total deductions so far</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {transactions.filter(t => t.type === 'debit').length} Bureau pull{transactions.filter(t => t.type === 'debit').length !== 1 ? 's' : ''} deducted
+            </p>
           </div>
         </div>
 
-        {/* ── Recharge Section ── */}
-        <div className="bg-white rounded-xl border border-border p-6">
-          <h2 className="text-base font-semibold text-foreground mb-1">Recharge Wallet</h2>
-          <p className="text-sm text-muted-foreground mb-5">Add credits to your wallet using mock payment flow.</p>
-
-          {/* Success */}
-          {rechargeSuccess && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200 mb-4">
-              <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0" />
-              <p className="text-sm font-medium text-emerald-700">{rechargeSuccess}</p>
+        {/* Plan Details */}
+        {commercials && (
+          <div className="bg-white rounded-xl border border-border p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
+                <TrendingUp size={16} className="text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-foreground">Your Plan Details</h2>
+                <p className="text-xs text-muted-foreground">Rates set by your admin</p>
+              </div>
             </div>
-          )}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                <p className="text-xs text-muted-foreground mb-1">Pricing Plan</p>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${PLAN_COLORS[commercials.pricing_plan] ?? 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                  {commercials.pricing_plan}
+                </span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                <p className="text-xs text-muted-foreground mb-1">Subscription</p>
+                <p className="text-sm font-semibold text-foreground">{SUB_LABELS[commercials.subscription_type] ?? commercials.subscription_type}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
+                <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Users size={10} /> Consumer Rate</p>
+                <p className="text-sm font-bold text-blue-700">₹{commercials.consumer_credit_rate}<span className="text-xs font-normal text-muted-foreground">/pull</span></p>
+              </div>
+              <div className="p-3 rounded-lg bg-purple-50 border border-purple-100">
+                <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Building2 size={10} /> Commercial Rate</p>
+                <p className="text-sm font-bold text-purple-700">₹{commercials.commercial_credit_rate}<span className="text-xs font-normal text-muted-foreground">/pull</span></p>
+              </div>
+            </div>
+          </div>
+        )}
 
-          {/* Preset Buttons */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {PRESET_AMOUNTS.map((amt) => (
-              <button
-                key={amt}
-                onClick={() => handlePreset(amt)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all duration-150
-                  ${inputAmount === String(amt)
-                    ? 'bg-primary text-white border-primary' :'bg-slate-50 text-foreground border-border hover:border-primary hover:text-primary'
-                  }`}
-              >
-                ₹{amt.toLocaleString('en-IN')}
-              </button>
-            ))}
+        {/* Recharge Wallet — Credit Request Form */}
+        <div className="bg-white rounded-xl border border-border p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+              <Wallet size={16} className="text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Request Wallet Credits</h2>
+              <p className="text-xs text-muted-foreground">Submit a credit request to your admin</p>
+            </div>
           </div>
 
-          {/* Custom Amount Input */}
-          <div className="flex items-start gap-3">
-            <div className="flex-1 max-w-xs">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">₹</span>
-                <input
-                  type="number"
-                  className="input-base pl-7 font-mono"
-                  placeholder="Enter custom amount"
-                  min={100}
-                  value={inputAmount}
-                  onChange={(e) => {
-                    setInputAmount(e.target.value);
-                    setRechargeError('');
-                    setRechargeSuccess('');
-                  }}
+          {creditSuccess ? (
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-emerald-50 border border-emerald-200">
+              <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-800">Request Submitted!</p>
+                <p className="text-xs text-emerald-700 mt-0.5">Your credit request has been sent to the admin. You will be notified once it is processed.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  Amount Requested <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">₹</span>
+                  <input
+                    type="number"
+                    min={10000}
+                    step={1000}
+                    value={creditAmount}
+                    onChange={(e) => { setCreditAmount(e.target.value); setCreditAmountError(''); }}
+                    placeholder="10000"
+                    className={`w-full pl-7 pr-4 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 transition-all
+                      ${creditAmountError
+                        ? 'border-red-300 focus:ring-red-200 bg-red-50' :'border-slate-200 focus:ring-blue-200 focus:border-blue-400 bg-white'
+                      }`}
+                  />
+                </div>
+                {creditAmountError && (
+                  <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                    <AlertTriangle size={11} />
+                    {creditAmountError}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">Minimum request: ₹10,000</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">Note (optional)</label>
+                <textarea
+                  value={creditNote}
+                  onChange={(e) => setCreditNote(e.target.value)}
+                  placeholder="Any additional information for the admin..."
+                  rows={2}
+                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 resize-none"
                 />
               </div>
-              {rechargeError && <p className="text-xs text-red-500 mt-1">{rechargeError}</p>}
-              <p className="text-xs text-muted-foreground mt-1">Minimum recharge: ₹100</p>
-            </div>
-            <button
-              onClick={handleRecharge}
-              disabled={recharging}
-              className="btn-primary disabled:opacity-60 flex items-center gap-2"
-            >
-              {recharging ? (
-                <><RefreshCw size={14} className="animate-spin" /> Processing...</>
-              ) : (
-                <><ArrowUpCircle size={14} /> Recharge</>
-              )}
-            </button>
-          </div>
 
-          <p className="text-xs text-muted-foreground mt-4 flex items-center gap-1.5">
-            <Zap size={11} className="text-amber-500" />
-            Mock payment flow — no real transaction will occur.
-          </p>
-        </div>
-
-        {/* ── Transaction History ── */}
-        <div className="bg-white rounded-xl border border-border">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Transaction History</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Last 10 transactions</p>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-border">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {last10.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
-                      No transactions yet.
-                    </td>
-                  </tr>
+              <button
+                onClick={handleCreditRequest}
+                disabled={creditSubmitting}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                {creditSubmitting ? (
+                  <>
+                    <Clock size={14} className="animate-spin" />
+                    Submitting...
+                  </>
                 ) : (
-                  last10.map((txn) => (
-                    <tr key={txn.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-6 py-3.5 text-xs text-muted-foreground font-mono whitespace-nowrap">{txn.date}</td>
-                      <td className="px-6 py-3.5 text-sm text-foreground max-w-[220px] truncate">{txn.description}</td>
-                      <td className="px-6 py-3.5">
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full
-                          ${txn.type === 'Recharge' ?'bg-emerald-50 text-emerald-700 border border-emerald-200' :'bg-amber-50 text-amber-700 border border-amber-200'
-                          }`}>
-                          {txn.type === 'Recharge'
-                            ? <ArrowUpCircle size={11} />
-                            : <ArrowDownCircle size={11} />
-                          }
-                          {txn.type}
-                        </span>
-                      </td>
-                      <td className={`px-6 py-3.5 text-sm font-semibold font-mono text-right whitespace-nowrap
-                        ${txn.type === 'Recharge' ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {txn.type === 'Recharge' ? '+' : ''}₹{Math.abs(txn.amount).toLocaleString('en-IN')}
-                      </td>
-                      <td className="px-6 py-3.5">
-                        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full
-                          ${txn.status === 'Success' ?'bg-emerald-50 text-emerald-700'
-                            : txn.status === 'Pending' ?'bg-amber-50 text-amber-700' :'bg-red-50 text-red-700'
-                          }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${txn.status === 'Success' ? 'bg-emerald-500' : txn.status === 'Pending' ? 'bg-amber-500' : 'bg-red-500'}`} />
-                          {txn.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  <>
+                    <Send size={14} />
+                    Submit Credit Request
+                  </>
                 )}
-              </tbody>
-            </table>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Pay via Stripe — Mock Section */}
+        <div className="bg-white rounded-xl border border-border p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                <Zap size={16} className="text-indigo-600" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-foreground">Pay via Stripe</h2>
+                <p className="text-xs text-muted-foreground">Instant wallet top-up using card / UPI / net banking</p>
+              </div>
+            </div>
+            <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+              <Lock size={10} />
+              Demo Mode
+            </span>
+          </div>
+
+          {/* Info banner */}
+          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-indigo-50 border border-indigo-100 mb-5">
+            <CreditCard size={14} className="text-indigo-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-indigo-700">
+              Stripe integration is ready. Your admin will activate live payments once keys are configured in the Integrations settings. This is a simulated checkout for preview.
+            </p>
+          </div>
+
+          {stripeStep === 'success' ? (
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-emerald-50 border border-emerald-200">
+              <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-800">Payment Simulated Successfully!</p>
+                <p className="text-xs text-emerald-700 mt-0.5">
+                  In live mode, your wallet would be credited instantly and an invoice auto-generated as Paid.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  Payment Amount <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">₹</span>
+                  <input
+                    type="number"
+                    min={10000}
+                    step={1000}
+                    value={stripeAmount}
+                    onChange={(e) => { setStripeAmount(e.target.value); setStripeAmountError(''); }}
+                    placeholder="10000"
+                    disabled={stripeStep === 'processing'}
+                    className={`w-full pl-7 pr-4 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 transition-all disabled:opacity-60
+                      ${stripeAmountError
+                        ? 'border-red-300 focus:ring-red-200 bg-red-50' :'border-slate-200 focus:ring-indigo-200 focus:border-indigo-400 bg-white'
+                      }`}
+                  />
+                </div>
+                {stripeAmountError && (
+                  <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                    <AlertTriangle size={11} />
+                    {stripeAmountError}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">Minimum payment: ₹10,000 INR</p>
+              </div>
+
+              <button
+                onClick={handleStripePayment}
+                disabled={stripeStep === 'processing'}
+                className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                {stripeStep === 'processing' ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    Opening Stripe Checkout...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard size={14} />
+                    Pay via Stripe
+                  </>
+                )}
+              </button>
+
+              {/* Stripe branding strip */}
+              <div className="flex items-center justify-center gap-2 pt-1">
+                <Lock size={10} className="text-slate-400" />
+                <span className="text-xs text-slate-400">Secured by</span>
+                <span className="text-xs font-bold text-slate-500 tracking-wide">stripe</span>
+                <span className="text-xs text-slate-400">· Cards, UPI, Net Banking supported</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tabbed Transaction Section */}
+        <div className="bg-white rounded-xl border border-border">
+          {/* Tab Header */}
+          <div className="flex items-center justify-between px-6 pt-4 pb-0 border-b border-border">
+            <div className="flex items-center gap-1">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-all duration-150 -mb-px
+                    ${activeTab === tab.id
+                      ? 'border-blue-600 text-blue-600 bg-blue-50/50' :'border-transparent text-muted-foreground hover:text-foreground hover:bg-slate-50'
+                    }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-mono
+                    ${activeTab === tab.id ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3 pb-2">
+              <button
+                onClick={loadWalletData}
+                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <RefreshCw size={12} />
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          <div className="overflow-x-auto">
+            {activeTab === 'recharges' && (
+              <>
+                {/* Recharges tab — credits only */}
+                <div className="px-6 py-3 bg-emerald-50/40 border-b border-emerald-100 flex items-center gap-2">
+                  <ArrowUpCircle size={13} className="text-emerald-600" />
+                  <p className="text-xs text-emerald-700 font-medium">
+                    Showing all wallet recharges — credits added by admin when invoice is paid
+                  </p>
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-border">
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</th>
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</th>
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount Credited</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Balance After</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                          <RefreshCw size={16} className="animate-spin inline mr-2" />Loading...
+                        </td>
+                      </tr>
+                    ) : rechargeTransactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                          No wallet recharges yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      rechargeTransactions.map((txn) => (
+                        <tr key={txn.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="px-6 py-3.5 text-xs text-muted-foreground font-mono whitespace-nowrap">{formatDate(txn.created_at)}</td>
+                          <td className="px-6 py-3.5 text-sm text-foreground max-w-[220px] truncate">{txn.description}</td>
+                          <td className="px-6 py-3.5">
+                            {txn.status === 'pending' ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                Payment Pending
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <ArrowUpCircle size={10} />
+                                Wallet Recharged
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-3.5 text-sm font-semibold font-mono text-right whitespace-nowrap text-emerald-600">
+                            +₹{Number(txn.amount).toLocaleString('en-IN')}
+                          </td>
+                          <td className="px-6 py-3.5 text-xs text-muted-foreground font-mono text-right">
+                            {txn.status === 'pending' ? '—' : txn.running_balance != null ? `₹${Number(txn.running_balance).toLocaleString('en-IN')}` : '—'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {activeTab === 'statement' && (
+              <>
+                {/* Full Statement tab — all transactions */}
+                <div className="px-6 py-3 bg-slate-50/60 border-b border-slate-100 flex items-center gap-2">
+                  <BarChart3 size={13} className="text-slate-500" />
+                  <p className="text-xs text-slate-600 font-medium">
+                    Complete account statement — all credits (recharges) and debits (Bureau pulls) in chronological order
+                  </p>
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-border">
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</th>
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</th>
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Credit</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Debit</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                          <RefreshCw size={16} className="animate-spin inline mr-2" />Loading...
+                        </td>
+                      </tr>
+                    ) : allStatementTransactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                          No transactions yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      allStatementTransactions.map((txn) => (
+                        <tr key={txn.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="px-6 py-3.5 text-xs text-muted-foreground font-mono whitespace-nowrap">{formatDate(txn.created_at)}</td>
+                          <td className="px-6 py-3.5 text-sm text-foreground max-w-[200px] truncate">{txn.description}</td>
+                          <td className="px-6 py-3.5">
+                            {txn.type === 'credit' ? (
+                              <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full
+                                ${txn.status === 'pending' ?'bg-amber-50 text-amber-700 border border-amber-200' :'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+                                <ArrowUpCircle size={10} />
+                                {txn.status === 'pending' ? 'Pending' : 'Recharge'}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">
+                                <ArrowDownCircle size={10} />
+                                Bureau Pull
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-3.5 text-sm font-semibold font-mono text-right whitespace-nowrap text-emerald-600">
+                            {txn.type === 'credit' ? `+₹${Number(txn.amount).toLocaleString('en-IN')}` : '—'}
+                          </td>
+                          <td className="px-6 py-3.5 text-sm font-semibold font-mono text-right whitespace-nowrap text-red-600">
+                            {txn.type === 'debit' ? `-₹${Number(txn.amount).toLocaleString('en-IN')}` : '—'}
+                          </td>
+                          <td className="px-6 py-3.5 text-xs text-muted-foreground font-mono text-right">
+                            {txn.status === 'pending' ? '—' : txn.running_balance != null ? `₹${Number(txn.running_balance).toLocaleString('en-IN')}` : '—'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </>
+            )}
           </div>
         </div>
 
-        {/* ── Placeholder: Subscription Plans ── */}
+        {/* Subscription Plans placeholder */}
         <div className="bg-white rounded-xl border border-dashed border-border p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
@@ -287,11 +670,11 @@ export default function MyWalletPage() {
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            Monthly and annual subscription plans with discounted per-report pricing will be available here. Upgrade to save more on bulk CIBIL pulls.
+            Monthly and annual subscription plans with discounted per-report pricing will be available here.
           </p>
         </div>
 
-        {/* ── Placeholder: Add-on Credits ── */}
+        {/* Add-on Credits placeholder */}
         <div className="bg-white rounded-xl border border-dashed border-border p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">

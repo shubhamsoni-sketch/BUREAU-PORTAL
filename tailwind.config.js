@@ -10,6 +10,7 @@ module.exports = {
       fontFamily: {
         sans: ['DM Sans', 'sans-serif'],
         mono: ['IBM Plex Mono', 'monospace'],
+        display: ['Fraunces', 'serif'],
       },
       colors: {
         background: 'hsl(var(--background))',

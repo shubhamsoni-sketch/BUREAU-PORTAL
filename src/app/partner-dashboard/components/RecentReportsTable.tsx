@@ -163,7 +163,7 @@ export default function RecentReportsTable() {
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">Recent CIBIL Pulls</h3>
+          <h3 className="text-sm font-semibold text-slate-800">Recent Bureau Pulls</h3>
           <p className="text-xs text-slate-500 mt-0.5">Last 8 report requests — click any row to view full analysis</p>
         </div>
         <div className="flex items-center gap-2">
@@ -265,7 +265,7 @@ export default function RecentReportsTable() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        title="View full CIBIL analysis"
+                        title="View full Bureau analysis"
                         className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-all"
                       >
                         <Eye size={14} />
@@ -281,7 +281,7 @@ export default function RecentReportsTable() {
                       )}
                       {r.status !== 'Success' && (
                         <button
-                          title="Retry CIBIL pull"
+                          title="Retry Bureau pull"
                           onClick={() => toast.info(`Retrying pull for ${r.customerName}`)}
                           className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600 transition-all"
                         >

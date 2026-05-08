@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%">
+  <defs>
+    <!-- Base Coordinate Grid Pattern -->
+    <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#E2E8F0" stroke-width="0.5" />
+    </pattern>
+
+    <!-- Animation Styles -->
+    <style><![CDATA[
+@keyframes drawLine {
+        to { stroke-dashoffset: 0; }
+      }
+      @keyframes fadeIn {
+        to { opacity: 1; }
+      }
+      @keyframes pulseRing {
+        0% { transform: scale(0.8); opacity: 0.8; }
+        50% { transform: scale(1.2); opacity: 0.2; }
+        100% { transform: scale(0.8); opacity: 0.8; }
+      }
+
+      /* Line Drawing Animations */
+      .line-primary {
+        stroke-dasharray: 1200;
+        stroke-dashoffset: 1200;
+        animation: drawLine 3.5s cubic-bezier(0.3, 0.1, 0.3, 1) forwards;
+      }
+      .line-sec1 {
+        stroke-dasharray: 1200;
+        stroke-dashoffset: 1200;
+        animation: drawLine 4s cubic-bezier(0.3, 0.1, 0.3, 1) 0.2s forwards;
+      }
+      .line-sec2 {
+        stroke-dasharray: 1200;
+        stroke-dashoffset: 1200;
+        animation: drawLine 4.5s cubic-bezier(0.3, 0.1, 0.3, 1) 0.4s forwards;
+      }
+
+      /* Sequential Fade-Ins for Annotations */
+      .fade-0 { opacity: 0; animation: fadeIn 0.8s ease-out 0.5s forwards; }
+      .fade-1 { opacity: 0; animation: fadeIn 0.8s ease-out 1.6s forwards; }
+      .fade-2 { opacity: 0; animation: fadeIn 0.8s ease-out 2.4s forwards; }
+      .fade-3 { opacity: 0; animation: fadeIn 0.8s ease-out 2.8s forwards; }
+      .fade-4 { opacity: 0; animation: fadeIn 0.8s ease-out 3.5s forwards; }
+
+      /* Continuous Pulses */
+      .pulse-1 {
+        transform-origin: 300px 150px;
+        animation: pulseRing 3s infinite ease-in-out 1.6s;
+      }
+      .pulse-2 {
+        transform-origin: 450px 100px;
+        animation: pulseRing 3s infinite ease-in-out 2.4s;
+      }
+]]></style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="#FFFFFF" />
+
+  <!-- Coordinate Grid -->
+  <rect x="50" y="50" width="700" height="400" fill="url(#grid)" />
+
+  <!-- Axis Lines & Ticks -->
+  <g class="fade-0">
+    <!-- X and Y Axes -->
+    <path d="M 50 50 L 50 450 L 750 450" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    
+    <!-- X-Axis Ticks & Abstract Labels -->
+    <path d="M 150 450 L 150 455 M 250 450 L 250 455 M 350 450 L 350 455 M 450 450 L 450 455 M 550 450 L 550 455 M 650 450 L 650 455" fill="none" stroke="#94A3B8" stroke-width="1" />
+    <rect x="145" y="462" width="10" height="3" rx="1.5" fill="#CBD5E1" />
+    <rect x="245" y="462" width="10" height="3" rx="1.5" fill="#CBD5E1" />
+    <rect x="345" y="462" width="10" height="3" rx="1.5" fill="#CBD5E1" />
+    <rect x="445" y="462" width="10" height="3" rx="1.5" fill="#CBD5E1" />
+    <rect x="545" y="462" width="10" height="3" rx="1.5" fill="#CBD5E1" />
+    <rect x="645" y="462" width="10" height="3" rx="1.5" fill="#CBD5E1" />
+
+    <!-- Y-Axis Ticks & Abstract Labels -->
+    <path d="M 50 150 L 45 150 M 50 250 L 45 250 M 50 350 L 45 350" fill="none" stroke="#94A3B8" stroke-width="1" />
+    <rect x="25" y="148" width="12" height="4" rx="2" fill="#CBD5E1" />
+    <rect x="25" y="248" width="12" height="4" rx="2" fill="#CBD5E1" />
+    <rect x="25" y="348" width="12" height="4" rx="2" fill="#CBD5E1" />
+  </g>
+
+  <!-- Threshold Line & Label -->
+  <g class="fade-0">
+    <path d="M 50 150 L 750 150" fill="none" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="6 6" />
+    <rect x="60" y="138" width="45" height="6" rx="3" fill="#CBD5E1" />
+  </g>
+
+  <!-- Background Highlight Column (Pattern Recognition Zone 1) -->
+  <rect class="fade-1" x="250" y="50" width="100" height="400" fill="#E2E8F0" fill-opacity="0.3" />
+
+  <!-- Secondary Signal 2 (Background Wave) -->
+  <path class="line-sec2" d="M 50 400 C 150 400, 180 250, 280 250 C 350 250, 380 100, 450 100 C 550 100, 600 350, 700 350 C 730 350, 740 320, 750 320" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6" />
+
+  <!-- Secondary Signal 1 (Midground Wave) -->
+  <path class="line-sec1" d="M 50 250 C 120 250, 150 320, 220 320 C 280 320, 320 180, 400 180 C 480 180, 520 260, 600 260 C 680 260, 700 200, 750 200" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+
+  <!-- Primary Signal (Foreground Wave) -->
+  <path class="line-primary" d="M 50 350 C 100 350, 120 280, 180 280 C 220 280, 250 150, 300 150 C 360 150, 380 220, 420 220 C 480 220, 500 300, 550 300 C 600 300, 620 180, 680 180 C 720 180, 730 100, 750 100" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Intelligence Annotations: Zone 1 (Primary Peak 1) -->
+  <g class="fade-1">
+    <!-- Bounding Box -->
+    <rect x="250" y="100" width="100" height="100" fill="#2563EB" fill-opacity="0.03" stroke="#2563EB" stroke-width="1" stroke-dasharray="4 4" />
+    
+    <!-- Marker & Pulse -->
+    <circle class="pulse-1" cx="300" cy="150" r="12" fill="none" stroke="#2563EB" stroke-width="1" stroke-dasharray="2 2" />
+    <circle cx="300" cy="150" r="4" fill="#FFFFFF" stroke="#2563EB" stroke-width="2" />
+    
+    <!-- Connector Line -->
+    <path d="M 312 150 L 330 150" fill="none" stroke="#2563EB" stroke-width="1" />
+    
+    <!-- Abstract Analysis Panel -->
+    <rect x="330" y="125" width="60" height="40" rx="3" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" />
+    <rect x="338" y="133" width="20" height="4" rx="2" fill="#94A3B8" />
+    <!-- Mini Bar Chart -->
+    <rect x="338" y="145" width="4" height="12" rx="1" fill="#CBD5E1" />
+    <rect x="346" y="141" width="4" height="16" rx="1" fill="#2563EB" />
+    <rect x="354" y="149" width="4" height="8" rx="1" fill="#CBD5E1" />
+    <rect x="362" y="137" width="4" height="20" rx="1" fill="#2563EB" />
+  </g>
+
+  <!-- Intelligence Annotations: Zone 2 (Secondary 2 Peak) -->
+  <g class="fade-2">
+    <!-- Marker & Pulse -->
+    <circle class="pulse-2" cx="450" cy="100" r="10" fill="none" stroke="#94A3B8" stroke-width="1" stroke-dasharray="2 2" />
+    <circle cx="450" cy="100" r="3" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2" />
+    
+    <!-- Horizontal Reference Line -->
+    <path d="M 50 100 L 440 100" fill="none" stroke="#94A3B8" stroke-width="1" stroke-dasharray="4 4" opacity="0.5" />
+    <rect x="15" y="98" width="25" height="4" rx="2" fill="#94A3B8" opacity="0.7" />
+  </g>
+
+  <!-- Intelligence Annotations: Zone 3 (Primary Trough) -->
+  <g class="fade-3">
+    <circle cx="550" cy="300" r="3.5" fill="#FFFFFF" stroke="#2563EB" stroke-width="2" />
+    <path d="M 550 308 L 550 320" fill="none" stroke="#2563EB" stroke-width="1" />
+    <rect x="540" y="320" width="20" height="4" rx="2" fill="#2563EB" opacity="0.6" />
+  </g>
+
+  <!-- Intelligence Annotations: Zone 4 (Primary Peak 2 / Final Output) -->
+  <g class="fade-4">
+    <!-- Marker -->
+    <circle cx="750" cy="100" r="4.5" fill="#2563EB" />
+    <circle cx="750" cy="100" r="14" fill="none" stroke="#2563EB" stroke-width="1" opacity="0.4" />
+    
+    <!-- Vertical Drop Line -->
+    <path d="M 750 115 L 750 450" fill="none" stroke="#94A3B8" stroke-width="1" stroke-dasharray="4 4" />
+    <rect x="735" y="462" width="30" height="4" rx="2" fill="#94A3B8" />
+
+    <!-- Final Confidence Score Panel -->
+    <rect x="650" y="40" width="85" height="34" rx="3" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" />
+    <circle cx="668" cy="57" r="8" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-dasharray="12 6" stroke-linecap="round" />
+    <rect x="684" y="50" width="35" height="4" rx="2" fill="#94A3B8" />
+    <rect x="684" y="60" width="25" height="4" rx="2" fill="#CBD5E1" />
+  </g>
+
+</svg>

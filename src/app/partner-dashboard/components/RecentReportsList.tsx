@@ -174,7 +174,7 @@ export default function RecentReportsList() {
         <table className="w-full min-w-[900px]" role="table">
           <thead>
             <tr className="bg-muted/40 border-b border-border">
-              {['Customer Name', 'PAN Number', 'Purpose', 'Date & Time', 'CIBIL Score', 'Status', 'Cost', ''].map((col, i) => (
+              {['Customer Name', 'PAN Number', 'Purpose', 'Date & Time', 'Bureau Score', 'Status', 'Cost', ''].map((col, i) => (
                 <th key={`rth-${i + 1}`} className="table-th">{col}</th>
               ))}
             </tr>

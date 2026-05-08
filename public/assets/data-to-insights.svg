@@ -1,0 +1,214 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%">
+  <defs>
+    <!-- Filter Node Template -->
+    <g id="filter-node">
+      <rect x="-8" y="-8" width="16" height="16" transform="rotate(45)" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2" stroke-linejoin="round" />
+      <circle cx="0" cy="0" r="2" fill="#94A3B8" />
+    </g>
+  </defs>
+
+  <style><![CDATA[
+/* Data Flow Animation */
+    .flow-dot {
+      fill: #2563EB;
+      opacity: 0;
+      animation: flowRight 3s linear infinite;
+    }
+    .delay-1 { animation-delay: 0s; }
+    .delay-2 { animation-delay: 1s; }
+    .delay-3 { animation-delay: 2s; }
+
+    @keyframes flowRight {
+      0% { transform: translateX(240px); opacity: 0; }
+      15% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { transform: translateX(480px); opacity: 0; }
+    }
+]]></style>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="#FFFFFF" />
+
+  <!-- Structural Panels -->
+  <g id="panels">
+    <!-- Raw Data Panel (Dashed) -->
+    <rect x="40" y="60" width="320" height="380" fill="none" stroke="#E2E8F0" stroke-width="2" rx="8" stroke-dasharray="6 6" />
+    <!-- Panel UI Accent Left -->
+    <circle cx="64" cy="84" r="4" fill="#E2E8F0" />
+    <line x1="76" y1="84" x2="116" y2="84" stroke="#E2E8F0" stroke-width="3" stroke-linecap="round" />
+
+    <!-- Structured Insights Panel (Solid) -->
+    <rect x="440" y="60" width="320" height="380" fill="none" stroke="#E2E8F0" stroke-width="2" rx="8" />
+    <!-- Panel UI Accent Right -->
+    <circle cx="464" cy="84" r="4" fill="#94A3B8" />
+    <line x1="476" y1="84" x2="516" y2="84" stroke="#94A3B8" stroke-width="3" stroke-linecap="round" />
+  </g>
+
+  <!-- Right Side: Structured Insights (Grid & Bars) -->
+  <g id="structured-data">
+    <!-- Horizontal Grid Lines -->
+    <g stroke="#E2E8F0" stroke-width="1" stroke-dasharray="4 4">
+      <line x1="460" y1="145" x2="740" y2="145" />
+      <line x1="460" y1="205" x2="740" y2="205" />
+      <line x1="460" y1="265" x2="740" y2="265" />
+      <line x1="460" y1="325" x2="740" y2="325" />
+    </g>
+
+    <!-- Bar Chart Columns -->
+    <g fill="#E2E8F0">
+      <rect x="492" y="340" width="16" height="45" rx="2" />
+      <rect x="532" y="300" width="16" height="85" rx="2" />
+      <rect x="572" y="250" width="16" height="135" rx="2" />
+      <rect x="612" y="220" width="16" height="165" rx="2" />
+      <rect x="652" y="160" width="16" height="225" rx="2" />
+      <rect x="692" y="110" width="16" height="275" rx="2" />
+    </g>
+
+    <!-- Axes -->
+    <g stroke="#94A3B8" stroke-width="2" stroke-linecap="round">
+      <!-- X Axis -->
+      <line x1="460" y1="385" x2="740" y2="385" />
+      <!-- Y Axis -->
+      <line x1="460" y1="385" x2="460" y2="110" />
+      
+      <!-- Y Axis Ticks -->
+      <line x1="456" y1="325" x2="460" y2="325" />
+      <line x1="456" y1="265" x2="460" y2="265" />
+      <line x1="456" y1="205" x2="460" y2="205" />
+      <line x1="456" y1="145" x2="460" y2="145" />
+      
+      <!-- X Axis Ticks -->
+      <line x1="500" y1="385" x2="500" y2="389" />
+      <line x1="540" y1="385" x2="540" y2="389" />
+      <line x1="580" y1="385" x2="580" y2="389" />
+      <line x1="620" y1="385" x2="620" y2="389" />
+      <line x1="660" y1="385" x2="660" y2="389" />
+      <line x1="700" y1="385" x2="700" y2="389" />
+    </g>
+  </g>
+
+  <!-- Left Side: Raw Data (Scattered Lines) -->
+  <g id="raw-data" stroke-linecap="round">
+    <!-- Primary Raw Data Lines -->
+    <g stroke="#E2E8F0" stroke-width="3">
+      <line x1="80" y1="125" x2="160" y2="125" />
+      <line x1="200" y1="125" x2="280" y2="125" />
+      <line x1="60" y1="145" x2="220" y2="145" />
+      <line x1="260" y1="145" x2="320" y2="145" />
+      <line x1="100" y1="165" x2="180" y2="165" />
+      <line x1="210" y1="165" x2="340" y2="165" />
+      <line x1="70" y1="185" x2="130" y2="185" />
+      <line x1="160" y1="185" x2="290" y2="185" />
+      <line x1="90" y1="205" x2="240" y2="205" />
+      <line x1="270" y1="205" x2="330" y2="205" />
+      <line x1="50" y1="225" x2="150" y2="225" />
+      <line x1="180" y1="225" x2="310" y2="225" />
+      <line x1="110" y1="245" x2="260" y2="245" />
+      <line x1="290" y1="245" x2="340" y2="245" />
+      <line x1="80" y1="265" x2="190" y2="265" />
+      <line x1="220" y1="265" x2="280" y2="265" />
+      <line x1="60" y1="285" x2="140" y2="285" />
+      <line x1="170" y1="285" x2="320" y2="285" />
+      <line x1="100" y1="305" x2="210" y2="305" />
+      <line x1="240" y1="305" x2="330" y2="305" />
+      <line x1="70" y1="325" x2="160" y2="325" />
+      <line x1="190" y1="325" x2="270" y2="325" />
+      <line x1="120" y1="345" x2="250" y2="345" />
+      <line x1="280" y1="345" x2="340" y2="345" />
+      <line x1="80" y1="365" x2="180" y2="365" />
+      <line x1="210" y1="365" x2="310" y2="365" />
+      <line x1="60" y1="385" x2="140" y2="385" />
+      <line x1="170" y1="385" x2="290" y2="385" />
+      <line x1="90" y1="405" x2="220" y2="405" />
+      <line x1="250" y1="405" x2="330" y2="405" />
+    </g>
+    
+    <!-- Secondary Accent Lines in Raw Data -->
+    <g stroke="#94A3B8" stroke-width="3">
+      <line x1="140" y1="145" x2="160" y2="145" />
+      <line x1="240" y1="205" x2="260" y2="205" />
+      <line x1="110" y1="285" x2="130" y2="285" />
+      <line x1="290" y1="325" x2="310" y2="325" />
+      <line x1="180" y1="385" x2="200" y2="385" />
+    </g>
+
+    <!-- Floating Raw Data Particles -->
+    <g fill="#E2E8F0">
+      <circle cx="120" cy="110" r="2" />
+      <circle cx="280" cy="175" r="2" />
+      <circle cx="190" cy="395" r="2" />
+      <circle cx="320" cy="135" r="2" />
+      <circle cx="240" cy="315" r="2" />
+    </g>
+  </g>
+
+  <!-- Center: Filter / Divider -->
+  <g id="filter-divider">
+    <!-- Main Vertical Divider Line -->
+    <line x1="400" y1="60" x2="400" y2="440" stroke="#94A3B8" stroke-width="2" />
+    
+    <!-- Flow Track Connectors (Subtle lines guiding into the filter) -->
+    <g stroke="#E2E8F0" stroke-width="1" stroke-dasharray="2 4">
+      <line x1="360" y1="175" x2="440" y2="175" />
+      <line x1="360" y1="250" x2="440" y2="250" />
+      <line x1="360" y1="325" x2="440" y2="325" />
+    </g>
+
+    <!-- Filter Nodes -->
+    <use href="#filter-node" x="400" y="175" />
+    <use href="#filter-node" x="400" y="250" />
+    <use href="#filter-node" x="400" y="325" />
+  </g>
+
+  <!-- Animation: Data Flowing Through Filter -->
+  <g id="data-flow">
+    <!-- Track 1 (Y = 175) -->
+    <circle class="flow-dot delay-1" cx="0" cy="175" r="4" />
+    <circle class="flow-dot delay-2" cx="0" cy="175" r="4" />
+    <circle class="flow-dot delay-3" cx="0" cy="175" r="4" />
+
+    <!-- Track 2 (Y = 250) -->
+    <circle class="flow-dot delay-2" cx="0" cy="250" r="4" />
+    <circle class="flow-dot delay-3" cx="0" cy="250" r="4" />
+    <circle class="flow-dot delay-1" cx="0" cy="250" r="4" />
+
+    <!-- Track 3 (Y = 325) -->
+    <circle class="flow-dot delay-3" cx="0" cy="325" r="4" />
+    <circle class="flow-dot delay-1" cx="0" cy="325" r="4" />
+    <circle class="flow-dot delay-2" cx="0" cy="325" r="4" />
+  </g>
+
+  <!-- Right Side: Trend Line & Accent Dots -->
+  <g id="trend-insights">
+    <!-- Trend Line Path -->
+    <path d="M 500 325 L 540 285 L 580 235 L 620 205 L 660 145 L 700 95" fill="none" stroke="#2563EB" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" />
+
+    <!-- Pulsing Trend Dots -->
+    <g fill="#FFFFFF" stroke="#2563EB">
+      <circle cx="500" cy="325" r="4" stroke-width="3">
+        <animate attributeName="r" values="4; 6; 4" dur="2s" begin="0s" repeatCount="indefinite" />
+        <animate attributeName="stroke-width" values="3; 2; 3" dur="2s" begin="0s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="540" cy="285" r="4" stroke-width="3">
+        <animate attributeName="r" values="4; 6; 4" dur="2s" begin="0.2s" repeatCount="indefinite" />
+        <animate attributeName="stroke-width" values="3; 2; 3" dur="2s" begin="0.2s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="580" cy="235" r="4" stroke-width="3">
+        <animate attributeName="r" values="4; 6; 4" dur="2s" begin="0.4s" repeatCount="indefinite" />
+        <animate attributeName="stroke-width" values="3; 2; 3" dur="2s" begin="0.4s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="620" cy="205" r="4" stroke-width="3">
+        <animate attributeName="r" values="4; 6; 4" dur="2s" begin="0.6s" repeatCount="indefinite" />
+        <animate attributeName="stroke-width" values="3; 2; 3" dur="2s" begin="0.6s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="660" cy="145" r="4" stroke-width="3">
+        <animate attributeName="r" values="4; 6; 4" dur="2s" begin="0.8s" repeatCount="indefinite" />
+        <animate attributeName="stroke-width" values="3; 2; 3" dur="2s" begin="0.8s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="700" cy="95" r="4" stroke-width="3">
+        <animate attributeName="r" values="4; 6; 4" dur="2s" begin="1.0s" repeatCount="indefinite" />
+        <animate attributeName="stroke-width" values="3; 2; 3" dur="2s" begin="1.0s" repeatCount="indefinite" />
+      </circle>
+    </g>
+  </g>
+</svg>

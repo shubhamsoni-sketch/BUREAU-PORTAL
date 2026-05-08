@@ -4,8 +4,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
-import { LayoutDashboard, Users, BookUser, Wallet, CreditCard, BarChart3, FileText, Plug, ScrollText, Settings, ChevronLeft, ChevronRight, LogOut, Shield,  } from 'lucide-react';
+import { LayoutDashboard, Users, BookUser, Wallet, CreditCard, FileText, Plug, ScrollText, ChevronLeft, ChevronRight, LogOut, Shield, Receipt } from 'lucide-react';
 import Icon from '@/components/ui/AppIcon';
+import { useAuth } from '@/context/AuthContext';
 
 
 const navGroups = [
@@ -18,30 +19,29 @@ const navGroups = [
   {
     label: 'Partner Management',
     items: [
-      { label: 'Partners', href: '/partners', icon: Users, badge: 4 },
-      { label: 'Customer Master', href: '/customer-master', icon: BookUser },
+      { label: 'Partners', href: '/admin-partners', icon: Users, badge: 3 },
+      { label: 'Customer Master', href: '/admin-customer-master', icon: BookUser },
     ],
   },
   {
     label: 'Finance',
     items: [
-      { label: 'Wallet Management', href: '/wallet-management', icon: Wallet },
-      { label: 'Payments', href: '/payments', icon: CreditCard },
+      { label: 'Wallet Management', href: '/admin-wallet', icon: Wallet },
+      { label: 'Payments', href: '/admin-payments', icon: CreditCard },
+      { label: 'Invoices', href: '/admin-invoices', icon: Receipt },
     ],
   },
   {
-    label: 'Insights',
+    label: 'Documents',
     items: [
-      { label: 'Reports & Analytics', href: '/reports-analytics', icon: BarChart3 },
-      { label: 'Agreements', href: '/agreements', icon: FileText },
+      { label: 'Agreements', href: '/admin-agreements', icon: FileText },
     ],
   },
   {
     label: 'System',
     items: [
-      { label: 'Integrations', href: '/integrations', icon: Plug },
-      { label: 'Audit Logs', href: '/audit-logs', icon: ScrollText },
-      { label: 'Settings', href: '/settings', icon: Settings },
+      { label: 'Integrations', href: '/admin-integrations', icon: Plug },
+      { label: 'Audit Logs', href: '/admin-audit-logs', icon: ScrollText },
     ],
   },
 ];
@@ -49,6 +49,7 @@ const navGroups = [
 export default function AdminSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   return (
     <aside
@@ -62,7 +63,7 @@ export default function AdminSidebar() {
       <div className={`flex items-center h-16 px-4 border-b border-slate-700/60 ${collapsed ? 'justify-center' : 'gap-3'}`}>
         <AppLogo size={32} />
         {!collapsed && (
-          <span className="font-semibold text-base text-white tracking-tight">CIBILysis</span>
+          <span className="font-semibold text-base text-white tracking-tight">Insight</span>
         )}
       </div>
       {/* Role Badge */}
@@ -82,7 +83,7 @@ export default function AdminSidebar() {
               </p>
             )}
             {group?.items?.map((item) => {
-              const isActive = pathname === item?.href;
+              const isActive = pathname === item?.href || pathname?.startsWith(item?.href + '/');
               const Icon = item?.icon;
               return (
                 <Link
@@ -123,12 +124,12 @@ export default function AdminSidebar() {
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-white truncate">Super Admin</p>
-              <p className="text-[10px] text-slate-400 truncate">admin@cibilysis.in</p>
+              <p className="text-xs font-semibold text-white truncate">{user?.name ?? 'Super Admin'}</p>
+              <p className="text-[10px] text-slate-400 truncate">{user?.email ?? 'admin@insight.in'}</p>
             </div>
           )}
           {!collapsed && (
-            <button className="text-slate-500 hover:text-white transition-colors">
+            <button onClick={logout} className="text-slate-500 hover:text-white transition-colors">
               <LogOut size={15} />
             </button>
           )}
