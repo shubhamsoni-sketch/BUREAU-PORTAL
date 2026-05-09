@@ -99,6 +99,13 @@ async function resolveAuthUser(supabaseUser: User): Promise<AuthUser | null> {
   }
 }
 
+function withAuthTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), 8000)),
+  ]);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -122,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!resolvingRef.current) {
             resolvingRef.current = true;
             try {
-              const profile = await resolveAuthUser(session.user);
+              const profile = await withAuthTimeout(resolveAuthUser(session.user), null);
               setUser(profile);
             } finally {
               resolvingRef.current = false;
@@ -153,10 +160,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (event === 'SIGNED_IN' && session?.user) {
-        if (resolvingRef.current) return;
+        if (resolvingRef.current) {
+          setIsLoading(false);
+          return;
+        }
         resolvingRef.current = true;
         try {
-          const profile = await resolveAuthUser(session.user);
+          const profile = await withAuthTimeout(resolveAuthUser(session.user), null);
           console.log('[AuthContext] setUser:', profile);
           setUser(profile);
         } finally {
@@ -177,7 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user && !resolvingRef.current) {
         resolvingRef.current = true;
         try {
-          const profile = await resolveAuthUser(session.user);
+          const profile = await withAuthTimeout(resolveAuthUser(session.user), null);
           setUser(profile);
         } finally {
           resolvingRef.current = false;
