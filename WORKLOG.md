@@ -2,6 +2,18 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-10 - Developer - Demo Partner Seed Migration
+
+Summary:
+
+- Added Supabase migration to seed the demo partner account `user@demo.in`.
+- Demo seed creates/updates auth user, user profile, partner row, wallet balance, partner commercials, and signed demo agreement.
+- This makes the demo account reproducible from the repo for fresh environments.
+
+Verification:
+
+- Migration file added. Existing DB already has the demo account; apply migration only where demo seed is needed.
+
 ## 2026-05-10 - Coordinator - Agent Operating System
 
 Summary:
@@ -41,4 +53,3 @@ Verification:
 
 - `npm run build -- --no-lint` passed.
 - `npm run type-check -- --pretty false` passed.
-

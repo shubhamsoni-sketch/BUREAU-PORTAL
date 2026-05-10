@@ -49,6 +49,22 @@ Ask the project owner for current admin credentials if needed. Existing local/de
 
 ## Current Completed Work
 
+### Demo Partner Account
+
+A reproducible Supabase seed migration exists:
+
+- `supabase/migrations/20260510120000_seed_demo_partner.sql`
+
+Demo account:
+
+- Email: `user@demo.in`
+- Password: ask owner or check the seed migration in trusted local context
+- Partner name: `Demo Partner`
+- Partner code: `DEMO001`
+- Status: `approved`
+- Agreement: signed
+- Wallet balance: `100000`
+
 ### Agreement Flow
 
 Implemented and pushed:
@@ -180,4 +196,3 @@ Suggested architecture:
 - For CIBIL work, discuss response JSON before implementing.
 - Run build and type-check before pushing.
 - If the worktree has unrelated changes, do not revert them.
-
