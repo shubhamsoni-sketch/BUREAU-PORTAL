@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
-import { LayoutDashboard, Users, BookUser, Wallet, CreditCard, FileText, Plug, ScrollText, ChevronLeft, ChevronRight, LogOut, Shield, Receipt } from 'lucide-react';
+import { LayoutDashboard, Users, BookUser, Wallet, CreditCard, FileText, Plug, ScrollText, ChevronLeft, ChevronRight, LogOut, Shield, Receipt, UserRoundCheck } from 'lucide-react';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 
@@ -21,6 +21,7 @@ const navGroups = [
     items: [
       { label: 'Partners', href: '/admin-partners', icon: Users, badge: 3 },
       { label: 'Customer Master', href: '/admin-customer-master', icon: BookUser },
+      { label: 'B2C Reports', href: '/admin-b2c-reports', icon: UserRoundCheck },
     ],
   },
   {

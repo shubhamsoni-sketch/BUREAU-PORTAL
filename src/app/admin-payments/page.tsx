@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { createClient } from '@/lib/supabase/client';
-import { Search, RefreshCw, IndianRupee, TrendingUp, CreditCard, User, FileText, Filter, X,  } from 'lucide-react';
+import { Search, RefreshCw, IndianRupee, TrendingUp, CreditCard, User, FileText, Filter, X, UsersRound, ShieldCheck } from 'lucide-react';
 
 interface Payment {
   id: string;
@@ -20,6 +20,29 @@ interface Payment {
   paid_at: string;
   created_at: string;
 }
+
+interface B2CPayment {
+  id: string;
+  request_id: string | null;
+  full_name: string | null;
+  mobile: string;
+  pan: string | null;
+  gateway: string;
+  order_id: string | null;
+  payment_id: string | null;
+  amount: number;
+  currency: string;
+  status: string;
+  paid_at: string | null;
+  created_at: string;
+  b2c_report_requests?: {
+    report_id: string | null;
+    credit_score: number | null;
+    status: string | null;
+  } | null;
+}
+
+type PaymentTab = 'partner' | 'b2c';
 
 const PAYMENT_MODE_COLORS: Record<string, string> = {
   'Bank Transfer': 'bg-blue-50 text-blue-700 border-blue-200',
@@ -54,7 +77,9 @@ function formatDateTime(iso: string) {
 
 export default function AdminPaymentsPage() {
   const supabase = createClient();
+  const [activeTab, setActiveTab] = useState<PaymentTab>('partner');
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [b2cPayments, setB2cPayments] = useState<B2CPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modeFilter, setModeFilter] = useState('All');
@@ -70,10 +95,17 @@ export default function AdminPaymentsPage() {
   async function fetchPayments() {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin-payments-list');
-      const json = await res.json();
+      const [partnerRes, b2cRes] = await Promise.all([
+        fetch('/api/admin-payments-list'),
+        fetch('/api/admin-b2c-payments'),
+      ]);
+      const json = await partnerRes.json();
+      const b2cJson = await b2cRes.json();
       if (json.payments) {
         setPayments(json.payments as Payment[]);
+      }
+      if (b2cJson.payments) {
+        setB2cPayments(b2cJson.payments as B2CPayment[]);
       }
     } catch (err) {
       console.error('[AdminPayments] fetch error:', err);
@@ -137,6 +169,36 @@ export default function AdminPaymentsPage() {
 
   const hasActiveFilters = modeFilter !== 'All' || partnerFilter !== 'All' || dateFrom || dateTo;
 
+  const filteredB2c = useMemo(() => {
+    return b2cPayments.filter((p) => {
+      const q = search.toLowerCase();
+      const matchSearch =
+        !search ||
+        (p.full_name ?? '').toLowerCase().includes(q) ||
+        p.mobile.toLowerCase().includes(q) ||
+        (p.pan ?? '').toLowerCase().includes(q) ||
+        (p.order_id ?? '').toLowerCase().includes(q) ||
+        (p.payment_id ?? '').toLowerCase().includes(q);
+
+      let matchDate = true;
+      const dateValue = p.paid_at ?? p.created_at;
+      if (dateFrom) {
+        matchDate = matchDate && new Date(dateValue) >= new Date(dateFrom);
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        matchDate = matchDate && new Date(dateValue) <= toDate;
+      }
+
+      return matchSearch && matchDate;
+    });
+  }, [b2cPayments, search, dateFrom, dateTo]);
+
+  const b2cSuccessful = b2cPayments.filter((p) => ['success', 'paid', 'captured'].includes(p.status.toLowerCase()));
+  const b2cCollected = b2cSuccessful.reduce((s, p) => s + Number(p.amount), 0);
+  const b2cPending = b2cPayments.filter((p) => !['success', 'paid', 'captured'].includes(p.status.toLowerCase())).length;
+
   function clearFilters() {
     setModeFilter('All');
     setPartnerFilter('All');
@@ -147,6 +209,179 @@ export default function AdminPaymentsPage() {
   return (
     <AdminLayout title="Payments">
       <div className="p-6 space-y-5">
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200">
+          {[
+            { key: 'partner' as const, label: 'Partner Payments', count: payments.length },
+            { key: 'b2c' as const, label: 'B2C Payments', count: b2cPayments.length },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                activeTab === tab.key
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {tab.label}
+              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
+                activeTab === tab.key ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'b2c' ? (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <IndianRupee size={14} className="text-emerald-600" />
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">B2C Collected</p>
+                </div>
+                <p className="text-2xl font-bold font-mono text-emerald-600">Rs {b2cCollected.toLocaleString('en-IN')}</p>
+                <p className="text-xs text-slate-400 mt-1">{b2cSuccessful.length} successful payments</p>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <UsersRound size={14} className="text-blue-600" />
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">B2C Records</p>
+                </div>
+                <p className="text-2xl font-bold font-mono text-blue-600">{b2cPayments.length}</p>
+                <p className="text-xs text-slate-400 mt-1">Customer payment attempts</p>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <CreditCard size={14} className="text-amber-600" />
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">Pending</p>
+                </div>
+                <p className="text-2xl font-bold font-mono text-amber-600">{b2cPending}</p>
+                <p className="text-xs text-slate-400 mt-1">Created or pending</p>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center">
+                    <ShieldCheck size={14} className="text-purple-600" />
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">Gateway</p>
+                </div>
+                <p className="text-2xl font-bold text-purple-600">Cashfree</p>
+                <p className="text-xs text-slate-400 mt-1">Ready for live keys</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+              <div className="flex flex-wrap gap-3 items-center">
+                <div className="relative flex-1 min-w-48">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search customer, mobile, PAN, order..."
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  />
+                </div>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+                <button
+                  onClick={fetchPayments}
+                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+                  title="Refresh"
+                >
+                  <RefreshCw size={14} className="text-slate-400" />
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-800">B2C Payment Records</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">{filteredB2c.length} record{filteredB2c.length !== 1 ? 's' : ''}</p>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                {loading ? (
+                  <div className="py-12 text-center">
+                    <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    <p className="text-sm text-slate-400">Loading B2C payments...</p>
+                  </div>
+                ) : filteredB2c.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <IndianRupee size={28} className="text-slate-200 mx-auto mb-3" />
+                    <p className="text-sm text-slate-400">No B2C payment records found</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50">
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Customer</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">PAN</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Order</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Amount</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Report</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredB2c.map((pay) => (
+                        <tr key={pay.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-3.5">
+                            <p className="font-medium text-slate-800">{pay.full_name || 'Customer'}</p>
+                            <p className="text-xs text-slate-400">{pay.mobile}</p>
+                          </td>
+                          <td className="px-4 py-3.5 font-mono text-xs text-slate-700 uppercase">{pay.pan || '-'}</td>
+                          <td className="px-4 py-3.5">
+                            <p className="text-xs font-mono text-slate-600">{pay.order_id || '-'}</p>
+                            {pay.payment_id && <p className="text-xs text-slate-400 mt-0.5">{pay.payment_id}</p>}
+                          </td>
+                          <td className="px-4 py-3.5 text-right">
+                            <span className="font-semibold font-mono text-slate-800">Rs {Number(pay.amount).toLocaleString('en-IN')}</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-slate-50 text-slate-700 border-slate-200">
+                              {pay.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <p className="text-xs font-mono text-slate-600">{pay.b2c_report_requests?.report_id || '-'}</p>
+                            <p className="text-xs text-slate-400">{pay.b2c_report_requests?.credit_score ?? '-'}</p>
+                          </td>
+                          <td className="px-4 py-3.5 text-xs text-slate-500 whitespace-nowrap">
+                            {formatDateTime(pay.paid_at ?? pay.created_at)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -380,6 +615,8 @@ export default function AdminPaymentsPage() {
             )}
           </div>
         </div>
+          </>
+        )}
       </div>
     </AdminLayout>
   );

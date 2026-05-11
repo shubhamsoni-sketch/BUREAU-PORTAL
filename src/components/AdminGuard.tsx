@@ -15,6 +15,7 @@ const ADMIN_ONLY_PATHS = [
   '/admin-audit-logs',
   '/admin-invoices',
   '/admin-customer-master',
+  '/admin-b2c-reports',
   '/admin-dashboard',
   '/customer-master',
   '/partners',

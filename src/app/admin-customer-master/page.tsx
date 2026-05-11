@@ -15,6 +15,7 @@ import {
   Eye,
   RefreshCw,
   Building2,
+  UserRoundCheck,
 } from 'lucide-react';
 import BureauReportModal from '@/app/reports-history/components/BureauReportModal';
 import type { BureauPull } from '@/app/reports-history/page';
@@ -25,7 +26,29 @@ interface AdminBureauPull extends BureauPull {
   partner_code: string | null;
 }
 
-type TabType = 'consumer' | 'commercial' | 'failed';
+type TabType = 'consumer' | 'commercial' | 'failed' | 'b2c';
+
+interface B2CReportRequest {
+  id: string;
+  full_name: string | null;
+  mobile: string;
+  email: string | null;
+  pan: string | null;
+  dob: string | null;
+  gender: string | null;
+  address: string | null;
+  state: string | null;
+  pin_code: string | null;
+  consent_given: boolean;
+  consent_at: string | null;
+  status: string;
+  credit_score: number | null;
+  report_id: string | null;
+  api_status: string | null;
+  api_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 // ─── Column definitions (same as Report History + Partner column) ─────────────
 const ALL_COLUMNS = [
@@ -118,10 +141,41 @@ function exportCSV(rows: AdminBureauPull[], visibleCols: ColumnKey[], tab: TabTy
   URL.revokeObjectURL(url);
 }
 
+function exportB2CCSV(rows: B2CReportRequest[], dateFrom: string, dateTo: string) {
+  const headers = ['Name', 'Mobile', 'Email', 'PAN', 'DOB', 'Gender', 'State', 'PIN', 'Status', 'Consent', 'Score', 'Report ID', 'Created'];
+  const csvRows = rows.map(r => [
+    r.full_name ?? '',
+    r.mobile,
+    r.email ?? '',
+    r.pan ?? '',
+    r.dob ?? '',
+    r.gender ?? '',
+    r.state ?? '',
+    r.pin_code ?? '',
+    r.status,
+    r.consent_given ? 'Yes' : 'No',
+    r.credit_score ?? '',
+    r.report_id ?? '',
+    formatDateTime(r.created_at),
+  ]);
+
+  const content = [headers, ...csvRows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `customer-master-b2c-${dateFrom || 'all'}-to-${dateTo || 'all'}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminCustomerMasterPage() {
   const [activeTab, setActiveTab] = useState<TabType>('consumer');
   const [allData, setAllData] = useState<AdminBureauPull[]>([]);
+  const [b2cData, setB2cData] = useState<B2CReportRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -134,6 +188,7 @@ export default function AdminCustomerMasterPage() {
 
   // Row detail modal
   const [selectedRow, setSelectedRow] = useState<AdminBureauPull | null>(null);
+  const [selectedB2C, setSelectedB2C] = useState<B2CReportRequest | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -142,14 +197,24 @@ export default function AdminCustomerMasterPage() {
       if (dateFrom) params.set('date_from', dateFrom);
       if (dateTo) params.set('date_to', dateTo);
 
-      const res = await fetch(`/api/admin-bureau-pulls?${params.toString()}`);
+      const [res, b2cRes] = await Promise.all([
+        fetch(`/api/admin-bureau-pulls?${params.toString()}`),
+        fetch(`/api/admin-b2c-reports?${params.toString()}`),
+      ]);
       const json = await res.json();
+      const b2cJson = await b2cRes.json();
 
       if (json.success) {
         setAllData((json.pulls as AdminBureauPull[]) ?? []);
       } else {
         console.error('[CustomerMaster] API error:', json.error);
         setAllData([]);
+      }
+      if (b2cJson.success) {
+        setB2cData((b2cJson.reports as B2CReportRequest[]) ?? []);
+      } else {
+        console.error('[CustomerMaster] B2C API error:', b2cJson.error);
+        setB2cData([]);
       }
     } catch (err) {
       console.error('[CustomerMaster] fetch error:', err);
@@ -185,20 +250,40 @@ export default function AdminCustomerMasterPage() {
     return rows;
   }, [allData, activeTab, search]);
 
+  const filteredB2CRows = useMemo(() => {
+    let rows = b2cData;
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      rows = rows.filter(r =>
+        r.full_name?.toLowerCase().includes(q) ||
+        r.mobile.toLowerCase().includes(q) ||
+        r.email?.toLowerCase().includes(q) ||
+        r.pan?.toLowerCase().includes(q) ||
+        r.report_id?.toLowerCase().includes(q)
+      );
+    }
+
+    return rows;
+  }, [b2cData, search]);
+
   const consumerCount = allData.filter(r => r.status !== 'failed' && r.report_type === 'consumer').length;
   const commercialCount = allData.filter(r => r.status !== 'failed' && r.report_type === 'commercial').length;
   const failedCount = allData.filter(r => r.status === 'failed').length;
+  const b2cCount = b2cData.length;
 
   const tabCounts: Record<TabType, number> = {
     consumer: consumerCount,
     commercial: commercialCount,
     failed: failedCount,
+    b2c: b2cCount,
   };
 
   const tabs: { key: TabType; label: string }[] = [
     { key: 'consumer', label: 'Consumer' },
     { key: 'commercial', label: 'Commercial' },
     { key: 'failed', label: 'Failed Pulls' },
+    { key: 'b2c', label: 'B2C' },
   ];
 
   const toggleCol = (key: ColumnKey) => {
@@ -286,7 +371,7 @@ export default function AdminCustomerMasterPage() {
         <div className="mb-4">
           <h1 className="text-lg font-semibold text-slate-800">Customer Master</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            All bureau reports pulled across all partners — {allData.length} total records from {uniquePartnerCount} partner{uniquePartnerCount !== 1 ? 's' : ''}
+            Partner reports and B2C customer financial health records - {allData.length + b2cData.length} total records
           </p>
         </div>
 
@@ -319,7 +404,7 @@ export default function AdminCustomerMasterPage() {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search name, PAN, Member Ref or Partner..."
+              placeholder={activeTab === 'b2c' ? 'Search name, mobile, PAN, report ID...' : 'Search name, PAN, Member Ref or Partner...'}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
@@ -431,13 +516,13 @@ export default function AdminCustomerMasterPage() {
 
           {/* Row count */}
           <span className="text-xs text-slate-400 font-medium">
-            {filteredRows.length} / {tabCounts[activeTab]} records
+            {activeTab === 'b2c' ? filteredB2CRows.length : filteredRows.length} / {tabCounts[activeTab]} records
           </span>
 
           {/* Export CSV */}
           <button
-            onClick={() => exportCSV(filteredRows, visibleCols, activeTab, dateFrom, dateTo)}
-            disabled={filteredRows.length === 0}
+            onClick={() => activeTab === 'b2c' ? exportB2CCSV(filteredB2CRows, dateFrom, dateTo) : exportCSV(filteredRows, visibleCols, activeTab, dateFrom, dateTo)}
+            disabled={activeTab === 'b2c' ? filteredB2CRows.length === 0 : filteredRows.length === 0}
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Download size={14} />
@@ -458,6 +543,66 @@ export default function AdminCustomerMasterPage() {
         {/* Table */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
+            {activeTab === 'b2c' ? (
+              <table className="w-full text-xs min-w-max">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    {['Name', 'Mobile', 'Email', 'PAN', 'DOB', 'Gender', 'State', 'PIN', 'Score', 'Status', 'Consent', 'Report ID', 'Created', ''].map((label) => (
+                      <th key={label} className="px-3 py-3 text-left font-semibold text-slate-500 whitespace-nowrap">{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {loading ? (
+                    [...Array(6)].map((_, i) => (
+                      <tr key={i}>
+                        {[...Array(14)].map((__, idx) => (
+                          <td key={idx} className="px-3 py-3">
+                            <div className="h-4 bg-slate-100 rounded animate-pulse" style={{ width: `${50 + Math.random() * 50}%` }} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : filteredB2CRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={14} className="py-16 text-center">
+                        <div className="flex flex-col items-center gap-2 text-slate-400">
+                          <UserRoundCheck size={28} className="text-slate-300" />
+                          <p className="text-sm font-medium">
+                            {search ? 'No B2C results match your search' : 'No B2C customer records found'}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredB2CRows.map(row => (
+                      <tr
+                        key={row.id}
+                        onClick={() => setSelectedB2C(row)}
+                        className="hover:bg-blue-50/40 cursor-pointer transition-colors group"
+                      >
+                        <td className="px-3 py-2.5 whitespace-nowrap font-medium text-slate-800">{truncate(row.full_name, 24)}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap font-mono text-slate-700">{row.mobile}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap text-slate-600">{truncate(row.email, 24)}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap font-mono text-slate-700 uppercase">{row.pan ?? '-'}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap text-slate-600">{row.dob ?? '-'}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap text-slate-600">{row.gender ?? '-'}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap text-slate-600">{row.state ?? '-'}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap font-mono text-slate-600">{row.pin_code ?? '-'}</td>
+                        <td className={`px-3 py-2.5 whitespace-nowrap tabular-nums ${scoreColor(row.credit_score)}`}>{row.credit_score ?? '-'}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">{row.status}</span>
+                        </td>
+                        <td className="px-3 py-2.5 whitespace-nowrap text-slate-600">{row.consent_given ? 'Yes' : 'No'}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap font-mono text-slate-600">{row.report_id ?? '-'}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap text-slate-500">{formatDateTime(row.created_at)}</td>
+                        <td className="px-3 py-2.5"><Eye size={13} className="text-slate-300 group-hover:text-blue-500 transition-colors" /></td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            ) : (
             <table className="w-full text-xs min-w-max">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
@@ -524,8 +669,17 @@ export default function AdminCustomerMasterPage() {
                 )}
               </tbody>
             </table>
+            )}
           </div>
-          {filteredRows.length > 0 && (
+          {activeTab === 'b2c' && filteredB2CRows.length > 0 ? (
+            <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+              <p className="text-xs text-slate-500">
+                Showing <span className="font-semibold text-slate-800">{filteredB2CRows.length}</span> of{' '}
+                <span className="font-semibold text-slate-800">{b2cData.length}</span> B2C records
+              </p>
+              <p className="text-xs text-slate-500">Actual PAN and customer details are visible for admin records.</p>
+            </div>
+          ) : filteredRows.length > 0 && (
             <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
               <p className="text-xs text-slate-500">
                 Showing <span className="font-semibold text-slate-800">{filteredRows.length}</span> of{' '}
@@ -545,6 +699,47 @@ export default function AdminCustomerMasterPage() {
           pull={selectedRow}
           onClose={() => setSelectedRow(null)}
         />
+      )}
+
+      {selectedB2C && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedB2C(null)}>
+          <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-slate-800">B2C Customer Details</h2>
+                <p className="text-xs text-slate-500">{selectedB2C.full_name || 'Customer'} - {selectedB2C.mobile}</p>
+              </div>
+              <button onClick={() => setSelectedB2C(null)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              {[
+                ['Full Name', selectedB2C.full_name],
+                ['Mobile', selectedB2C.mobile],
+                ['Email', selectedB2C.email],
+                ['PAN', selectedB2C.pan],
+                ['DOB', selectedB2C.dob],
+                ['Gender', selectedB2C.gender],
+                ['Address', selectedB2C.address],
+                ['State', selectedB2C.state],
+                ['PIN Code', selectedB2C.pin_code],
+                ['Consent', selectedB2C.consent_given ? 'Yes' : 'No'],
+                ['Consent At', selectedB2C.consent_at ? formatDateTime(selectedB2C.consent_at) : '-'],
+                ['Status', selectedB2C.status],
+                ['Credit Score', selectedB2C.credit_score ?? '-'],
+                ['Report ID', selectedB2C.report_id],
+                ['API Status', selectedB2C.api_status],
+                ['API Error', selectedB2C.api_error],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="rounded-lg border border-slate-200 p-3">
+                  <p className="text-xs text-slate-500 mb-1">{label}</p>
+                  <p className="font-medium text-slate-800 break-words">{value || '-'}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Click outside to close dropdowns */}

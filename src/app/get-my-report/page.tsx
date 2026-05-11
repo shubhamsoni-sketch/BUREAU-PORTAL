@@ -162,6 +162,7 @@ export default function GetMyReportPage() {
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState('');
   const [orderId, setOrderId] = useState('');
+  const [requestId, setRequestId] = useState('');
   const [reportId, setReportId] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -172,25 +173,52 @@ export default function GetMyReportPage() {
 
   const stepIndex = ['mobile', 'otp', 'educate', 'details', 'consent', 'payment', 'preparing', 'report'].indexOf(step);
 
-  const sendOtp = () => {
+  async function saveRequest(stage: string, extra: Record<string, unknown> = {}) {
+    const res = await fetch('/api/customer-report/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        request_id: requestId || undefined,
+        mobile,
+        stage,
+        ...extra,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error ?? 'Unable to save request.');
+    if (data.request?.id) setRequestId(data.request.id);
+    return data.request;
+  }
+
+  const sendOtp = async () => {
     setError('');
     if (!/^[6-9]\d{9}$/.test(mobile.trim())) {
       setError('Enter a valid 10-digit mobile number.');
       return;
     }
-    setStep('otp');
+    try {
+      await saveRequest('mobile_started');
+      setStep('otp');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to start request.');
+    }
   };
 
-  const verifyOtp = () => {
+  const verifyOtp = async () => {
     setError('');
     if (otp.trim() !== '123456') {
       setError('Enter the demo OTP 123456 to continue.');
       return;
     }
-    setStep('educate');
+    try {
+      await saveRequest('mobile_verified');
+      setStep('educate');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to verify request.');
+    }
   };
 
-  const continueDetails = () => {
+  const continueDetails = async () => {
     setError('');
     if (!details.firstName.trim() || !details.lastName.trim() || !details.email.trim() || !details.pan.trim() || !details.dob || !details.gender || !details.address.trim() || !details.state || !details.pinCode.trim()) {
       setError('Please complete all required details.');
@@ -204,7 +232,23 @@ export default function GetMyReportPage() {
       setError('Enter a valid 6-digit PIN code.');
       return;
     }
-    setStep('consent');
+    try {
+      await saveRequest('details_submitted', {
+        first_name: details.firstName,
+        middle_name: details.middleName,
+        last_name: details.lastName,
+        email: details.email,
+        pan: details.pan,
+        dob: details.dob,
+        gender: details.gender,
+        address: details.address,
+        state: details.state,
+        pin_code: details.pinCode,
+      });
+      setStep('consent');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to save details.');
+    }
   };
 
   const createOrder = async () => {
@@ -215,10 +259,11 @@ export default function GetMyReportPage() {
     }
     setLoading(true);
     try {
+      const saved = await saveRequest('consent_given', { consent_given: true });
       const res = await fetch('/api/customer-report/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mobile, name: fullName }),
+        body: JSON.stringify({ request_id: saved.id ?? requestId, mobile, name: fullName, pan: details.pan }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error ?? 'Unable to create payment order.');
@@ -238,7 +283,7 @@ export default function GetMyReportPage() {
       const res = await fetch('/api/customer-report/verify-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId }),
+        body: JSON.stringify({ order_id: orderId, request_id: requestId }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error ?? 'Payment verification failed.');

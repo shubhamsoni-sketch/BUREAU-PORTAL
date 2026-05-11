@@ -2,6 +2,22 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - B2C Admin Tracking Foundation
+
+Summary:
+
+- Added Supabase tables for B2C report requests and B2C payments with full customer data, actual PAN, consent state, payment state, and report/API fields.
+- Added admin APIs for B2C report requests and B2C payments.
+- Added customer journey persistence hooks so mobile, details, consent, payment, and generated demo report states can be tracked.
+- Added B2C Reports to the admin sidebar and built the admin B2C reports screen.
+- Added B2C tabs to Admin Payments and Customer Master so partner data remains separate from B2C customer data.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+- Cashfree and real report integration remain intentionally stubbed for the next phase.
+
 ## 2026-05-12 - Developer - Remove Early Payment Cues
 
 Summary:
