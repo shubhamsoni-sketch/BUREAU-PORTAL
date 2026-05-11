@@ -2,6 +2,17 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - Customer Journey Public Route Fix
+
+Summary:
+
+- Added `/get-my-report` to the public route allowlist so the global auth guard does not redirect logged-in partners away from the customer journey.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-12 - Developer - B2C Report Purchase Journey
 
 Summary:

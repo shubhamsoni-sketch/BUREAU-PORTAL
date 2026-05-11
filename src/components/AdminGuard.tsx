@@ -40,6 +40,7 @@ const PUBLIC_PATHS = [
   '/contact',
   '/pricing',
   '/get-analysis',
+  '/get-my-report',
   '/features',
   '/integrations',
   '/accounts',
