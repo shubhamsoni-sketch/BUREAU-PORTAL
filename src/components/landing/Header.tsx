@@ -69,9 +69,6 @@ export default function Header({ onGetReport }: HeaderProps) {
             <Link href="/partner-login" className="btn-ghost px-4 py-2.5 text-sm">
               Partner Login
             </Link>
-            <Link href="/admin" className="btn-ghost px-4 py-2.5 text-sm">
-              Admin
-            </Link>
             <button type="button" onClick={onGetReport} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-sm">
               Start Analysis
               <Icon name="ArrowRightIcon" size={16} variant="solid" />
@@ -112,9 +109,6 @@ export default function Header({ onGetReport }: HeaderProps) {
           ))}
           <Link href="/partner-login" className="btn-ghost px-8 py-3 text-base">
             Partner Login
-          </Link>
-          <Link href="/admin" className="btn-ghost px-8 py-3 text-base">
-            Admin Login
           </Link>
           <button
             type="button"

@@ -85,8 +85,8 @@ export default function GetReportSection({ formRef }: GetReportSectionProps) {
                 <Link href="/become-a-partner" className="btn-ghost justify-center px-5 py-4 text-sm">
                   Become Partner
                 </Link>
-                <Link href="/admin" className="btn-ghost justify-center px-5 py-4 text-sm">
-                  Admin Login
+                <Link href="/contact" className="btn-ghost justify-center px-5 py-4 text-sm">
+                  Contact Team
                 </Link>
               </div>
             </div>

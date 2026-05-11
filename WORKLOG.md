@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-11 - Developer - Hide Public Admin Landing Links
+
+Summary:
+
+- Removed visible Admin/Admin Login links from the public landing header, mobile menu, footer, and CTA section.
+- Kept the `/admin` route unchanged so direct admin access still works.
+
+Verification:
+
+- `rg "Admin|/admin" src/components/landing src/app/page.tsx src/app/home/page.tsx` returned no matches.
+- `rg "CIBIL|Cibil|cibil|CibilCheck|cibilcheck" src` returned no matches.
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-11 - Developer - Landing Hero Visibility Hotfix
 
 Summary:

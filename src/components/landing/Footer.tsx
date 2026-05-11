@@ -7,7 +7,6 @@ import Icon from '@/components/ui/AppIcon';
 const footerLinks = [
   { label: 'Partner Login', href: '/partner-login' },
   { label: 'Become a Partner', href: '/become-a-partner' },
-  { label: 'Admin', href: '/admin' },
   { label: 'Contact', href: '/contact' },
 ];
 
