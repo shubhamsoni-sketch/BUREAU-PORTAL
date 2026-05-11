@@ -96,28 +96,67 @@ export default function PartnerProgramPage() {
                 <div className="flex items-center justify-between gap-4 mb-8">
                   <div>
                     <p className="text-xs text-fg-subtle uppercase tracking-wider font-bold">Partner Workspace</p>
-                    <h2 className="text-2xl font-bold text-fg mt-2">Client analysis dashboard</h2>
+                    <h2 className="text-2xl font-bold text-fg mt-2">Client journey preview</h2>
                   </div>
-                  <span className="tag tag-accent">Live Ready</span>
+                  <span className="tag tag-accent">Secure Flow</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mb-6">
+
+                <div className="rounded-3xl p-5 mb-5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-bold text-fg">New client intake</p>
+                      <p className="text-xs text-fg-muted mt-1">Identity details, consent, and analysis type in one controlled flow.</p>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(0,212,170,0.12)', border: '1px solid rgba(0,212,170,0.22)' }}>
+                      <Icon name="IdentificationIcon" size={21} className="text-primary" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-5">
+                    {['Profile', 'Consent', 'Analysis'].map((item, index) => (
+                      <div key={item} className="rounded-2xl px-3 py-3 text-center" style={{ background: index === 2 ? 'rgba(0,212,170,0.10)' : 'rgba(255,255,255,0.035)' }}>
+                        <p className={index === 2 ? 'text-primary text-xs font-bold' : 'text-fg-muted text-xs font-bold'}>{item}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-3 mb-5">
                   {[
-                    ['100000', 'Demo Credits'],
-                    ['3', 'Data Products'],
-                    ['4 steps', 'Onboarding'],
-                    ['Bulk', 'Portfolio Flow'],
-                  ].map(([value, label]) => (
-                    <div key={label} className="rounded-3xl p-5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <p className="text-2xl font-bold gradient-text-primary">{value}</p>
-                      <p className="text-xs text-fg-muted mt-1">{label}</p>
+                    { title: 'Consumer', desc: 'Individual credit health', icon: 'UserCircleIcon', tone: 'primary' },
+                    { title: 'Commercial', desc: 'Business profile checks', icon: 'BuildingOffice2Icon', tone: 'accent' },
+                  ].map((item) => (
+                    <div key={item.title} className="rounded-3xl p-4" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center"
+                          style={{
+                            background: item.tone === 'accent' ? 'rgba(245,166,35,0.12)' : 'rgba(0,212,170,0.12)',
+                            border: item.tone === 'accent' ? '1px solid rgba(245,166,35,0.22)' : '1px solid rgba(0,212,170,0.22)',
+                          }}
+                        >
+                          <Icon name={item.icon} size={18} className={item.tone === 'accent' ? 'text-accent' : 'text-primary'} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-fg">{item.title}</p>
+                          <p className="text-xs text-fg-muted mt-0.5">{item.desc}</p>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
+
                 <div className="space-y-3">
-                  {['Consumer financial analysis', 'Commercial data workflow', 'Transparent wallet deductions'].map((item) => (
-                    <div key={item} className="flex items-center gap-3 text-sm text-fg-muted">
-                      <Icon name="CheckCircleIcon" size={18} className="text-primary shrink-0" />
-                      {item}
+                  {[
+                    { name: 'Rahul Mehta', type: 'Personal loan review', status: 'Ready' },
+                    { name: 'Aarav Traders', type: 'Business funding review', status: 'Queued' },
+                    { name: 'Priya Shah', type: 'Credit card planning', status: 'Draft' },
+                  ].map((item) => (
+                    <div key={item.name} className="flex items-center justify-between gap-4 rounded-2xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.035)' }}>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-fg truncate">{item.name}</p>
+                        <p className="text-xs text-fg-muted truncate">{item.type}</p>
+                      </div>
+                      <span className={item.status === 'Ready' ? 'tag tag-primary shrink-0' : 'tag tag-accent shrink-0'}>{item.status}</span>
                     </div>
                   ))}
                 </div>

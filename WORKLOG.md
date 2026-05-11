@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - Partner Hero Workspace Preview
+
+Summary:
+
+- Replaced the Partner Program hero counter grid with a more credible client journey preview.
+- Added intake flow chips, consumer/commercial analysis tiles, and sample client workflow rows.
+- Removed demo-credit style messaging from the public B2B hero.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-12 - Developer - B2C Home And Dedicated Partner Page
 
 Summary:
