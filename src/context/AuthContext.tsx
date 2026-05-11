@@ -2,8 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { resetClient } from '@/lib/supabase/client';
+import { createClient, resetClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 export type UserRole = 'admin' | 'partner';
@@ -116,6 +115,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Immediately check for an existing session on mount
     const supabase = createClient();
+    let cancelled = false;
+
+    const loadInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+
+        if (session?.user) {
+          resolvingRef.current = true;
+          try {
+            const profile = await withAuthTimeout(resolveAuthUser(session.user), null);
+            if (!cancelled) setUser(profile);
+          } finally {
+            resolvingRef.current = false;
+          }
+        } else {
+          setUser(null);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    loadInitialSession();
 
     // Single source of truth: onAuthStateChange handles INITIAL_SESSION on mount.
     // Do NOT call getSession() separately — that creates a competing lock on the same
@@ -136,13 +159,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }
         } else {
-          // No active session — clear stale tokens directly from localStorage
-          // without calling any Supabase auth method (avoids lock conflicts and rate limits)
-          try {
-            localStorage.removeItem('sb-cibilysis-auth-token');
-          } catch {
-            // ignore — storage may not be available (SSR guard)
-          }
           setUser(null);
         }
         setIsLoading(false);
@@ -199,6 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
     };
   }, []);

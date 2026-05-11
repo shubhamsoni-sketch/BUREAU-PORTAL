@@ -23,6 +23,8 @@ export default function AdminLoginPage() {
     if (!isLoading && user) {
       if (user.role === 'admin') {
         router.replace('/admin-partners');
+      } else {
+        router.replace('/partner-dashboard');
       }
     }
   }, [user, isLoading, router]);
@@ -88,8 +90,8 @@ export default function AdminLoginPage() {
         return;
       }
 
-      await supabase.auth.signOut();
-      setError('Access denied. This portal is for administrators only.');
+      router.replace('/partner-dashboard');
+      setError('This account is a partner account. Opening the partner portal.');
       setSubmitting(false);
     } catch {
       setError('Login failed. Please try again.');
@@ -172,7 +174,8 @@ export default function AdminLoginPage() {
                 </label>
                 <input
                   id="admin-email"
-                  type="email"
+                  type="text"
+                  inputMode="email"
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

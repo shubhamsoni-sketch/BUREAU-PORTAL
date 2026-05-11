@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { FileText, Shield } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { createClient } from '@/lib/supabase/client';
@@ -59,9 +59,15 @@ interface AdminGuardProps {
 
 export default function AdminGuard({ children }: AdminGuardProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, isLoading } = useAuth();
   const [timedOut, setTimedOut] = useState(false);
   const [agreementStatus, setAgreementStatus] = useState<'loading' | 'signed' | 'pending' | 'missing'>('loading');
+
+  const isPublicPath = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  const isAdminRoute = ADMIN_ONLY_PATHS.some((p) => pathname.startsWith(p));
+  const isPartnerRoute = PARTNER_ONLY_PATHS.some((p) => pathname.startsWith(p));
+  const isOnboardingRoute = ONBOARDING_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
   useEffect(() => {
     if (!isLoading) return;
@@ -99,8 +105,12 @@ export default function AdminGuard({ children }: AdminGuardProps) {
     };
   }, [user?.id, user?.role]);
 
-  // Public paths never need auth — render immediately, no spinner
-  const isPublicPath = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  useEffect(() => {
+    if (isPublicPath || user || (isLoading && !timedOut)) return;
+    router.replace(isAdminRoute ? '/admin' : '/partner-login');
+  }, [isAdminRoute, isLoading, isPublicPath, router, timedOut, user]);
+
+  // Public paths never need auth, render immediately with no spinner.
   if (isPublicPath) return <>{children}</>;
 
   const stillLoading = isLoading && !timedOut;
@@ -113,27 +123,14 @@ export default function AdminGuard({ children }: AdminGuardProps) {
     );
   }
 
-  // Not logged in — show access denied
+  // Not logged in: redirect quietly instead of showing a blocking auth message.
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center max-w-sm mx-auto px-6">
-          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <Shield size={28} className="text-red-500" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">Authentication Required</h2>
-          <p className="text-slate-500 text-sm mb-4">Please log in to access this page.</p>
-          <a href="/partner-login" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
-            Go to Login
-          </a>
-        </div>
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
-
-  const isAdminRoute = ADMIN_ONLY_PATHS.some((p) => pathname.startsWith(p));
-  const isPartnerRoute = PARTNER_ONLY_PATHS.some((p) => pathname.startsWith(p));
-  const isOnboardingRoute = ONBOARDING_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
   // Partner trying to access admin route
   if (isAdminRoute && user.role !== 'admin') {

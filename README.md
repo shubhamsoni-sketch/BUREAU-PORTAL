@@ -2,6 +2,15 @@
 
 A modern Next.js 15 application built with TypeScript and Tailwind CSS.
 
+## Bureau Portal Demo
+
+- Live demo: `https://bureau-portal.vercel.app`
+- Partner login: `https://bureau-portal.vercel.app/partner-login`
+- Admin login: `https://bureau-portal.vercel.app/admin`
+- Main handoff notes: `PROJECT_HANDOFF.md`
+
+Current demo mode includes a single shared demo partner account, demo bureau report generation, wallet deduction, persistent login across refresh/navigation, and protected-route redirects without the old "Authentication Required" blocking screen.
+
 ## 🚀 Features
 
 - **Next.js 15** - Latest version with improved performance and features

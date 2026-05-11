@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Topbar from '@/components/Topbar';
 import { useAuth } from '@/context/AuthContext';
+import { createClient } from '@/lib/supabase/client';
 import {
   FileSearch,
   User,
@@ -26,10 +27,14 @@ type ReportType = 'consumer' | 'commercial' | null;
 type Step = 1 | 2 | 3 | 4;
 
 interface CustomerDetails {
-  fullName: string;
+  fullName?: string;
+  firstName: string;
+  middleName: string;
+  lastName: string;
   pan: string;
   dob: string;
   gender: string;
+  mobile: string;
   addressLine1: string;
   city: string;
   state: string;
@@ -127,6 +132,33 @@ function riskBadge(level: string) {
   return 'bg-red-50 text-red-700 border border-red-200';
 }
 
+function emptyDetails(): CustomerDetails {
+  return {
+    fullName: '',
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    pan: '',
+    dob: '',
+    gender: '',
+    mobile: '',
+    addressLine1: '',
+    city: '',
+    state: '',
+    pinCode: '',
+    aadhaar: '',
+  };
+}
+
+function getCustomerName(details: CustomerDetails) {
+  return [details.firstName, details.middleName, details.lastName].map((part) => part.trim()).filter(Boolean).join(' ');
+}
+
+function formatDobForApi(dob: string) {
+  const [year, month, day] = dob.split('-');
+  return `${day}${month}${year}`;
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function PullCibilPage() {
   const { user } = useAuth();
@@ -143,7 +175,7 @@ export default function PullCibilPage() {
 
   const [step, setStep] = useState<Step>(1);
   const [reportType, setReportType] = useState<ReportType>(null);
-  const [details, setDetails] = useState<CustomerDetails>({ fullName: '', pan: '', dob: '', gender: '', addressLine1: '', city: '', state: '', pinCode: '', aadhaar: '' });
+  const [details, setDetails] = useState<CustomerDetails>(emptyDetails());
   const [otpSent, setOtpSent] = useState(false);
   const [otpInput, setOtpInput] = useState('');
   const [otpError, setOtpError] = useState('');
@@ -213,10 +245,12 @@ export default function PullCibilPage() {
   // Step 2 validation
   function validateDetails(): boolean {
     const errs: Partial<CustomerDetails> = {};
-    if (!details.fullName.trim()) errs.fullName = 'Full name is required';
+    if (!details.firstName.trim()) errs.firstName = 'First name is required';
+    if (!details.lastName.trim()) errs.lastName = 'Last name is required';
     if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(details.pan.toUpperCase())) errs.pan = 'Enter valid PAN (e.g. ABCDE1234F)';
-    if (!details.dob) errs.dob = 'Date of birth is required';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(details.dob)) errs.dob = 'Enter DOB as YYYY-MM-DD';
     if (!details.gender) errs.gender = 'Gender is required';
+    if (!/^[6-9]\d{9}$/.test(details.mobile)) errs.mobile = 'Enter valid 10-digit mobile number';
     if (!details.addressLine1.trim()) errs.addressLine1 = 'Address Line 1 is required';
     if (!details.city.trim()) errs.city = 'City is required';
     if (!details.state.trim()) errs.state = 'State is required';
@@ -256,6 +290,84 @@ export default function PullCibilPage() {
     setLoading(true);
 
     try {
+      if (!partnerId || !reportType) {
+        throw new Error('Partner or report type missing');
+      }
+
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+      const res = await fetch('/api/pull-cibil-real', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          partner_id: partnerId,
+          report_type: reportType,
+          firstName: details.firstName,
+          middleName: details.middleName,
+          lastName: details.lastName,
+          birthDate: formatDobForApi(details.dob),
+          gender: details.gender,
+          idNumber: details.pan,
+          state: details.state,
+          pinCode: details.pinCode,
+          telephoneNumber: details.mobile,
+          aadhaar: details.aadhaar,
+          city: details.city,
+          addressLine1: details.addressLine1,
+        }),
+      });
+
+      const pullResult = await res.json();
+
+      if (!res.ok || !pullResult.success) {
+        if (res.status === 402) {
+          setLowBalance(true);
+          return;
+        }
+        throw new Error(pullResult.error ?? 'Unable to fetch bureau report');
+      }
+
+      const fetchedResult = pullResult.result as CibilResult;
+      const customerName = getCustomerName(details);
+      setWalletBalance(Number(pullResult.new_balance ?? walletBalance - rate));
+
+      addRecord({
+        customerName,
+        mobile: details.mobile,
+        pan: details.pan.toUpperCase(),
+        aadhaar: details.aadhaar,
+        partnerId,
+        partnerName: user?.name ?? 'Partner',
+        reportType: reportType === 'commercial' ? 'Commercial CIBIL' : 'Consumer CIBIL',
+        creditScore: fetchedResult.score,
+        riskLevel: fetchedResult.riskLevel,
+        reportId: fetchedResult.reportId,
+        pulledAt: new Date().toLocaleString('en-IN', {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: false,
+        }).replace(',', ''),
+        rawJson: {
+          score: fetchedResult.score,
+          riskLevel: fetchedResult.riskLevel,
+          bureau: 'CIBIL',
+          demo: pullResult.demo === true,
+          reportId: fetchedResult.reportId,
+          keyIssues: fetchedResult.keyIssues,
+          generatedAt: fetchedResult.generatedAt,
+          customerName,
+          pan: details.pan.toUpperCase(),
+          raw: pullResult.raw_json,
+        },
+      });
+
+      setResult(fetchedResult);
+      setSuccessMsg(`Bureau report fetched successfully! Rs. ${rate} credits deducted.`);
+      setStep(4);
+      return;
+
       const mockResult = reportType === 'commercial' ? MOCK_CIBIL_COMMERCIAL : MOCK_CIBIL_CONSUMER;
 
       // Call server-side deduction API (uses service role, writes transaction row)
@@ -289,7 +401,7 @@ export default function PullCibilPage() {
 
       // Add to customer master
       addRecord({
-        customerName: details.fullName,
+        customerName: details.fullName ?? getCustomerName(details),
         mobile: '',
         pan: details.pan.toUpperCase(),
         aadhaar: details.aadhaar,
@@ -330,7 +442,7 @@ export default function PullCibilPage() {
   function handleReset() {
     setStep(1);
     setReportType(null);
-    setDetails({ fullName: '', pan: '', dob: '', gender: '', addressLine1: '', city: '', state: '', pinCode: '', aadhaar: '' });
+    setDetails(emptyDetails());
     setOtpSent(false);
     setOtpInput('');
     setOtpError('');
@@ -458,16 +570,39 @@ export default function PullCibilPage() {
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-foreground mb-1">Full Name</label>
-                <input
-                  type="text"
-                  className="input-base"
-                  placeholder="As per PAN card"
-                  value={details.fullName}
-                  onChange={(e) => setDetails({ ...details, fullName: e.target.value })}
-                />
-                {formErrors.fullName && <p className="text-xs text-red-500 mt-1">{formErrors.fullName}</p>}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">First Name</label>
+                  <input
+                    type="text"
+                    className="input-base uppercase"
+                    placeholder="HARSHAL"
+                    value={details.firstName}
+                    onChange={(e) => setDetails({ ...details, firstName: e.target.value.toUpperCase() })}
+                  />
+                  {formErrors.firstName && <p className="text-xs text-red-500 mt-1">{formErrors.firstName}</p>}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">Middle Name</label>
+                  <input
+                    type="text"
+                    className="input-base uppercase"
+                    placeholder="ARUN"
+                    value={details.middleName}
+                    onChange={(e) => setDetails({ ...details, middleName: e.target.value.toUpperCase() })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    className="input-base uppercase"
+                    placeholder="PAWAR"
+                    value={details.lastName}
+                    onChange={(e) => setDetails({ ...details, lastName: e.target.value.toUpperCase() })}
+                  />
+                  {formErrors.lastName && <p className="text-xs text-red-500 mt-1">{formErrors.lastName}</p>}
+                </div>
               </div>
 
               <div>
@@ -486,8 +621,10 @@ export default function PullCibilPage() {
               <div>
                 <label className="block text-xs font-medium text-foreground mb-1">Date of Birth</label>
                 <input
-                  type="date"
+                  type="text"
                   className="input-base"
+                  placeholder="YYYY-MM-DD"
+                  maxLength={10}
                   value={details.dob}
                   onChange={(e) => setDetails({ ...details, dob: e.target.value })}
                 />
@@ -504,9 +641,21 @@ export default function PullCibilPage() {
                   <option value="">Select gender</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
-                  <option value="Other">Other</option>
                 </select>
                 {formErrors.gender && <p className="text-xs text-red-500 mt-1">{formErrors.gender}</p>}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Mobile Number</label>
+                <input
+                  type="text"
+                  className="input-base font-mono"
+                  placeholder="10-digit mobile number"
+                  maxLength={10}
+                  value={details.mobile}
+                  onChange={(e) => setDetails({ ...details, mobile: e.target.value.replace(/\D/g, '') })}
+                />
+                {formErrors.mobile && <p className="text-xs text-red-500 mt-1">{formErrors.mobile}</p>}
               </div>
 
               <div>
@@ -728,10 +877,11 @@ export default function PullCibilPage() {
             <div className="bg-white rounded-xl border border-border p-5">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Customer Details</p>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Name:</span> <span className="font-medium">{details.fullName}</span></div>
+                <div><span className="text-muted-foreground">Name:</span> <span className="font-medium">{getCustomerName(details)}</span></div>
                 <div><span className="text-muted-foreground">PAN:</span> <span className="font-medium font-mono">{details.pan}</span></div>
                 <div><span className="text-muted-foreground">Date of Birth:</span> <span className="font-medium">{details.dob}</span></div>
                 <div><span className="text-muted-foreground">Gender:</span> <span className="font-medium">{details.gender}</span></div>
+                <div><span className="text-muted-foreground">Mobile:</span> <span className="font-medium font-mono">+91 {details.mobile}</span></div>
                 <div className="col-span-2"><span className="text-muted-foreground">Address:</span> <span className="font-medium">{[details.addressLine1, details.city, details.state, details.pinCode].filter(Boolean).join(', ')}</span></div>
                 <div><span className="text-muted-foreground">Aadhaar:</span> <span className="font-medium font-mono">XXXX XXXX {details.aadhaar.slice(-4)}</span></div>
               </div>

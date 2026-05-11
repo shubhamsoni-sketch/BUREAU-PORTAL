@@ -21,6 +21,8 @@ export default function PartnerLoginPage() {
     if (user) {
       if (user.role === 'partner') {
         router.replace('/partner-dashboard');
+      } else {
+        router.replace('/admin-partners');
       }
     }
   }, [user, isLoading, router]);
@@ -40,6 +42,9 @@ export default function PartnerLoginPage() {
         setSubmitting(false);
         return;
       }
+      setSubmitting(false);
+      router.replace('/partner-dashboard');
+      router.refresh();
     } catch {
       setError('Login failed. Please try again.');
       setSubmitting(false);
@@ -96,7 +101,8 @@ export default function PartnerLoginPage() {
                 </label>
                 <input
                   id="email"
-                  type="email"
+                  type="text"
+                  inputMode="email"
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

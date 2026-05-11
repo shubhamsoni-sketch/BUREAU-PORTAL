@@ -6,6 +6,7 @@ Use this file to onboard new agents/developers quickly. Keep implementation scop
 
 - GitHub: `https://github.com/shubhamsoni-sketch/BUREAU-PORTAL.git`
 - Main local dev URL: `http://127.0.0.1:4028`
+- Current Vercel demo URL: `https://bureau-portal.vercel.app`
 - Framework: Next.js 15 app router
 - Database/Auth/Storage: Supabase
 
@@ -47,23 +48,25 @@ Do not run build and type-check in parallel. Type-check depends on generated `.n
 
 Ask the project owner for current admin credentials if needed. Existing local/dev credentials were used during implementation, but avoid hardcoding credentials in code or docs.
 
+## Demo Credentials
+
+Use this account for client demos:
+
+- Partner login URL: `https://bureau-portal.vercel.app/partner-login`
+- Demo partner email: `user@demo.in`
+- Demo partner password: ask owner if changed; initial demo password was set during implementation.
+- Demo wallet opening balance: `100000`
+- Demo CIBIL OTP: `123456`
+
+Demo account behavior:
+
+- Full partner portal works with demo data.
+- CIBIL pulls use generated demo report data, not the live external bureau API.
+- Demo CIBIL score is normalized to `790`.
+- Wallet deduction still happens so the demo looks realistic.
+- Run `scripts/seed-demo-account.mjs` when the demo account/wallet needs to be reset.
+
 ## Current Completed Work
-
-### Demo Partner Account
-
-A reproducible Supabase seed migration exists:
-
-- `supabase/migrations/20260510120000_seed_demo_partner.sql`
-
-Demo account:
-
-- Email: `user@demo.in`
-- Password: ask owner or check the seed migration in trusted local context
-- Partner name: `Demo Partner`
-- Partner code: `DEMO001`
-- Status: `approved`
-- Agreement: signed
-- Wallet balance: `100000`
 
 ### Agreement Flow
 
@@ -86,6 +89,62 @@ Implemented and pushed:
   - `src/context/AuthContext.tsx`
 - Supabase migration:
   - `supabase/migrations/20260508193000_partner_agreements.sql`
+
+### Demo CIBIL Flow
+
+Implemented:
+
+- Demo account seed/reset script:
+  - `scripts/seed-demo-account.mjs`
+- Demo response generator:
+  - `src/lib/cibil/demo-response.ts`
+- State code mapping:
+  - `src/lib/cibil/state-codes.ts`
+- Internal bureau pull route:
+  - `src/app/api/pull-cibil-real/route.ts`
+- Partner pull form updates:
+  - `src/app/pull-cibil/page.tsx`
+
+Current behavior:
+
+- Demo partner is detected by email `user@demo.in` or partner code `DEMO001`.
+- Demo partner gets demo bureau JSON and wallet deduction.
+- Non-demo partners currently receive `501 Live CIBIL integration is not enabled yet`.
+- Live external CIBIL API should not be enabled until owner/developer reviews success and error JSON formats.
+
+### Login And Guard Fixes
+
+Implemented:
+
+- Partner login no longer remains stuck on the "Signing in..." loader after successful auth:
+  - `src/app/partner-login/page.tsx`
+- Root auth guard no longer shows the full-screen "Authentication Required" message on protected pages:
+  - `src/components/AdminGuard.tsx`
+- Browser auth persistence is localStorage-backed with a stable storage key:
+  - `src/lib/supabase/client.ts`
+- Existing admin/partner sessions redirect to their correct portal instead of logging out when the wrong login page is opened:
+  - `src/app/admin/page.tsx`
+  - `src/app/partner-login/page.tsx`
+
+Current guard behavior:
+
+- Public pages render normally.
+- Unauthenticated partner routes quietly redirect to `/partner-login`.
+- Unauthenticated admin routes quietly redirect to `/admin`.
+- Authenticated partner/admin sessions survive refresh and normal route navigation.
+- Role-based `Access Denied` and partner `Agreement Required` screens remain active.
+
+### Deployment Status
+
+Current production deployment:
+
+- `https://bureau-portal.vercel.app`
+
+Vercel setup notes:
+
+- Project is linked locally through `.vercel`.
+- Environment variables were added from decrypted `.env`.
+- `.env` must remain uncommitted.
 
 ### Supabase Migration Status
 

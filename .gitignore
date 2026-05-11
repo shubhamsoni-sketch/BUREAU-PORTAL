@@ -1,6 +1,7 @@
 # Node modules
 node_modules/
 .npm-cache/
+.tools/
 
 # Environment variables / secrets
 .env
@@ -40,3 +41,5 @@ jest-test-results.json
 
 # Optional: if using TurboRepo or monorepo
 turbo/
+
+.vercel
