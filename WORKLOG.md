@@ -2,6 +2,23 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-11 - Developer - Landing Page Replacement
+
+Summary:
+
+- Replaced the public `/` and `/home` landing experience with the design adapted from `PORTAL-LANDING-PAGE`.
+- Preserved portal controls for `Partner Login`, `Admin Login`, and `Become Partner`.
+- Removed the source landing form and its separate Supabase submission/storage behavior.
+- Sanitized user-facing copy to avoid CIBIL wording and use credit health / financial analysis language.
+- Added landing-specific components and scoped landing styles so admin/partner screens remain isolated.
+
+Verification:
+
+- `rg "CIBIL|Cibil|cibil|CibilCheck|cibilcheck" src` returned no matches.
+- Local HTTP checks for `/` and `/home` returned 200 and confirmed `InsightIQ`, `Partner Login`, and `Start Financial Analysis` render with no CIBIL text.
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed after build regenerated `.next/types`.
+
 ## 2026-05-10 - Developer - Demo Partner Seed Migration
 
 Summary:

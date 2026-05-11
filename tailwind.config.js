@@ -50,16 +50,37 @@ module.exports = {
           DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',
         },
+        bg: {
+          DEFAULT: '#060E1A',
+          card: '#0D1B2E',
+          card2: '#091526',
+        },
+        fg: {
+          DEFAULT: '#E8F4FD',
+          muted: '#7A9BB5',
+          subtle: '#3D5A73',
+        },
+        danger: '#FF4D6D',
       },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        '4xl': '2rem',
+        '5xl': '2.5rem',
       },
       boxShadow: {
         card: '0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04)',
         'card-hover': '0 4px 16px -4px rgba(0,0,0,0.10)',
         dropdown: '0 8px 24px -4px rgba(0,0,0,0.12)',
+        'glow-primary': '0 0 30px -8px rgba(0, 212, 170, 0.5)',
+        'glow-accent': '0 0 30px -8px rgba(245, 166, 35, 0.4)',
+        'glow-sm': '0 0 15px -4px rgba(0, 212, 170, 0.35)',
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'hero-mesh':
+          'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0,212,170,0.15) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 80%, rgba(245,166,35,0.08) 0%, transparent 50%)',
       },
       transitionDuration: {
         '150': '150ms',
