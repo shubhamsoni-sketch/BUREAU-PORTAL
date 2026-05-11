@@ -6,6 +6,7 @@ import Header from './Header';
 import GetReportSection from './GetReportSection';
 import HeroSection from './HeroSection';
 import HowItWorksSection from './HowItWorksSection';
+import PartnerProgramSection from './PartnerProgramSection';
 import ReportPreviewSection from './ReportPreviewSection';
 import TrustSection from './TrustSection';
 
@@ -25,6 +26,7 @@ export default function LandingPage() {
         <HowItWorksSection lang="en" onGetReport={scrollToAnalysis} />
         <ReportPreviewSection lang="en" />
         <TrustSection lang="en" />
+        <PartnerProgramSection />
         <GetReportSection formRef={formRef} />
       </main>
       <Footer />

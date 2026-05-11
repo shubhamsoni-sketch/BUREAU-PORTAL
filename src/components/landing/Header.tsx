@@ -11,6 +11,7 @@ interface HeaderProps {
 const navItems = [
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Financial Analysis', href: '#report-preview' },
+  { label: 'Partner Program', href: '#partner-program' },
   { label: 'Security', href: '#trust' },
 ];
 

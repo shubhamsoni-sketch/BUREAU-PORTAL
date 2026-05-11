@@ -2,6 +2,21 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - Matched Partner Program Landing Section
+
+Summary:
+
+- Added a new `PartnerProgramSection` to the public landing page.
+- Reused old partner-program content themes: DSA/CA/advisor audience, Consumer Data, Commercial Data, Bulk Analysis, onboarding steps, and partner differentiators.
+- Matched the new landing design system with dark background, glass cards, teal/accent colors, scoped animations, and existing CTA button styles.
+- Added a `Partner Program` anchor in the public landing nav.
+
+Verification:
+
+- `rg "CIBIL|Cibil|cibil|CibilCheck|cibilcheck|Admin|/admin|emoji|ð" src/components/landing src/app/page.tsx src/app/home/page.tsx` returned no matches.
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-11 - Developer - Hide Public Admin Landing Links
 
 Summary:
