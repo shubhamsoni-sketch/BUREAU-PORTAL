@@ -15,7 +15,7 @@ const copy = {
     headline2: 'Financial Health Report',
     headline3: 'Before You Apply.',
     sub: 'Understand your credit score, repayment behavior, loan readiness, risk signals, and improvement steps in one simple financial analysis.',
-    cta1: 'Get My Report',
+    cta1: 'Get My Financial Report',
     cta2: 'Preview Report',
     stat1: '2.4L+ Reports',
     stat2: '4.8/5 Rating',

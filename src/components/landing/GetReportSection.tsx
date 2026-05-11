@@ -79,7 +79,7 @@ export default function GetReportSection({ formRef }: GetReportSectionProps) {
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3 mt-8">
-                <Link href="/contact" className="btn-primary justify-center px-5 py-4 text-sm">
+                <Link href="/get-my-report" className="btn-primary justify-center px-5 py-4 text-sm">
                   Create My Report
                 </Link>
                 <Link href="/partner-program" className="btn-ghost justify-center px-5 py-4 text-sm">

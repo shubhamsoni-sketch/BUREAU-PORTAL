@@ -71,7 +71,7 @@ export default function Header({ onGetReport }: HeaderProps) {
               Partner Login
             </Link>
             <button type="button" onClick={onGetReport} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-sm">
-              Get My Report
+              Get My Financial Report
               <Icon name="ArrowRightIcon" size={16} variant="solid" />
             </button>
           </div>
@@ -119,7 +119,7 @@ export default function Header({ onGetReport }: HeaderProps) {
             }}
             className="btn-primary mt-2 px-8 py-3.5 text-base flex items-center gap-2"
           >
-            Get My Report
+            Get My Financial Report
             <Icon name="ArrowRightIcon" size={18} variant="solid" />
           </button>
         </div>

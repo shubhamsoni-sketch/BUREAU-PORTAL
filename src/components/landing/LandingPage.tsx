@@ -13,7 +13,7 @@ export default function LandingPage() {
   const formRef = useRef<HTMLDivElement>(null);
 
   const scrollToAnalysis = () => {
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.location.href = '/get-my-report';
   };
 
   return (

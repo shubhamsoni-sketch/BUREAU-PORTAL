@@ -2,6 +2,21 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - B2C Report Purchase Journey
+
+Summary:
+
+- Added a separate customer journey at `/get-my-report` for mobile OTP, value education, secure details, consent, final price reveal, demo payment, report preparation, and report view.
+- Kept the price hidden until after OTP, benefits education, details, and consent.
+- Added Cashfree-ready customer payment API stubs with demo fallback when Cashfree keys are not configured.
+- Routed landing CTA buttons to the new customer journey.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+- Built `/get-my-report` initial HTML does not contain upfront `₹199` or payment copy.
+
 ## 2026-05-12 - Developer - Public Landing Content Cleanup
 
 Summary:
