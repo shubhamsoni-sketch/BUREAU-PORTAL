@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - Public Landing Content Cleanup
+
+Summary:
+
+- Cleaned public/landing-linked copy so the website positions Insight as financial health analysis, not bureau report pulling.
+- Updated metadata, Partner Program wording, partner application terms/header, features page copy, and integrations page labels.
+- Left partner portal, admin portal, APIs, and internal route/table names unchanged.
+
+Verification:
+
+- `rg -i "cibil|bureau|credit report|pull|pulls|pulled|credit bureau|bureau data|bureau report" src/components/landing src/app/page.tsx src/app/home/page.tsx src/app/partner-program/page.tsx src/app/become-a-partner/page.tsx src/app/features/page.tsx src/app/about/page.tsx src/app/contact/page.tsx src/app/layout.tsx src/app/integrations/page.tsx` returned no matches.
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-12 - Developer - Partner Hero Report Visual
 
 Summary:

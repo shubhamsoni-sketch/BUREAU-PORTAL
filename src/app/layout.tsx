@@ -16,9 +16,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Insight — Bureau Analysis Platform for DSA Partners',
+  title: 'Insight - Financial Health Analysis Platform',
   description:
-    'Insight helps DSA partners and admins pull, analyze, and manage Bureau credit reports with wallet-based billing and real-time partner oversight.',
+    'Insight helps individuals and financial partners generate clear financial health reports with credit score insights, repayment analysis, and wallet-based partner workflows.',
   icons: {
     icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
   },
@@ -46,7 +46,7 @@ export default function RootLayout({
             </AdminGuard>
           </AuthProvider>
         </ErrorBoundary>
-</body>
+      </body>
     </html>
   );
 }

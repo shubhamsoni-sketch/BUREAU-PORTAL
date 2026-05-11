@@ -37,10 +37,10 @@ type FormErrors = Partial<Record<keyof RegistrationFormData, string>>;
 const TNC_TEXT = `TERMS AND CONDITIONS FOR PARTNER REGISTRATION
 
 1. ELIGIBILITY
-By submitting this application, you confirm that you are a legally authorized DSA, Agent, Business Entity, or Individual eligible to partner with us for credit bureau report services.
+By submitting this application, you confirm that you are a legally authorized DSA, Agent, Business Entity, or Individual eligible to partner with us for financial health analysis services.
 
 2. SERVICES
-As a registered partner, you will have access to pull Consumer Credit Reports and/or Commercial Credit Reports from authorized credit bureaus, subject to applicable regulations and your approved service type.
+As a registered partner, you will have access to generate Individual Financial Analysis and/or Business Financial Analysis reports, subject to applicable regulations and your approved service type.
 
 3. DATA PRIVACY & CONFIDENTIALITY
 All customer data accessed through our platform is strictly confidential. You agree not to share, misuse, or disclose any customer information to unauthorized parties. All data handling must comply with applicable data protection laws including the Information Technology Act, 2000 and DPDP Act, 2023.
@@ -49,7 +49,7 @@ All customer data accessed through our platform is strictly confidential. You ag
 You agree to comply with all applicable laws, regulations, and guidelines issued by the Reserve Bank of India (RBI), Credit Information Companies (Regulation) Act, 2005, and any other relevant regulatory authority.
 
 5. AUTHORIZED USE
-Bureau reports pulled through this platform must only be used for legitimate financial assessment purposes with the explicit consent of the individual or entity whose report is being accessed.
+Financial health reports generated through this platform must only be used for legitimate financial assessment purposes with the explicit consent of the individual or entity whose data is being assessed.
 
 6. FEES & BILLING
 Usage of the platform is subject to the commercial terms agreed upon at the time of partner activation. All charges are non-refundable unless otherwise specified.
@@ -190,7 +190,7 @@ export default function BecomeAPartnerPage() {
               <AppLogo size={44} />
             </div>
             <h1 className="text-xl font-bold text-white">Become a Partner</h1>
-            <p className="text-blue-200 text-sm mt-1">Register your business and start accessing bureau reports</p>
+            <p className="text-blue-200 text-sm mt-1">Register your business and start generating financial health reports</p>
           </div>
 
           <div className="px-8 py-8">

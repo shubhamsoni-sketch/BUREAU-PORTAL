@@ -293,7 +293,7 @@ function PartnerReportVisual() {
 
       {/* Stats row */}
       {[
-        { label: 'Reports Pulled', val: '142' },
+        { label: 'Reports Generated', val: '142' },
         { label: 'Approved', val: '89' },
         { label: 'Pending', val: '31' },
       ].map((stat, i) => (
@@ -370,7 +370,7 @@ const FEATURES: FeatureBlock[] = [
   {
     tag: 'PARTNERS',
     headline: 'Professional-grade reports built for DSAs, CAs, and advisors.',
-    description: 'Pull client reports, track approval outcomes, and manage your entire book from one clean dashboard — built for professionals who work at scale.',
+    description: 'Generate client reports, track approval outcomes, and manage your entire book from one clean dashboard — built for professionals who work at scale.',
     visual: <PartnerReportVisual />,
   },
 ];
@@ -471,7 +471,7 @@ export default function FeaturesPage() {
             Ready to see it in action?
           </h2>
           <p className="text-slate-500 text-lg mb-10 leading-relaxed">
-            Run a full analysis on your actual bureau data — all six capabilities, in one report.
+            Run a full analysis on your financial data signals — all six capabilities, in one report.
           </p>
           <Link
             href="/get-analysis"

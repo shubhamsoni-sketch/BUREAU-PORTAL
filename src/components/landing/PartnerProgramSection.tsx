@@ -63,7 +63,7 @@ const differentiators = [
   },
   {
     title: 'Pay as you go',
-    desc: 'Wallet-based billing keeps every pull transparent, with no hidden monthly commitment.',
+    desc: 'Wallet-based billing keeps every report transparent, with no hidden monthly commitment.',
   },
   {
     title: 'Built for volume',

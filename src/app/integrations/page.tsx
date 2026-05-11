@@ -22,8 +22,8 @@ function useInView(threshold = 0.1) {
 const dataSources = [
   {
     icon: Database,
-    name: 'Credit Bureau',
-    desc: 'Primary credit data source',
+    name: 'Credit Data Provider',
+    desc: 'Primary financial data source',
     category: 'Core',
   },
   {
@@ -114,7 +114,7 @@ export default function IntegrationsPage() {
           <h2 className="text-2xl font-bold text-slate-900 mb-10">How data flows through Insight</h2>
           <div className="flex flex-col md:flex-row items-start md:items-center gap-0">
             {[
-              { label: 'Data Sources', desc: 'Bureau, banking, and partner data' },
+              { label: 'Data Sources', desc: 'Financial, banking, and partner data' },
               { label: 'Processing Engine', desc: '50+ signals analyzed in real-time' },
               { label: 'Intelligence Report', desc: 'Structured insights, ready to act on' },
             ]?.map((step, i) => (
