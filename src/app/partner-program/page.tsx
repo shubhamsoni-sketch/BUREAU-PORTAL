@@ -95,38 +95,53 @@ export default function PartnerProgramPage() {
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-accent" />
                 <div className="flex items-center justify-between gap-4 mb-8">
                   <div>
-                    <p className="text-xs text-fg-subtle uppercase tracking-wider font-bold">Partner Workspace</p>
-                    <h2 className="text-2xl font-bold text-fg mt-2">Client journey preview</h2>
+                    <p className="text-xs text-fg-subtle uppercase tracking-wider font-bold">Financial Intelligence</p>
+                    <h2 className="text-2xl font-bold text-fg mt-2">Professional report view</h2>
                   </div>
-                  <span className="tag tag-accent">Secure Flow</span>
+                  <span className="tag tag-accent">Partner Grade</span>
                 </div>
 
-                <div className="rounded-3xl p-5 mb-5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-bold text-fg">New client intake</p>
-                      <p className="text-xs text-fg-muted mt-1">Identity details, consent, and analysis type in one controlled flow.</p>
-                    </div>
-                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(0,212,170,0.12)', border: '1px solid rgba(0,212,170,0.22)' }}>
-                      <Icon name="IdentificationIcon" size={21} className="text-primary" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 mt-5">
-                    {['Profile', 'Consent', 'Analysis'].map((item, index) => (
-                      <div key={item} className="rounded-2xl px-3 py-3 text-center" style={{ background: index === 2 ? 'rgba(0,212,170,0.10)' : 'rgba(255,255,255,0.035)' }}>
-                        <p className={index === 2 ? 'text-primary text-xs font-bold' : 'text-fg-muted text-xs font-bold'}>{item}</p>
+                <div className="rounded-4xl p-6 mb-5 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(0,212,170,0.12), rgba(255,255,255,0.035))', border: '1px solid rgba(0,212,170,0.16)' }}>
+                  <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #00D4AA, transparent 65%)' }} />
+                  <div className="relative flex items-center gap-6">
+                    <div className="relative w-32 h-32 shrink-0">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120" aria-hidden>
+                        <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
+                        <circle cx="60" cy="60" r="48" fill="none" stroke="url(#partner-score)" strokeWidth="10" strokeLinecap="round" strokeDasharray="238 302" />
+                        <defs>
+                          <linearGradient id="partner-score" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#00D4AA" />
+                            <stop offset="100%" stopColor="#F5A623" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <span className="text-3xl font-bold gradient-text-primary">742</span>
+                        <span className="text-[10px] text-fg-subtle uppercase tracking-wider">Score View</span>
                       </div>
-                    ))}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-lg font-bold text-fg">Credit health summary</p>
+                      <p className="text-sm text-fg-muted mt-2 leading-relaxed">
+                        Score, repayment behavior, utilization, enquiries, and risk markers organized for client discussions.
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        <span className="tag tag-primary">Score</span>
+                        <span className="tag tag-accent">Risk</span>
+                        <span className="tag tag-primary">Insights</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid sm:grid-cols-2 gap-3 mb-5">
+                <div className="grid sm:grid-cols-3 gap-3 mb-5">
                   {[
-                    { title: 'Consumer', desc: 'Individual credit health', icon: 'UserCircleIcon', tone: 'primary' },
-                    { title: 'Commercial', desc: 'Business profile checks', icon: 'BuildingOffice2Icon', tone: 'accent' },
+                    { title: 'Repayment', value: 'Stable', icon: 'CheckCircleIcon', tone: 'primary' },
+                    { title: 'Utilization', value: 'Moderate', icon: 'ChartBarIcon', tone: 'accent' },
+                    { title: 'Risk', value: 'Reviewed', icon: 'ShieldCheckIcon', tone: 'primary' },
                   ].map((item) => (
                     <div key={item.title} className="rounded-3xl p-4" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-col gap-3">
                         <div
                           className="w-9 h-9 rounded-xl flex items-center justify-center"
                           style={{
@@ -138,7 +153,7 @@ export default function PartnerProgramPage() {
                         </div>
                         <div>
                           <p className="text-sm font-bold text-fg">{item.title}</p>
-                          <p className="text-xs text-fg-muted mt-0.5">{item.desc}</p>
+                          <p className="text-xs text-fg-muted mt-0.5">{item.value}</p>
                         </div>
                       </div>
                     </div>
@@ -147,16 +162,24 @@ export default function PartnerProgramPage() {
 
                 <div className="space-y-3">
                   {[
-                    { name: 'Rahul Mehta', type: 'Personal loan review', status: 'Ready' },
-                    { name: 'Aarav Traders', type: 'Business funding review', status: 'Queued' },
-                    { name: 'Priya Shah', type: 'Credit card planning', status: 'Draft' },
+                    { label: 'Account summary', width: '82%', tone: 'primary' },
+                    { label: 'Payment behavior', width: '68%', tone: 'accent' },
+                    { label: 'Improvement actions', width: '76%', tone: 'primary' },
                   ].map((item) => (
-                    <div key={item.name} className="flex items-center justify-between gap-4 rounded-2xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.035)' }}>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-fg truncate">{item.name}</p>
-                        <p className="text-xs text-fg-muted truncate">{item.type}</p>
+                    <div key={item.label} className="rounded-2xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.035)' }}>
+                      <div className="flex items-center justify-between gap-4 mb-2">
+                        <p className="text-sm font-bold text-fg">{item.label}</p>
+                        <Icon name="DocumentChartBarIcon" size={16} className={item.tone === 'accent' ? 'text-accent' : 'text-primary'} />
                       </div>
-                      <span className={item.status === 'Ready' ? 'tag tag-primary shrink-0' : 'tag tag-accent shrink-0'}>{item.status}</span>
+                      <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: item.width,
+                            background: item.tone === 'accent' ? 'linear-gradient(90deg, #F5A623, #FFD166)' : 'linear-gradient(90deg, #00D4AA, #7FFFDF)',
+                          }}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>

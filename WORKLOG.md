@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - Partner Hero Report Visual
+
+Summary:
+
+- Replaced the Partner Program hero journey preview with a neutral professional report visual.
+- Removed intake steps, client names, workflow statuses, and public-facing journey/counter messaging from the hero card.
+- Added score summary, insight tags, analysis signal tiles, and report-module progress lines.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-12 - Developer - Partner Hero Workspace Preview
 
 Summary:
