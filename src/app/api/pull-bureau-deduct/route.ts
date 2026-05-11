@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (commercialsError) {
-      console.error('[pull-cibil-deduct] commercials fetch error:', commercialsError);
+      console.error('[pull-bureau-deduct] commercials fetch error:', commercialsError);
     }
 
     // Determine rate: use split rates if available, fallback to credit_rate, then default
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       .eq('id', partner_id);
 
     if (updateError) {
-      console.error('[pull-cibil-deduct] balance update error:', updateError);
+      console.error('[pull-bureau-deduct] balance update error:', updateError);
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Insert wallet_transactions row
-    const description = `${report_type === 'commercial' ? 'Commercial' : 'Consumer'} CIBIL Pull${customer_name ? ` – ${customer_name}` : ''}`;
+    const description = `${report_type === 'commercial' ? 'Commercial' : 'Consumer'} Bureau Pull${customer_name ? ` – ${customer_name}` : ''}`;
     const { error: txnError } = await supabaseAdmin
       .from('wallet_transactions')
       .insert({
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
       });
 
     if (txnError) {
-      console.error('[pull-cibil-deduct] transaction insert error:', txnError);
+      console.error('[pull-bureau-deduct] transaction insert error:', txnError);
       // Don't fail — balance already deducted, just log
     }
 
@@ -135,12 +135,12 @@ export async function POST(req: NextRequest) {
         total_enquiries: body.total_enquiries ?? null,
         amount_deducted: rate,
         report_id: report_id ?? null,
-        bureau: 'CIBIL',
+        bureau: 'Bureau',
         raw_json: body.raw_json ?? {},
       });
 
     if (pullError) {
-      console.error('[pull-cibil-deduct] bureau_pulls insert error:', pullError);
+      console.error('[pull-bureau-deduct] bureau_pulls insert error:', pullError);
       // Don't fail — balance already deducted
     }
 
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
       member_ref: memberRef,
     });
   } catch (err: any) {
-    console.error('[pull-cibil-deduct] unexpected error:', err);
+    console.error('[pull-bureau-deduct] unexpected error:', err);
     return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
   }
 }

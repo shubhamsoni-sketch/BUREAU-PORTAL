@@ -1,6 +1,6 @@
 import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js';
 
-export const AUTH_STORAGE_KEY = 'sb-cibilysis-auth-token';
+export const AUTH_STORAGE_KEY = 'sb-bureau-portal-auth-token';
 
 let browserClient: SupabaseClient | null = null;
 

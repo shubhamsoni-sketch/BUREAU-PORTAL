@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, bearerToken, requireUser } from '@/lib/supabase/admin';
-import { createDemoCibilResponse } from '@/lib/cibil/demo-response';
-import { getStateCode } from '@/lib/cibil/state-codes';
+import { createDemoBureauResponse } from '@/lib/bureau/demo-response';
+import { getStateCode } from '@/lib/bureau/state-codes';
 
 const DEMO_RESET_BALANCE = 100000;
 const DEMO_TOP_UP_THRESHOLD = 1000;
 
 type ReportType = 'consumer' | 'commercial';
 
-type PullCibilBody = {
+type PullBureauBody = {
   partner_id?: string;
   report_type?: ReportType;
   firstName?: string;
@@ -47,7 +47,7 @@ function riskLevel(score: number | null) {
   return 'High';
 }
 
-function buildKeyIssues(response: ReturnType<typeof createDemoCibilResponse>) {
+function buildKeyIssues(response: ReturnType<typeof createDemoBureauResponse>) {
   const summary = response.consumerSummaryData;
   const overdue = Number(summary.accountSummary.overdueAccounts ?? 0);
   const recent = Number(summary.inquirySummary.inquiryPast30Days ?? 0);
@@ -59,7 +59,7 @@ function buildKeyIssues(response: ReturnType<typeof createDemoCibilResponse>) {
   return issues;
 }
 
-function normalizeDemoResult(response: ReturnType<typeof createDemoCibilResponse>, reportId: string) {
+function normalizeDemoResult(response: ReturnType<typeof createDemoBureauResponse>, reportId: string) {
   const credit = response.consumerCreditData[0];
   const score = normalizeScore(credit.scores[0]?.score);
   return {
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = (await request.json()) as PullCibilBody;
+    const body = (await request.json()) as PullBureauBody;
     const supabase = auth.supabase;
 
     if (!body.partner_id) return jsonError('partner_id is required', 400);
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isDemoPartner) {
-      return jsonError('Live CIBIL integration is not enabled yet', 501);
+      return jsonError('Live bureau integration is not enabled yet', 501);
     }
 
     const reportId = `DEMO-${Date.now().toString().slice(-10)}`;
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
       telephoneNumber: body.telephoneNumber,
     };
 
-    const rawResponse = createDemoCibilResponse({
+    const rawResponse = createDemoBureauResponse({
       name: customerName,
       birthDate,
       gender,
@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
       partner_id: partner.id,
       type: 'debit',
       amount: rate,
-      description: `${body.report_type === 'commercial' ? 'Commercial' : 'Consumer'} CIBIL Pull - ${customerName}`,
+      description: `${body.report_type === 'commercial' ? 'Commercial' : 'Consumer'} Bureau Pull - ${customerName}`,
       transaction_type: 'deduction',
       rate_snapshot: rate,
       running_balance: newBalance,
@@ -281,7 +281,7 @@ export async function POST(request: NextRequest) {
       total_enquiries: Number(inquirySummary.totalInquiry ?? 0),
       amount_deducted: rate,
       report_id: reportId,
-      bureau: 'CIBIL',
+      bureau: 'Bureau',
       raw_json: {
         demo: true,
         source: 'shared_demo_account',
@@ -300,7 +300,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected error';
-    console.error('[pull-cibil-real] unexpected error:', err);
+    console.error('[pull-bureau-real] unexpected error:', err);
     return jsonError(message, 500);
   }
 }

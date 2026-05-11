@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
 export type RiskLevel = 'Low' | 'Medium' | 'High';
-export type ReportType = 'Consumer CIBIL' | 'Commercial CIBIL';
+export type ReportType = 'Consumer Bureau' | 'Commercial Bureau';
 
 export interface CustomerRecord {
   id: string;
@@ -39,12 +39,12 @@ const SEED_RECORDS: CustomerRecord[] = [
     aadhaar: '234567890123',
     partnerId: 'partner-001',
     partnerName: 'Rajesh Kumar (DSA)',
-    reportType: 'Consumer CIBIL',
+    reportType: 'Consumer Bureau',
     creditScore: 742,
     riskLevel: 'Low',
     reportId: 'CIB-2026-00847',
     pulledAt: '2026-03-28 11:02',
-    rawJson: { score: 742, riskLevel: 'Low', bureau: 'CIBIL', version: '3.1', enquiries: 2, accounts: 5 },
+    rawJson: { score: 742, riskLevel: 'Low', bureau: 'Bureau', version: '3.1', enquiries: 2, accounts: 5 },
   },
   {
     id: 'cm-002',
@@ -54,12 +54,12 @@ const SEED_RECORDS: CustomerRecord[] = [
     aadhaar: '345678901234',
     partnerId: 'partner-001',
     partnerName: 'Rajesh Kumar (DSA)',
-    reportType: 'Consumer CIBIL',
+    reportType: 'Consumer Bureau',
     creditScore: 610,
     riskLevel: 'Medium',
     reportId: 'CIB-2026-00831',
     pulledAt: '2026-03-27 14:30',
-    rawJson: { score: 610, riskLevel: 'Medium', bureau: 'CIBIL', version: '3.1', enquiries: 5, accounts: 3 },
+    rawJson: { score: 610, riskLevel: 'Medium', bureau: 'Bureau', version: '3.1', enquiries: 5, accounts: 3 },
   },
   {
     id: 'cm-003',
@@ -69,12 +69,12 @@ const SEED_RECORDS: CustomerRecord[] = [
     aadhaar: '456789012345',
     partnerId: 'partner-001',
     partnerName: 'Rajesh Kumar (DSA)',
-    reportType: 'Commercial CIBIL',
+    reportType: 'Commercial Bureau',
     creditScore: 68,
     riskLevel: 'Medium',
     reportId: 'COM-2026-00312',
     pulledAt: '2026-03-26 16:20',
-    rawJson: { score: 68, riskLevel: 'Medium', bureau: 'CIBIL', version: '2.0', tradelines: 4, overdues: 2 },
+    rawJson: { score: 68, riskLevel: 'Medium', bureau: 'Bureau', version: '2.0', tradelines: 4, overdues: 2 },
   },
   {
     id: 'cm-004',
@@ -84,12 +84,12 @@ const SEED_RECORDS: CustomerRecord[] = [
     aadhaar: '567890123456',
     partnerId: 'partner-002',
     partnerName: 'Sunita Verma (DSA)',
-    reportType: 'Consumer CIBIL',
+    reportType: 'Consumer Bureau',
     creditScore: 785,
     riskLevel: 'Low',
     reportId: 'CIB-2026-00820',
     pulledAt: '2026-03-25 13:10',
-    rawJson: { score: 785, riskLevel: 'Low', bureau: 'CIBIL', version: '3.1', enquiries: 1, accounts: 7 },
+    rawJson: { score: 785, riskLevel: 'Low', bureau: 'Bureau', version: '3.1', enquiries: 1, accounts: 7 },
   },
   {
     id: 'cm-005',
@@ -99,12 +99,12 @@ const SEED_RECORDS: CustomerRecord[] = [
     aadhaar: '678901234567',
     partnerId: 'partner-002',
     partnerName: 'Sunita Verma (DSA)',
-    reportType: 'Consumer CIBIL',
+    reportType: 'Consumer Bureau',
     creditScore: 540,
     riskLevel: 'High',
     reportId: 'CIB-2026-00798',
     pulledAt: '2026-03-23 15:40',
-    rawJson: { score: 540, riskLevel: 'High', bureau: 'CIBIL', version: '3.1', enquiries: 9, accounts: 2 },
+    rawJson: { score: 540, riskLevel: 'High', bureau: 'Bureau', version: '3.1', enquiries: 9, accounts: 2 },
   },
   {
     id: 'cm-006',
@@ -114,12 +114,12 @@ const SEED_RECORDS: CustomerRecord[] = [
     aadhaar: '789012345678',
     partnerId: 'partner-003',
     partnerName: 'Mohan Lal (DSA)',
-    reportType: 'Commercial CIBIL',
+    reportType: 'Commercial Bureau',
     creditScore: 82,
     riskLevel: 'Low',
     reportId: 'COM-2026-00289',
     pulledAt: '2026-03-22 10:05',
-    rawJson: { score: 82, riskLevel: 'Low', bureau: 'CIBIL', version: '2.0', tradelines: 6, overdues: 0 },
+    rawJson: { score: 82, riskLevel: 'Low', bureau: 'Bureau', version: '2.0', tradelines: 6, overdues: 0 },
   },
   {
     id: 'cm-007',
@@ -129,12 +129,12 @@ const SEED_RECORDS: CustomerRecord[] = [
     aadhaar: '890123456789',
     partnerId: 'partner-003',
     partnerName: 'Mohan Lal (DSA)',
-    reportType: 'Consumer CIBIL',
+    reportType: 'Consumer Bureau',
     creditScore: 670,
     riskLevel: 'Medium',
     reportId: 'CIB-2026-00775',
     pulledAt: '2026-03-21 17:30',
-    rawJson: { score: 670, riskLevel: 'Medium', bureau: 'CIBIL', version: '3.1', enquiries: 3, accounts: 4 },
+    rawJson: { score: 670, riskLevel: 'Medium', bureau: 'Bureau', version: '3.1', enquiries: 3, accounts: 4 },
   },
 ];
 

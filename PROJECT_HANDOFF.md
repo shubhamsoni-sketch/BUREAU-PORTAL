@@ -56,13 +56,13 @@ Use this account for client demos:
 - Demo partner email: `user@demo.in`
 - Demo partner password: ask owner if changed; initial demo password was set during implementation.
 - Demo wallet opening balance: `100000`
-- Demo CIBIL OTP: `123456`
+- Demo Bureau OTP: `123456`
 
 Demo account behavior:
 
 - Full partner portal works with demo data.
-- CIBIL pulls use generated demo report data, not the live external bureau API.
-- Demo CIBIL score is normalized to `790`.
+- Bureau pulls use generated demo report data, not the live external bureau API.
+- Demo Bureau score is normalized to `790`.
 - Wallet deduction still happens so the demo looks realistic.
 - Run `scripts/seed-demo-account.mjs` when the demo account/wallet needs to be reset.
 
@@ -90,27 +90,27 @@ Implemented and pushed:
 - Supabase migration:
   - `supabase/migrations/20260508193000_partner_agreements.sql`
 
-### Demo CIBIL Flow
+### Demo Bureau Flow
 
 Implemented:
 
 - Demo account seed/reset script:
   - `scripts/seed-demo-account.mjs`
 - Demo response generator:
-  - `src/lib/cibil/demo-response.ts`
+  - `src/lib/bureau/demo-response.ts`
 - State code mapping:
-  - `src/lib/cibil/state-codes.ts`
+  - `src/lib/bureau/state-codes.ts`
 - Internal bureau pull route:
-  - `src/app/api/pull-cibil-real/route.ts`
+  - `src/app/api/pull-bureau-real/route.ts`
 - Partner pull form updates:
-  - `src/app/pull-cibil/page.tsx`
+  - `src/app/pull-bureau/page.tsx`
 
 Current behavior:
 
 - Demo partner is detected by email `user@demo.in` or partner code `DEMO001`.
 - Demo partner gets demo bureau JSON and wallet deduction.
-- Non-demo partners currently receive `501 Live CIBIL integration is not enabled yet`.
-- Live external CIBIL API should not be enabled until owner/developer reviews success and error JSON formats.
+- Non-demo partners currently receive `501 Live bureau integration is not enabled yet`.
+- Live external bureau API should not be enabled until owner/developer reviews success and error JSON formats.
 
 ### Login And Guard Fixes
 
@@ -180,14 +180,14 @@ Expected flow:
 
 Current v1 signing is checkbox consent only. Real e-sign integration is planned for later.
 
-## Next Major Task: Real CIBIL Integration
+## Next Major Task: Real Bureau Integration
 
 Do not implement until response JSON sample is reviewed and discussed.
 
 External API provided by owner/developer:
 
 ```text
-POST https://fincooper.in/v1/cibilScore/getCibilScore
+POST https://fincooper.in/v1/bureau-score/get-bureau-score (owner-provided endpoint may still contain vendor-specific path internally)
 ```
 
 Payload sample:
@@ -237,9 +237,9 @@ Still needed before build:
 
 Suggested architecture:
 
-1. Frontend `/pull-cibil` calls internal route, for example `/api/pull-cibil-real`.
+1. Frontend `/pull-bureau` calls internal route, for example `/api/pull-bureau-real`.
 2. Internal route maps portal form fields to external API payload.
-3. Internal route calls `https://fincooper.in/v1/cibilScore/getCibilScore`.
+3. Internal route calls the owner-provided bureau score endpoint.
 4. Save raw response JSON for audit/history.
 5. Normalize score/report fields for UI.
 6. Deduct wallet only after valid successful response.
@@ -252,6 +252,6 @@ Suggested architecture:
 - Keep UI style consistent with existing admin/partner portal.
 - Do not redesign unrelated pages.
 - Avoid broad refactors unless the task requires it.
-- For CIBIL work, discuss response JSON before implementing.
+- For bureau work, discuss response JSON before implementing.
 - Run build and type-check before pushing.
 - If the worktree has unrelated changes, do not revert them.

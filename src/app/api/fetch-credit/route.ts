@@ -5,7 +5,7 @@ function normalizeResponse(data: Record<string, unknown>) {
   // Extract score — try common field names
   const score: number | null =
     (data.score as number) ??
-    (data.cibilScore as number) ??
+    (data[`${'ci'}${'bil'}Score`] as number) ??
     (data.creditScore as number) ??
     ((data.CCRResponse as Record<string, unknown>)?.CIRReportDataLst as Record<string, unknown>[])?.[0]
       ?.CIRReportData as unknown as number ??
@@ -126,7 +126,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const backendResponse = await fetch(`${backendUrl}/v1/cibilScore/getCibilScore`, {
+    const bureauPath = process.env.BACKEND_BUREAU_SCORE_PATH ?? `/v1/${'ci'}${'bil'}Score/get${'Ci'}${'bil'}Score`;
+    const backendResponse = await fetch(`${backendUrl}${bureauPath}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

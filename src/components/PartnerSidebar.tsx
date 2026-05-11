@@ -10,7 +10,7 @@ import Icon from '@/components/ui/AppIcon';
 
 const partnerNav = [
   { label: 'Dashboard', href: '/partner-dashboard', icon: LayoutDashboard },
-  { label: 'Pull Bureau', href: '/pull-cibil', icon: FileSearch },
+  { label: 'Pull Bureau', href: '/pull-bureau', icon: FileSearch },
   { label: 'My Wallet', href: '/my-wallet', icon: Wallet },
   { label: 'Accounts', href: '/accounts', icon: BookOpen },
   { label: 'Customer Master', href: '/customer-master', icon: BookUser },

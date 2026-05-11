@@ -9,7 +9,7 @@ type DemoResponseInput = {
   reportId: string;
 };
 
-export function createDemoCibilResponse(input: DemoResponseInput) {
+export function createDemoBureauResponse(input: DemoResponseInput) {
   const now = new Date();
   const dd = String(now.getDate()).padStart(2, '0');
   const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -70,7 +70,7 @@ export function createDemoCibilResponse(input: DemoResponseInput) {
         ],
         scores: [
           {
-            scoreName: 'CIBILTUSC4',
+            scoreName: 'BUREAUSCORE',
             scoreCardName: '28',
             scoreCardVersion: '10',
             scoreDate: dateProcessed,

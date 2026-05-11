@@ -27,7 +27,7 @@ function riskBadgeClass(level: string) {
 }
 
 function scoreColor(score: number, reportType: string) {
-  if (reportType === 'Commercial CIBIL') {
+  if (reportType === 'Commercial Bureau') {
     if (score >= 70) return 'text-emerald-600';
     if (score >= 50) return 'text-amber-600';
     return 'text-red-600';
@@ -38,7 +38,7 @@ function scoreColor(score: number, reportType: string) {
 }
 
 function scoreBg(score: number, reportType: string) {
-  if (reportType === 'Commercial CIBIL') {
+  if (reportType === 'Commercial Bureau') {
     if (score >= 70) return 'bg-emerald-50 border-emerald-200';
     if (score >= 50) return 'bg-amber-50 border-amber-200';
     return 'bg-red-50 border-red-200';
@@ -114,7 +114,7 @@ export default function CustomerDetailPage() {
               {record.creditScore}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {record.reportType === 'Commercial CIBIL' ? 'Range: 1–100' : 'Range: 300–900'}
+              {record.reportType === 'Commercial Bureau' ? 'Range: 1–100' : 'Range: 300–900'}
             </p>
           </div>
         </div>

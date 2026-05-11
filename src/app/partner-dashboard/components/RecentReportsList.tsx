@@ -14,7 +14,7 @@ type ReportEntry = {
   mobile: string;
   reportDate: string;
   reportTime: string;
-  cibilScore: number | null;
+  bureauScore: number | null;
   status: ReportStatus;
   cost: string;
   purpose: string;
@@ -28,7 +28,7 @@ const recentReports: ReportEntry[] = [
     mobile: '+91 98765 00001',
     reportDate: '01 Apr 2026',
     reportTime: '10:32 AM',
-    cibilScore: 762,
+    bureauScore: 762,
     status: 'Success',
     cost: '₹50',
     purpose: 'Home Loan',
@@ -40,7 +40,7 @@ const recentReports: ReportEntry[] = [
     mobile: '+91 97654 00002',
     reportDate: '01 Apr 2026',
     reportTime: '09:15 AM',
-    cibilScore: 681,
+    bureauScore: 681,
     status: 'Success',
     cost: '₹50',
     purpose: 'Personal Loan',
@@ -52,7 +52,7 @@ const recentReports: ReportEntry[] = [
     mobile: '+91 96543 00003',
     reportDate: '01 Apr 2026',
     reportTime: '08:50 AM',
-    cibilScore: null,
+    bureauScore: null,
     status: 'Failed',
     cost: '₹0',
     purpose: 'Car Loan',
@@ -64,7 +64,7 @@ const recentReports: ReportEntry[] = [
     mobile: '+91 95432 00004',
     reportDate: '31 Mar 2026',
     reportTime: '05:45 PM',
-    cibilScore: 718,
+    bureauScore: 718,
     status: 'Success',
     cost: '₹50',
     purpose: 'Business Loan',
@@ -76,7 +76,7 @@ const recentReports: ReportEntry[] = [
     mobile: '+91 94321 00005',
     reportDate: '31 Mar 2026',
     reportTime: '04:22 PM',
-    cibilScore: 590,
+    bureauScore: 590,
     status: 'Success',
     cost: '₹50',
     purpose: 'Personal Loan',
@@ -88,7 +88,7 @@ const recentReports: ReportEntry[] = [
     mobile: '+91 93210 00006',
     reportDate: '31 Mar 2026',
     reportTime: '02:10 PM',
-    cibilScore: null,
+    bureauScore: null,
     status: 'Pending',
     cost: '₹50',
     purpose: 'Gold Loan',
@@ -100,7 +100,7 @@ const recentReports: ReportEntry[] = [
     mobile: '+91 92109 00007',
     reportDate: '30 Mar 2026',
     reportTime: '11:58 AM',
-    cibilScore: 800,
+    bureauScore: 800,
     status: 'Success',
     cost: '₹50',
     purpose: 'Home Loan',
@@ -112,7 +112,7 @@ const recentReports: ReportEntry[] = [
     mobile: '+91 91098 00008',
     reportDate: '30 Mar 2026',
     reportTime: '10:05 AM',
-    cibilScore: 645,
+    bureauScore: 645,
     status: 'Success',
     cost: '₹50',
     purpose: 'Mortgage',
@@ -217,9 +217,9 @@ export default function RecentReportsList() {
                     </div>
                   </td>
                   <td className="table-td">
-                    {report.cibilScore ? (
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-sm font-bold font-tabular ${scoreBg(report.cibilScore)} ${scoreColor(report.cibilScore)}`}>
-                        {report.cibilScore}
+                    {report.bureauScore ? (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-sm font-bold font-tabular ${scoreBg(report.bureauScore)} ${scoreColor(report.bureauScore)}`}>
+                        {report.bureauScore}
                       </span>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>

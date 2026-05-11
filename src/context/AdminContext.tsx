@@ -67,7 +67,7 @@ export interface Agreement {
 
 export interface AuditLog {
   id: string;
-  action: 'Login' | 'CIBIL Pull' | 'Wallet Recharge' | 'Partner Approval' | 'Partner Rejection' | 'Partner Deactivation';
+  action: 'Login' | 'Bureau Pull' | 'Wallet Recharge' | 'Partner Approval' | 'Partner Rejection' | 'Partner Deactivation';
   actor: string;
   actorRole: 'Admin' | 'Partner';
   target: string;
@@ -122,15 +122,15 @@ const SEED_AGREEMENTS: Agreement[] = [
 const SEED_AUDIT_LOGS: AuditLog[] = [
   { id: 'log-001', action: 'Login', actor: 'Super Admin', actorRole: 'Admin', target: 'Admin Panel', timestamp: '2026-04-03 09:00', details: 'Admin logged in from 192.168.1.1' },
   { id: 'log-002', action: 'Partner Approval', actor: 'Super Admin', actorRole: 'Admin', target: 'Rajesh Kumar Sharma', timestamp: '2026-04-02 14:30', details: 'Partner DSA-2024-001 approved and activated' },
-  { id: 'log-003', action: 'CIBIL Pull', actor: 'Rajesh Kumar Sharma', actorRole: 'Partner', target: 'Amit Sharma (PAN: ABCPS1234A)', timestamp: '2026-03-28 11:02', details: 'Consumer CIBIL pulled. Score: 742. ₹50 deducted.' },
+  { id: 'log-003', action: 'Bureau Pull', actor: 'Rajesh Kumar Sharma', actorRole: 'Partner', target: 'Amit Sharma (PAN: ABCPS1234A)', timestamp: '2026-03-28 11:02', details: 'Consumer Bureau pulled. Score: 742. ₹50 deducted.' },
   { id: 'log-004', action: 'Wallet Recharge', actor: 'Rajesh Kumar Sharma', actorRole: 'Partner', target: 'Wallet (partner-001)', timestamp: '2026-04-01 10:15', details: '₹5000 recharged via UPI. Ref: UPI2026040100123' },
   { id: 'log-005', action: 'Login', actor: 'Priya Nair', actorRole: 'Partner', target: 'Partner Portal', timestamp: '2026-03-31 09:15', details: 'Partner logged in from 10.0.0.5' },
-  { id: 'log-006', action: 'CIBIL Pull', actor: 'Priya Nair', actorRole: 'Partner', target: 'Ravi Patel (PAN: DRPAT3456D)', timestamp: '2026-03-25 13:10', details: 'Consumer CIBIL pulled. Score: 785. ₹50 deducted.' },
+  { id: 'log-006', action: 'Bureau Pull', actor: 'Priya Nair', actorRole: 'Partner', target: 'Ravi Patel (PAN: DRPAT3456D)', timestamp: '2026-03-25 13:10', details: 'Consumer Bureau pulled. Score: 785. ₹50 deducted.' },
   { id: 'log-007', action: 'Partner Rejection', actor: 'Super Admin', actorRole: 'Admin', target: 'Mohammed Farhan', timestamp: '2026-03-20 11:00', details: 'Partner DSA-2023-054 suspended due to policy violation' },
   { id: 'log-008', action: 'Wallet Recharge', actor: 'Kavitha Rajan', actorRole: 'Partner', target: 'Wallet (partner-006)', timestamp: '2026-03-29 16:20', details: '₹10000 recharged via UPI. Ref: UPI2026032900789' },
   { id: 'log-009', action: 'Partner Approval', actor: 'Super Admin', actorRole: 'Admin', target: 'Kavitha Rajan', timestamp: '2024-03-11 10:00', details: 'Partner DSA-2024-008 approved and activated' },
   { id: 'log-010', action: 'Login', actor: 'Super Admin', actorRole: 'Admin', target: 'Admin Panel', timestamp: '2026-04-02 08:45', details: 'Admin logged in from 192.168.1.1' },
-  { id: 'log-011', action: 'CIBIL Pull', actor: 'Kavitha Rajan', actorRole: 'Partner', target: 'Neha Singh (PAN: ENSGH7890E)', timestamp: '2026-03-23 15:40', details: 'Consumer CIBIL pulled. Score: 540. ₹50 deducted.' },
+  { id: 'log-011', action: 'Bureau Pull', actor: 'Kavitha Rajan', actorRole: 'Partner', target: 'Neha Singh (PAN: ENSGH7890E)', timestamp: '2026-03-23 15:40', details: 'Consumer Bureau pulled. Score: 540. ₹50 deducted.' },
   { id: 'log-012', action: 'Partner Deactivation', actor: 'Super Admin', actorRole: 'Admin', target: 'Meenakshi Iyer', timestamp: '2026-01-03 12:00', details: 'Partner DSA-2022-044 terminated' },
 ];
 
@@ -140,7 +140,7 @@ const SEED_INTEGRATIONS: IntegrationService[] = [
   { id: 'int-002', name: 'MSG91', category: 'SMS/OTP Service', enabled: true, apiKey: 'msg91_api_key_here', apiSecret: '', endpoint: 'https://api.msg91.com', lastTested: '2026-03-30', testStatus: 'success' },
   { id: 'int-003', name: 'SendGrid', category: 'Email Service', enabled: false, apiKey: '', apiSecret: '', endpoint: 'https://api.sendgrid.com/v3', lastTested: undefined, testStatus: null },
   { id: 'int-004', name: 'Leegality', category: 'eSign Service', enabled: false, apiKey: '', apiSecret: '', endpoint: 'https://api.leegality.com', lastTested: undefined, testStatus: null },
-  { id: 'int-005', name: 'CIBIL API', category: 'CIBIL API', enabled: true, apiKey: 'cibil_api_key_here', apiSecret: 'cibil_secret_here', endpoint: 'https://api.cibil.com/v2', lastTested: '2026-04-01', testStatus: 'success' },
+  { id: 'int-005', name: 'Bureau API', category: 'Bureau API', enabled: true, apiKey: 'bureau_api_key_here', apiSecret: 'bureau_secret_here', endpoint: 'https://api.bureau.example/v2', lastTested: '2026-04-01', testStatus: 'success' },
 ];
 
 function generatePassword(name: string): string {

@@ -7,14 +7,14 @@ import { Search, Shield, User } from 'lucide-react';
 
 const ACTION_COLORS: Record<AuditLog['action'], string> = {
   'Login': 'bg-blue-100 text-blue-700',
-  'CIBIL Pull': 'bg-purple-100 text-purple-700',
+  'Bureau Pull': 'bg-purple-100 text-purple-700',
   'Wallet Recharge': 'bg-emerald-100 text-emerald-700',
   'Partner Approval': 'bg-teal-100 text-teal-700',
   'Partner Rejection': 'bg-red-100 text-red-600',
   'Partner Deactivation': 'bg-amber-100 text-amber-700',
 };
 
-const ACTION_FILTERS = ['All', 'Login', 'CIBIL Pull', 'Wallet Recharge', 'Partner Approval', 'Partner Rejection', 'Partner Deactivation'] as const;
+const ACTION_FILTERS = ['All', 'Login', 'Bureau Pull', 'Wallet Recharge', 'Partner Approval', 'Partner Rejection', 'Partner Deactivation'] as const;
 
 export default function AdminAuditLogsPage() {
   const { auditLogs } = useAdmin();
@@ -39,7 +39,7 @@ export default function AdminAuditLogsPage() {
           {[
             { label: 'Total Events', value: auditLogs.length },
             { label: 'Logins', value: auditLogs.filter((l) => l.action === 'Login').length },
-            { label: 'CIBIL Pulls', value: auditLogs.filter((l) => l.action === 'CIBIL Pull').length },
+            { label: 'Bureau Pulls', value: auditLogs.filter((l) => l.action === 'Bureau Pull').length },
             { label: 'Partner Actions', value: auditLogs.filter((l) => l.action.startsWith('Partner')).length },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-4">

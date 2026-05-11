@@ -3,11 +3,11 @@ import Icon from '@/components/ui/AppIcon';
 
 const actions = [
   {
-    id: 'qa-pull-cibil',
-    label: 'Pull CIBIL Report',
+    id: 'qa-pull-bureau',
+    label: 'Pull Bureau Report',
     description: 'Fetch a fresh bureau report',
     icon: 'MagnifyingGlassIcon',
-    href: '/pull-cibil',
+    href: '/pull-bureau',
     primary: true,
   },
   {

@@ -10,7 +10,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   'SMS/OTP Service': '📱',
   'Email Service': '📧',
   'eSign Service': '✍️',
-  'CIBIL API': '📊',
+  'Bureau API': '📊',
 };
 
 // ─── Mock test cards ─────────────────────────────────────────────────────────
@@ -526,7 +526,7 @@ export default function AdminIntegrationsPage() {
   const { integrations, updateIntegration } = useAdmin();
 
   const stripeService = integrations.find((i) => i.id === 'int-stripe');
-  const categories = ['Payment Gateway', 'SMS/OTP Service', 'Email Service', 'eSign Service', 'CIBIL API'];
+  const categories = ['Payment Gateway', 'SMS/OTP Service', 'Email Service', 'eSign Service', 'Bureau API'];
 
   return (
     <AdminLayout title="Integrations">

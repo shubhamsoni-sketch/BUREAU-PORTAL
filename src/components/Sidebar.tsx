@@ -62,7 +62,7 @@ const partnerNav: NavGroup[] = [
     groupId: 'partner-main',
     items: [
       { id: 'nav-partner-dashboard', label: 'Dashboard', icon: 'Squares2X2Icon', href: '/partner-dashboard' },
-      { id: 'nav-partner-pull', label: 'Pull Bureau', icon: 'MagnifyingGlassIcon', href: '/pull-cibil' },
+      { id: 'nav-partner-pull', label: 'Pull Bureau', icon: 'MagnifyingGlassIcon', href: '/pull-bureau' },
       { id: 'nav-partner-wallet', label: 'My Wallet', icon: 'WalletIcon', href: '/my-wallet' },
       { id: 'nav-partner-accounts', label: 'Accounts', icon: 'BookOpenIcon', href: '/accounts' },
     ],

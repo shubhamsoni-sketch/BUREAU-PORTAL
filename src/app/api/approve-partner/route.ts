@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
           partnerName: partnerRequest.name,
           partnerEmail: partnerRequest.email,
           tempPassword: password,
-          loginUrl: 'https://cibilysis.in/login',
+          loginUrl: 'https://bureau-portal.vercel.app/partner-login',
         }),
       });
     } catch (emailErr) {

@@ -42,7 +42,7 @@ interface CustomerDetails {
   aadhaar: string;
 }
 
-interface CibilResult {
+interface BureauResult {
   score: number;
   riskLevel: 'Low' | 'Medium' | 'High';
   keyIssues: string[];
@@ -56,7 +56,7 @@ interface PartnerRates {
 }
 
 // ─── Mock Data ─────────────────────────────────────────────────────────────────
-const MOCK_CIBIL_CONSUMER: CibilResult = {
+const MOCK_BUREAU_CONSUMER: BureauResult = {
   score: 742,
   riskLevel: 'Low',
   keyIssues: ['1 late payment in last 12 months', 'Credit utilisation at 38%'],
@@ -64,7 +64,7 @@ const MOCK_CIBIL_CONSUMER: CibilResult = {
   generatedAt: new Date().toLocaleString('en-IN'),
 };
 
-const MOCK_CIBIL_COMMERCIAL: CibilResult = {
+const MOCK_BUREAU_COMMERCIAL: BureauResult = {
   score: 68,
   riskLevel: 'Medium',
   keyIssues: ['Outstanding dues on 2 trade lines', 'Overdue amount: ₹1,20,000', 'Recent inquiry spike'],
@@ -160,7 +160,7 @@ function formatDobForApi(dob: string) {
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
-export default function PullCibilPage() {
+export default function PullBureauPage() {
   const { user } = useAuth();
   const { addRecord } = useCustomerMaster();
 
@@ -179,7 +179,7 @@ export default function PullCibilPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpInput, setOtpInput] = useState('');
   const [otpError, setOtpError] = useState('');
-  const [result, setResult] = useState<CibilResult | null>(null);
+  const [result, setResult] = useState<BureauResult | null>(null);
   const [lowBalance, setLowBalance] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -200,7 +200,7 @@ export default function PullCibilPage() {
 
         const contentType = res.headers.get('content-type') ?? '';
         if (!res.ok || !contentType.includes('application/json')) {
-          console.error('[PullCibil] loadPartnerData: non-JSON response', res.status, res.statusText);
+          console.error('[PullBureau] loadPartnerData: non-JSON response', res.status, res.statusText);
           return;
         }
 
@@ -227,7 +227,7 @@ export default function PullCibilPage() {
           }
         }
       } catch (err) {
-        console.error('[PullCibil] loadPartnerData error:', err);
+        console.error('[PullBureau] loadPartnerData error:', err);
       } finally {
         setRatesLoading(false);
       }
@@ -299,7 +299,7 @@ export default function PullCibilPage() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
-      const res = await fetch('/api/pull-cibil-real', {
+      const res = await fetch('/api/pull-bureau-real', {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -330,7 +330,7 @@ export default function PullCibilPage() {
         throw new Error(pullResult.error ?? 'Unable to fetch bureau report');
       }
 
-      const fetchedResult = pullResult.result as CibilResult;
+      const fetchedResult = pullResult.result as BureauResult;
       const customerName = getCustomerName(details);
       setWalletBalance(Number(pullResult.new_balance ?? walletBalance - rate));
 
@@ -341,7 +341,7 @@ export default function PullCibilPage() {
         aadhaar: details.aadhaar,
         partnerId,
         partnerName: user?.name ?? 'Partner',
-        reportType: reportType === 'commercial' ? 'Commercial CIBIL' : 'Consumer CIBIL',
+        reportType: reportType === 'commercial' ? 'Commercial Bureau' : 'Consumer Bureau',
         creditScore: fetchedResult.score,
         riskLevel: fetchedResult.riskLevel,
         reportId: fetchedResult.reportId,
@@ -352,7 +352,7 @@ export default function PullCibilPage() {
         rawJson: {
           score: fetchedResult.score,
           riskLevel: fetchedResult.riskLevel,
-          bureau: 'CIBIL',
+          bureau: 'Bureau',
           demo: pullResult.demo === true,
           reportId: fetchedResult.reportId,
           keyIssues: fetchedResult.keyIssues,
@@ -368,11 +368,11 @@ export default function PullCibilPage() {
       setStep(4);
       return;
 
-      const mockResult = reportType === 'commercial' ? MOCK_CIBIL_COMMERCIAL : MOCK_CIBIL_CONSUMER;
+      const mockResult = reportType === 'commercial' ? MOCK_BUREAU_COMMERCIAL : MOCK_BUREAU_CONSUMER;
 
       // Call server-side deduction API (uses service role, writes transaction row)
       if (partnerId) {
-        const res = await fetch('/api/pull-cibil-deduct', {
+        const res = await fetch('/api/pull-bureau-deduct', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -391,7 +391,7 @@ export default function PullCibilPage() {
             setLoading(false);
             return;
           }
-          console.error('[PullCibil] deduct error:', deductResult.error);
+          console.error('[PullBureau] deduct error:', deductResult.error);
           // Continue anyway — don't block the report
         } else {
           // Update local balance from server response
@@ -407,7 +407,7 @@ export default function PullCibilPage() {
         aadhaar: details.aadhaar,
         partnerId: partnerId ?? user?.id ?? 'unknown',
         partnerName: user?.name ?? 'Partner',
-        reportType: reportType === 'commercial' ? 'Commercial CIBIL' : 'Consumer CIBIL',
+        reportType: reportType === 'commercial' ? 'Commercial Bureau' : 'Consumer Bureau',
         creditScore: mockResult.score,
         riskLevel: mockResult.riskLevel,
         reportId: mockResult.reportId,
@@ -418,7 +418,7 @@ export default function PullCibilPage() {
         rawJson: {
           score: mockResult.score,
           riskLevel: mockResult.riskLevel,
-          bureau: 'CIBIL',
+          bureau: 'Bureau',
           version: reportType === 'commercial' ? '2.0' : '3.1',
           reportId: mockResult.reportId,
           keyIssues: mockResult.keyIssues,
@@ -432,7 +432,7 @@ export default function PullCibilPage() {
       setSuccessMsg(`Bureau report fetched successfully! ₹${rate} credits deducted.`);
       setStep(4);
     } catch (err) {
-      console.error('[PullCibil] handleVerifyOtp error:', err);
+      console.error('[PullBureau] handleVerifyOtp error:', err);
     } finally {
       setLoading(false);
     }

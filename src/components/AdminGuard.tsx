@@ -22,7 +22,7 @@ const ADMIN_ONLY_PATHS = [
 
 const PARTNER_ONLY_PATHS = [
   '/partner-dashboard',
-  '/pull-cibil',
+  '/pull-bureau',
   '/my-wallet',
   '/reports-history',
   '/my-profile',

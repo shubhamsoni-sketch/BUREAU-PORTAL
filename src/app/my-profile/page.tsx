@@ -82,7 +82,7 @@ export default function MyProfilePage() {
       // (AuthContext explicitly warns against calling getSession() separately)
       let accessToken = '';
       try {
-        const raw = localStorage.getItem('sb-cibilysis-auth-token');
+        const raw = localStorage.getItem('sb-bureau-portal-auth-token');
         if (raw) {
           const parsed = JSON.parse(raw);
           accessToken = parsed?.access_token ?? '';

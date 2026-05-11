@@ -32,7 +32,7 @@ function riskBadgeClass(level: RiskLevel) {
 }
 
 function scoreColor(score: number, reportType: string) {
-  if (reportType === 'Commercial CIBIL') {
+  if (reportType === 'Commercial Bureau') {
     if (score >= 70) return 'text-emerald-600';
     if (score >= 50) return 'text-amber-600';
     return 'text-red-600';

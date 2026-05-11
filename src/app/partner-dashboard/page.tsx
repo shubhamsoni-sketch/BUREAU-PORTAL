@@ -26,14 +26,6 @@ export default function PartnerDashboardPage() {
           title="Partner Dashboard"
           subtitle={subtitle}
           role="partner"
-          actions={
-            <a
-              href="/pull-cibil"
-              className="btn-primary"
-            >
-              Pull CIBIL Report
-            </a>
-          }
         />
         <div className="fade-in">
           <PartnerDashboardContent />

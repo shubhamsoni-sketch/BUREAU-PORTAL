@@ -26,7 +26,7 @@ async function handleSetupAdmin() {
       },
     });
 
-    const adminEmail = 'admin@cibilysis.in';
+    const adminEmail = process.env.DEFAULT_ADMIN_EMAIL ?? 'admin@bureau-portal.in';
     const adminPassword = 'Admin@2026';
 
     // Check if user already exists

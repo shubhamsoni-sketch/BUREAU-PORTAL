@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
 
     // Send credentials email via Resend edge function (non-blocking — don't fail if email fails)
     try {
-      const loginUrl = 'https://cibilysis7475.builtwithrocket.new';
+      const loginUrl = 'https://bureau-portal.vercel.app/partner-login';
       await fetch(
         `${supabaseUrl}/functions/v1/send-partner-credentials`,
         {

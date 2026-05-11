@@ -149,6 +149,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // INITIAL_SESSION fires on mount with the current session (or null if signed out)
       if (event === 'INITIAL_SESSION') {
         if (session?.user) {
+          if (resolvingRef.current) {
+            return;
+          }
           if (!resolvingRef.current) {
             resolvingRef.current = true;
             try {
