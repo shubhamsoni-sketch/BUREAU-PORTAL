@@ -145,8 +145,8 @@ function ReportPreview({ locked = true }: { locked?: boolean }) {
             <div className="h-12 w-12 rounded-2xl bg-primary text-bg flex items-center justify-center mx-auto mb-3">
               <Icon name="LockClosedIcon" size={22} />
             </div>
-            <p className="text-fg font-bold">Full report unlocks after secure payment</p>
-            <p className="text-fg-muted text-xs mt-1">Preview shown for understanding only</p>
+            <p className="text-fg font-bold">Your full report preview is protected</p>
+            <p className="text-fg-muted text-xs mt-1">Continue the secure journey to view details</p>
           </div>
         </div>
       )}
@@ -280,7 +280,7 @@ export default function GetMyReportPage() {
                   Get clarity before your next financial decision.
                 </h1>
                 <p className="text-fg-muted mt-5 text-lg leading-relaxed">
-                  Verify your mobile, understand what the report can reveal, add your details securely, and unlock the full report only when you are ready.
+                  Verify your mobile, understand what the report can reveal, and add your details securely when you are ready.
                 </p>
               </div>
 
@@ -323,7 +323,7 @@ export default function GetMyReportPage() {
                   </div>
                   <button onClick={sendOtp} className="btn-primary w-full justify-center py-4">Send OTP</button>
                   <div className="grid sm:grid-cols-3 gap-3">
-                    {['No price shown yet', 'Private report journey', 'Secure mobile verification'].map((item) => (
+                    {['Private report journey', 'Secure mobile verification', 'Guided experience'].map((item) => (
                       <div key={item} className="rounded-2xl p-4 text-sm text-fg-muted" style={{ background: 'rgba(255,255,255,0.035)' }}>{item}</div>
                     ))}
                   </div>
@@ -355,7 +355,7 @@ export default function GetMyReportPage() {
                   <div>
                     <span className="tag tag-primary mb-4 inline-flex">Your Report Benefits</span>
                     <h2 className="text-3xl font-bold text-fg">Here is what your report helps you understand</h2>
-                    <p className="text-fg-muted mt-3">Before payment, understand the value. The full report unlocks after your secure checkout.</p>
+                    <p className="text-fg-muted mt-3">Understand the value first. Your full report details stay protected until the final step.</p>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-4">
                     {educationCards.map((card) => (
@@ -431,7 +431,7 @@ export default function GetMyReportPage() {
                     </span>
                   </label>
                   <button onClick={createOrder} disabled={loading} className="btn-primary w-full justify-center py-4">
-                    {loading ? 'Preparing secure checkout...' : 'Continue'}
+                    {loading ? 'Preparing next step...' : 'Continue'}
                   </button>
                 </div>
               )}

@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - Remove Early Payment Cues
+
+Summary:
+
+- Removed early price/payment hints from the customer report journey before the final payment step.
+- Replaced "No price shown yet" and locked preview payment wording with privacy/value-focused language.
+
+Verification:
+
+- Removed early payment/price cues while keeping final payment step copy intact.
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-12 - Developer - Customer Journey Public Route Fix
 
 Summary:
