@@ -16,6 +16,9 @@ Verification:
 
 - `npm run build -- --no-lint` passed.
 - `npm run type-check -- --pretty false` passed.
+- Production Supabase migration was applied through SQL Editor.
+- Live `/api/admin-b2c-reports` and `/api/admin-b2c-payments` return clean success responses.
+- Live customer report request persistence was verified with a test mobile record.
 - Cashfree and real report integration remain intentionally stubbed for the next phase.
 
 ## 2026-05-12 - Developer - Remove Early Payment Cues
