@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-11 - Developer - Landing Hero Visibility Hotfix
+
+Summary:
+
+- Restored missing landing animation keyframes used by the imported hero section.
+- Fixed the hero content staying invisible because animated elements were stuck at `opacity-0`.
+- Restored orbit and scroll hint animations for the landing hero visual.
+
+Verification:
+
+- Live HTML already contained hero copy; issue was CSS animation visibility.
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed after build regenerated `.next/types`.
+
 ## 2026-05-11 - Developer - Landing Page Replacement
 
 Summary:
