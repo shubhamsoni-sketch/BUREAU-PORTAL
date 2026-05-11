@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 
 const footerLinks = [
+  { label: 'For Partners', href: '/partner-program' },
   { label: 'Partner Login', href: '/partner-login' },
   { label: 'Become a Partner', href: '/become-a-partner' },
   { label: 'Contact', href: '/contact' },
@@ -29,7 +30,7 @@ export default function Footer() {
               Insight<span className="gradient-text-primary">IQ</span>
             </span>
             <span className="hidden md:block text-fg-subtle text-xs ml-2 border-l border-white/10 pl-3">
-              Credit health and financial analysis for modern partners.
+              Financial health reports for individuals and partners.
             </span>
           </div>
 

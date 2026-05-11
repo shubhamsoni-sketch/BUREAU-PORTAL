@@ -2,6 +2,21 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - B2C Home And Dedicated Partner Page
+
+Summary:
+
+- Repositioned the main `/` and `/home` landing page around a B2C customer journey for creating a personal financial health report.
+- Removed the embedded Partner Program section from the home page and changed the nav to link to `/partner-program`.
+- Updated hero, journey, report preview, trust, footer, and CTA copy around individual report creation, credit score understanding, loan readiness, repayment insights, and improvement actions.
+- Rebuilt `/partner-program` as a dedicated B2B page using the same dark landing theme, font scale, glass cards, teal/accent styling, and existing partner content.
+
+Verification:
+
+- `rg "CIBIL|Cibil|cibil|CibilCheck|cibilcheck" src/components/landing src/app/page.tsx src/app/home/page.tsx src/app/partner-program/page.tsx` returned no matches.
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-12 - Developer - Matched Partner Program Landing Section
 
 Summary:

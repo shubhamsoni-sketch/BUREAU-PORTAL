@@ -8,21 +8,21 @@ interface GetReportSectionProps {
   formRef: React.RefObject<HTMLDivElement | null>;
 }
 
-const partnerBenefits = [
+const reportBenefits = [
   {
-    title: 'Partner-ready workflow',
-    desc: 'Login, wallet, customer intake, and financial analysis flows stay connected to the existing portal.',
-    icon: 'BuildingOffice2Icon',
+    title: 'Know before you apply',
+    desc: 'Check the signals lenders usually care about before starting a loan or credit card application.',
+    icon: 'MagnifyingGlassIcon',
   },
   {
-    title: 'Secure credit health checks',
-    desc: 'Analysis happens inside the partner portal with consent, audit history, and controlled access.',
+    title: 'Clear financial analysis',
+    desc: 'See score, repayment behavior, utilization, account mix, enquiries, and risk markers in simple language.',
     icon: 'ShieldCheckIcon',
   },
   {
-    title: 'Built for scale',
-    desc: 'Demo users can experience the complete journey while live integrations remain gated until approved.',
-    icon: 'ChartBarSquareIcon',
+    title: 'Actionable next steps',
+    desc: 'Get practical improvement points so you can strengthen your profile over time.',
+    icon: 'ChartBarIcon',
   },
 ];
 
@@ -55,13 +55,13 @@ export default function GetReportSection({ formRef }: GetReportSectionProps) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6" ref={formRef}>
         <div className="text-center mb-14 scroll-reveal">
-          <span className="tag tag-primary mb-5 inline-flex">Start Financial Analysis</span>
+          <span className="tag tag-primary mb-5 inline-flex">Create Your Report</span>
           <h2 className="section-headline text-fg">
-            Give partners a polished way to{' '}
-            <span className="font-serif italic gradient-text-primary">analyze credit health.</span>
+            Ready to understand your{' '}
+            <span className="font-serif italic gradient-text-primary">financial health?</span>
           </h2>
           <p className="text-fg-muted mt-4 max-w-xl mx-auto">
-            The public page now guides users into the existing portal instead of collecting data on a separate landing form.
+            Start with a secure request and get a report that explains your credit score, loan readiness, and improvement areas.
           </p>
         </div>
 
@@ -69,31 +69,28 @@ export default function GetReportSection({ formRef }: GetReportSectionProps) {
           <div className="lg:col-span-3 scroll-reveal">
             <div className="glass-card rounded-4xl p-7 sm:p-9 h-full flex flex-col justify-between">
               <div>
-                <span className="tag tag-accent mb-5 inline-flex">Portal Access</span>
+                <span className="tag tag-accent mb-5 inline-flex">Personal Report</span>
                 <h3 className="text-3xl sm:text-4xl font-bold text-fg leading-tight">
-                  Continue with the secure partner workspace.
+                  Your report should be simple enough to act on.
                 </h3>
                 <p className="text-fg-muted mt-4 max-w-xl leading-relaxed">
-                  Partners can log in, add customer details, run demo financial analysis, and review history from the same controlled dashboard.
+                  InsightIQ turns credit and repayment data into a clean financial health view, so you know what looks strong and what needs attention.
                 </p>
               </div>
 
-              <div className="grid sm:grid-cols-3 gap-3 mt-8">
-                <Link href="/partner-login" className="btn-primary justify-center px-5 py-4 text-sm">
-                  Partner Login
+              <div className="grid sm:grid-cols-2 gap-3 mt-8">
+                <Link href="/contact" className="btn-primary justify-center px-5 py-4 text-sm">
+                  Create My Report
                 </Link>
-                <Link href="/become-a-partner" className="btn-ghost justify-center px-5 py-4 text-sm">
-                  Become Partner
-                </Link>
-                <Link href="/contact" className="btn-ghost justify-center px-5 py-4 text-sm">
-                  Contact Team
+                <Link href="/partner-program" className="btn-ghost justify-center px-5 py-4 text-sm">
+                  For Partners
                 </Link>
               </div>
             </div>
           </div>
 
           <div className="lg:col-span-2 space-y-5">
-            {partnerBenefits.map((benefit, index) => (
+            {reportBenefits.map((benefit, index) => (
               <div key={benefit.title} className={`scroll-reveal scroll-reveal-delay-${index + 1} glass-card rounded-3xl p-6`}>
                 <div className="flex items-start gap-4">
                   <div
@@ -118,8 +115,8 @@ export default function GetReportSection({ formRef }: GetReportSectionProps) {
                 <Icon name="SparklesIcon" size={22} className="text-accent" />
               </div>
               <div>
-                <p className="text-fg font-bold">Demo safe by default</p>
-                <p className="text-fg-muted text-xs mt-0.5">Live bureau calls stay disabled until the real API contract is approved.</p>
+                <p className="text-fg font-bold">B2B is available too</p>
+                <p className="text-fg-muted text-xs mt-0.5">Financial professionals can use the dedicated partner program for client workflows.</p>
               </div>
             </div>
           </div>

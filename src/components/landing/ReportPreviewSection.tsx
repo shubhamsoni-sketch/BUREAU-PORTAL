@@ -10,8 +10,8 @@ interface ReportPreviewSectionProps {
 const copy = {
   en: {
     tag: 'Financial Analysis',
-    headline: "Here\'s what\'s inside",
-    headlineAccent: 'your credit health analysis.',
+    headline: 'Know exactly what is inside',
+    headlineAccent: 'your financial health report.',
     cards: {
       gauge: {
         title: 'Credit Score',

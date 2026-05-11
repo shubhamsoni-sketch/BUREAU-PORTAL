@@ -11,7 +11,7 @@ interface HeaderProps {
 const navItems = [
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Financial Analysis', href: '#report-preview' },
-  { label: 'Partner Program', href: '#partner-program' },
+  { label: 'For Partners', href: '/partner-program' },
   { label: 'Security', href: '#trust' },
 ];
 
@@ -56,13 +56,13 @@ export default function Header({ onGetReport }: HeaderProps) {
 
           <nav className="hidden md:flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-2 py-1">
             {navItems.map((item) => (
-              <a
+              <Link
                 key={item.href}
                 href={item.href}
                 className="px-4 py-2 rounded-full text-sm font-medium text-fg-muted hover:text-fg hover:bg-white/10 transition-all duration-200"
               >
                 {item.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
@@ -71,7 +71,7 @@ export default function Header({ onGetReport }: HeaderProps) {
               Partner Login
             </Link>
             <button type="button" onClick={onGetReport} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-sm">
-              Start Analysis
+              Get My Report
               <Icon name="ArrowRightIcon" size={16} variant="solid" />
             </button>
           </div>
@@ -99,14 +99,14 @@ export default function Header({ onGetReport }: HeaderProps) {
 
         <div className="flex flex-col items-center gap-6">
           {navItems.map((item) => (
-            <a
+            <Link
               key={item.href}
               href={item.href}
               className="text-2xl font-semibold text-fg hover:text-primary transition-colors"
               onClick={() => setMobileOpen(false)}
             >
               {item.label}
-            </a>
+            </Link>
           ))}
           <Link href="/partner-login" className="btn-ghost px-8 py-3 text-base">
             Partner Login
@@ -119,7 +119,7 @@ export default function Header({ onGetReport }: HeaderProps) {
             }}
             className="btn-primary mt-2 px-8 py-3.5 text-base flex items-center gap-2"
           >
-            Start Analysis
+            Get My Report
             <Icon name="ArrowRightIcon" size={18} variant="solid" />
           </button>
         </div>

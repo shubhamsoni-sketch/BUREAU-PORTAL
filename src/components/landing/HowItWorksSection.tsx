@@ -11,36 +11,43 @@ interface HowItWorksSectionProps {
 
 const copy = {
   en: {
-    tag: 'How It Works',
-    headline: 'Three steps to a',
-    headlineAccent: 'complete financial view.',
+    tag: 'Customer Journey',
+    headline: 'Four simple steps to',
+    headlineAccent: 'understand your money profile.',
     steps: [
       {
         num: '01',
-        title: 'Enter Customer Details',
-        desc: 'Capture customer identity, mobile, and bureau-ready details inside the secure partner workflow.',
+        title: 'Enter Basic Details',
+        desc: 'Start with your name, mobile number, and identity details needed to prepare your financial health report.',
         icon: 'IdentificationIcon',
         color: '#00D4AA',
       },
       {
         num: '02',
-        title: 'We Fetch Financial Analysis',
-        desc: 'The portal turns bureau data into credit health signals, repayment patterns, and risk markers.',
+        title: 'Give Secure Consent',
+        desc: 'Your report journey stays consent-based, encrypted, and controlled from start to finish.',
         icon: 'ServerStackIcon',
         color: '#F5A623',
       },
       {
         num: '03',
-        title: 'Review The Financial Analysis',
-        desc: 'Review credit score, payment history, utilization, accounts, and clear improvement actions.',
+        title: 'View Financial Analysis',
+        desc: 'See your credit score, payment history, utilization, loan accounts, and risk markers in one place.',
         icon: 'DocumentChartBarIcon',
         color: '#7FFFDF',
       },
+      {
+        num: '04',
+        title: 'Improve Loan Readiness',
+        desc: 'Use clear action points to reduce risk, plan applications, and strengthen your financial profile.',
+        icon: 'PresentationChartLineIcon',
+        color: '#00D4AA',
+      },
     ],
-    timeLabel: '< 60 seconds',
-    timeDesc: 'Average analysis delivery time',
+    timeLabel: 'Simple report',
+    timeDesc: 'Made for non-technical customers',
     imgAlt: 'Person reviewing financial documents on a laptop in a modern office with warm lighting',
-    cta: 'Start Financial Analysis',
+    cta: 'Get My Report',
   },
   hi: {
     tag: 'à¤¯à¤¹ à¤•à¥ˆà¤¸à¥‡ à¤•à¤¾à¤® à¤•à¤°à¤¤à¤¾ à¤¹à¥ˆ',
@@ -133,7 +140,7 @@ export default function HowItWorksSection({ lang, onGetReport }: HowItWorksSecti
                   >
                     {step.num}
                   </div>
-                  {i < 2 && <div className="w-px flex-1 min-h-[2rem]" style={{ background: `linear-gradient(to bottom, ${step.color}30, transparent)` }} />}
+                  {i < t.steps.length - 1 && <div className="w-px flex-1 min-h-[2rem]" style={{ background: `linear-gradient(to bottom, ${step.color}30, transparent)` }} />}
                 </div>
 
                 {/* Content */}
@@ -184,8 +191,8 @@ export default function HowItWorksSection({ lang, onGetReport }: HowItWorksSecti
                     <Icon name="ShieldCheckIcon" size={20} className="text-primary" variant="solid" />
                   </div>
                   <div>
-                    <p className="text-fg text-sm font-bold">{lang === 'en' ? 'Bank-Grade Security' : 'à¤¬à¥ˆà¤‚à¤•-à¤¸à¥à¤¤à¤°à¥€à¤¯ à¤¸à¥à¤°à¤•à¥à¤·à¤¾'}</p>
-                    <p className="text-fg-muted text-xs">{lang === 'en' ? '256-bit SSL / ISO 27001' : '256-bit SSL / ISO 27001'}</p>
+                    <p className="text-fg text-sm font-bold">{lang === 'en' ? 'Consent-based report journey' : 'à¤¬à¥ˆà¤‚à¤•-à¤¸à¥à¤¤à¤°à¥€à¤¯ à¤¸à¥à¤°à¤•à¥à¤·à¤¾'}</p>
+                    <p className="text-fg-muted text-xs">{lang === 'en' ? 'Secure data handling from request to report' : '256-bit SSL / ISO 27001'}</p>
                   </div>
                 </div>
               </div>

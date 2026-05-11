@@ -27,7 +27,7 @@ const copy = {
 
     testimonials: [
     {
-      quote: 'The platform turned raw bureau data into clear credit health signals my team could explain to customers.',
+      quote: 'The report helped me understand my credit health before applying for a loan.',
       name: 'Priya Venkataraman',
       role: 'Software Engineer, Bengaluru',
       avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_11ca1a9b9-1763301531530.png",
@@ -35,7 +35,7 @@ const copy = {
       score: '684 to 741'
     },
     {
-      quote: 'The financial analysis view makes customer conversations faster, clearer, and easier to document.',
+      quote: 'I could see repayment patterns, risk factors, and simple steps to improve my profile.',
       name: 'Ramesh Yadav',
       role: 'Shopkeeper, Lucknow',
       avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1b48d0a1c-1763296743407.png",
@@ -190,9 +190,9 @@ export default function TrustSection({ lang }: TrustSectionProps) {
                 <Icon name="GiftIcon" size={22} className="text-accent" />
               </div>
               <div>
-                <p className="text-fg font-bold">{lang === 'en' ? 'Secure demo workspace' : 'Secure demo workspace'}</p>
+                <p className="text-fg font-bold">{lang === 'en' ? 'Consent-first analysis' : 'Secure demo workspace'}</p>
                 <p className="text-fg-muted text-xs mt-0.5">
-                  {lang === 'en' ? 'Demo data stays contained while live integrations remain gated.' : 'Demo data stays contained while live integrations remain gated.'}
+                  {lang === 'en' ? 'Financial reports are generated only through a controlled and approved journey.' : 'Demo data stays contained while live integrations remain gated.'}
                 </p>
               </div>
             </div>
