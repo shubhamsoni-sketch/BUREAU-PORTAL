@@ -1,6 +1,8 @@
+'use client';
+
 import Link from 'next/link';
-import PublicNav from '../home/components/PublicNav';
-import PublicFooter from '../home/components/PublicFooter';
+import Footer from '@/components/landing/Footer';
+import Header from '@/components/landing/Header';
 import { ArrowRight, BadgeCheck, FileCheck2, LockKeyhole, ShieldCheck } from 'lucide-react';
 
 const principles = [
@@ -27,35 +29,43 @@ const principles = [
 ];
 
 export default function AboutPage() {
+  const goToReport = () => {
+    window.location.href = '/get-my-report';
+  };
+
   return (
-    <div className="bg-white min-h-screen">
-      <PublicNav />
+    <div className="landing-page min-h-screen bg-bg text-fg">
+      <div className="grain-overlay" aria-hidden />
+      <Header onGetReport={goToReport} />
       <main>
-        <section className="relative pt-32 pb-20 overflow-hidden bg-slate-50 border-b border-slate-200">
-          <div className="relative max-w-5xl mx-auto px-6 lg:px-8">
-            <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-full px-4 py-1.5 mb-8">
-              <span className="text-blue-600 text-xs font-semibold uppercase tracking-wider">About InsightIQ</span>
+        <section className="relative pt-32 pb-20 overflow-hidden border-b border-white/5">
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[760px] h-[460px] bg-primary/10 rounded-full blur-3xl" />
+          </div>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-1.5 mb-8">
+              <span className="text-primary text-xs font-semibold uppercase tracking-widest">About InsightIQ</span>
             </div>
             <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-12 items-center">
               <div>
-                <h1 className="text-4xl lg:text-6xl font-bold text-slate-950 leading-tight mb-6">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-fg leading-tight mb-6">
                   Financial health reports with consent, clarity, and control.
                 </h1>
-                <p className="text-slate-600 text-lg leading-relaxed">
+                <p className="text-fg-muted text-lg leading-relaxed">
                   InsightIQ is a digital financial health report platform for individuals and approved partners. Our purpose is to help users understand their financial profile through structured report workflows while keeping consent, privacy, payment transparency, and misuse prevention at the center of the product.
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                  <Link href="/get-my-report" className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+                  <Link href="/get-my-report" className="btn-primary inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl">
                     Get My Financial Report
                     <ArrowRight size={17} />
                   </Link>
-                  <Link href="/partner-program" className="inline-flex items-center justify-center gap-2 border border-slate-300 hover:border-slate-400 text-slate-800 font-semibold px-6 py-3 rounded-xl transition-colors">
+                  <Link href="/partner-program" className="btn-ghost inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl">
                     Partner Program
                   </Link>
                 </div>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-slate-900 mb-4">What we operate</h2>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
+                <h2 className="text-lg font-bold text-fg mb-4">What we operate</h2>
                 <div className="space-y-4">
                   {[
                     ['Individuals', 'Mobile-verified, consent-based financial health report journey.'],
@@ -63,9 +73,9 @@ export default function AboutPage() {
                     ['Admin controls', 'Customer master, B2C reports, payment records, partner status, and compliance records.'],
                     ['Support', 'Refund, payment, consent, and misuse review processes.'],
                   ].map(([label, desc]) => (
-                    <div key={label} className="border-b border-slate-100 pb-4 last:border-b-0 last:pb-0">
-                      <p className="font-semibold text-slate-900">{label}</p>
-                      <p className="text-sm text-slate-500 mt-1">{desc}</p>
+                    <div key={label} className="border-b border-white/10 pb-4 last:border-b-0 last:pb-0">
+                      <p className="font-semibold text-fg">{label}</p>
+                      <p className="text-sm text-fg-muted mt-1">{desc}</p>
                     </div>
                   ))}
                 </div>
@@ -75,35 +85,35 @@ export default function AboutPage() {
         </section>
 
         <section className="py-20">
-          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="max-w-3xl mb-12">
-              <p className="text-blue-600 text-sm font-semibold uppercase tracking-widest mb-3">Our Operating Principles</p>
-              <h2 className="text-3xl font-bold text-slate-950 mb-4">Built to reduce misuse, not just process reports.</h2>
-              <p className="text-slate-600 leading-relaxed">
+              <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Our Operating Principles</p>
+              <h2 className="text-3xl sm:text-4xl font-bold text-fg mb-4">Built to reduce misuse, not just process reports.</h2>
+              <p className="text-fg-muted leading-relaxed">
                 Financial profile data is sensitive. Our platform is designed so report requests, payments, partner usage, and admin access are traceable and governed by clear policies.
               </p>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
               {principles.map((item) => (
-                <div key={item.title} className="rounded-xl border border-slate-200 p-6 bg-white">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center mb-4">
-                    <item.icon size={18} className="text-blue-600" />
+                <div key={item.title} className="rounded-2xl border border-white/10 p-6 bg-white/[0.035]">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+                    <item.icon size={18} className="text-primary" />
                   </div>
-                  <h3 className="font-bold text-slate-900 mb-2">{item.title}</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">{item.desc}</p>
+                  <h3 className="font-bold text-fg mb-2">{item.title}</h3>
+                  <p className="text-sm text-fg-muted leading-relaxed">{item.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="py-20 bg-slate-950">
-          <div className="max-w-5xl mx-auto px-6 lg:px-8">
+        <section className="py-20 border-y border-white/5 bg-white/[0.025]">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <div className="grid lg:grid-cols-2 gap-10 items-start">
               <div>
-                <p className="text-blue-300 text-sm font-semibold uppercase tracking-widest mb-3">Compliance Posture</p>
-                <h2 className="text-3xl font-bold text-white mb-5">Clear policies for customers, partners, and payment review.</h2>
-                <p className="text-slate-300 leading-relaxed">
+                <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Compliance Posture</p>
+                <h2 className="text-3xl sm:text-4xl font-bold text-fg mb-5">Clear policies for customers, partners, and payment review.</h2>
+                <p className="text-fg-muted leading-relaxed">
                   We maintain visible policies for privacy, refund and cancellation, acceptable use, and platform terms. These policies are written to protect genuine users and prevent unauthorized report access, payment abuse, and sensitive-data misuse.
                 </p>
               </div>
@@ -114,9 +124,9 @@ export default function AboutPage() {
                   ['Usage Policy', '/usage-policy'],
                   ['Terms And Conditions', '/terms-and-conditions'],
                 ].map(([label, href]) => (
-                  <Link key={href} href={href} className="rounded-xl border border-white/10 bg-white/5 p-5 text-white hover:bg-white/10 transition-colors">
+                  <Link key={href} href={href} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-fg hover:bg-white/[0.07] transition-colors">
                     <span className="font-semibold">{label}</span>
-                    <ArrowRight size={15} className="mt-3 text-blue-300" />
+                    <ArrowRight size={15} className="mt-3 text-primary" />
                   </Link>
                 ))}
               </div>
@@ -124,7 +134,7 @@ export default function AboutPage() {
           </div>
         </section>
       </main>
-      <PublicFooter />
+      <Footer />
     </div>
   );
 }

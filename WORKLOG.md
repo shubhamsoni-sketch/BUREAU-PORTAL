@@ -10,6 +10,7 @@ Summary:
 - Reworked About Us into a compliance-oriented company overview focused on consent, data protection, partner responsibility, and misuse prevention.
 - Added policy links to public footers and allowed policy routes through the auth guard.
 - Strengthened consent language in Terms, Privacy, and Usage policies for financial health report generation and authorized provider processing.
+- Updated policy and About pages to use the current dark landing website theme instead of the old public-page theme.
 
 Verification:
 
