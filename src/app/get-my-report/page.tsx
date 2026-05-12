@@ -88,6 +88,15 @@ const initialDetails: Details = {
   pinCode: '',
 };
 
+const fieldClass =
+  'h-11 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3.5 text-sm text-fg outline-none transition-all placeholder:text-fg-subtle/70 focus:border-primary/50 focus:bg-white/[0.07] focus:ring-2 focus:ring-primary/10';
+
+const selectClass =
+  'h-11 w-full rounded-xl border border-white/10 bg-[#081625] px-3.5 text-sm text-fg outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10';
+
+const areaClass =
+  'h-20 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3.5 py-3 text-sm text-fg outline-none transition-all placeholder:text-fg-subtle/70 focus:border-primary/50 focus:bg-white/[0.07] focus:ring-2 focus:ring-primary/10';
+
 function StepPill({ active, done, label }: { active: boolean; done: boolean; label: string }) {
   return (
     <div className="flex items-center gap-2">
@@ -340,7 +349,7 @@ export default function GetMyReportPage() {
               <ReportPreview locked={step !== 'report'} />
             </aside>
 
-            <section className="glass-card rounded-4xl p-5 sm:p-8 min-h-[640px]">
+            <section className="glass-card rounded-3xl p-4 sm:p-6 lg:p-7 min-h-[520px]">
               {error && (
                 <div className="mb-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                   {error}
@@ -348,49 +357,49 @@ export default function GetMyReportPage() {
               )}
 
               {step === 'mobile' && (
-                <div className="space-y-7">
+                <div className="space-y-5">
                   <div>
                     <span className="tag tag-accent mb-4 inline-flex">Step 1</span>
-                    <h2 className="text-3xl font-bold text-fg">Start with mobile verification</h2>
-                    <p className="text-fg-muted mt-3">We verify your number first so your report journey stays private and secure.</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-fg">Start with mobile verification</h2>
+                    <p className="text-fg-muted mt-2 text-sm sm:text-base">We verify your number first so your report journey stays private and secure.</p>
                   </div>
                   <div>
                     <label className="text-sm font-semibold text-fg">Mobile number</label>
-                    <div className="mt-2 flex rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-                      <span className="px-4 py-4 text-fg-muted border-r border-white/10">+91</span>
+                    <div className="mt-2 flex h-12 rounded-xl border border-white/10 bg-white/[0.045] overflow-hidden transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10">
+                      <span className="flex items-center px-3.5 text-sm text-fg-muted border-r border-white/10">+91</span>
                       <input
                         value={mobile}
                         onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
                         placeholder="9876543210"
-                        className="flex-1 bg-transparent px-4 py-4 outline-none text-fg"
+                        className="flex-1 bg-transparent px-3.5 outline-none text-fg text-sm placeholder:text-fg-subtle/70"
                       />
                     </div>
                   </div>
-                  <button onClick={sendOtp} className="btn-primary w-full justify-center py-4">Send OTP</button>
-                  <div className="grid sm:grid-cols-3 gap-3">
+                  <button onClick={sendOtp} className="btn-primary w-full justify-center py-3 text-sm">Send OTP</button>
+                  <div className="grid sm:grid-cols-3 gap-2.5">
                     {['Private report journey', 'Secure mobile verification', 'Guided experience'].map((item) => (
-                      <div key={item} className="rounded-2xl p-4 text-sm text-fg-muted" style={{ background: 'rgba(255,255,255,0.035)' }}>{item}</div>
+                      <div key={item} className="rounded-xl px-3 py-2.5 text-xs text-fg-muted border border-white/5 bg-white/[0.03]">{item}</div>
                     ))}
                   </div>
                 </div>
               )}
 
               {step === 'otp' && (
-                <div className="space-y-7">
+                <div className="space-y-5">
                   <div>
                     <span className="tag tag-accent mb-4 inline-flex">Step 2</span>
-                    <h2 className="text-3xl font-bold text-fg">Verify OTP</h2>
-                    <p className="text-fg-muted mt-3">Enter the OTP sent to {mobile}. Demo OTP is <span className="text-primary font-bold">123456</span>.</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-fg">Verify OTP</h2>
+                    <p className="text-fg-muted mt-2 text-sm sm:text-base">Enter the OTP sent to {mobile}. Demo OTP is <span className="text-primary font-bold">123456</span>.</p>
                   </div>
                   <input
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="Enter 6-digit OTP"
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 outline-none text-fg tracking-[0.4em] text-center text-xl"
+                    className="h-12 w-full rounded-xl border border-white/10 bg-white/[0.045] px-4 text-center text-lg tracking-[0.32em] text-fg outline-none transition-all placeholder:tracking-normal placeholder:text-sm placeholder:text-fg-subtle/70 focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
                   />
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <button onClick={() => setStep('mobile')} className="btn-ghost justify-center py-4">Change Mobile</button>
-                    <button onClick={verifyOtp} className="btn-primary justify-center py-4">Verify & Continue</button>
+                  <div className="grid sm:grid-cols-2 gap-2.5">
+                    <button onClick={() => setStep('mobile')} className="btn-ghost justify-center py-3 text-sm">Change Mobile</button>
+                    <button onClick={verifyOtp} className="btn-primary justify-center py-3 text-sm">Verify & Continue</button>
                   </div>
                 </div>
               )}
@@ -416,41 +425,41 @@ export default function GetMyReportPage() {
               )}
 
               {step === 'details' && (
-                <div className="space-y-6">
+                <div className="space-y-5">
                   <div>
                     <span className="tag tag-accent mb-4 inline-flex">Secure Details</span>
-                    <h2 className="text-3xl font-bold text-fg">Prepare your report accurately</h2>
-                    <p className="text-fg-muted mt-3">These details help prepare the correct financial health analysis for you.</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-fg">Prepare your report accurately</h2>
+                    <p className="text-fg-muted mt-2 text-sm sm:text-base">These details help prepare the correct financial health analysis for you.</p>
                   </div>
-                  <div className="grid sm:grid-cols-3 gap-3">
+                  <div className="grid sm:grid-cols-3 gap-2.5">
                     {[
                       ['firstName', 'First name *'],
                       ['middleName', 'Middle name'],
                       ['lastName', 'Last name *'],
                     ].map(([key, label]) => (
-                      <input key={key} value={details[key as keyof Details]} onChange={(e) => updateDetails(key as keyof Details, e.target.value)} placeholder={label} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none text-fg" />
+                      <input key={key} value={details[key as keyof Details]} onChange={(e) => updateDetails(key as keyof Details, e.target.value)} placeholder={label} className={fieldClass} />
                     ))}
                   </div>
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <input value={details.email} onChange={(e) => updateDetails('email', e.target.value)} placeholder="Email address *" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none text-fg" />
-                    <input value={details.pan} onChange={(e) => updateDetails('pan', e.target.value)} placeholder="PAN number *" maxLength={10} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none text-fg uppercase" />
-                    <input type="date" value={details.dob} onChange={(e) => updateDetails('dob', e.target.value)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none text-fg" />
-                    <select value={details.gender} onChange={(e) => updateDetails('gender', e.target.value)} className="rounded-2xl border border-white/10 bg-bg px-4 py-3 outline-none text-fg">
+                  <div className="grid sm:grid-cols-2 gap-2.5">
+                    <input value={details.email} onChange={(e) => updateDetails('email', e.target.value)} placeholder="Email address *" className={fieldClass} />
+                    <input value={details.pan} onChange={(e) => updateDetails('pan', e.target.value)} placeholder="PAN number *" maxLength={10} className={`${fieldClass} uppercase`} />
+                    <input type="date" value={details.dob} onChange={(e) => updateDetails('dob', e.target.value)} className={fieldClass} />
+                    <select value={details.gender} onChange={(e) => updateDetails('gender', e.target.value)} className={selectClass}>
                       <option value="">Gender *</option>
                       <option>Male</option>
                       <option>Female</option>
                       <option>Other</option>
                     </select>
                   </div>
-                  <textarea value={details.address} onChange={(e) => updateDetails('address', e.target.value)} placeholder="Current address *" rows={3} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none text-fg resize-none" />
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <select value={details.state} onChange={(e) => updateDetails('state', e.target.value)} className="rounded-2xl border border-white/10 bg-bg px-4 py-3 outline-none text-fg">
+                  <textarea value={details.address} onChange={(e) => updateDetails('address', e.target.value)} placeholder="Current address *" rows={2} className={`${areaClass} resize-none`} />
+                  <div className="grid sm:grid-cols-2 gap-2.5">
+                    <select value={details.state} onChange={(e) => updateDetails('state', e.target.value)} className={selectClass}>
                       <option value="">State *</option>
                       {states.map((state) => <option key={state}>{state}</option>)}
                     </select>
-                    <input value={details.pinCode} onChange={(e) => updateDetails('pinCode', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="PIN code *" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none text-fg" />
+                    <input value={details.pinCode} onChange={(e) => updateDetails('pinCode', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="PIN code *" className={fieldClass} />
                   </div>
-                  <button onClick={continueDetails} className="btn-primary w-full justify-center py-4">Review Consent</button>
+                  <button onClick={continueDetails} className="btn-primary w-full justify-center py-3 text-sm">Review Consent</button>
                 </div>
               )}
 

@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - Customer Journey Form UI Compacting
+
+Summary:
+
+- Reduced oversized customer journey form containers, inputs, OTP field, buttons, and helper chips on `/get-my-report`.
+- Added consistent compact input/select/textarea styling with subtle focus states.
+- Tightened the mobile verification and details screens so the journey feels cleaner and more premium.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+- Local browser check confirmed the mobile, OTP, and details steps render with compact fields.
+
 ## 2026-05-12 - Developer - Footer Contact Cleanup
 
 Summary:
