@@ -47,6 +47,10 @@ const PUBLIC_PATHS = [
   '/accounts',
   '/partner-program',
   '/partner-login',
+  '/privacy-policy',
+  '/refund-policy',
+  '/usage-policy',
+  '/terms-and-conditions',
 ];
 
 const ONBOARDING_PATHS = [

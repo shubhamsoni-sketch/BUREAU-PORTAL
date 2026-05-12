@@ -2,6 +2,31 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - Gateway Compliance Policy Pages
+
+Summary:
+
+- Added public policy pages for Privacy Policy, Refund and Cancellation Policy, Usage Policy, and Terms and Conditions.
+- Reworked About Us into a compliance-oriented company overview focused on consent, data protection, partner responsibility, and misuse prevention.
+- Added policy links to public footers and allowed policy routes through the auth guard.
+- Strengthened consent language in Terms, Privacy, and Usage policies for financial health report generation and authorized provider processing.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+
+## 2026-05-12 - Developer - Admin System Blueprint
+
+Summary:
+
+- Added `ADMIN_SYSTEM_BLUEPRINT.md` as a full rebuild guide for cloning the portal admin into another system.
+- Covered tech stack, auth, Supabase schema, RLS patterns, backend APIs, admin/partner/B2C pages, business flows, provider integration pattern, deployment checklist, and suggested build order.
+
+Verification:
+
+- Documentation-only change. File was created and read back successfully.
+
 ## 2026-05-12 - Developer - B2C Admin Tracking Foundation
 
 Summary:

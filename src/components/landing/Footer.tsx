@@ -8,6 +8,10 @@ const footerLinks = [
   { label: 'For Partners', href: '/partner-program' },
   { label: 'Partner Login', href: '/partner-login' },
   { label: 'Become a Partner', href: '/become-a-partner' },
+  { label: 'Privacy', href: '/privacy-policy' },
+  { label: 'Refunds', href: '/refund-policy' },
+  { label: 'Usage', href: '/usage-policy' },
+  { label: 'Terms', href: '/terms-and-conditions' },
   { label: 'Contact', href: '/contact' },
 ];
 
