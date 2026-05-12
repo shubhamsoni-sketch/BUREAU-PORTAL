@@ -33,8 +33,8 @@ export default function Footer() {
               </p>
               <p className="mt-1 text-xs text-fg-muted">
                 To know more, mail us at{' '}
-                <a href="mailto:contact@credittrust.in" className="text-primary hover:text-primary-light transition-colors">
-                  contact@credittrust.in
+                <a href="mailto:support@crtedittrust.in" className="text-primary hover:text-primary-light transition-colors">
+                  support@crtedittrust.in
                 </a>
               </p>
             </div>

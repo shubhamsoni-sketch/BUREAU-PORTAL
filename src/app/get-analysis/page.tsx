@@ -1293,7 +1293,7 @@ export default function GetAnalysisPage() {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <a
-                      href="mailto:contact@credittrust.in"
+                      href="mailto:support@crtedittrust.in"
                       className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-blue-600/25 group"
                     >
                       Talk to an Expert

@@ -140,7 +140,7 @@ export default function IntegrationsPage() {
           <h2 className="text-3xl font-bold text-slate-900 mb-4">Need a specific integration?</h2>
           <p className="text-slate-500 text-lg mb-10">We&apos;re continuously expanding our data connections. Reach out to discuss your requirements.</p>
           <a
-            href="mailto:contact@credittrust.in"
+            href="mailto:support@crtedittrust.in"
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-10 py-4 rounded-xl transition-all duration-200 group text-base"
           >
             Contact Us
