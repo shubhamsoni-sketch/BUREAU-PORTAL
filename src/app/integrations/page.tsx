@@ -139,13 +139,13 @@ export default function IntegrationsPage() {
         <div className={`max-w-3xl mx-auto px-6 lg:px-8 py-24 text-center transition-all duration-700 ${ctaInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           <h2 className="text-3xl font-bold text-slate-900 mb-4">Need a specific integration?</h2>
           <p className="text-slate-500 text-lg mb-10">We&apos;re continuously expanding our data connections. Reach out to discuss your requirements.</p>
-          <Link
-            href="/contact"
+          <a
+            href="mailto:contact@credittrust.in"
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-10 py-4 rounded-xl transition-all duration-200 group text-base"
           >
             Contact Us
             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-          </Link>
+          </a>
         </div>
       </div>
       <PublicFooter />

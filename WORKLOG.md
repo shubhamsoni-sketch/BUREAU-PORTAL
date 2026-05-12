@@ -2,6 +2,21 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - Footer Contact Cleanup
+
+Summary:
+
+- Removed the standalone Contact page route and Contact links from public navigation/footer areas.
+- Added direct footer contact copy: `contact@credittrust.in`.
+- Removed unused footer social/web icon buttons.
+- Added `Powered by Fincoopers Tech India Private Limited` to footer rights text.
+- Replaced remaining Contact page CTAs with direct `mailto:contact@credittrust.in` links.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-12 - Developer - Theme-Friendly Credit Trust Logo
 
 Summary:

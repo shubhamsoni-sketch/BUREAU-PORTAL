@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
-import Icon from '@/components/ui/AppIcon';
 import AppLogo from '@/components/ui/AppLogo';
 
 const footerLinks = [
@@ -13,7 +12,6 @@ const footerLinks = [
   { label: 'Refunds', href: '/refund-policy' },
   { label: 'Usage', href: '/usage-policy' },
   { label: 'Terms', href: '/terms-and-conditions' },
-  { label: 'Contact', href: '/contact' },
 ];
 
 export default function Footer() {
@@ -26,12 +24,20 @@ export default function Footer() {
   return (
     <footer className="border-t border-white/5 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 text-center sm:text-left">
             <AppLogo size={36} width={154} height={36} />
-            <span className="hidden md:block text-fg-subtle text-xs ml-2 border-l border-white/10 pl-3">
-              Financial health reports for individuals and partners.
-            </span>
+            <div className="sm:border-l sm:border-white/10 sm:pl-3">
+              <p className="text-fg-subtle text-xs">
+                Financial health reports for individuals and partners.
+              </p>
+              <p className="mt-1 text-xs text-fg-muted">
+                To know more, mail us at{' '}
+                <a href="mailto:contact@credittrust.in" className="text-primary hover:text-primary-light transition-colors">
+                  contact@credittrust.in
+                </a>
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-5 sm:gap-6 flex-wrap justify-center">
@@ -41,23 +47,14 @@ export default function Footer() {
               </Link>
             ))}
           </div>
-
-          <div className="flex items-center gap-3">
-            {['linkedin', 'x', 'mail'].map((item) => (
-              <a
-                key={item}
-                href="#"
-                className="w-9 h-9 rounded-full border border-white/10 flex items-center justify-center text-fg-muted hover:text-primary hover:border-primary/40 transition-all"
-                aria-label={item}
-              >
-                <Icon name="GlobeAltIcon" size={15} />
-              </a>
-            ))}
-          </div>
         </div>
 
         <div className="mt-5 pt-5 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-fg-subtle">
-          <span>{year ? `(c) ${year} Credit Trust. All rights reserved.` : '(c) Credit Trust. All rights reserved.'}</span>
+          <span>
+            {year
+              ? `(c) ${year} Credit Trust. All rights reserved. Powered by Fincoopers Tech India Private Limited.`
+              : '(c) Credit Trust. All rights reserved. Powered by Fincoopers Tech India Private Limited.'}
+          </span>
           <span className="text-center">Independent financial intelligence platform for credit health workflows.</span>
         </div>
       </div>

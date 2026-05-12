@@ -130,9 +130,9 @@ export default function PartnerProgramSection() {
               <Link href="/become-a-partner" className="btn-primary px-6 py-3 text-sm">
                 Become a Partner
               </Link>
-              <Link href="/contact" className="btn-ghost px-6 py-3 text-sm">
+              <a href="mailto:contact@credittrust.in" className="btn-ghost px-6 py-3 text-sm">
                 Talk to Team
-              </Link>
+              </a>
             </div>
           </div>
         </div>

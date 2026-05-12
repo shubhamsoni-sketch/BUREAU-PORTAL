@@ -9,7 +9,6 @@ const navLinks = [
   { label: 'Partner Program', href: '/partner-program' },
   { label: 'Integrations', href: '/integrations' },
   { label: 'About', href: '/about' },
-  { label: 'Contact', href: '/contact' },
 ];
 
 export default function PublicNav() {

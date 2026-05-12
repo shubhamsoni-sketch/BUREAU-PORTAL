@@ -1292,13 +1292,13 @@ export default function GetAnalysisPage() {
                     Our partner network can help you act on these insights and improve your credit health.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    <Link
-                      href="/contact"
+                    <a
+                      href="mailto:contact@credittrust.in"
                       className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-blue-600/25 group"
                     >
                       Talk to an Expert
                       <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                    </Link>
+                    </a>
                     <button
                       onClick={handleReset}
                       className="inline-flex items-center justify-center gap-2 border border-white/15 hover:border-white/30 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200 hover:bg-white/5"

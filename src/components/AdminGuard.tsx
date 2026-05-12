@@ -38,7 +38,6 @@ const PUBLIC_PATHS = [
   '/for-individuals',
   '/for-partners',
   '/about',
-  '/contact',
   '/pricing',
   '/get-analysis',
   '/get-my-report',
