@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import AppLogo from '@/components/ui/AppLogo';
 
 interface HeaderProps {
   onGetReport: () => void;
@@ -46,12 +47,7 @@ export default function Header({ onGetReport }: HeaderProps) {
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             aria-label="Go to top"
           >
-            <span className="h-9 w-9 rounded-2xl bg-primary text-bg flex items-center justify-center font-bold shadow-glow-sm">
-              I
-            </span>
-            <span className="font-bold text-lg tracking-tight text-fg hidden sm:block">
-              Insight<span className="gradient-text-primary">IQ</span>
-            </span>
+            <AppLogo size={42} width={150} height={50} imageClassName="rounded-lg" />
           </button>
 
           <nav className="hidden md:flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-2 py-1">

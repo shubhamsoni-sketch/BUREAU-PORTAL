@@ -3,7 +3,7 @@ import LegalPage from '@/components/legal/LegalPage';
 const sections = [
   {
     title: 'Digital Service Nature',
-    body: 'InsightIQ provides digital financial health report services and partner platform services. Once a report request is processed, data-provider costs, payment gateway charges, technical processing, and compliance logging may already be incurred.',
+    body: 'Credit Trust provides digital financial health report services and partner platform services. Once a report request is processed, data-provider costs, payment gateway charges, technical processing, and compliance logging may already be incurred.',
   },
   {
     title: 'B2C Financial Health Report Payments',
@@ -25,7 +25,7 @@ const sections = [
   {
     title: 'Refund Request Process',
     bullets: [
-      'Raise a refund request through Contact Us or support@insightcredit.in within 7 calendar days of payment.',
+      'Raise a refund request through Contact Us or support@credittrust.in within 7 calendar days of payment.',
       'Include registered mobile number, email, payment/order ID, amount, date of payment, report request ID if available, and reason for refund.',
       'We may ask for additional verification before processing requests involving identity, PAN, payment, or report data.',
       'Approved refunds will be initiated to the original payment method wherever supported by the payment gateway.',

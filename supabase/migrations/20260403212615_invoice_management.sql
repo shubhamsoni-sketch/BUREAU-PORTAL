@@ -9,7 +9,7 @@ CREATE TYPE public.invoice_status AS ENUM ('Paid', 'Pending', 'Cancelled');
 
 CREATE TABLE IF NOT EXISTS public.invoice_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_name TEXT NOT NULL DEFAULT 'CIBILysis',
+  company_name TEXT NOT NULL DEFAULT 'credit-trust',
   company_address TEXT NOT NULL DEFAULT '',
   gst_number TEXT DEFAULT NULL,
   logo_url TEXT DEFAULT NULL,
@@ -54,7 +54,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.invoice_settings LIMIT 1) THEN
     INSERT INTO public.invoice_settings (company_name, company_address, gst_number)
     VALUES (
-      'CIBILysis Financial Services Pvt. Ltd.',
+      'credit-trust Financial Services Pvt. Ltd.',
       '301, Pinnacle Business Park, Andheri East, Mumbai - 400069, Maharashtra, India',
       '27AABCC1234D1Z5'
     );

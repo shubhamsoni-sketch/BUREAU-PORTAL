@@ -46,7 +46,7 @@ Status     : RAISED
 =======================================================
 
 FROM:
-${settings?.companyName ?? 'Insight'}
+${settings?.companyName ?? 'Credit Trust'}
 ${settings?.companyAddress ?? ''}
 ${settings?.gstNumber ? `GST: ${settings.gstNumber}` : ''}
 
@@ -112,7 +112,7 @@ Thank you for your business!
           {/* Company Header */}
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-xl font-bold text-foreground">{settings?.companyName ?? 'Insight'}</h3>
+              <h3 className="text-xl font-bold text-foreground">{settings?.companyName ?? 'Credit Trust'}</h3>
               <p className="text-sm text-muted-foreground mt-1 max-w-xs">{settings?.companyAddress ?? ''}</p>
               {settings?.gstNumber && (
                 <p className="text-xs text-muted-foreground mt-1">GST: {settings.gstNumber}</p>

@@ -106,10 +106,7 @@ export default function Sidebar({ role }: SidebarProps) {
         }`}
         style={{ minHeight: 'var(--header-height)' }}
       >
-        <AppLogo size={32} />
-        {!collapsed && (
-          <span className="font-bold text-base text-foreground tracking-tight">Insight</span>
-        )}
+        <AppLogo size={collapsed ? 28 : 40} width={collapsed ? 34 : 142} height={collapsed ? 28 : 48} imageClassName="rounded-md" />
       </div>
 
       {/* Role Badge */}
@@ -183,7 +180,7 @@ export default function Sidebar({ role }: SidebarProps) {
                 {role === 'admin' ? 'Admin User' : (user?.name || 'Partner')}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {role === 'admin' ? 'admin@insight.in' : (user?.email || '')}
+                {role === 'admin' ? 'admin@credittrust.in' : (user?.email || '')}
               </p>
             </div>
           </div>

@@ -41,7 +41,7 @@ export default function AdminTopbar({ title }: { title?: string }) {
           </div>
           <div className="text-left hidden sm:block">
             <p className="text-xs font-semibold text-slate-800 leading-tight">{user?.name ?? 'Super Admin'}</p>
-            <p className="text-[10px] text-slate-400 leading-tight">{user?.email ?? 'admin@insight.in'}</p>
+            <p className="text-[10px] text-slate-400 leading-tight">{user?.email ?? 'admin@credittrust.in'}</p>
           </div>
           <ChevronDown size={13} className="text-slate-400" />
         </button>

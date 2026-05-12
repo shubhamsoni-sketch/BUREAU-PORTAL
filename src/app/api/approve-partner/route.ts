@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
         user_id: newUserId,
         type: 'account_approved',
         title: 'Account Approved',
-        message: `Welcome to Insight! Your partner account has been approved. Your partner code is ${partnerCode}. Login credentials have been sent to your email.`,
+        message: `Welcome to Credit Trust! Your partner account has been approved. Your partner code is ${partnerCode}. Login credentials have been sent to your email.`,
         metadata: { partner_code: partnerCode },
       });
     } catch (notifErr) {

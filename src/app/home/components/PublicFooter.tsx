@@ -34,7 +34,7 @@ export default function PublicFooter() {
               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
                 <span className="text-white font-bold text-sm">I</span>
               </div>
-              <span className="text-slate-900 font-bold text-lg tracking-tight">InsightIQ</span>
+              <span className="text-slate-900 font-bold text-lg tracking-tight">Credit Trust</span>
             </Link>
             <p className="text-slate-500 text-sm leading-relaxed max-w-xs">
               Consent-based financial health reports for individuals and approved partner workflows.
@@ -62,7 +62,7 @@ export default function PublicFooter() {
 
         <div className="mt-12 pt-8 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-400 text-sm">
-            (c) {new Date().getFullYear()} InsightIQ. All rights reserved.
+            (c) {new Date().getFullYear()} Credit Trust. All rights reserved.
           </p>
           <div className="flex items-center gap-6 flex-wrap justify-center">
             <Link href="/privacy-policy" className="text-slate-400 hover:text-slate-600 text-sm transition-colors">

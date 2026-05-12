@@ -1,6 +1,6 @@
 -- ============================================================
 -- Fix: Create or update admin auth user with correct password
--- Ensures admin@cibilysis.in exists in auth.users with Admin@2026
+-- Ensures admin@credittrust.in exists in auth.users with Admin@2026
 -- ============================================================
 
 DO $$
@@ -10,7 +10,7 @@ BEGIN
   -- Check if admin user already exists
   SELECT id INTO admin_id
   FROM auth.users
-  WHERE email = 'admin@cibilysis.in'
+  WHERE email = 'admin@credittrust.in'
   LIMIT 1;
 
   IF admin_id IS NOT NULL THEN
@@ -48,7 +48,7 @@ BEGIN
       '00000000-0000-0000-0000-000000000000',
       'authenticated',
       'authenticated',
-      'admin@cibilysis.in',
+      'admin@credittrust.in',
       crypt('Admin@2026', gen_salt('bf', 10)),
       now(),
       now(),
@@ -66,11 +66,11 @@ BEGIN
 
   -- Ensure user_profiles row exists with admin role
   INSERT INTO public.user_profiles (id, email, full_name, role)
-  VALUES (admin_id, 'admin@cibilysis.in', 'Super Admin', 'admin'::public.user_role)
+  VALUES (admin_id, 'admin@credittrust.in', 'Super Admin', 'admin'::public.user_role)
   ON CONFLICT (id) DO UPDATE
     SET role = 'admin'::public.user_role,
         full_name = 'Super Admin',
-        email = 'admin@cibilysis.in';
+        email = 'admin@credittrust.in';
 
   RAISE NOTICE 'Admin profile ensured for id: %', admin_id;
 

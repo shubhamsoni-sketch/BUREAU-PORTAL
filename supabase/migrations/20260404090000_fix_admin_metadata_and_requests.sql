@@ -1,5 +1,5 @@
 -- ============================================================
--- CIBILysis: Fix admin app_metadata role + partner_requests email unique
+-- credit-trust: Fix admin app_metadata role + partner_requests email unique
 -- ============================================================
 
 -- 1. Add unique constraint on partner_requests.email to prevent duplicate submissions
@@ -25,7 +25,7 @@ DECLARE
 BEGIN
   SELECT id INTO admin_id
   FROM auth.users
-  WHERE email = 'admin@cibilysis.in'
+  WHERE email = 'admin@credittrust.in'
   LIMIT 1;
 
   IF admin_id IS NOT NULL THEN
@@ -39,7 +39,7 @@ BEGIN
 
     -- Ensure user_profiles row has admin role
     INSERT INTO public.user_profiles (id, email, full_name, role)
-    VALUES (admin_id, 'admin@cibilysis.in', 'Super Admin', 'admin'::public.user_role)
+    VALUES (admin_id, 'admin@credittrust.in', 'Super Admin', 'admin'::public.user_role)
     ON CONFLICT (id) DO UPDATE
       SET role = 'admin'::public.user_role,
           full_name = 'Super Admin';

@@ -101,7 +101,7 @@ export default function Topbar({ title, subtitle, role, actions }: TopbarProps) 
                   {user?.name ?? (role === 'admin' ? 'Super Admin' : 'Partner')}
                 </p>
                 <p className="text-[10px] text-slate-400 mt-0.5">
-                  {user?.email ?? (role === 'admin' ? 'admin@insight.in' : 'DSA Partner')}
+                  {user?.email ?? (role === 'admin' ? 'admin@credittrust.in' : 'DSA Partner')}
                 </p>
               </div>
               <Link

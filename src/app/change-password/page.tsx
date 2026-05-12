@@ -279,7 +279,7 @@ export default function ChangePasswordPage() {
                       >
                         Privacy Policy
                       </button>{' '}
-                      of Insight Partner Portal.
+                      of Credit Trust Partner Portal.
                     </p>
                   </div>
                 </div>
@@ -321,8 +321,8 @@ export default function ChangePasswordPage() {
               <button onClick={() => setShowTermsModal(false)} className="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
             </div>
             <div className="overflow-y-auto px-6 py-5 text-sm text-slate-600 space-y-4 flex-1">
-              <p className="font-semibold text-slate-800">Insight Partner Portal — Terms of Use</p>
-              <p>By accessing and using the Insight Partner Portal, you agree to the following terms and conditions:</p>
+              <p className="font-semibold text-slate-800">Credit Trust Partner Portal — Terms of Use</p>
+              <p>By accessing and using the Credit Trust Partner Portal, you agree to the following terms and conditions:</p>
               <div className="space-y-3">
                 <div>
                   <p className="font-semibold text-slate-700">1. Account Security</p>
@@ -342,7 +342,7 @@ export default function ChangePasswordPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-slate-700">5. Termination</p>
-                  <p>Insight reserves the right to suspend or terminate your account for any violation of these terms without prior notice.</p>
+                  <p>Credit Trust reserves the right to suspend or terminate your account for any violation of these terms without prior notice.</p>
                 </div>
                 <div>
                   <p className="font-semibold text-slate-700">6. Privacy Policy</p>

@@ -72,7 +72,7 @@ export default function IntegrationsPage() {
               <span className="text-blue-600">Let the intelligence do the rest.</span>
             </h1>
             <p className="text-slate-500 text-xl leading-relaxed">
-              Insight connects to the data sources that matter — so you get a complete picture, not a partial one.
+              Credit Trust connects to the data sources that matter — so you get a complete picture, not a partial one.
             </p>
           </div>
         </div>
@@ -111,7 +111,7 @@ export default function IntegrationsPage() {
       {/* HOW DATA FLOWS */}
       <section className="py-20">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-10">How data flows through Insight</h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-10">How data flows through Credit Trust</h2>
           <div className="flex flex-col md:flex-row items-start md:items-center gap-0">
             {[
               { label: 'Data Sources', desc: 'Financial, banking, and partner data' },

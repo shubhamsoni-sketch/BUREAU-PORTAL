@@ -1,5 +1,5 @@
 -- ============================================================
--- CIBILysis Auth & Onboarding Migration
+-- credit-trust Auth & Onboarding Migration
 -- ============================================================
 
 -- 1. Ensure user_role enum exists (may already exist)
@@ -169,7 +169,7 @@ DECLARE
   admin_uuid UUID := gen_random_uuid();
 BEGIN
   -- Only insert if admin email does not already exist
-  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'admin@cibilysis.in') THEN
+  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'admin@credittrust.in') THEN
     INSERT INTO auth.users (
       id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
       created_at, updated_at, raw_user_meta_data, raw_app_meta_data,
@@ -183,7 +183,7 @@ BEGIN
       '00000000-0000-0000-0000-000000000000',
       'authenticated',
       'authenticated',
-      'admin@cibilysis.in',
+      'admin@credittrust.in',
       crypt('Admin@2026', gen_salt('bf', 10)),
       now(),
       now(),

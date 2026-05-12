@@ -72,7 +72,7 @@ export default function UsagePolicyPage() {
     <LegalPage
       eyebrow="Acceptable Use"
       title="Usage Policy"
-      intro="This Usage Policy defines what is allowed and prohibited on InsightIQ. It is designed to prevent unauthorized financial report access, payment abuse, fraud, and misuse of sensitive data."
+      intro="This Usage Policy defines what is allowed and prohibited on Credit Trust. It is designed to prevent unauthorized financial report access, payment abuse, fraud, and misuse of sensitive data."
       updatedAt="12 May 2026"
       sections={sections}
     />

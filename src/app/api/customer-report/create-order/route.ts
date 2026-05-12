@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Valid mobile number is required' }, { status: 400 });
     }
 
-    const orderId = `IQR_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    const orderId = `CTR_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
     const hasCashfreeConfig = Boolean(process.env.CASHFREE_APP_ID && process.env.CASHFREE_SECRET_KEY);
 
     if (!hasCashfreeConfig) {

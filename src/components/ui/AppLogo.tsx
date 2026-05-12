@@ -8,15 +8,21 @@ interface AppLogoProps {
   src?: string; // Image source (optional)
   iconName?: string; // Icon name when no image
   size?: number; // Size for icon/image
+  width?: number;
+  height?: number;
   className?: string; // Additional classes
+  imageClassName?: string;
   onClick?: () => void; // Click handler
 }
 
 const AppLogo = memo(function AppLogo({
-  src = '/assets/images/app_logo.png',
+  src = '/assets/images/credit-trust-logo.png',
   iconName = 'SparklesIcon',
-  size = 64,
+  size = 40,
+  width,
+  height,
   className = '',
+  imageClassName = '',
   onClick,
 }: AppLogoProps) {
   // Memoize className calculation
@@ -33,10 +39,10 @@ const AppLogo = memo(function AppLogo({
       {src ? (
         <AppImage
           src={src}
-          alt="Logo" 
-          width={size}
-          height={size}
-          className="flex-shrink-0"
+          alt="Credit Trust Logo"
+          width={width ?? Math.round(size * 3.1)}
+          height={height ?? size}
+          className={`flex-shrink-0 object-contain ${imageClassName}`}
           priority={true}
           unoptimized={src.endsWith('.svg')}
         />

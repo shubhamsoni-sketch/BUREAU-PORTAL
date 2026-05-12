@@ -75,7 +75,7 @@ export default function PrivacyPolicyPage() {
     <LegalPage
       eyebrow="Privacy Policy"
       title="Privacy Policy"
-      intro="This Privacy Policy explains how InsightIQ collects, uses, protects, stores, and shares information when individuals, partners, admins, or website visitors use our financial health report and partner workflow platform."
+      intro="This Privacy Policy explains how Credit Trust collects, uses, protects, stores, and shares information when individuals, partners, admins, or website visitors use our financial health report and partner workflow platform."
       updatedAt="12 May 2026"
       sections={sections}
     />

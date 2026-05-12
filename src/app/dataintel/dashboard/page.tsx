@@ -94,7 +94,7 @@ export default function DashboardPage() {
       <aside className="w-64 flex flex-col border-r shrink-0" style={{ borderColor: '#1e293b', background: '#080b14' }}>
         <div className="p-5 border-b" style={{ borderColor: '#1e293b' }}>
           <Link href="/dataintel" className="flex items-center gap-2.5">
-            <Image src="/assets/images/app_logo.png" alt="Logo" width={28} height={28} />
+            <Image src="/assets/images/credit-trust-logo.png" alt="Credit Trust Logo" width={28} height={28} />
             <span style={{ fontFamily: 'Fraunces, serif' }} className="text-base font-semibold text-[#f1f5f9]">DataIntel</span>
           </Link>
         </div>

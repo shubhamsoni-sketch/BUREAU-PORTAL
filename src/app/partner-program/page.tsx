@@ -5,6 +5,7 @@ import React from 'react';
 import Footer from '@/components/landing/Footer';
 import PartnerProgramSection from '@/components/landing/PartnerProgramSection';
 import Icon from '@/components/ui/AppIcon';
+import AppLogo from '@/components/ui/AppLogo';
 
 export default function PartnerProgramPage() {
   return (
@@ -14,12 +15,7 @@ export default function PartnerProgramPage() {
       <header className="fixed top-0 inset-x-0 z-50 bg-bg/90 backdrop-blur-xl border-b border-white/5 py-3">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5" aria-label="Go to homepage">
-            <span className="h-9 w-9 rounded-2xl bg-primary text-bg flex items-center justify-center font-bold shadow-glow-sm">
-              I
-            </span>
-            <span className="font-bold text-lg tracking-tight text-fg hidden sm:block">
-              Insight<span className="gradient-text-primary">IQ</span>
-            </span>
+            <AppLogo size={42} width={150} height={50} imageClassName="rounded-lg" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-2 py-1">

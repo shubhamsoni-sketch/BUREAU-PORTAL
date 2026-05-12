@@ -62,10 +62,7 @@ export default function AdminSidebar() {
     >
       {/* Logo */}
       <div className={`flex items-center h-16 px-4 border-b border-slate-700/60 ${collapsed ? 'justify-center' : 'gap-3'}`}>
-        <AppLogo size={32} />
-        {!collapsed && (
-          <span className="font-semibold text-base text-white tracking-tight">Insight</span>
-        )}
+        <AppLogo size={collapsed ? 28 : 40} width={collapsed ? 34 : 142} height={collapsed ? 28 : 48} imageClassName="rounded-md" />
       </div>
       {/* Role Badge */}
       {!collapsed && (
@@ -126,7 +123,7 @@ export default function AdminSidebar() {
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-white truncate">{user?.name ?? 'Super Admin'}</p>
-              <p className="text-[10px] text-slate-400 truncate">{user?.email ?? 'admin@insight.in'}</p>
+              <p className="text-[10px] text-slate-400 truncate">{user?.email ?? 'admin@credittrust.in'}</p>
             </div>
           )}
           {!collapsed && (

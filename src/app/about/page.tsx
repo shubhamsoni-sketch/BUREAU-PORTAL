@@ -44,7 +44,7 @@ export default function AboutPage() {
           </div>
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-1.5 mb-8">
-              <span className="text-primary text-xs font-semibold uppercase tracking-widest">About InsightIQ</span>
+              <span className="text-primary text-xs font-semibold uppercase tracking-widest">About Credit Trust</span>
             </div>
             <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-12 items-center">
               <div>
@@ -52,7 +52,7 @@ export default function AboutPage() {
                   Financial health reports with consent, clarity, and control.
                 </h1>
                 <p className="text-fg-muted text-lg leading-relaxed">
-                  InsightIQ is a digital financial health report platform for individuals and approved partners. Our purpose is to help users understand their financial profile through structured report workflows while keeping consent, privacy, payment transparency, and misuse prevention at the center of the product.
+                  Credit Trust is a digital financial health report platform for individuals and approved partners. Our purpose is to help users understand their financial profile through structured report workflows while keeping consent, privacy, payment transparency, and misuse prevention at the center of the product.
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row gap-3">
                   <Link href="/get-my-report" className="btn-primary inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl">

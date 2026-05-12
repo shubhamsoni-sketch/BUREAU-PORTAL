@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import React, { useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import AppLogo from '@/components/ui/AppLogo';
 
 type Step = 'mobile' | 'otp' | 'educate' | 'details' | 'consent' | 'payment' | 'preparing' | 'report';
 
@@ -307,8 +308,7 @@ export default function GetMyReportPage() {
       <header className="border-b border-white/5 bg-bg/90 backdrop-blur-xl sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="h-9 w-9 rounded-2xl bg-primary text-bg flex items-center justify-center font-bold shadow-glow-sm">I</span>
-            <span className="font-bold text-lg tracking-tight text-fg">Insight<span className="gradient-text-primary">IQ</span></span>
+            <AppLogo size={42} width={150} height={50} imageClassName="rounded-lg" />
           </Link>
           <Link href="/" className="btn-ghost px-4 py-2 text-sm">Back Home</Link>
         </div>
@@ -472,7 +472,7 @@ export default function GetMyReportPage() {
                   <label className="flex items-start gap-3 rounded-3xl p-5 cursor-pointer" style={{ background: 'rgba(0,212,170,0.08)', border: '1px solid rgba(0,212,170,0.18)' }}>
                     <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1" />
                     <span className="text-sm text-fg-muted leading-relaxed">
-                      I authorize InsightIQ to process my details and generate my Financial Health Report. I understand my data will not be sold or shared for marketing.
+                      I authorize Credit Trust to process my details and generate my Financial Health Report. I understand my data will not be sold or shared for marketing.
                     </span>
                   </label>
                   <button onClick={createOrder} disabled={loading} className="btn-primary w-full justify-center py-4">

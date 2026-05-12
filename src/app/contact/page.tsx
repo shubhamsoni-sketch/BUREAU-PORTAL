@@ -84,7 +84,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <p className="text-white font-medium text-sm mb-0.5">Email</p>
-                    <p className="text-slate-400 text-sm">support@insightcredit.in</p>
+                    <p className="text-slate-400 text-sm">support@credittrust.in</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">

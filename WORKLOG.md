@@ -2,6 +2,21 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-12 - Developer - Credit Trust Rebrand
+
+Summary:
+
+- Replaced the portal brand name from Insight/InsightIQ to Credit Trust across public pages, partner/admin UI, policies, metadata, notifications, and invoice defaults.
+- Added the provided Credit Trust logo asset and wired it into shared logo usage, landing header/footer, partner program, customer journey, login screens, and sidebars.
+- Updated live invoice settings to use Credit Trust Financial Services and the new logo.
+- Added a Supabase migration to keep invoice branding reproducible for future environments.
+
+Verification:
+
+- Brand scan no longer finds Insight/InsightIQ/CIBILysis/app_logo references in source, package files, public assets, or migrations except generic lowercase insight variables/labels.
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-12 - Developer - Gateway Compliance Policy Pages
 
 Summary:

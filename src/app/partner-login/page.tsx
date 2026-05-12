@@ -82,8 +82,7 @@ export default function PartnerLoginPage() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-2 justify-center mb-8">
-            <AppLogo size={32} />
-            <span className="text-xl font-bold text-slate-800">Insight</span>
+            <AppLogo size={46} width={160} height={54} imageClassName="rounded-lg" />
           </div>
 
           {/* Form card */}

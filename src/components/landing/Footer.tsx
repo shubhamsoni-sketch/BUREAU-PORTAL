@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import AppLogo from '@/components/ui/AppLogo';
 
 const footerLinks = [
   { label: 'For Partners', href: '/partner-program' },
@@ -27,12 +28,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="h-8 w-8 rounded-xl bg-primary text-bg flex items-center justify-center text-sm font-bold">
-              I
-            </span>
-            <span className="font-bold text-sm tracking-tight text-fg">
-              Insight<span className="gradient-text-primary">IQ</span>
-            </span>
+            <AppLogo size={36} width={132} height={44} imageClassName="rounded-lg" />
             <span className="hidden md:block text-fg-subtle text-xs ml-2 border-l border-white/10 pl-3">
               Financial health reports for individuals and partners.
             </span>
@@ -61,7 +57,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-5 pt-5 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-fg-subtle">
-          <span>{year ? `(c) ${year} InsightIQ. All rights reserved.` : '(c) InsightIQ. All rights reserved.'}</span>
+          <span>{year ? `(c) ${year} Credit Trust. All rights reserved.` : '(c) Credit Trust. All rights reserved.'}</span>
           <span className="text-center">Independent financial intelligence platform for credit health workflows.</span>
         </div>
       </div>

@@ -132,7 +132,7 @@ Status     : ${invoice.status.toUpperCase()}
 =======================================================
 
 FROM:
-${settings?.companyName ?? 'Insight'}
+${settings?.companyName ?? 'Credit Trust'}
 ${settings?.companyAddress ?? ''}
 ${settings?.gstNumber ? `GST: ${settings.gstNumber}` : ''}
 
@@ -240,7 +240,7 @@ ${invoice.status === 'raised' ? 'INVOICE RAISED AND ISSUED' : `Status: ${invoice
           <div className="p-6 space-y-6">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-xl font-bold text-foreground">{settings?.companyName ?? 'Insight'}</h3>
+                <h3 className="text-xl font-bold text-foreground">{settings?.companyName ?? 'Credit Trust'}</h3>
                 <p className="text-sm text-muted-foreground mt-1 max-w-xs">{settings?.companyAddress ?? ''}</p>
                 {settings?.gstNumber && (
                   <p className="text-xs text-muted-foreground mt-1">GST: {settings.gstNumber}</p>
@@ -445,7 +445,7 @@ function TemplateSettingsPanel({ settings, onSave }: {
             className="input-base"
             value={form.companyName}
             onChange={(e) => setForm((p) => ({ ...p, companyName: e.target.value }))}
-            placeholder="e.g. Insight Financial Services Pvt. Ltd."
+            placeholder="e.g. Credit Trust Financial Services Pvt. Ltd."
           />
         </div>
         <div>
