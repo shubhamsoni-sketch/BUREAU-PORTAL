@@ -106,7 +106,7 @@ export default function Sidebar({ role }: SidebarProps) {
         }`}
         style={{ minHeight: 'var(--header-height)' }}
       >
-        <AppLogo size={collapsed ? 28 : 40} width={collapsed ? 34 : 142} height={collapsed ? 28 : 48} imageClassName="rounded-md" />
+        <AppLogo variant={collapsed ? 'mark' : 'light'} size={collapsed ? 28 : 40} width={collapsed ? 34 : 150} height={collapsed ? 28 : 42} />
       </div>
 
       {/* Role Badge */}

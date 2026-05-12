@@ -187,7 +187,7 @@ export default function BecomeAPartnerPage() {
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-7 text-center">
             <div className="flex justify-center mb-3">
-              <AppLogo size={50} width={170} height={58} imageClassName="rounded-lg" />
+              <AppLogo size={50} width={190} height={44} />
             </div>
             <h1 className="text-xl font-bold text-white">Become a Partner</h1>
             <p className="text-blue-200 text-sm mt-1">Register your business and start generating financial health reports</p>

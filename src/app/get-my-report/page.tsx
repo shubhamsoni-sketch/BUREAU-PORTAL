@@ -308,7 +308,7 @@ export default function GetMyReportPage() {
       <header className="border-b border-white/5 bg-bg/90 backdrop-blur-xl sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
-            <AppLogo size={42} width={150} height={50} imageClassName="rounded-lg" />
+            <AppLogo size={42} width={170} height={40} />
           </Link>
           <Link href="/" className="btn-ghost px-4 py-2 text-sm">Back Home</Link>
         </div>

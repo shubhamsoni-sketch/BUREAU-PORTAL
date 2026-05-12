@@ -47,7 +47,7 @@ export default function Header({ onGetReport }: HeaderProps) {
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             aria-label="Go to top"
           >
-            <AppLogo size={42} width={150} height={50} imageClassName="rounded-lg" />
+            <AppLogo size={42} width={170} height={40} />
           </button>
 
           <nav className="hidden md:flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-2 py-1">

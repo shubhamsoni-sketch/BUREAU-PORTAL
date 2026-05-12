@@ -62,7 +62,7 @@ export default function AdminSidebar() {
     >
       {/* Logo */}
       <div className={`flex items-center h-16 px-4 border-b border-slate-700/60 ${collapsed ? 'justify-center' : 'gap-3'}`}>
-        <AppLogo size={collapsed ? 28 : 40} width={collapsed ? 34 : 142} height={collapsed ? 28 : 48} imageClassName="rounded-md" />
+        <AppLogo variant={collapsed ? 'mark' : 'dark'} size={collapsed ? 28 : 40} width={collapsed ? 34 : 150} height={collapsed ? 28 : 42} />
       </div>
       {/* Role Badge */}
       {!collapsed && (

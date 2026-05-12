@@ -6,15 +6,16 @@ Keep this file updated for meaningful changes. Add newest entries at the top.
 
 Summary:
 
-- Replaced the dark-theme header logo source with a transparent SVG lockup so the brand is readable on the website background.
-- Added a separate compact Credit Trust mark for square logo placements such as DataIntel nav/footer screens.
-- Updated Supabase branding migrations to point invoice logo defaults at the transparent SVG asset.
+- Added separate Credit Trust logo variants for dark surfaces, light surfaces, and compact mark placements.
+- Updated website/header/footer/login logo sizing to use a compact lockup without the tagline so it remains readable.
+- Updated admin/partner sidebars to use the dark-surface logo when expanded and the compact mark when collapsed.
+- Updated Supabase invoice branding migrations and live invoice settings to use the light-surface logo asset.
 
 Verification:
 
 - `npm run build -- --no-lint` passed.
 - `npm run type-check -- --pretty false` passed.
-- Live Supabase invoice settings were updated to `/assets/images/credit-trust-logo.svg`.
+- Live Supabase invoice settings were updated to `/assets/images/credit-trust-logo-light.svg`.
 
 ## 2026-05-12 - Developer - Credit Trust Rebrand
 

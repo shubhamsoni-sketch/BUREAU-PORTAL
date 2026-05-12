@@ -28,7 +28,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <AppLogo size={36} width={132} height={44} imageClassName="rounded-lg" />
+            <AppLogo size={36} width={154} height={36} />
             <span className="hidden md:block text-fg-subtle text-xs ml-2 border-l border-white/10 pl-3">
               Financial health reports for individuals and partners.
             </span>

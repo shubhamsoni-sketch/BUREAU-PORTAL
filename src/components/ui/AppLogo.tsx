@@ -6,6 +6,7 @@ import AppImage from './AppImage';
 
 interface AppLogoProps {
   src?: string; // Image source (optional)
+  variant?: 'dark' | 'light' | 'mark';
   iconName?: string; // Icon name when no image
   size?: number; // Size for icon/image
   width?: number;
@@ -16,7 +17,8 @@ interface AppLogoProps {
 }
 
 const AppLogo = memo(function AppLogo({
-  src = '/assets/images/credit-trust-logo.svg',
+  src,
+  variant = 'dark',
   iconName = 'SparklesIcon',
   size = 40,
   width,
@@ -25,6 +27,13 @@ const AppLogo = memo(function AppLogo({
   imageClassName = '',
   onClick,
 }: AppLogoProps) {
+  const logoSrc = useMemo(() => {
+    if (src) return src;
+    if (variant === 'light') return '/assets/images/credit-trust-logo-light.svg';
+    if (variant === 'mark') return '/assets/images/credit-trust-mark.svg';
+    return '/assets/images/credit-trust-logo.svg';
+  }, [src, variant]);
+
   // Memoize className calculation
   const containerClassName = useMemo(() => {
     const classes = ['flex items-center'];
@@ -36,15 +45,15 @@ const AppLogo = memo(function AppLogo({
   return (
     <div className={containerClassName} onClick={onClick}>
       {/* Show image if src provided, otherwise show icon */}
-      {src ? (
+      {logoSrc ? (
         <AppImage
-          src={src}
+          src={logoSrc}
           alt="Credit Trust Logo"
           width={width ?? Math.round(size * 3.1)}
           height={height ?? size}
           className={`flex-shrink-0 object-contain ${imageClassName}`}
           priority={true}
-          unoptimized={src.endsWith('.svg')}
+          unoptimized={logoSrc.endsWith('.svg')}
         />
       ) : (
         <AppIcon name={iconName} size={size} className="flex-shrink-0" />
