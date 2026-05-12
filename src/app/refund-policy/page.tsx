@@ -25,7 +25,7 @@ const sections = [
   {
     title: 'Refund Request Process',
     bullets: [
-      'Raise a refund request at support@crtedittrust.in within 7 calendar days of payment.',
+      'Raise a refund request at support@credittrust.in within 7 calendar days of payment.',
       'Include registered mobile number, email, payment/order ID, amount, date of payment, report request ID if available, and reason for refund.',
       'We may ask for additional verification before processing requests involving identity, PAN, payment, or report data.',
       'Approved refunds will be initiated to the original payment method wherever supported by the payment gateway.',

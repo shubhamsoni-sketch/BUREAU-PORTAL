@@ -81,7 +81,7 @@ export default function PartnerProgramPage() {
                     Become a Partner
                     <Icon name="ArrowRightIcon" size={18} variant="solid" />
                   </Link>
-                  <a href="mailto:support@crtedittrust.in" className="btn-ghost flex items-center gap-2 px-6 py-4 text-base">
+                  <a href="mailto:support@credittrust.in" className="btn-ghost flex items-center gap-2 px-6 py-4 text-base">
                     Talk to Team
                   </a>
                 </div>

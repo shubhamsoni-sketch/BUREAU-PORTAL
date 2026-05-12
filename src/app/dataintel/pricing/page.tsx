@@ -297,7 +297,7 @@ export default function PricingPage() {
 
           <div className="mt-6 text-sm text-[#64748b]">
             Volume pricing available for enterprise accounts.{' '}
-            <a href="mailto:support@crtedittrust.in" className="text-[#06b6d4] hover:text-[#22d3ee] transition-colors">Contact us</a>
+            <a href="mailto:support@credittrust.in" className="text-[#06b6d4] hover:text-[#22d3ee] transition-colors">Contact us</a>
           </div>
         </div>
       </section>
