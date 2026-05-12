@@ -1,0 +1,23 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="creditTrustMarkTitle">
+  <title id="creditTrustMarkTitle">Credit Trust</title>
+  <defs>
+    <linearGradient id="markGradient" x1="10" y1="18" x2="118" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12F3D5"/>
+      <stop offset="1" stop-color="#1188FF"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.071 0 0 0 0 0.953 0 0 0 0 0.835 0 0 0 0.45 0"/>
+      <feBlend in2="SourceGraphic" mode="screen"/>
+    </filter>
+  </defs>
+  <g filter="url(#glow)">
+    <path d="M64 15C91.1 15 113 36.9 113 64C113 91.1 91.1 113 64 113C36.9 113 15 91.1 15 64C15 36.9 36.9 15 64 15Z" stroke="url(#markGradient)" stroke-width="7" stroke-linecap="round" stroke-dasharray="72 18 34 14 56 18"/>
+    <circle cx="64" cy="15" r="12" fill="#12F3D5"/>
+    <circle cx="19" cy="64" r="14" fill="#12F3D5"/>
+    <circle cx="39" cy="103" r="11" fill="#12F3D5"/>
+    <circle cx="100" cy="36" r="9" fill="#22D3EE"/>
+    <circle cx="100" cy="92" r="9" fill="#12F3D5"/>
+    <circle cx="64" cy="113" r="7" fill="#22D3EE"/>
+  </g>
+</svg>

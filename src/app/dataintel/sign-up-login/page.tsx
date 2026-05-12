@@ -17,7 +17,7 @@ export default function SignUpLoginPage() {
 
         <div className="relative z-10">
           <Link href="/dataintel" className="flex items-center gap-2.5">
-            <Image src="/assets/images/credit-trust-logo.png" alt="Credit Trust Logo" width={32} height={32} />
+            <Image src="/assets/images/credit-trust-mark.svg" alt="Credit Trust Logo" width={32} height={32} />
             <span style={{ fontFamily: 'Fraunces, serif' }} className="text-lg font-semibold text-[#f1f5f9]">DataIntel</span>
           </Link>
         </div>

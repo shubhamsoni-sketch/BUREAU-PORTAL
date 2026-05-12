@@ -16,7 +16,7 @@ interface AppLogoProps {
 }
 
 const AppLogo = memo(function AppLogo({
-  src = '/assets/images/credit-trust-logo.png',
+  src = '/assets/images/credit-trust-logo.svg',
   iconName = 'SparklesIcon',
   size = 40,
   width,

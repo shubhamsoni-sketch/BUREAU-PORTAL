@@ -11,7 +11,7 @@ export default function DataIntelNav() {
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/dataintel" className="flex items-center gap-2.5 group">
           <Image
-            src="/assets/images/credit-trust-logo.png"
+            src="/assets/images/credit-trust-mark.svg"
             alt="Credit Trust Logo"
             width={32}
             height={32}

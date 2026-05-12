@@ -6,7 +6,7 @@ export default function DataIntelFooter() {
     <footer className="border-t py-10 px-6" style={{ borderColor: '#1e293b' }}>
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         <Link href="/dataintel" className="flex items-center gap-2.5 group">
-          <Image src="/assets/images/credit-trust-logo.png" alt="Credit Trust Logo" width={28} height={28} className="flex-shrink-0" />
+          <Image src="/assets/images/credit-trust-mark.svg" alt="Credit Trust Logo" width={28} height={28} className="flex-shrink-0" />
           <span
             style={{ fontFamily: 'Fraunces, serif' }}
             className="text-base font-semibold text-[#94a3b8] group-hover:text-[#f1f5f9] transition-colors"
