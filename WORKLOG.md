@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-13 - Developer - About Us Landing Page Update
+
+Summary:
+
+- Reworked `/about` with the provided CreditTrust company overview and mission copy.
+- Kept the page aligned with the current dark landing website theme.
+- Added `About Us` to the landing footer links while keeping it out of the header navigation.
+
+Verification:
+
+- `npm run build -- --no-lint` passed with placeholder Supabase env values for local build verification.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-12 - Developer - Customer Journey Form UI Compacting
 
 Summary:

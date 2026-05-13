@@ -3,28 +3,28 @@
 import Link from 'next/link';
 import Footer from '@/components/landing/Footer';
 import Header from '@/components/landing/Header';
-import { ArrowRight, BadgeCheck, FileCheck2, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { ArrowRight, BadgeCheck, BarChart3, Building2, FileText, LockKeyhole, ShieldCheck, Workflow } from 'lucide-react';
 
-const principles = [
+const focusAreas = [
   {
     icon: ShieldCheck,
-    title: 'Consent-first reporting',
-    desc: 'Every customer report workflow is designed around identity details, mobile verification, explicit consent, and auditable processing records.',
+    title: 'Secure digital onboarding',
+    desc: 'Structured onboarding journeys help individuals and partners move through financial utility workflows with clarity.',
   },
   {
     icon: LockKeyhole,
-    title: 'Sensitive-data protection',
-    desc: 'PAN, payment data, customer details, report responses, and partner records are handled with strict access controls and operational safeguards.',
+    title: 'Consent-based workflows',
+    desc: 'The platform is designed around authorized access, user consent, and responsible handling of assessment requests.',
   },
   {
-    icon: FileCheck2,
-    title: 'Clear records and accountability',
-    desc: 'Admin workflows maintain report, payment, wallet, invoice, agreement, and support records so every action can be reconciled.',
+    icon: BarChart3,
+    title: 'Financial analytics and reporting',
+    desc: 'Financial health reports and assessment insights are presented in a more understandable digital format.',
   },
   {
-    icon: BadgeCheck,
-    title: 'Responsible partner access',
-    desc: 'Partner tools are built for approved business use with agreements, wallet controls, report history, and compliance-oriented restrictions.',
+    icon: Workflow,
+    title: 'Technology-driven assessment solutions',
+    desc: 'Automation, analytics systems, and infrastructure support scalable financial utility services.',
   },
 ];
 
@@ -44,15 +44,18 @@ export default function AboutPage() {
           </div>
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-1.5 mb-8">
-              <span className="text-primary text-xs font-semibold uppercase tracking-widest">About Credit Trust</span>
+              <span className="text-primary text-xs font-semibold uppercase tracking-widest">About Us</span>
             </div>
             <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-12 items-center">
               <div>
                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-fg leading-tight mb-6">
-                  Financial health reports with consent, clarity, and control.
+                  Technology-driven financial analytics for a clearer digital ecosystem.
                 </h1>
                 <p className="text-fg-muted text-lg leading-relaxed">
-                  Credit Trust is a digital financial health report platform for individuals and approved partners. Our purpose is to help users understand their financial profile through structured report workflows while keeping consent, privacy, payment transparency, and misuse prevention at the center of the product.
+                  CreditTrust is a technology-driven financial analytics and assessment platform designed to simplify financial insights for individuals and business partners.
+                </p>
+                <p className="mt-5 text-fg-muted text-lg leading-relaxed">
+                  Our platform enables users to securely access consent-based financial assessment workflows, digital onboarding services, and detailed financial health reports through a seamless online experience.
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row gap-3">
                   <Link href="/get-my-report" className="btn-primary inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl">
@@ -64,14 +67,19 @@ export default function AboutPage() {
                   </Link>
                 </div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
-                <h2 className="text-lg font-bold text-fg mb-4">What we operate</h2>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-glow-sm">
+                <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5">
+                  <Building2 size={22} className="text-primary" />
+                </div>
+                <h2 className="text-lg font-bold text-fg mb-4">Operated by Fincoopers Tech India Private Limited</h2>
+                <p className="text-sm text-fg-muted leading-relaxed mb-5">
+                  CreditTrust is operated and managed by Fincoopers Tech India Private Limited, working as a technology and sourcing partner within the financial ecosystem.
+                </p>
                 <div className="space-y-4">
                   {[
-                    ['Individuals', 'Mobile-verified, consent-based financial health report journey.'],
-                    ['Partners', 'Wallet, invoice, agreement, and report workflow tools for approved businesses.'],
-                    ['Admin controls', 'Customer master, B2C reports, payment records, partner status, and compliance records.'],
-                    ['Support', 'Refund, payment, consent, and misuse review processes.'],
+                    ['Technology infrastructure', 'Modern systems for secure digital workflow execution.'],
+                    ['Analytics systems', 'Assessment-oriented insights for user and partner journeys.'],
+                    ['Workflow automation', 'Operational tools that simplify onboarding, reporting, and utility services.'],
                   ].map(([label, desc]) => (
                     <div key={label} className="border-b border-white/10 pb-4 last:border-b-0 last:pb-0">
                       <p className="font-semibold text-fg">{label}</p>
@@ -87,14 +95,14 @@ export default function AboutPage() {
         <section className="py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="max-w-3xl mb-12">
-              <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Our Operating Principles</p>
-              <h2 className="text-3xl sm:text-4xl font-bold text-fg mb-4">Built to reduce misuse, not just process reports.</h2>
+              <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Platform Focus</p>
+              <h2 className="text-3xl sm:text-4xl font-bold text-fg mb-4">Built for secure, transparent, and technology-enabled financial understanding.</h2>
               <p className="text-fg-muted leading-relaxed">
-                Financial profile data is sensitive. Our platform is designed so report requests, payments, partner usage, and admin access are traceable and governed by clear policies.
+                Through advanced technology infrastructure, analytics systems, and workflow automation, the platform helps users better understand their financial profile and assessment insights.
               </p>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-              {principles.map((item) => (
+              {focusAreas.map((item) => (
                 <div key={item.title} className="rounded-2xl border border-white/10 p-6 bg-white/[0.035]">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
                     <item.icon size={18} className="text-primary" />
@@ -111,24 +119,33 @@ export default function AboutPage() {
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <div className="grid lg:grid-cols-2 gap-10 items-start">
               <div>
-                <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Compliance Posture</p>
-                <h2 className="text-3xl sm:text-4xl font-bold text-fg mb-5">Clear policies for customers, partners, and payment review.</h2>
+                <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Our Mission</p>
+                <h2 className="text-3xl sm:text-4xl font-bold text-fg mb-5">Bridging technology and financial services.</h2>
                 <p className="text-fg-muted leading-relaxed">
-                  We maintain visible policies for privacy, refund and cancellation, acceptable use, and platform terms. These policies are written to protect genuine users and prevent unauthorized report access, payment abuse, and sensitive-data misuse.
+                  At CreditTrust, we aim to make financial understanding more accessible, transparent, and technology-enabled through a modern digital platform experience.
+                </p>
+                <p className="mt-5 text-fg-muted leading-relaxed">
+                  Our mission is to bridge technology and financial services by providing scalable, secure, and user-friendly financial utility solutions for the evolving digital ecosystem.
                 </p>
               </div>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {[
-                  ['Privacy Policy', '/privacy-policy'],
-                  ['Refund Policy', '/refund-policy'],
-                  ['Usage Policy', '/usage-policy'],
-                  ['Terms And Conditions', '/terms-and-conditions'],
-                ].map(([label, href]) => (
-                  <Link key={href} href={href} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-fg hover:bg-white/[0.07] transition-colors">
-                    <span className="font-semibold">{label}</span>
-                    <ArrowRight size={15} className="mt-3 text-primary" />
-                  </Link>
-                ))}
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
+                <div className="h-12 w-12 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center mb-5">
+                  <FileText size={22} className="text-accent" />
+                </div>
+                <h3 className="text-xl font-bold text-fg mb-4">What CreditTrust supports</h3>
+                <div className="space-y-3">
+                  {[
+                    'Partner and customer utility services',
+                    'Financial analytics and reporting',
+                    'Digital onboarding workflows',
+                    'Assessment insight delivery',
+                  ].map((item) => (
+                    <div key={item} className="flex items-center gap-3 text-sm text-fg-muted">
+                      <BadgeCheck size={17} className="shrink-0 text-primary" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

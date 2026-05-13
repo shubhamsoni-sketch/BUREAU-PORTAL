@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import AppLogo from '@/components/ui/AppLogo';
 
 const footerLinks = [
+  { label: 'About Us', href: '/about' },
   { label: 'For Partners', href: '/partner-program' },
   { label: 'Partner Login', href: '/partner-login' },
   { label: 'Become a Partner', href: '/become-a-partner' },
