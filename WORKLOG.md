@@ -14,6 +14,7 @@ Verification:
 
 - `npm run build -- --no-lint` passed with placeholder Supabase env values for local build verification.
 - `npm run type-check -- --pretty false` passed.
+- Pushed to `main` to trigger the configured GitHub/Vercel deployment flow.
 
 ## 2026-05-12 - Developer - Customer Journey Form UI Compacting
 
