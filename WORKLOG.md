@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-14 - Developer - Credit Trust Favicon Update
+
+Summary:
+
+- Replaced the old browser favicon with Credit Trust mark-based favicon assets.
+- Added SVG, 32x32 PNG, Apple touch icon, 512px icon, and refreshed `/favicon.ico` fallback.
+- Updated app metadata to use the new favicon paths with cache-busting query strings.
+
+Verification:
+
+- Generated favicon preview was visually checked for centered Credit Trust mark framing.
+- `npm run build -- --no-lint` passed with placeholder Supabase env values for local build verification.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-14 - Developer - Landing Nav Security Link Removal
 
 Summary:
