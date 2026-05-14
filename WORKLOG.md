@@ -15,6 +15,7 @@ Verification:
 
 - `npm run build -- --no-lint` passed with placeholder Supabase env values for local build verification.
 - `npm run type-check -- --pretty false` passed.
+- Committed and pushed to `main` (`2c07241`), then deployed to Vercel production and verified `https://credittrust.in/` shows the footer address/mobile and no longer shows the `Security` nav link.
 
 ## 2026-05-13 - Developer - About Us Landing Page Update
 
