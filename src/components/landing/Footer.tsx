@@ -38,6 +38,15 @@ export default function Footer() {
                   support@credittrust.in
                 </a>
               </p>
+              <div className="mt-2 space-y-1 text-xs text-fg-muted">
+                <p>Address: 201, Diamond Trade Centre, Near Janjeerwala Square, Indore (M.P) - 452001</p>
+                <p>
+                  Mobile:{' '}
+                  <a href="tel:+918109276589" className="text-primary hover:text-primary-light transition-colors">
+                    +91-8109276589
+                  </a>
+                </p>
+              </div>
             </div>
           </div>
 

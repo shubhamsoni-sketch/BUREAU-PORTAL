@@ -13,7 +13,6 @@ const navItems = [
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Financial Analysis', href: '#report-preview' },
   { label: 'For Partners', href: '/partner-program' },
-  { label: 'Security', href: '#trust' },
 ];
 
 export default function Header({ onGetReport }: HeaderProps) {

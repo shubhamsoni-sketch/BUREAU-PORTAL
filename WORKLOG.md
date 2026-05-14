@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-14 - Developer - Landing Nav Security Link Removal
+
+Summary:
+
+- Removed the unused `Security` button from the landing header navigation.
+- Added payment-gateway compliance contact details to the landing footer, including company address and mobile number below the existing support email.
+- Kept the underlying trust/security landing section unchanged for page content continuity.
+- Noted the owner preference to keep markdown logs updated after future pulls and deploys.
+
+Verification:
+
+- `npm run build -- --no-lint` passed with placeholder Supabase env values for local build verification.
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-05-13 - Developer - About Us Landing Page Update
 
 Summary:
