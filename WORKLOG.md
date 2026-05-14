@@ -15,6 +15,7 @@ Verification:
 - Generated favicon preview was visually checked for centered Credit Trust mark framing.
 - `npm run build -- --no-lint` passed with placeholder Supabase env values for local build verification.
 - `npm run type-check -- --pretty false` passed.
+- Committed and pushed to `main` (`b613d40`), deployed to Vercel production, and verified live HTML references the `?v=2` favicon assets with `/favicon.ico` and `/favicon.svg` returning HTTP 200.
 
 ## 2026-05-14 - Developer - Landing Nav Security Link Removal
 
