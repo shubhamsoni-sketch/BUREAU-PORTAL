@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient, resetClient } from '@/lib/supabase/client';
+import { AUTH_STORAGE_KEY, createClient, resetClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 export type UserRole = 'admin' | 'partner';
@@ -18,8 +18,8 @@ export interface AuthUser {
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => Promise<void>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: AuthUser | null }>;
+  logout: (redirectTo?: string) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -223,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string; user?: AuthUser | null }> => {
     try {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -235,18 +235,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: 'Login failed. Please try again.' };
       }
 
-      // onAuthStateChange SIGNED_IN will handle profile resolution
-      return { success: true };
+      const profile = await withAuthTimeout(resolveAuthUser(data.user), null);
+      setUser(profile);
+      setIsLoading(false);
+      return { success: true, user: profile };
     } catch {
       return { success: false, error: 'Login failed. Please try again.' };
     }
   }, []);
 
-  const logout = useCallback(async () => {
-    // Clear user state immediately before signOut to prevent any flash of authenticated UI
+  const logout = useCallback(async (redirectTo = '/') => {
     setUser(null);
-    await createClient().auth.signOut();
-    router.push('/');
+    setIsLoading(true);
+    try {
+      await createClient().auth.signOut({ scope: 'global' });
+    } catch (err) {
+      console.warn('[AuthContext] signOut failed, clearing local session anyway:', err);
+    } finally {
+      try {
+        window.localStorage.removeItem(AUTH_STORAGE_KEY);
+        Object.keys(window.localStorage)
+          .filter((key) => key.startsWith('sb-') && key.includes('auth-token'))
+          .forEach((key) => window.localStorage.removeItem(key));
+      } catch {
+        // Ignore storage cleanup failures.
+      }
+      resetClient();
+      setUser(null);
+      setIsLoading(false);
+      router.replace(redirectTo);
+      router.refresh();
+    }
   }, [router]);
 
   return (

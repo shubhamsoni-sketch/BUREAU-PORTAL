@@ -5,6 +5,10 @@ import { getStateCode } from '@/lib/bureau/state-codes';
 
 const DEMO_RESET_BALANCE = 100000;
 const DEMO_TOP_UP_THRESHOLD = 1000;
+const BUREAU_API_URL = process.env.BUREAU_API_URL?.trim() ?? '';
+const BUREAU_API_AUTH_TOKEN = process.env.BUREAU_API_AUTH_TOKEN?.trim() ?? '';
+const BUREAU_API_AUTH_HEADER = process.env.BUREAU_API_AUTH_HEADER?.trim() || 'token';
+const BUREAU_API_TIMEOUT_MS = Number(process.env.BUREAU_API_TIMEOUT_MS ?? 30000);
 
 type ReportType = 'consumer' | 'commercial';
 
@@ -23,6 +27,26 @@ type PullBureauBody = {
   aadhaar?: string;
   city?: string;
   addressLine1?: string;
+};
+
+type CibilLikeResponse = {
+  controlData?: {
+    success?: boolean | string;
+  };
+  consumerCreditData?: Array<{
+    tuefHeader?: {
+      enquiryControlNumber?: string;
+      memberRefNo?: string;
+    };
+    employment?: Array<Record<string, unknown>>;
+    scores?: Array<Record<string, unknown>>;
+    accounts?: Array<Record<string, unknown>>;
+  }>;
+  consumerSummaryData?: {
+    accountSummary?: Record<string, unknown>;
+    inquirySummary?: Record<string, unknown>;
+  };
+  [key: string]: unknown;
 };
 
 function jsonError(message: string, status: number) {
@@ -47,21 +71,46 @@ function riskLevel(score: number | null) {
   return 'High';
 }
 
-function buildKeyIssues(response: ReturnType<typeof createDemoBureauResponse>) {
-  const summary = response.consumerSummaryData;
-  const overdue = Number(summary.accountSummary.overdueAccounts ?? 0);
-  const recent = Number(summary.inquirySummary.inquiryPast30Days ?? 0);
+function getPrimaryCredit(response: CibilLikeResponse) {
+  return response.consumerCreditData?.[0] ?? {};
+}
+
+function getAccountSummary(response: CibilLikeResponse) {
+  return response.consumerSummaryData?.accountSummary ?? {};
+}
+
+function getInquirySummary(response: CibilLikeResponse) {
+  return response.consumerSummaryData?.inquirySummary ?? {};
+}
+
+function getEmployment(response: CibilLikeResponse) {
+  return getPrimaryCredit(response).employment?.[0] ?? {};
+}
+
+function isSuccessfulBureauResponse(response: CibilLikeResponse) {
+  const success = response.controlData?.success;
+  return success === true || success === 'true' || success === 'Success' || success === 'SUCCESS';
+}
+
+function buildKeyIssues(response: CibilLikeResponse) {
+  const accountSummary = getAccountSummary(response);
+  const inquirySummary = getInquirySummary(response);
+  const overdue = Number(accountSummary.overdueAccounts ?? 0);
+  const recent = Number(inquirySummary.inquiryPast30Days ?? 0);
   const issues: string[] = [];
   if (overdue > 0) issues.push(`${overdue} overdue account${overdue > 1 ? 's' : ''}`);
   else issues.push('No overdue accounts found');
   if (recent > 0) issues.push(`${recent} enquiries in last 30 days`);
-  issues.push('Credit utilisation within demo threshold');
+  issues.push('Credit summary generated from bureau response');
   return issues;
 }
 
-function normalizeDemoResult(response: ReturnType<typeof createDemoBureauResponse>, reportId: string) {
-  const credit = response.consumerCreditData[0];
-  const score = normalizeScore(credit.scores[0]?.score);
+function normalizeBureauResult(response: CibilLikeResponse, reportId: string) {
+  const credit = getPrimaryCredit(response);
+  const preferredScore =
+    credit.scores?.find((item) => item.scoreName === 'CIBILTUSC4' || item.scoreCardName === '28') ??
+    credit.scores?.[0];
+  const score = normalizeScore(preferredScore?.score);
   return {
     score,
     riskLevel: riskLevel(score),
@@ -69,6 +118,47 @@ function normalizeDemoResult(response: ReturnType<typeof createDemoBureauRespons
     reportId,
     generatedAt: new Date().toLocaleString('en-IN'),
   };
+}
+
+async function callLiveBureauApi(payload: Record<string, string>) {
+  if (!BUREAU_API_URL) {
+    throw new Error('Live bureau API URL is not configured');
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), BUREAU_API_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(BUREAU_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(BUREAU_API_AUTH_TOKEN ? { [BUREAU_API_AUTH_HEADER]: BUREAU_API_AUTH_TOKEN } : {}),
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    const text = await response.text();
+    let raw: CibilLikeResponse;
+    try {
+      raw = JSON.parse(text) as CibilLikeResponse;
+    } catch {
+      throw new Error(`Bureau API returned non-JSON response with status ${response.status}`);
+    }
+
+    if (!response.ok) {
+      const message =
+        typeof raw.error === 'string' ? raw.error :
+        typeof raw.message === 'string' ? raw.message :
+        `Bureau API failed with status ${response.status}`;
+      throw new Error(message);
+    }
+
+    return raw;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function calculateLedgerBalance(supabase: ReturnType<typeof createAdminClient>, partnerId: string) {
@@ -186,11 +276,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!isDemoPartner) {
-      return jsonError('Live bureau integration is not enabled yet', 501);
-    }
-
-    const reportId = `DEMO-${Date.now().toString().slice(-10)}`;
+    const reportId = `${isDemoPartner ? 'DEMO' : 'LIVE'}-${Date.now().toString().slice(-10)}`;
     const requestPayload = {
       firstName,
       middleName,
@@ -203,20 +289,30 @@ export async function POST(request: NextRequest) {
       telephoneNumber: body.telephoneNumber,
     };
 
-    const rawResponse = createDemoBureauResponse({
-      name: customerName,
-      birthDate,
-      gender,
-      idNumber: pan,
-      stateCode,
-      pinCode: body.pinCode!,
-      telephoneNumber: body.telephoneNumber!,
-      reportId,
-    });
+    let rawResponse: CibilLikeResponse;
+    if (isDemoPartner) {
+      rawResponse = createDemoBureauResponse({
+        name: customerName,
+        birthDate,
+        gender,
+        idNumber: pan,
+        stateCode,
+        pinCode: body.pinCode!,
+        telephoneNumber: body.telephoneNumber!,
+        reportId,
+      });
+    } else {
+      try {
+        rawResponse = await callLiveBureauApi(requestPayload as Record<string, string>);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unable to fetch live bureau report';
+        return jsonError(message, BUREAU_API_URL ? 502 : 501);
+      }
+    }
 
-    const result = normalizeDemoResult(rawResponse, reportId);
-    if (!rawResponse.controlData.success || !result.score) {
-      return jsonError('Demo report response was invalid', 502);
+    const result = normalizeBureauResult(rawResponse, reportId);
+    if (!isSuccessfulBureauResponse(rawResponse) || !result.score) {
+      return jsonError('Bureau report response was invalid or missing score', 502);
     }
 
     const newBalance = currentBalance - rate;
@@ -247,16 +343,16 @@ export async function POST(request: NextRequest) {
       reference_id: reportId,
       status: 'confirmed',
       metadata: {
-        demo: true,
+        demo: isDemoPartner,
         report_type: body.report_type,
         customer_name: customerName,
         report_id: reportId,
       },
     });
 
-    const accountSummary = rawResponse.consumerSummaryData.accountSummary;
-    const inquirySummary = rawResponse.consumerSummaryData.inquirySummary;
-    const employment = rawResponse.consumerCreditData[0].employment[0];
+    const accountSummary = getAccountSummary(rawResponse);
+    const inquirySummary = getInquirySummary(rawResponse);
+    const employment = getEmployment(rawResponse);
     const activeTradeLines = Number(accountSummary.totalAccounts) - Number(accountSummary.zeroBalanceAccounts);
 
     await supabase.from('bureau_pulls').insert({
@@ -267,7 +363,7 @@ export async function POST(request: NextRequest) {
       pan,
       customer_name: customerName,
       credit_score: result.score,
-      occupation_code: employment.occupationCode,
+      occupation_code: String(employment.occupationCode ?? ''),
       gender: body.gender,
       state: body.state,
       dob: birthDate,
@@ -283,8 +379,8 @@ export async function POST(request: NextRequest) {
       report_id: reportId,
       bureau: 'Bureau',
       raw_json: {
-        demo: true,
-        source: 'shared_demo_account',
+        demo: isDemoPartner,
+        source: isDemoPartner ? 'shared_demo_account' : 'live_bureau_api',
         requestPayload,
         response: rawResponse,
       },
@@ -292,7 +388,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      demo: true,
+      demo: isDemoPartner,
       rate,
       new_balance: newBalance,
       result,

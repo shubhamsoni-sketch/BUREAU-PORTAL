@@ -9,23 +9,37 @@ import Link from 'next/link';
 
 export default function PartnerLoginPage() {
   const router = useRouter();
-  const { user, isLoading, login } = useAuth();
+  const { user, isLoading, login, logout } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [switchingAccount, setSwitchingAccount] = useState(false);
 
   useEffect(() => {
     if (isLoading) return;
-    if (user) {
-      if (user.role === 'partner') {
-        router.replace('/partner-dashboard');
-      } else {
-        router.replace('/admin-partners');
-      }
+    if (!user) return;
+    if (user.role === 'partner') {
+      router.replace('/partner-dashboard');
+      return;
     }
-  }, [user, isLoading, router]);
+
+    let cancelled = false;
+    const clearWrongRoleSession = async () => {
+      setSwitchingAccount(true);
+      await logout('/partner-login');
+      if (!cancelled) {
+        setError('Admin session was signed out. Please sign in with a partner account.');
+        setSwitchingAccount(false);
+      }
+    };
+
+    clearWrongRoleSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, isLoading, router, logout]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +56,12 @@ export default function PartnerLoginPage() {
         setSubmitting(false);
         return;
       }
+      if (result.user?.role !== 'partner') {
+        await logout('/partner-login');
+        setError('This is not a partner account. Please sign in with partner credentials.');
+        setSubmitting(false);
+        return;
+      }
       setSubmitting(false);
       router.replace('/partner-dashboard');
       router.refresh();
@@ -51,7 +71,7 @@ export default function PartnerLoginPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || switchingAccount) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />

@@ -2,6 +2,49 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-26 - Developer - API Hub Control Plane MVP
+
+Summary:
+
+- Added API Hub database foundation for reseller clients, products, hashed API keys, wallets, transactions, usage logs, and gateway settings.
+- Added admin `/admin-api-hub` section for onboarding clients, generating sandbox/live keys, adding demo credits or live balance, and reviewing usage.
+- Added client-facing `POST /api/v1/cibil/consumer-score` endpoint with `x-api-key` auth, sandbox demo responses, live gateway pass-through, wallet deduction, and masked usage logging.
+- Added API Hub to the admin sidebar and admin route guard.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `npm run build -- --no-lint` passed with placeholder Supabase env values for local build verification.
+
+## 2026-05-19 - Developer - Login Role Switch And Logout Fix
+
+Summary:
+
+- Fixed partner login opening the admin area when an admin session was already active.
+- Fixed admin login opening the partner area when a partner session was already active.
+- Strengthened logout to clear Supabase auth state, reset the browser client, remove persisted auth tokens, and refresh after redirect.
+- Updated login submission handling so wrong-role credentials are signed out and kept on the intended login page.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `npm run build -- --no-lint` passed with placeholder Supabase env values for local build verification.
+
+## 2026-05-19 - Developer - Real Bureau API Payload Scaffold
+
+Summary:
+
+- Prepared `/api/pull-bureau-real` to build and send the confirmed real CIBIL payload through configurable `BUREAU_API_URL`.
+- Added `BUREAU_API_AUTH_TOKEN` support with configurable auth header name; current Fincooper API expects `token`.
+- Kept demo partner behavior unchanged.
+- Added safe live-response handling so wallet deduction and report persistence happen only after a successful JSON response with a valid score.
+- Updated the real CIBIL task doc with endpoint test results, env configuration, and remaining provider confirmations.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `npm run build -- --no-lint` passed with placeholder Supabase env values for local build verification.
+
 ## 2026-05-14 - Developer - Credit Trust Favicon Update
 
 Summary:

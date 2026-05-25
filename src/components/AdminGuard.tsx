@@ -12,6 +12,7 @@ const ADMIN_ONLY_PATHS = [
   '/admin-payments',
   '/admin-agreements',
   '/admin-integrations',
+  '/admin-api-hub',
   '/admin-audit-logs',
   '/admin-invoices',
   '/admin-customer-master',

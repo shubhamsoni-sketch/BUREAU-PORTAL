@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
-import { LayoutDashboard, Users, BookUser, Wallet, CreditCard, FileText, Plug, ScrollText, ChevronLeft, ChevronRight, LogOut, Shield, Receipt, UserRoundCheck } from 'lucide-react';
+import { LayoutDashboard, Users, BookUser, Wallet, CreditCard, FileText, Plug, ScrollText, ChevronLeft, ChevronRight, LogOut, Shield, Receipt, UserRoundCheck, Network } from 'lucide-react';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 
@@ -30,6 +30,12 @@ const navGroups = [
       { label: 'Wallet Management', href: '/admin-wallet', icon: Wallet },
       { label: 'Payments', href: '/admin-payments', icon: CreditCard },
       { label: 'Invoices', href: '/admin-invoices', icon: Receipt },
+    ],
+  },
+  {
+    label: 'API Hub',
+    items: [
+      { label: 'API Hub', href: '/admin-api-hub', icon: Network },
     ],
   },
   {
@@ -127,7 +133,7 @@ export default function AdminSidebar() {
             </div>
           )}
           {!collapsed && (
-            <button onClick={logout} className="text-slate-500 hover:text-white transition-colors">
+            <button onClick={() => logout()} className="text-slate-500 hover:text-white transition-colors">
               <LogOut size={15} />
             </button>
           )}
