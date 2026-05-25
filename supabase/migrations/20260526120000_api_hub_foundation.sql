@@ -103,7 +103,7 @@ create index if not exists idx_api_usage_logs_created_at on public.api_usage_log
 create index if not exists idx_api_wallet_transactions_client_id on public.api_wallet_transactions(client_id);
 
 insert into public.api_products (code, name, description, status, is_active, default_price, default_sandbox_credits)
-values ('cibil.consumer_score', 'CIBIL Consumer Score', 'Consumer bureau score and report pull via whitelisted gateway.', 'active', true, 25, 10)
+values ('cibil.consumer_score', 'Bureau API', 'Credit bureau report and score API through the whitelisted gateway.', 'active', true, 25, 10)
 on conflict (code) do update set
   name = excluded.name,
   description = excluded.description,

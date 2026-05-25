@@ -3,7 +3,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { createClient } from '@/lib/supabase/client';
-import { Activity, Ban, CircleDollarSign, Copy, KeyRound, Plus, RefreshCw, Server, ShieldCheck, WalletCards } from 'lucide-react';
+import {
+  Activity,
+  Ban,
+  BookOpenCheck,
+  CircleDollarSign,
+  Copy,
+  KeyRound,
+  Play,
+  Plus,
+  RefreshCw,
+  Server,
+  ShieldCheck,
+  WalletCards,
+} from 'lucide-react';
 
 type ApiClient = {
   id: string;
@@ -20,9 +33,11 @@ type ApiProduct = {
   id: string;
   code: string;
   name: string;
+  description: string | null;
   default_price: number;
   default_sandbox_credits: number;
   is_active: boolean;
+  status?: 'active' | 'inactive';
 };
 
 type ApiKey = {
@@ -81,7 +96,26 @@ const emptyData: ApiHubData = {
   gateway: null,
 };
 
-const tabs = ['Overview', 'Clients', 'Keys', 'Sandbox', 'Usage'] as const;
+const tabs = ['Overview', 'APIs', 'Clients', 'API Keys', 'Sandbox', 'Wallet', 'Usage Logs'] as const;
+
+const plannedApis = [
+  { name: 'Aadhaar API', category: 'Identity', status: 'Planned' },
+  { name: 'PAN API', category: 'KYC', status: 'Planned' },
+  { name: 'Name Fetch API', category: 'Verification', status: 'Planned' },
+  { name: 'Bank Account Verification', category: 'Banking', status: 'Planned' },
+];
+
+const bureauSamplePayload = `{
+  "firstName": "HARSHAL",
+  "middleName": "ARUN",
+  "lastName": "PAWAR",
+  "birthDate": "13122000",
+  "gender": "2",
+  "idNumber": "GEAPP1589H",
+  "stateCode": "23",
+  "pinCode": "450221",
+  "telephoneNumber": "7067384810"
+}`;
 
 function formatDate(value?: string | null) {
   if (!value) return 'Never';
@@ -92,14 +126,21 @@ function money(value: number | string | null | undefined) {
   return `₹${Number(value || 0).toLocaleString('en-IN')}`;
 }
 
+function displayProductName(product?: ApiProduct | null) {
+  if (!product) return 'Bureau API';
+  return product.code === 'cibil.consumer_score' ? 'Bureau API' : product.name;
+}
+
 export default function AdminApiHubPage() {
   const [data, setData] = useState<ApiHubData>(emptyData);
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>('Overview');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [latestKey, setLatestKey] = useState('');
+  const [sandboxResponse, setSandboxResponse] = useState('');
 
   const [clientForm, setClientForm] = useState({
     name: '',
@@ -111,6 +152,7 @@ export default function AdminApiHubPage() {
   });
   const [keyForm, setKeyForm] = useState({
     client_id: '',
+    product_id: '',
     environment: 'sandbox',
     label: '',
     rate_limit_per_minute: '60',
@@ -121,6 +163,12 @@ export default function AdminApiHubPage() {
     sandbox_credits: '10',
     amount: '1000',
     description: '',
+  });
+  const [sandboxForm, setSandboxForm] = useState({
+    product_id: '',
+    client_id: '',
+    api_key: '',
+    payload: bureauSamplePayload,
   });
 
   const loadData = async () => {
@@ -135,14 +183,18 @@ export default function AdminApiHubPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Unable to load API Hub');
+      const products = json.products || [];
       setData({
         clients: json.clients || [],
-        products: json.products || [],
+        products,
         keys: json.keys || [],
         wallets: json.wallets || [],
         logs: json.logs || [],
         gateway: json.gateway || null,
       });
+      const bureauProduct = products.find((item: ApiProduct) => item.code === 'cibil.consumer_score') || products[0];
+      setKeyForm((prev) => ({ ...prev, product_id: prev.product_id || bureauProduct?.id || '' }));
+      setSandboxForm((prev) => ({ ...prev, product_id: prev.product_id || bureauProduct?.id || '' }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load API Hub');
     } finally {
@@ -182,10 +234,12 @@ export default function AdminApiHubPage() {
     }
   };
 
-  const product = data.products.find((item) => item.code === 'cibil.consumer_score') || data.products[0];
+  const productById = useMemo(() => new Map(data.products.map((product) => [product.id, product])), [data.products]);
+  const bureauProduct = data.products.find((item) => item.code === 'cibil.consumer_score') || data.products[0];
   const walletByClient = useMemo(() => new Map(data.wallets.map((wallet) => [wallet.client_id, wallet])), [data.wallets]);
   const clientById = useMemo(() => new Map(data.clients.map((client) => [client.id, client])), [data.clients]);
   const activeClients = data.clients.filter((client) => client.status === 'active');
+  const activeProducts = data.products.filter((product) => product.is_active !== false && product.status !== 'inactive');
   const successHits = data.logs.filter((log) => log.status === 'success').length;
   const failedHits = data.logs.filter((log) => log.status === 'failed').length;
   const sandboxCredits = data.wallets.reduce((sum, wallet) => sum + Number(wallet.sandbox_credits || 0), 0);
@@ -195,7 +249,7 @@ export default function AdminApiHubPage() {
     event.preventDefault();
     const json = await authPost({ action: 'create_client', ...clientForm, sandbox_credits: Number(clientForm.sandbox_credits || 10) });
     if (json?.success) {
-      setNotice('Client created with sandbox wallet.');
+      setNotice('Client created.');
       setClientForm({ name: '', company_name: '', contact_name: '', email: '', mobile: '', sandbox_credits: '10' });
       setActiveTab('Clients');
     }
@@ -206,13 +260,14 @@ export default function AdminApiHubPage() {
     const json = await authPost({
       action: 'generate_key',
       ...keyForm,
-      product_id: product?.id,
+      product_id: keyForm.product_id || bureauProduct?.id,
       rate_limit_per_minute: Number(keyForm.rate_limit_per_minute || 60),
     });
     if (json?.success) {
       setLatestKey(json.secret_key);
+      setSandboxForm((prev) => ({ ...prev, api_key: json.secret_key, client_id: keyForm.client_id, product_id: keyForm.product_id }));
       setNotice('API key generated. This full key is shown only once.');
-      setActiveTab('Keys');
+      setActiveTab('API Keys');
     }
   };
 
@@ -224,9 +279,7 @@ export default function AdminApiHubPage() {
       amount: Number(creditForm.amount || 0),
       sandbox_credits: Number(creditForm.sandbox_credits || 0),
     });
-    if (json?.success) {
-      setNotice('Credits updated.');
-    }
+    if (json?.success) setNotice('Credits updated.');
   };
 
   const revokeKey = async (keyId: string) => {
@@ -234,14 +287,46 @@ export default function AdminApiHubPage() {
     if (json?.success) setNotice('API key revoked.');
   };
 
+  const testSandbox = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setTesting(true);
+    setError('');
+    setNotice('');
+    setSandboxResponse('');
+    try {
+      const selectedProduct = productById.get(sandboxForm.product_id);
+      if (!selectedProduct || selectedProduct.code !== 'cibil.consumer_score') {
+        throw new Error('Only Bureau API sandbox is active right now.');
+      }
+      if (!sandboxForm.api_key.trim()) throw new Error('Sandbox API key is required.');
+      const payload = JSON.parse(sandboxForm.payload);
+      const res = await fetch('/api/v1/cibil/consumer-score', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': sandboxForm.api_key.trim(),
+        },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      setSandboxResponse(JSON.stringify(json, null, 2));
+      if (!res.ok) throw new Error(json.error || 'Sandbox test failed');
+      setNotice('Sandbox response received.');
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sandbox test failed');
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
-    <AdminLayout title="API Hub">
+    <AdminLayout title="Control Panel">
       <div className="p-6 space-y-5">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">Control Plane</p>
-            <h1 className="text-2xl font-bold text-slate-900">API Reselling Hub</h1>
-            <p className="text-sm text-slate-500 mt-1">Clients, API keys, sandbox demo credits, live wallet and CIBIL gateway usage in one section.</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">Control Panel</p>
+            <h1 className="text-2xl font-bold text-slate-900">API Hub</h1>
           </div>
           <button
             onClick={loadData}
@@ -278,10 +363,10 @@ export default function AdminApiHubPage() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <StatCard icon={ShieldCheck} label="Active clients" value={String(activeClients.length)} />
-          <StatCard icon={KeyRound} label="Active keys" value={String(data.keys.filter((key) => key.status === 'active').length)} />
-          <StatCard icon={WalletCards} label="Sandbox credits" value={String(sandboxCredits)} />
-          <StatCard icon={CircleDollarSign} label="Live balance" value={money(liveBalance)} />
+          <StatCard icon={BookOpenCheck} label="Active APIs" value={String(activeProducts.length)} />
+          <StatCard icon={ShieldCheck} label="Active Clients" value={String(activeClients.length)} />
+          <StatCard icon={KeyRound} label="Active Keys" value={String(data.keys.filter((key) => key.status === 'active').length)} />
+          <StatCard icon={CircleDollarSign} label="Live Balance" value={money(liveBalance)} />
         </div>
 
         <div className="border-b border-slate-200 flex gap-1 overflow-x-auto">
@@ -289,7 +374,7 @@ export default function AdminApiHubPage() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
+              className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
             >
               {tab}
             </button>
@@ -303,7 +388,7 @@ export default function AdminApiHubPage() {
                 <h2 className="text-lg font-bold text-slate-900">Recent usage</h2>
                 <span className="text-xs text-slate-500">{successHits} success / {failedHits} failed</span>
               </div>
-              <UsageTable logs={data.logs.slice(0, 8)} clientById={clientById} />
+              <UsageTable logs={data.logs.slice(0, 8)} clientById={clientById} productById={productById} />
             </section>
             <section className="rounded-lg border border-slate-200 bg-white p-5">
               <div className="flex items-center gap-2 mb-4">
@@ -311,14 +396,52 @@ export default function AdminApiHubPage() {
                 <h2 className="text-lg font-bold text-slate-900">Gateway</h2>
               </div>
               <div className="space-y-3 text-sm">
-                <InfoLine label="Endpoint" value={data.gateway?.gateway_base_url || 'Configured via API_HUB_GATEWAY_URL'} />
-                <InfoLine label="Status" value={data.gateway?.status || 'Env based'} />
-                <InfoLine label="Product" value={product?.name || 'CIBIL Consumer Score'} />
-                <InfoLine label="Live price" value={money(product?.default_price)} />
-                <InfoLine label="Default sandbox" value={`${product?.default_sandbox_credits ?? 10} credits`} />
+                <InfoLine label="Status" value={data.gateway?.status || 'Configured'} />
+                <InfoLine label="Primary API" value={displayProductName(bureauProduct)} />
+                <InfoLine label="Live price" value={money(bureauProduct?.default_price)} />
+                <InfoLine label="Sandbox pool" value={`${sandboxCredits} credits`} />
               </div>
             </section>
           </div>
+        )}
+
+        {activeTab === 'APIs' && (
+          <section className="rounded-lg border border-slate-200 bg-white p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-slate-900">List of APIs</h2>
+              <span className="text-xs font-semibold text-slate-500">{activeProducts.length} active</span>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {data.products.map((product) => (
+                <div key={product.id} className="rounded-lg border border-slate-200 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-bold text-slate-900">{displayProductName(product)}</h3>
+                      <p className="text-sm text-slate-500 mt-1">{product.description || 'API product'}</p>
+                    </div>
+                    <StatusPill value={product.is_active === false || product.status === 'inactive' ? 'inactive' : 'active'} />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <InfoLine label="Category" value={product.code === 'cibil.consumer_score' ? 'Credit Bureau' : 'Verification'} />
+                    <InfoLine label="Sandbox" value={`${product.default_sandbox_credits ?? 10} credits`} />
+                    <InfoLine label="Live Price" value={money(product.default_price)} />
+                    <InfoLine label="Code" value={product.code} />
+                  </div>
+                </div>
+              ))}
+              {plannedApis.map((item) => (
+                <div key={item.name} className="rounded-lg border border-dashed border-slate-200 p-4 bg-slate-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-bold text-slate-900">{item.name}</h3>
+                      <p className="text-sm text-slate-500 mt-1">{item.category}</p>
+                    </div>
+                    <StatusPill value="planned" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         {activeTab === 'Clients' && (
@@ -337,44 +460,12 @@ export default function AdminApiHubPage() {
             </section>
             <section className="xl:col-span-2 rounded-lg border border-slate-200 bg-white p-5">
               <h2 className="text-lg font-bold text-slate-900 mb-4">Clients</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
-                    <tr>
-                      <th className="py-2 pr-4">Client</th>
-                      <th className="py-2 pr-4">Contact</th>
-                      <th className="py-2 pr-4">Sandbox</th>
-                      <th className="py-2 pr-4">Live Wallet</th>
-                      <th className="py-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.clients.map((client) => {
-                      const wallet = walletByClient.get(client.id);
-                      return (
-                        <tr key={client.id} className="border-b border-slate-100 last:border-0">
-                          <td className="py-3 pr-4">
-                            <p className="font-semibold text-slate-900">{client.name}</p>
-                            <p className="text-xs text-slate-500">{client.company_name || 'No company'}</p>
-                          </td>
-                          <td className="py-3 pr-4 text-slate-600">
-                            <p>{client.email || '-'}</p>
-                            <p className="text-xs">{client.mobile || '-'}</p>
-                          </td>
-                          <td className="py-3 pr-4 font-semibold">{wallet?.sandbox_credits ?? 0}</td>
-                          <td className="py-3 pr-4 font-semibold">{money(wallet?.live_balance)}</td>
-                          <td className="py-3"><StatusPill value={client.status} /></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <ClientsTable clients={data.clients} walletByClient={walletByClient} />
             </section>
           </div>
         )}
 
-        {activeTab === 'Keys' && (
+        {activeTab === 'API Keys' && (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
             <section className="rounded-lg border border-slate-200 bg-white p-5">
               <h2 className="text-lg font-bold text-slate-900 mb-4">Generate key</h2>
@@ -383,58 +474,61 @@ export default function AdminApiHubPage() {
                   <option value="">Select client</option>
                   {activeClients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
                 </Select>
+                <Select label="API" value={keyForm.product_id} onChange={(value) => setKeyForm((prev) => ({ ...prev, product_id: value }))} required>
+                  <option value="">Select API</option>
+                  {activeProducts.map((product) => <option key={product.id} value={product.id}>{displayProductName(product)}</option>)}
+                </Select>
                 <Select label="Environment" value={keyForm.environment} onChange={(value) => setKeyForm((prev) => ({ ...prev, environment: value }))}>
                   <option value="sandbox">Sandbox</option>
                   <option value="live">Live</option>
                 </Select>
                 <Input label="Label" value={keyForm.label} onChange={(value) => setKeyForm((prev) => ({ ...prev, label: value }))} />
                 <Input label="Rate limit/min" type="number" value={keyForm.rate_limit_per_minute} onChange={(value) => setKeyForm((prev) => ({ ...prev, rate_limit_per_minute: value }))} />
-                <PrimaryButton disabled={saving || !product} icon={KeyRound}>Generate Key</PrimaryButton>
+                <PrimaryButton disabled={saving || !keyForm.product_id} icon={KeyRound}>Generate Key</PrimaryButton>
               </form>
             </section>
             <section className="xl:col-span-2 rounded-lg border border-slate-200 bg-white p-5">
               <h2 className="text-lg font-bold text-slate-900 mb-4">API keys</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
-                    <tr>
-                      <th className="py-2 pr-4">Client</th>
-                      <th className="py-2 pr-4">Prefix</th>
-                      <th className="py-2 pr-4">Env</th>
-                      <th className="py-2 pr-4">Last Used</th>
-                      <th className="py-2">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.keys.map((key) => (
-                      <tr key={key.id} className="border-b border-slate-100 last:border-0">
-                        <td className="py-3 pr-4">
-                          <p className="font-semibold text-slate-900">{clientById.get(key.client_id)?.name || 'Unknown'}</p>
-                          <p className="text-xs text-slate-500">{key.label || 'API key'}</p>
-                        </td>
-                        <td className="py-3 pr-4 font-mono text-xs">{key.key_prefix}...</td>
-                        <td className="py-3 pr-4"><StatusPill value={key.environment} /></td>
-                        <td className="py-3 pr-4 text-slate-600">{formatDate(key.last_used_at)}</td>
-                        <td className="py-3">
-                          {key.status === 'active' ? (
-                            <button onClick={() => revokeKey(key.id)} className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700">
-                              <Ban size={13} />
-                              Revoke
-                            </button>
-                          ) : (
-                            <StatusPill value="revoked" />
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <KeysTable keys={data.keys} clientById={clientById} productById={productById} revokeKey={revokeKey} />
             </section>
           </div>
         )}
 
         {activeTab === 'Sandbox' && (
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+            <section className="rounded-lg border border-slate-200 bg-white p-5">
+              <h2 className="text-lg font-bold text-slate-900 mb-4">Sandbox Console</h2>
+              <form onSubmit={testSandbox} className="space-y-3">
+                <Select label="API" value={sandboxForm.product_id} onChange={(value) => setSandboxForm((prev) => ({ ...prev, product_id: value }))} required>
+                  <option value="">Select API</option>
+                  {activeProducts.map((product) => <option key={product.id} value={product.id}>{displayProductName(product)}</option>)}
+                </Select>
+                <Select label="Client" value={sandboxForm.client_id} onChange={(value) => setSandboxForm((prev) => ({ ...prev, client_id: value }))}>
+                  <option value="">Select client</option>
+                  {activeClients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+                </Select>
+                <Input label="Sandbox API key" value={sandboxForm.api_key} onChange={(value) => setSandboxForm((prev) => ({ ...prev, api_key: value }))} required />
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600">Payload JSON</span>
+                  <textarea
+                    value={sandboxForm.payload}
+                    onChange={(event) => setSandboxForm((prev) => ({ ...prev, payload: event.target.value }))}
+                    className="mt-1 w-full min-h-64 rounded-lg border border-slate-200 px-3 py-2 text-xs font-mono outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+                <PrimaryButton disabled={testing} icon={Play}>{testing ? 'Testing...' : 'Run Sandbox Test'}</PrimaryButton>
+              </form>
+            </section>
+            <section className="xl:col-span-2 rounded-lg border border-slate-200 bg-white p-5">
+              <h2 className="text-lg font-bold text-slate-900 mb-4">Response</h2>
+              <pre className="min-h-[420px] overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">
+                {sandboxResponse || 'Run a sandbox test to preview the API response.'}
+              </pre>
+            </section>
+          </div>
+        )}
+
+        {activeTab === 'Wallet' && (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
             <section className="rounded-lg border border-slate-200 bg-white p-5">
               <h2 className="text-lg font-bold text-slate-900 mb-4">Add credits</h2>
@@ -444,7 +538,7 @@ export default function AdminApiHubPage() {
                   {data.clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
                 </Select>
                 <Select label="Environment" value={creditForm.environment} onChange={(value) => setCreditForm((prev) => ({ ...prev, environment: value }))}>
-                  <option value="sandbox">Sandbox demo credits</option>
+                  <option value="sandbox">Sandbox credits</option>
                   <option value="live">Live wallet balance</option>
                 </Select>
                 {creditForm.environment === 'sandbox' ? (
@@ -473,10 +567,10 @@ export default function AdminApiHubPage() {
           </div>
         )}
 
-        {activeTab === 'Usage' && (
+        {activeTab === 'Usage Logs' && (
           <section className="rounded-lg border border-slate-200 bg-white p-5">
             <h2 className="text-lg font-bold text-slate-900 mb-4">Usage logs</h2>
-            <UsageTable logs={data.logs} clientById={clientById} />
+            <UsageTable logs={data.logs} clientById={clientById} productById={productById} />
           </section>
         )}
       </div>
@@ -552,7 +646,9 @@ function StatusPill({ value }: { value: string }) {
     failed: 'bg-red-50 text-red-700 border-red-200',
     suspended: 'bg-amber-50 text-amber-700 border-amber-200',
     revoked: 'bg-slate-100 text-slate-600 border-slate-200',
+    inactive: 'bg-slate-100 text-slate-600 border-slate-200',
     pending: 'bg-slate-100 text-slate-600 border-slate-200',
+    planned: 'bg-indigo-50 text-indigo-700 border-indigo-200',
   };
   return (
     <span className={`inline-flex items-center px-2 py-1 rounded-full border text-xs font-semibold capitalize ${styles[value] || styles.pending}`}>
@@ -570,7 +666,98 @@ function InfoLine({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function UsageTable({ logs, clientById }: { logs: ApiUsageLog[]; clientById: Map<string, ApiClient> }) {
+function ClientsTable({ clients, walletByClient }: { clients: ApiClient[]; walletByClient: Map<string, ApiWallet> }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
+          <tr>
+            <th className="py-2 pr-4">Client</th>
+            <th className="py-2 pr-4">Contact</th>
+            <th className="py-2 pr-4">Sandbox</th>
+            <th className="py-2 pr-4">Live Wallet</th>
+            <th className="py-2">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {clients.map((client) => {
+            const wallet = walletByClient.get(client.id);
+            return (
+              <tr key={client.id} className="border-b border-slate-100 last:border-0">
+                <td className="py-3 pr-4">
+                  <p className="font-semibold text-slate-900">{client.name}</p>
+                  <p className="text-xs text-slate-500">{client.company_name || 'No company'}</p>
+                </td>
+                <td className="py-3 pr-4 text-slate-600">
+                  <p>{client.email || '-'}</p>
+                  <p className="text-xs">{client.mobile || '-'}</p>
+                </td>
+                <td className="py-3 pr-4 font-semibold">{wallet?.sandbox_credits ?? 0}</td>
+                <td className="py-3 pr-4 font-semibold">{money(wallet?.live_balance)}</td>
+                <td className="py-3"><StatusPill value={client.status} /></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function KeysTable({
+  keys,
+  clientById,
+  productById,
+  revokeKey,
+}: {
+  keys: ApiKey[];
+  clientById: Map<string, ApiClient>;
+  productById: Map<string, ApiProduct>;
+  revokeKey: (keyId: string) => void;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
+          <tr>
+            <th className="py-2 pr-4">Client</th>
+            <th className="py-2 pr-4">API</th>
+            <th className="py-2 pr-4">Prefix</th>
+            <th className="py-2 pr-4">Env</th>
+            <th className="py-2 pr-4">Last Used</th>
+            <th className="py-2">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {keys.map((key) => (
+            <tr key={key.id} className="border-b border-slate-100 last:border-0">
+              <td className="py-3 pr-4">
+                <p className="font-semibold text-slate-900">{clientById.get(key.client_id)?.name || 'Unknown'}</p>
+                <p className="text-xs text-slate-500">{key.label || 'API key'}</p>
+              </td>
+              <td className="py-3 pr-4 font-semibold text-slate-700">{displayProductName(productById.get(key.product_id))}</td>
+              <td className="py-3 pr-4 font-mono text-xs">{key.key_prefix}...</td>
+              <td className="py-3 pr-4"><StatusPill value={key.environment} /></td>
+              <td className="py-3 pr-4 text-slate-600">{formatDate(key.last_used_at)}</td>
+              <td className="py-3">
+                {key.status === 'active' ? (
+                  <button onClick={() => revokeKey(key.id)} className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700">
+                    <Ban size={13} />
+                    Revoke
+                  </button>
+                ) : (
+                  <StatusPill value="revoked" />
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function UsageTable({ logs, clientById, productById }: { logs: ApiUsageLog[]; clientById: Map<string, ApiClient>; productById: Map<string, ApiProduct> }) {
   if (!logs.length) {
     return (
       <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
@@ -586,6 +773,7 @@ function UsageTable({ logs, clientById }: { logs: ApiUsageLog[]; clientById: Map
           <tr>
             <th className="py-2 pr-4">Request</th>
             <th className="py-2 pr-4">Client</th>
+            <th className="py-2 pr-4">API</th>
             <th className="py-2 pr-4">Env</th>
             <th className="py-2 pr-4">Status</th>
             <th className="py-2 pr-4">Charge</th>
@@ -601,6 +789,7 @@ function UsageTable({ logs, clientById }: { logs: ApiUsageLog[]; clientById: Map
                 {log.error_message && <p className="text-xs text-red-600 mt-1">{log.error_message}</p>}
               </td>
               <td className="py-3 pr-4 font-semibold text-slate-700">{clientById.get(log.client_id)?.name || 'Unknown'}</td>
+              <td className="py-3 pr-4 text-slate-700">{displayProductName(productById.get(log.product_id))}</td>
               <td className="py-3 pr-4"><StatusPill value={log.environment} /></td>
               <td className="py-3 pr-4"><StatusPill value={log.status} /></td>
               <td className="py-3 pr-4 text-slate-700">

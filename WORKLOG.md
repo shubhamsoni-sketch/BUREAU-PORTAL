@@ -10,6 +10,7 @@ Summary:
 - Added admin `/admin-api-hub` section for onboarding clients, generating sandbox/live keys, adding demo credits or live balance, and reviewing usage.
 - Added client-facing `POST /api/v1/cibil/consumer-score` endpoint with `x-api-key` auth, sandbox demo responses, live gateway pass-through, wallet deduction, and masked usage logging.
 - Added API Hub to the admin sidebar and admin route guard.
+- Refined the API Hub admin screen into a long-term product catalog model with `Control Panel` heading, `APIs` tab, `Bureau API` as the first active product, planned API placeholders, product-specific key generation, wallet section, and sandbox test console.
 
 Verification:
 

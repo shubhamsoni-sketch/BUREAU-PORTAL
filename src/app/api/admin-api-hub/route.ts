@@ -4,8 +4,8 @@ import { createApiKey } from '@/lib/api-hub/keys';
 
 const DEFAULT_PRODUCT = {
   code: 'cibil.consumer_score',
-  name: 'CIBIL Consumer Score',
-  description: 'Consumer bureau score and report pull via whitelisted gateway.',
+  name: 'Bureau API',
+  description: 'Credit bureau report and score API through the whitelisted gateway.',
   default_price: 25,
   default_sandbox_credits: 10,
   is_active: true,
