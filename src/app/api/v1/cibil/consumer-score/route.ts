@@ -49,12 +49,12 @@ function validatePayload(payload: CibilPayload) {
   return null;
 }
 
-async function callGateway(payload: CibilPayload) {
-  const gatewayUrl = process.env.API_HUB_GATEWAY_URL || process.env.BUREAU_API_URL;
+async function callGateway(payload: CibilPayload, product: Record<string, any>) {
+  const gatewayUrl = product.endpoint_url || process.env.API_HUB_GATEWAY_URL || process.env.BUREAU_API_URL;
   if (!gatewayUrl) throw new Error('API_HUB_GATEWAY_URL is not configured');
 
-  const authHeaderName = process.env.API_HUB_GATEWAY_AUTH_HEADER || process.env.BUREAU_API_AUTH_HEADER || 'token';
-  const authToken = process.env.API_HUB_GATEWAY_TOKEN || process.env.BUREAU_API_AUTH_TOKEN;
+  const authHeaderName = product.auth_header_name || process.env.API_HUB_GATEWAY_AUTH_HEADER || process.env.BUREAU_API_AUTH_HEADER || 'token';
+  const authToken = product.auth_secret || process.env.API_HUB_GATEWAY_TOKEN || process.env.BUREAU_API_AUTH_TOKEN;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (authToken) headers[authHeaderName] = authToken;
 
@@ -104,15 +104,13 @@ export async function POST(request: NextRequest) {
     if (keyError) return jsonError(keyError.message, 500, requestId);
     if (!keyRecord) return jsonError('Invalid or inactive API key', 401, requestId);
 
-    const [{ data: client }, { data: product }, { data: wallet }] = await Promise.all([
+    const [{ data: client }, { data: product }] = await Promise.all([
       supabase.from('api_clients').select('*').eq('id', keyRecord.client_id).maybeSingle(),
       supabase.from('api_products').select('*').eq('id', keyRecord.product_id).maybeSingle(),
-      supabase.from('api_wallets').select('*').eq('client_id', keyRecord.client_id).maybeSingle(),
     ]);
 
     if (!client || client.status !== 'active') return jsonError('Client is not active', 403, requestId);
     if (!product || product.is_active === false) return jsonError('API product is not active', 403, requestId);
-    if (!wallet) return jsonError('Client wallet is not configured', 403, requestId);
 
     const body = await request.json();
     const payload = normalizePayload(body || {});
@@ -120,7 +118,6 @@ export async function POST(request: NextRequest) {
     if (validationError) return jsonError(validationError, 400, requestId);
 
     const environment = keyRecord.environment === 'live' ? 'live' : 'sandbox';
-    const price = Number(product.default_price || 0);
     const maskedRequest = {
       ...payload,
       idNumber: maskPan(payload.idNumber),
@@ -141,76 +138,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (environment === 'sandbox') {
-      if (Number(wallet.sandbox_credits || 0) < 1) {
-        await supabase.from('api_usage_logs').update({
-          status: 'failed',
-          error_message: 'Insufficient sandbox credits',
-          response_time_ms: Date.now() - startedAt,
-        }).eq('request_id', requestId);
-        return jsonError('Insufficient sandbox credits', 402, requestId);
-      }
-
       const responseData = createSandboxCibilResponse(payload, requestId);
-      await supabase.from('api_wallets').update({
-        sandbox_credits: Number(wallet.sandbox_credits || 0) - 1,
-        updated_at: new Date().toISOString(),
-      }).eq('id', wallet.id);
-      await supabase.from('api_wallet_transactions').insert({
-        client_id: client.id,
-        type: 'debit',
-        environment: 'sandbox',
-        amount: 0,
-        sandbox_credits: 1,
-        description: 'Sandbox CIBIL Consumer Score hit',
-        request_id: requestId,
-      });
       await supabase.from('api_usage_logs').update({
         status: 'success',
-        charged: true,
+        charged: false,
         amount_charged: 0,
-        sandbox_credits_charged: 1,
-        response_time_ms: Date.now() - startedAt,
-        raw_json: { request: maskedRequest, response: responseData },
-      }).eq('request_id', requestId);
-      await supabase.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', keyRecord.id);
-
-      return NextResponse.json({
-        success: true,
-        environment,
-        request_id: requestId,
-        charged: { sandbox_credits: 1, amount: 0 },
-        data: responseData,
-      });
-    }
-
-    if (Number(wallet.live_balance || 0) < price) {
-      await supabase.from('api_usage_logs').update({
-        status: 'failed',
-        error_message: 'Insufficient live balance',
-        response_time_ms: Date.now() - startedAt,
-      }).eq('request_id', requestId);
-      return jsonError('Insufficient live balance', 402, requestId);
-    }
-
-    try {
-      const responseData = await callGateway(payload);
-      await supabase.from('api_wallets').update({
-        live_balance: Number(wallet.live_balance || 0) - price,
-        updated_at: new Date().toISOString(),
-      }).eq('id', wallet.id);
-      await supabase.from('api_wallet_transactions').insert({
-        client_id: client.id,
-        type: 'debit',
-        environment: 'live',
-        amount: price,
-        sandbox_credits: 0,
-        description: 'Live CIBIL Consumer Score hit',
-        request_id: requestId,
-      });
-      await supabase.from('api_usage_logs').update({
-        status: 'success',
-        charged: true,
-        amount_charged: price,
         sandbox_credits_charged: 0,
         response_time_ms: Date.now() - startedAt,
         raw_json: { request: maskedRequest, response: responseData },
@@ -221,7 +153,28 @@ export async function POST(request: NextRequest) {
         success: true,
         environment,
         request_id: requestId,
-        charged: { sandbox_credits: 0, amount: price },
+        charged: { sandbox_credits: 0, amount: 0 },
+        data: responseData,
+      });
+    }
+
+    try {
+      const responseData = await callGateway(payload, product);
+      await supabase.from('api_usage_logs').update({
+        status: 'success',
+        charged: false,
+        amount_charged: 0,
+        sandbox_credits_charged: 0,
+        response_time_ms: Date.now() - startedAt,
+        raw_json: { request: maskedRequest, response: responseData },
+      }).eq('request_id', requestId);
+      await supabase.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', keyRecord.id);
+
+      return NextResponse.json({
+        success: true,
+        environment,
+        request_id: requestId,
+        charged: { sandbox_credits: 0, amount: 0 },
         data: responseData,
       });
     } catch (error) {

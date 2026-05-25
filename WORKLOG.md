@@ -11,6 +11,7 @@ Summary:
 - Added client-facing `POST /api/v1/cibil/consumer-score` endpoint with `x-api-key` auth, sandbox demo responses, live gateway pass-through, wallet deduction, and masked usage logging.
 - Added API Hub to the admin sidebar and admin route guard.
 - Refined the API Hub admin screen into a long-term product catalog model with `Control Panel` heading, `APIs` tab, `Bureau API` as the first active product, planned API placeholders, product-specific key generation, wallet section, and sandbox test console.
+- Reworked API Hub around vendor/master API configuration first: Bureau API can store gateway endpoint, method, auth header, secret token, request template, and direct admin test response; client keys can then be generated against the configured API. Wallet/credits are no longer part of the active flow.
 
 Verification:
 

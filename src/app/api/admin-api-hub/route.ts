@@ -6,9 +6,26 @@ const DEFAULT_PRODUCT = {
   code: 'cibil.consumer_score',
   name: 'Bureau API',
   description: 'Credit bureau report and score API through the whitelisted gateway.',
+  vendor_name: 'Bureau API Gateway',
+  http_method: 'POST',
+  auth_header_name: 'x-api-key',
+  sandbox_enabled: true,
+  live_enabled: true,
   default_price: 25,
   default_sandbox_credits: 10,
   is_active: true,
+};
+
+const DEFAULT_TEMPLATE = {
+  firstName: 'HARSHAL',
+  middleName: 'ARUN',
+  lastName: 'PAWAR',
+  birthDate: '13122000',
+  gender: '2',
+  idNumber: 'GEAPP1589H',
+  stateCode: '23',
+  pinCode: '450221',
+  telephoneNumber: '7067384810',
 };
 
 function jsonError(message: string, status = 400) {
@@ -30,6 +47,49 @@ async function ensureDefaultProduct(supabase: ReturnType<typeof createAdminClien
 
   if (error) throw error;
   return data;
+}
+
+function sanitizeProduct(product: Record<string, any>) {
+  return {
+    ...product,
+    auth_secret: undefined,
+    has_auth_secret: Boolean(product.auth_secret),
+  };
+}
+
+async function hitVendorApi(product: Record<string, any>, payload: unknown) {
+  const endpoint = String(product.endpoint_url || process.env.API_HUB_GATEWAY_URL || process.env.BUREAU_API_URL || '').trim();
+  if (!endpoint) throw new Error('Vendor endpoint is not configured');
+
+  const method = String(product.http_method || 'POST').toUpperCase();
+  const authHeaderName = String(product.auth_header_name || process.env.API_HUB_GATEWAY_AUTH_HEADER || process.env.BUREAU_API_AUTH_HEADER || '').trim();
+  const authSecret = String(product.auth_secret || process.env.API_HUB_GATEWAY_TOKEN || process.env.BUREAU_API_AUTH_TOKEN || '').trim();
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+    'content-type': 'application/json',
+  };
+  if (authHeaderName && authSecret) headers[authHeaderName] = authSecret;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Number(process.env.API_HUB_GATEWAY_TIMEOUT_MS || 45000));
+  try {
+    const response = await fetch(endpoint, {
+      method,
+      headers,
+      body: method === 'GET' ? undefined : JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    let data: unknown = text;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
+    }
+    return { ok: response.ok, status: response.status, data };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -56,7 +116,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       clients: clients.data ?? [],
-      products: products.data ?? [],
+      products: (products.data ?? []).map((item) => sanitizeProduct(item)),
       keys: keys.data ?? [],
       wallets: wallets.data ?? [],
       logs: logs.data ?? [],
@@ -164,6 +224,83 @@ export async function POST(request: NextRequest) {
       if (keyError) return jsonError(keyError.message, 500);
 
       return NextResponse.json({ success: true, api_key: apiKey, secret_key: generated.key });
+    }
+
+    if (action === 'save_api_config') {
+      const productId = String(body.product_id || product.id);
+      const name = String(body.name || '').trim() || 'Bureau API';
+      const endpointUrl = String(body.endpoint_url || '').trim();
+      const authSecret = String(body.auth_secret || '').trim();
+
+      const updatePayload: Record<string, unknown> = {
+        name,
+        description: String(body.description || '').trim() || null,
+        vendor_name: String(body.vendor_name || '').trim() || null,
+        endpoint_url: endpointUrl || null,
+        http_method: String(body.http_method || 'POST').toUpperCase(),
+        auth_header_name: String(body.auth_header_name || '').trim() || null,
+        sandbox_enabled: body.sandbox_enabled !== false,
+        live_enabled: body.live_enabled !== false,
+        is_active: body.is_active !== false,
+        default_price: Number(body.default_price || 0),
+        default_sandbox_credits: Number(body.default_sandbox_credits || 0),
+        updated_at: new Date().toISOString(),
+      };
+
+      if (authSecret) updatePayload.auth_secret = authSecret;
+
+      try {
+        updatePayload.request_template = typeof body.request_template === 'string'
+          ? JSON.parse(body.request_template)
+          : (body.request_template || DEFAULT_TEMPLATE);
+      } catch {
+        return jsonError('Request template must be valid JSON');
+      }
+
+      const { data: updated, error } = await supabase
+        .from('api_products')
+        .update(updatePayload)
+        .eq('id', productId)
+        .select('*')
+        .single();
+
+      if (error) return jsonError(error.message, 500);
+      return NextResponse.json({ success: true, product: sanitizeProduct(updated) });
+    }
+
+    if (action === 'test_vendor_api') {
+      const productId = String(body.product_id || product.id);
+      const { data: configuredProduct, error } = await supabase
+        .from('api_products')
+        .select('*')
+        .eq('id', productId)
+        .maybeSingle();
+
+      if (error) return jsonError(error.message, 500);
+      if (!configuredProduct) return jsonError('API product not found', 404);
+
+      let payload = body.payload;
+      if (typeof payload === 'string') {
+        try {
+          payload = JSON.parse(payload);
+        } catch {
+          return jsonError('Payload must be valid JSON');
+        }
+      }
+
+      const startedAt = Date.now();
+      try {
+        const vendorResponse = await hitVendorApi(configuredProduct, payload || configuredProduct.request_template || DEFAULT_TEMPLATE);
+        return NextResponse.json({
+          success: vendorResponse.ok,
+          status: vendorResponse.status,
+          response_time_ms: Date.now() - startedAt,
+          data: vendorResponse.data,
+        }, { status: vendorResponse.ok ? 200 : 502 });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Vendor API test failed';
+        return jsonError(message, 502);
+      }
     }
 
     if (action === 'revoke_key') {
