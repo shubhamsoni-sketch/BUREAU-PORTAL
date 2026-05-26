@@ -3,6 +3,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createSandboxCibilResponse } from '@/lib/api-hub/demo';
 import { hashApiKey, maskMobile, maskPan } from '@/lib/api-hub/keys';
 
+const STORE_MOBILE = '0000000000';
+const STORE_STATUS = 'api_hub_store';
+
 type CibilPayload = {
   firstName: string;
   middleName?: string;
@@ -85,6 +88,24 @@ async function callGateway(payload: CibilPayload, product: Record<string, any>) 
   }
 }
 
+async function loadApiHubStore(supabase: ReturnType<typeof createAdminClient>) {
+  const { data, error } = await supabase
+    .from('b2c_report_requests')
+    .select('id,report_json')
+    .eq('mobile', STORE_MOBILE)
+    .eq('status', STORE_STATUS)
+    .maybeSingle();
+  if (error) throw error;
+  const store = data?.report_json || {};
+  return {
+    rowId: data?.id,
+    products: store.products || [],
+    clients: store.clients || [],
+    keys: store.keys || [],
+    logs: store.logs || [],
+  };
+}
+
 export async function POST(request: NextRequest) {
   const requestId = `API-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
   const startedAt = Date.now();
@@ -94,20 +115,13 @@ export async function POST(request: NextRequest) {
     if (!apiKey) return jsonError('x-api-key header is required', 401, requestId);
 
     const supabase = createAdminClient();
-    const { data: keyRecord, error: keyError } = await supabase
-      .from('api_keys')
-      .select('*')
-      .eq('key_hash', hashApiKey(apiKey))
-      .eq('status', 'active')
-      .maybeSingle();
-
-    if (keyError) return jsonError(keyError.message, 500, requestId);
+    const store = await loadApiHubStore(supabase);
+    const apiKeyHash = hashApiKey(apiKey);
+    const keyRecord = store.keys.find((key: any) => key.key_hash === apiKeyHash && key.status === 'active');
     if (!keyRecord) return jsonError('Invalid or inactive API key', 401, requestId);
 
-    const [{ data: client }, { data: product }] = await Promise.all([
-      supabase.from('api_clients').select('*').eq('id', keyRecord.client_id).maybeSingle(),
-      supabase.from('api_products').select('*').eq('id', keyRecord.product_id).maybeSingle(),
-    ]);
+    const client = store.clients.find((item: any) => item.id === keyRecord.client_id);
+    const product = store.products.find((item: any) => item.id === keyRecord.product_id);
 
     if (!client || client.status !== 'active') return jsonError('Client is not active', 403, requestId);
     if (!product || product.is_active === false) return jsonError('API product is not active', 403, requestId);
@@ -124,7 +138,8 @@ export async function POST(request: NextRequest) {
       telephoneNumber: maskMobile(payload.telephoneNumber),
     };
 
-    await supabase.from('api_usage_logs').insert({
+    const pendingLog = {
+      id: crypto.randomUUID(),
       client_id: client.id,
       api_key_id: keyRecord.id,
       product_id: product.id,
@@ -135,19 +150,23 @@ export async function POST(request: NextRequest) {
       masked_pan: maskPan(payload.idNumber),
       masked_mobile: maskMobile(payload.telephoneNumber),
       raw_json: { request: maskedRequest },
-    });
+      created_at: new Date().toISOString(),
+    };
+    store.logs = [pendingLog, ...store.logs].slice(0, 200);
 
     if (environment === 'sandbox') {
       const responseData = createSandboxCibilResponse(payload, requestId);
-      await supabase.from('api_usage_logs').update({
+      store.logs = store.logs.map((log: any) => log.request_id === requestId ? {
+        ...log,
         status: 'success',
         charged: false,
         amount_charged: 0,
         sandbox_credits_charged: 0,
         response_time_ms: Date.now() - startedAt,
         raw_json: { request: maskedRequest, response: responseData },
-      }).eq('request_id', requestId);
-      await supabase.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', keyRecord.id);
+      } : log);
+      store.keys = store.keys.map((key: any) => key.id === keyRecord.id ? { ...key, last_used_at: new Date().toISOString() } : key);
+      if (store.rowId) await supabase.from('b2c_report_requests').update({ report_json: { products: store.products, clients: store.clients, keys: store.keys, logs: store.logs } }).eq('id', store.rowId);
 
       return NextResponse.json({
         success: true,
@@ -160,15 +179,17 @@ export async function POST(request: NextRequest) {
 
     try {
       const responseData = await callGateway(payload, product);
-      await supabase.from('api_usage_logs').update({
+      store.logs = store.logs.map((log: any) => log.request_id === requestId ? {
+        ...log,
         status: 'success',
         charged: false,
         amount_charged: 0,
         sandbox_credits_charged: 0,
         response_time_ms: Date.now() - startedAt,
         raw_json: { request: maskedRequest, response: responseData },
-      }).eq('request_id', requestId);
-      await supabase.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', keyRecord.id);
+      } : log);
+      store.keys = store.keys.map((key: any) => key.id === keyRecord.id ? { ...key, last_used_at: new Date().toISOString() } : key);
+      if (store.rowId) await supabase.from('b2c_report_requests').update({ report_json: { products: store.products, clients: store.clients, keys: store.keys, logs: store.logs } }).eq('id', store.rowId);
 
       return NextResponse.json({
         success: true,
@@ -179,12 +200,14 @@ export async function POST(request: NextRequest) {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Gateway request failed';
-      await supabase.from('api_usage_logs').update({
+      store.logs = store.logs.map((log: any) => log.request_id === requestId ? {
+        ...log,
         status: 'failed',
         error_message: message,
         response_time_ms: Date.now() - startedAt,
         raw_json: { request: maskedRequest, error: message },
-      }).eq('request_id', requestId);
+      } : log);
+      if (store.rowId) await supabase.from('b2c_report_requests').update({ report_json: { products: store.products, clients: store.clients, keys: store.keys, logs: store.logs } }).eq('id', store.rowId);
       return jsonError(message, 502, requestId);
     }
   } catch (error) {

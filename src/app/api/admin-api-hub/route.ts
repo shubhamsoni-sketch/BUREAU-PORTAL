@@ -2,34 +2,51 @@ import { NextRequest, NextResponse } from 'next/server';
 import { bearerToken, createAdminClient, requireAdmin } from '@/lib/supabase/admin';
 import { createApiKey } from '@/lib/api-hub/keys';
 
+const STORE_MOBILE = '0000000000';
+const STORE_STATUS = 'api_hub_store';
+
 const DEFAULT_PRODUCT = {
+  id: 'cibil.consumer_score',
   code: 'cibil.consumer_score',
   name: 'Bureau API',
   description: 'Credit bureau report and score API through the whitelisted gateway.',
   vendor_name: 'Bureau API Gateway',
+  endpoint_url: '',
   http_method: 'POST',
   auth_header_name: 'x-api-key',
+  has_auth_secret: false,
+  auth_secret: '',
+  request_template: {
+    firstName: 'HARSHAL',
+    middleName: 'ARUN',
+    lastName: 'PAWAR',
+    birthDate: '13122000',
+    gender: '2',
+    idNumber: 'GEAPP1589H',
+    stateCode: '23',
+    pinCode: '450221',
+    telephoneNumber: '7067384810',
+  },
   sandbox_enabled: true,
   live_enabled: true,
-  default_price: 25,
-  default_sandbox_credits: 10,
   is_active: true,
+  status: 'active',
 };
 
-const DEFAULT_TEMPLATE = {
-  firstName: 'HARSHAL',
-  middleName: 'ARUN',
-  lastName: 'PAWAR',
-  birthDate: '13122000',
-  gender: '2',
-  idNumber: 'GEAPP1589H',
-  stateCode: '23',
-  pinCode: '450221',
-  telephoneNumber: '7067384810',
+type ApiHubStore = {
+  products: Array<Record<string, any>>;
+  clients: Array<Record<string, any>>;
+  keys: Array<Record<string, any>>;
+  logs: Array<Record<string, any>>;
 };
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
+}
+
+function publicProduct(product: Record<string, any>) {
+  const { auth_secret: _secret, ...safe } = product;
+  return { ...safe, has_auth_secret: Boolean(product.auth_secret || product.has_auth_secret) };
 }
 
 async function adminContext(request: NextRequest) {
@@ -38,37 +55,63 @@ async function adminContext(request: NextRequest) {
   return auth;
 }
 
-async function ensureDefaultProduct(supabase: ReturnType<typeof createAdminClient>) {
+async function getStore(supabase: ReturnType<typeof createAdminClient>) {
   const { data, error } = await supabase
-    .from('api_products')
-    .upsert(DEFAULT_PRODUCT, { onConflict: 'code' })
-    .select('*')
-    .single();
+    .from('b2c_report_requests')
+    .select('id,report_json')
+    .eq('mobile', STORE_MOBILE)
+    .eq('status', STORE_STATUS)
+    .maybeSingle();
 
   if (error) throw error;
-  return data;
+
+  if (data?.id) {
+    const stored = (data.report_json || {}) as Partial<ApiHubStore>;
+    return {
+      rowId: data.id,
+      store: {
+        products: stored.products?.length ? stored.products : [DEFAULT_PRODUCT],
+        clients: stored.clients || [],
+        keys: stored.keys || [],
+        logs: stored.logs || [],
+      },
+    };
+  }
+
+  const initial: ApiHubStore = { products: [DEFAULT_PRODUCT], clients: [], keys: [], logs: [] };
+  const { data: inserted, error: insertError } = await supabase
+    .from('b2c_report_requests')
+    .insert({
+      mobile: STORE_MOBILE,
+      full_name: 'API Hub Store',
+      status: STORE_STATUS,
+      report_type: STORE_STATUS,
+      report_json: initial,
+      consent_given: true,
+      consent_at: new Date().toISOString(),
+    })
+    .select('id,report_json')
+    .single();
+
+  if (insertError) throw insertError;
+  return { rowId: inserted.id, store: initial };
 }
 
-function sanitizeProduct(product: Record<string, any>) {
-  return {
-    ...product,
-    auth_secret: undefined,
-    has_auth_secret: Boolean(product.auth_secret),
-  };
+async function saveStore(supabase: ReturnType<typeof createAdminClient>, rowId: string, store: ApiHubStore) {
+  const { error } = await supabase
+    .from('b2c_report_requests')
+    .update({ report_json: store, updated_at: new Date().toISOString() })
+    .eq('id', rowId);
+  if (error) throw error;
 }
 
 async function hitVendorApi(product: Record<string, any>, payload: unknown) {
-  const endpoint = String(product.endpoint_url || process.env.API_HUB_GATEWAY_URL || process.env.BUREAU_API_URL || '').trim();
+  const endpoint = String(product.endpoint_url || '').trim();
   if (!endpoint) throw new Error('Vendor endpoint is not configured');
 
   const method = String(product.http_method || 'POST').toUpperCase();
-  const authHeaderName = String(product.auth_header_name || process.env.API_HUB_GATEWAY_AUTH_HEADER || process.env.BUREAU_API_AUTH_HEADER || '').trim();
-  const authSecret = String(product.auth_secret || process.env.API_HUB_GATEWAY_TOKEN || process.env.BUREAU_API_AUTH_TOKEN || '').trim();
-  const headers: Record<string, string> = {
-    accept: 'application/json',
-    'content-type': 'application/json',
-  };
-  if (authHeaderName && authSecret) headers[authHeaderName] = authSecret;
+  const headers: Record<string, string> = { accept: 'application/json', 'content-type': 'application/json' };
+  if (product.auth_header_name && product.auth_secret) headers[String(product.auth_header_name)] = String(product.auth_secret);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Number(process.env.API_HUB_GATEWAY_TIMEOUT_MS || 45000));
@@ -97,31 +140,18 @@ export async function GET(request: NextRequest) {
     const auth = await adminContext(request);
     if ('error' in auth) return jsonError(auth.error || 'Unauthorized', auth.status);
 
-    const { supabase } = auth;
-    await ensureDefaultProduct(supabase);
-
-    const [clients, products, keys, wallets, logs, transactions, gatewaySettings] = await Promise.all([
-      supabase.from('api_clients').select('*').order('created_at', { ascending: false }),
-      supabase.from('api_products').select('*').order('name', { ascending: true }),
-      supabase.from('api_keys').select('*').order('created_at', { ascending: false }).limit(100),
-      supabase.from('api_wallets').select('*').order('updated_at', { ascending: false }),
-      supabase.from('api_usage_logs').select('*').order('created_at', { ascending: false }).limit(100),
-      supabase.from('api_wallet_transactions').select('*').order('created_at', { ascending: false }).limit(50),
-      supabase.from('api_gateway_settings').select('*').order('updated_at', { ascending: false }).limit(1),
-    ]);
-
-    const firstError = [clients, products, keys, wallets, logs, transactions, gatewaySettings].find((res) => res.error)?.error;
-    if (firstError) return jsonError(firstError.message, 500);
+    const { rowId, store } = await getStore(auth.supabase);
+    await saveStore(auth.supabase, rowId, store);
 
     return NextResponse.json({
       success: true,
-      clients: clients.data ?? [],
-      products: (products.data ?? []).map((item) => sanitizeProduct(item)),
-      keys: keys.data ?? [],
-      wallets: wallets.data ?? [],
-      logs: logs.data ?? [],
-      transactions: transactions.data ?? [],
-      gateway: gatewaySettings.data?.[0] ?? null,
+      products: store.products.map(publicProduct),
+      clients: store.clients,
+      keys: store.keys.map((key) => ({ ...key, key_hash: undefined })),
+      logs: store.logs.slice(0, 100),
+      wallets: [],
+      transactions: [],
+      gateway: null,
     });
   } catch (error) {
     console.error('[admin-api-hub] GET failed:', error);
@@ -134,228 +164,115 @@ export async function POST(request: NextRequest) {
     const auth = await adminContext(request);
     if ('error' in auth) return jsonError(auth.error || 'Unauthorized', auth.status);
 
-    const { supabase, user } = auth;
+    const { rowId, store } = await getStore(auth.supabase);
     const body = await request.json();
     const action = body?.action;
 
-    const product = await ensureDefaultProduct(supabase);
+    if (action === 'save_api_config') {
+      const productId = String(body.product_id || DEFAULT_PRODUCT.id);
+      const existing = store.products.find((item) => item.id === productId) || DEFAULT_PRODUCT;
+      let requestTemplate = existing.request_template || DEFAULT_PRODUCT.request_template;
+      try {
+        requestTemplate = typeof body.request_template === 'string' ? JSON.parse(body.request_template) : (body.request_template || requestTemplate);
+      } catch {
+        return jsonError('Request template must be valid JSON');
+      }
+
+      const nextProduct = {
+        ...existing,
+        id: productId,
+        code: existing.code || productId,
+        name: String(body.name || existing.name || 'Bureau API').trim(),
+        description: String(body.description || '').trim(),
+        vendor_name: String(body.vendor_name || '').trim(),
+        endpoint_url: String(body.endpoint_url || '').trim(),
+        http_method: String(body.http_method || 'POST').toUpperCase(),
+        auth_header_name: String(body.auth_header_name || '').trim(),
+        auth_secret: String(body.auth_secret || '').trim() || existing.auth_secret || '',
+        has_auth_secret: Boolean(String(body.auth_secret || '').trim() || existing.auth_secret),
+        request_template: requestTemplate,
+        sandbox_enabled: body.sandbox_enabled !== false,
+        live_enabled: body.live_enabled !== false,
+        is_active: body.is_active !== false,
+        status: body.is_active === false ? 'inactive' : 'active',
+      };
+
+      store.products = store.products.some((item) => item.id === productId)
+        ? store.products.map((item) => (item.id === productId ? nextProduct : item))
+        : [nextProduct, ...store.products];
+      await saveStore(auth.supabase, rowId, store);
+      return NextResponse.json({ success: true, product: publicProduct(nextProduct) });
+    }
+
+    if (action === 'test_vendor_api') {
+      const product = store.products.find((item) => item.id === String(body.product_id || DEFAULT_PRODUCT.id));
+      if (!product) return jsonError('API product not found', 404);
+      let payload = body.payload || product.request_template || DEFAULT_PRODUCT.request_template;
+      try {
+        if (typeof payload === 'string') payload = JSON.parse(payload);
+      } catch {
+        return jsonError('Payload must be valid JSON');
+      }
+      const startedAt = Date.now();
+      const vendorResponse = await hitVendorApi(product, payload);
+      return NextResponse.json({
+        success: vendorResponse.ok,
+        status: vendorResponse.status,
+        response_time_ms: Date.now() - startedAt,
+        data: vendorResponse.data,
+      }, { status: vendorResponse.ok ? 200 : 502 });
+    }
 
     if (action === 'create_client') {
       const name = String(body.name || '').trim();
       if (!name) return jsonError('Client name is required');
-
-      const { data: client, error: clientError } = await supabase
-        .from('api_clients')
-        .insert({
-          name,
-          company_name: String(body.company_name || '').trim() || null,
-          contact_name: String(body.contact_name || '').trim() || null,
-          email: String(body.email || '').trim() || null,
-          mobile: String(body.mobile || '').trim() || null,
-          status: body.status === 'suspended' ? 'suspended' : 'active',
-          notes: String(body.notes || '').trim() || null,
-          created_by: user.id,
-        })
-        .select('*')
-        .single();
-
-      if (clientError) return jsonError(clientError.message, 500);
-
-      const sandboxCredits = Number.isFinite(Number(body.sandbox_credits))
-        ? Math.max(0, Number(body.sandbox_credits))
-        : Number(product.default_sandbox_credits ?? 10);
-
-      const { error: walletError } = await supabase
-        .from('api_wallets')
-        .insert({
-          client_id: client.id,
-          live_balance: 0,
-          sandbox_credits: sandboxCredits,
-          low_balance_threshold: 100,
-        });
-
-      if (walletError) return jsonError(walletError.message, 500);
-
-      if (sandboxCredits > 0) {
-        await supabase.from('api_wallet_transactions').insert({
-          client_id: client.id,
-          type: 'credit',
-          environment: 'sandbox',
-          amount: 0,
-          sandbox_credits: sandboxCredits,
-          description: 'Initial sandbox credits',
-          created_by: user.id,
-        });
-      }
-
+      const client = {
+        id: crypto.randomUUID(),
+        name,
+        company_name: String(body.company_name || '').trim() || null,
+        contact_name: String(body.contact_name || '').trim() || null,
+        email: String(body.email || '').trim() || null,
+        mobile: String(body.mobile || '').trim() || null,
+        status: 'active',
+        created_at: new Date().toISOString(),
+      };
+      store.clients = [client, ...store.clients];
+      await saveStore(auth.supabase, rowId, store);
       return NextResponse.json({ success: true, client });
     }
 
     if (action === 'generate_key') {
       const clientId = String(body.client_id || '').trim();
-      const environment = body.environment === 'live' ? 'live' : 'sandbox';
-      if (!clientId) return jsonError('Client is required');
+      const productId = String(body.product_id || DEFAULT_PRODUCT.id).trim();
+      const client = store.clients.find((item) => item.id === clientId && item.status === 'active');
+      const product = store.products.find((item) => item.id === productId && item.is_active !== false);
+      if (!client) return jsonError('Active client not found', 404);
+      if (!product) return jsonError('Active API product not found', 404);
 
-      const { data: client, error: clientError } = await supabase
-        .from('api_clients')
-        .select('id,status')
-        .eq('id', clientId)
-        .maybeSingle();
-      if (clientError) return jsonError(clientError.message, 500);
-      if (!client || client.status !== 'active') return jsonError('Active client not found', 404);
-
+      const environment = body.environment === 'sandbox' ? 'sandbox' : 'live';
       const generated = createApiKey(environment);
-      const { data: apiKey, error: keyError } = await supabase
-        .from('api_keys')
-        .insert({
-          client_id: clientId,
-          product_id: body.product_id || product.id,
-          label: String(body.label || '').trim() || `${environment.toUpperCase()} key`,
-          key_prefix: generated.prefix,
-          key_hash: generated.hash,
-          environment,
-          status: 'active',
-          rate_limit_per_minute: Number(body.rate_limit_per_minute) || 60,
-          created_by: user.id,
-        })
-        .select('*')
-        .single();
-
-      if (keyError) return jsonError(keyError.message, 500);
-
-      return NextResponse.json({ success: true, api_key: apiKey, secret_key: generated.key });
-    }
-
-    if (action === 'save_api_config') {
-      const productId = String(body.product_id || product.id);
-      const name = String(body.name || '').trim() || 'Bureau API';
-      const endpointUrl = String(body.endpoint_url || '').trim();
-      const authSecret = String(body.auth_secret || '').trim();
-
-      const updatePayload: Record<string, unknown> = {
-        name,
-        description: String(body.description || '').trim() || null,
-        vendor_name: String(body.vendor_name || '').trim() || null,
-        endpoint_url: endpointUrl || null,
-        http_method: String(body.http_method || 'POST').toUpperCase(),
-        auth_header_name: String(body.auth_header_name || '').trim() || null,
-        sandbox_enabled: body.sandbox_enabled !== false,
-        live_enabled: body.live_enabled !== false,
-        is_active: body.is_active !== false,
-        default_price: Number(body.default_price || 0),
-        default_sandbox_credits: Number(body.default_sandbox_credits || 0),
-        updated_at: new Date().toISOString(),
+      const apiKey = {
+        id: crypto.randomUUID(),
+        client_id: clientId,
+        product_id: productId,
+        label: String(body.label || '').trim() || `${environment.toUpperCase()} key`,
+        key_prefix: generated.prefix,
+        key_hash: generated.hash,
+        environment,
+        status: 'active',
+        rate_limit_per_minute: Number(body.rate_limit_per_minute || 60),
+        last_used_at: null,
+        created_at: new Date().toISOString(),
       };
-
-      if (authSecret) updatePayload.auth_secret = authSecret;
-
-      try {
-        updatePayload.request_template = typeof body.request_template === 'string'
-          ? JSON.parse(body.request_template)
-          : (body.request_template || DEFAULT_TEMPLATE);
-      } catch {
-        return jsonError('Request template must be valid JSON');
-      }
-
-      const { data: updated, error } = await supabase
-        .from('api_products')
-        .update(updatePayload)
-        .eq('id', productId)
-        .select('*')
-        .single();
-
-      if (error) return jsonError(error.message, 500);
-      return NextResponse.json({ success: true, product: sanitizeProduct(updated) });
-    }
-
-    if (action === 'test_vendor_api') {
-      const productId = String(body.product_id || product.id);
-      const { data: configuredProduct, error } = await supabase
-        .from('api_products')
-        .select('*')
-        .eq('id', productId)
-        .maybeSingle();
-
-      if (error) return jsonError(error.message, 500);
-      if (!configuredProduct) return jsonError('API product not found', 404);
-
-      let payload = body.payload;
-      if (typeof payload === 'string') {
-        try {
-          payload = JSON.parse(payload);
-        } catch {
-          return jsonError('Payload must be valid JSON');
-        }
-      }
-
-      const startedAt = Date.now();
-      try {
-        const vendorResponse = await hitVendorApi(configuredProduct, payload || configuredProduct.request_template || DEFAULT_TEMPLATE);
-        return NextResponse.json({
-          success: vendorResponse.ok,
-          status: vendorResponse.status,
-          response_time_ms: Date.now() - startedAt,
-          data: vendorResponse.data,
-        }, { status: vendorResponse.ok ? 200 : 502 });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Vendor API test failed';
-        return jsonError(message, 502);
-      }
+      store.keys = [apiKey, ...store.keys];
+      await saveStore(auth.supabase, rowId, store);
+      return NextResponse.json({ success: true, api_key: { ...apiKey, key_hash: undefined }, secret_key: generated.key });
     }
 
     if (action === 'revoke_key') {
       const keyId = String(body.key_id || '').trim();
-      if (!keyId) return jsonError('Key id is required');
-
-      const { error } = await supabase
-        .from('api_keys')
-        .update({ status: 'revoked', updated_at: new Date().toISOString() })
-        .eq('id', keyId);
-
-      if (error) return jsonError(error.message, 500);
-      return NextResponse.json({ success: true });
-    }
-
-    if (action === 'add_credits') {
-      const clientId = String(body.client_id || '').trim();
-      const environment = body.environment === 'live' ? 'live' : 'sandbox';
-      if (!clientId) return jsonError('Client is required');
-
-      const { data: wallet, error: walletError } = await supabase
-        .from('api_wallets')
-        .select('*')
-        .eq('client_id', clientId)
-        .maybeSingle();
-
-      if (walletError) return jsonError(walletError.message, 500);
-      if (!wallet) return jsonError('Wallet not found', 404);
-
-      const amount = environment === 'live' ? Math.max(0, Number(body.amount || 0)) : 0;
-      const sandboxCredits = environment === 'sandbox' ? Math.max(0, Number(body.sandbox_credits || 0)) : 0;
-      if (environment === 'live' && amount <= 0) return jsonError('Live amount must be greater than zero');
-      if (environment === 'sandbox' && sandboxCredits <= 0) return jsonError('Sandbox credits must be greater than zero');
-
-      const updatePayload = environment === 'live'
-        ? { live_balance: Number(wallet.live_balance || 0) + amount, updated_at: new Date().toISOString() }
-        : { sandbox_credits: Number(wallet.sandbox_credits || 0) + sandboxCredits, updated_at: new Date().toISOString() };
-
-      const { error: updateError } = await supabase
-        .from('api_wallets')
-        .update(updatePayload)
-        .eq('id', wallet.id);
-
-      if (updateError) return jsonError(updateError.message, 500);
-
-      await supabase.from('api_wallet_transactions').insert({
-        client_id: clientId,
-        type: 'credit',
-        environment,
-        amount,
-        sandbox_credits: sandboxCredits,
-        description: String(body.description || '').trim() || 'Manual admin credit',
-        created_by: user.id,
-      });
-
+      store.keys = store.keys.map((key) => key.id === keyId ? { ...key, status: 'revoked' } : key);
+      await saveStore(auth.supabase, rowId, store);
       return NextResponse.json({ success: true });
     }
 
