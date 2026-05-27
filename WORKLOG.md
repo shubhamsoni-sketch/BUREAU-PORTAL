@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-28 - Developer - Simplified API Hub Reseller Flow
+
+Summary:
+
+- Replaced the overbuilt API Hub flow with a simple admin control panel for APIs, clients, API keys, credits, and usage.
+- Added a lightweight API Hub store that keeps the Jaadugar/master API token internal and exposes only CreditTrust-generated client keys.
+- Updated `POST /api/v1/cibil/consumer-score` to validate a CreditTrust `x-api-key`, check client credits, call the configured master Bureau API, deduct per-hit credits on success, and log masked usage.
+- Parked the separate client-facing API portal plan in `docs/tasks/api-client-portal-plan.md` for later work.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=... npm run build` passed.
+
 ## 2026-05-26 - Developer - API Hub Control Plane MVP
 
 Summary:
