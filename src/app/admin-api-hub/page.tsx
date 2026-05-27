@@ -87,8 +87,8 @@ const blankPayload = `{
 
 const apiTemplates = [
   { name: 'Bureau API Standard', code: 'bureau', payload: defaultPayload },
-  { name: 'Bureau API Advanced', code: 'bureau-advanced', payload: '{\n  "mobile_number": "9XXXXXXXX8",\n  "first_name": "",\n  "lastName": "",\n  "consent": true\n}' },
-  { name: 'Mobile Prefill API', code: 'mobile-prefill', payload: '{\n  "mobile_number": "9XXXXXXXX8",\n  "first_name": "",\n  "lastName": "",\n  "consent": true\n}' },
+  { name: 'Bureau API Advanced', code: 'bureau-advanced', payload: '{\n  "mobile_number": "9876543210",\n  "first_name": "",\n  "lastName": "",\n  "consent": true\n}' },
+  { name: 'Mobile Prefill API', code: 'mobile-prefill', payload: '{\n  "mobile_number": "9876543210",\n  "first_name": "",\n  "lastName": "",\n  "consent": true\n}' },
   { name: 'PAN API', code: 'pan', payload: '{\n  "panNumber": "ABCDE1234F"\n}' },
   { name: 'Aadhaar API', code: 'aadhaar', payload: '{\n  "aadhaarNumber": "999988887777"\n}' },
   { name: 'Name Fetch API', code: 'name-fetch', payload: '{\n  "idNumber": "ABCDE1234F"\n}' },

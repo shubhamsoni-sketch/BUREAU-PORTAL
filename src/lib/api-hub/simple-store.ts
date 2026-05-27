@@ -66,6 +66,13 @@ export type SimpleApiHubStore = {
   usage: SimpleUsageLog[];
 };
 
+const defaultPrefillPayload = {
+  mobile_number: '9876543210',
+  first_name: '',
+  lastName: '',
+  consent: true,
+};
+
 export const defaultBureauPayload = {
   firstName: 'HARSHAL',
   middleName: 'ARUN',
@@ -105,12 +112,7 @@ export const defaultBureauAdvancedApi: SimpleApiConfig = {
   auth_token: '',
   has_auth_token: false,
   per_hit_credits: 1,
-  test_payload: {
-    mobile_number: '9XXXXXXXX8',
-    first_name: '',
-    lastName: '',
-    consent: true,
-  },
+  test_payload: defaultPrefillPayload,
   status: 'active',
   created_at: new Date(0).toISOString(),
   updated_at: new Date(0).toISOString(),
@@ -126,12 +128,7 @@ export const defaultMobilePrefillApi: SimpleApiConfig = {
   auth_token: '',
   has_auth_token: false,
   per_hit_credits: 1,
-  test_payload: {
-    mobile_number: '9XXXXXXXX8',
-    first_name: '',
-    lastName: '',
-    consent: true,
-  },
+  test_payload: defaultPrefillPayload,
   status: 'active',
   created_at: new Date(0).toISOString(),
   updated_at: new Date(0).toISOString(),
@@ -149,6 +146,21 @@ type LegacyStore = {
 export function publicApi(api: SimpleApiConfig) {
   const { auth_token: _authToken, ...safe } = api;
   return { ...safe, has_auth_token: Boolean(api.auth_token || api.has_auth_token) };
+}
+
+function cleanString(value: unknown) {
+  return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
+}
+
+function normalizePrefillPayload(payload: unknown) {
+  const source = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
+  const mobile = cleanString(source.mobile_number || source.mobile || source.telephoneNumber).replace(/\D/g, '').slice(-10);
+  return {
+    mobile_number: mobile,
+    first_name: cleanString(source.first_name || source.firstName),
+    lastName: cleanString(source.lastName || source.last_name),
+    consent: 'Y',
+  };
 }
 
 function normalizeApi(raw: Record<string, any>): SimpleApiConfig {
@@ -294,7 +306,11 @@ export async function hitMasterApi(api: SimpleApiConfig, payload: unknown) {
     const response = await fetch(endpoint, {
       method: api.method,
       headers,
-      body: api.method === 'GET' ? undefined : JSON.stringify(payload),
+      body: api.method === 'GET' ? undefined : JSON.stringify(
+        api.code === 'mobile-prefill' || api.code === 'bureau-advanced'
+          ? normalizePrefillPayload(payload)
+          : payload,
+      ),
       signal: controller.signal,
     });
     const text = await response.text();
