@@ -114,6 +114,12 @@ Client endpoint:
 POST /api/v1/cibil/consumer-score
 ```
 
+Generic future API endpoint pattern:
+
+```http
+POST /api/v1/{apiCode}
+```
+
 Header:
 
 ```http
@@ -159,6 +165,8 @@ Client System
 ```
 
 Admin remains the control plane. Client portal is the developer-facing console.
+
+The admin API Hub must allow multiple master APIs, not only Bureau API. Each configured API has its own code, master URL, auth header, internal token, per-hit credit cost, test payload, and status. Client keys are generated for one selected API at a time.
 
 ## Build Order
 

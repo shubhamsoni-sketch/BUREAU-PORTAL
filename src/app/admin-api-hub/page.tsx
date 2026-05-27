@@ -80,6 +80,17 @@ const defaultPayload = `{
   "telephoneNumber": "7067384810"
 }`;
 
+const blankPayload = `{
+  "sample": true
+}`;
+
+const apiTemplates = [
+  { name: 'Bureau API', code: 'bureau', payload: defaultPayload },
+  { name: 'PAN API', code: 'pan', payload: '{\n  "panNumber": "ABCDE1234F"\n}' },
+  { name: 'Aadhaar API', code: 'aadhaar', payload: '{\n  "aadhaarNumber": "999988887777"\n}' },
+  { name: 'Name Fetch API', code: 'name-fetch', payload: '{\n  "idNumber": "ABCDE1234F"\n}' },
+];
+
 const emptyData: ApiHubData = {
   apis: [],
   clients: [],
@@ -157,6 +168,24 @@ export default function AdminApiHubPage() {
       status: api.status || 'active',
     });
     setKeyForm((prev) => ({ ...prev, api_id: prev.api_id || api.id }));
+  };
+
+  const startNewApi = (template = apiTemplates[0]) => {
+    const uniqueId = `${template.code}-${crypto.randomUUID().slice(0, 8)}`;
+    setApiForm({
+      api_id: uniqueId,
+      name: template.name,
+      code: template.code,
+      master_url: '',
+      method: 'POST',
+      auth_header: 'x-api-key',
+      auth_token: '',
+      per_hit_credits: '1',
+      test_payload: template.payload || blankPayload,
+      status: 'active',
+    });
+    setTestResponse('');
+    setNotice('New API mode selected. Add master API details and save.');
   };
 
   const loadData = async () => {
@@ -342,14 +371,28 @@ export default function AdminApiHubPage() {
         {activeTab === 'APIs' && (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
             <section className="rounded-lg border border-slate-200 bg-white p-5">
-              <h2 className="text-lg font-bold text-slate-900 mb-4">Master API</h2>
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h2 className="text-lg font-bold text-slate-900">Master API</h2>
+                <button type="button" onClick={() => startNewApi({ name: 'New API', code: 'new-api', payload: blankPayload })} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100">
+                  <Plus size={14} />
+                  New API
+                </button>
+              </div>
               <form onSubmit={saveApi} className="space-y-3">
                 <Select label="API" value={apiForm.api_id} onChange={(value) => {
                   const api = apiById.get(value);
                   if (api) syncApiForm(api);
                 }}>
                   {data.apis.map((api) => <option key={api.id} value={api.id}>{api.name}</option>)}
+                  {!apiById.has(apiForm.api_id) && <option value={apiForm.api_id}>New API draft</option>}
                 </Select>
+                <div className="grid grid-cols-2 gap-2">
+                  {apiTemplates.map((template) => (
+                    <button key={template.code} type="button" onClick={() => startNewApi(template)} className="rounded-md border border-slate-200 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50">
+                      {template.name}
+                    </button>
+                  ))}
+                </div>
                 <Input label="API name" value={apiForm.name} onChange={(value) => setApiForm((prev) => ({ ...prev, name: value }))} required />
                 <Input label="Code" value={apiForm.code} onChange={(value) => setApiForm((prev) => ({ ...prev, code: value }))} required />
                 <Input label="Master API URL" value={apiForm.master_url} onChange={(value) => setApiForm((prev) => ({ ...prev, master_url: value }))} required />

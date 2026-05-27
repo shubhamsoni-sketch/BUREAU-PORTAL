@@ -7,8 +7,10 @@ Keep this file updated for meaningful changes. Add newest entries at the top.
 Summary:
 
 - Replaced the overbuilt API Hub flow with a simple admin control panel for APIs, clients, API keys, credits, and usage.
+- Added multi-API admin creation with quick API templates for Bureau, PAN, Aadhaar, and Name Fetch so future vendor APIs can be configured from the same section.
 - Added a lightweight API Hub store that keeps the Jaadugar/master API token internal and exposes only CreditTrust-generated client keys.
 - Updated `POST /api/v1/cibil/consumer-score` to validate a CreditTrust `x-api-key`, check client credits, call the configured master Bureau API, deduct per-hit credits on success, and log masked usage.
+- Added generic `POST /api/v1/{apiCode}` reseller proxy for future APIs that do not need the Bureau-specific request validation route.
 - Parked the separate client-facing API portal plan in `docs/tasks/api-client-portal-plan.md` for later work.
 
 Verification:
