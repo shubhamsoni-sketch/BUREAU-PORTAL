@@ -28,7 +28,7 @@ async function hitMobilePrefillApi(
   payload: Record<string, unknown>,
   requestId: string,
 ) {
-  const endpoint = api.master_url.trim();
+  const endpoint = api.master_url.trim().replace(/\/+$/, '');
   if (!endpoint) throw new Error('Mobile Prefill API URL is not configured');
 
   const headers: Record<string, string> = {

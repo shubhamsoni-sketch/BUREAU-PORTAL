@@ -274,7 +274,7 @@ export async function saveApiHubStore(
 }
 
 export async function hitMasterApi(api: SimpleApiConfig, payload: unknown) {
-  const endpoint = api.master_url.trim();
+  const endpoint = api.master_url.trim().replace(/\/+$/, '');
   if (!endpoint) throw new Error('Master API URL is not configured');
 
   const headers: Record<string, string> = {
@@ -282,6 +282,10 @@ export async function hitMasterApi(api: SimpleApiConfig, payload: unknown) {
     'content-type': 'application/json',
   };
   if (api.auth_header && api.auth_token) headers[api.auth_header] = api.auth_token;
+  if (api.code === 'mobile-prefill' || api.code === 'bureau-advanced') {
+    headers['X-Auth-Type'] = 'API-Key';
+    headers['X-Reference-ID'] = `ct-${Date.now()}`;
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Number(process.env.API_HUB_GATEWAY_TIMEOUT_MS || 45000));
