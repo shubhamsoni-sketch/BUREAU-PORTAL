@@ -13,6 +13,7 @@ type CibilPayload = {
   stateCode: string;
   pinCode: string;
   telephoneNumber: string;
+  consent: boolean;
 };
 
 function jsonError(message: string, status = 400, requestId?: string) {
@@ -34,6 +35,7 @@ function normalizePayload(body: Record<string, unknown>): CibilPayload {
     stateCode: cleanString(body.stateCode),
     pinCode: cleanString(body.pinCode),
     telephoneNumber: cleanString(body.telephoneNumber),
+    consent: body.consent === true,
   };
 }
 
@@ -46,6 +48,7 @@ function validatePayload(payload: CibilPayload) {
   if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(payload.idNumber)) return 'idNumber must be a valid PAN format';
   if (!/^\d{6}$/.test(payload.pinCode)) return 'pinCode must be 6 digits';
   if (!/^\d{10}$/.test(payload.telephoneNumber)) return 'telephoneNumber must be 10 digits';
+  if (payload.consent !== true) return 'consent must be true';
   return null;
 }
 

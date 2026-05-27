@@ -108,11 +108,21 @@ When a client selects an API, show:
 
 ## First API: Bureau API
 
-Client endpoint:
+Standard endpoint:
 
 ```http
 POST /api/v1/cibil/consumer-score
 ```
+
+Standard request requires the full CIBIL payload.
+
+Advanced endpoint:
+
+```http
+POST /api/v1/cibil/mobile-prefill
+```
+
+Advanced request accepts a mobile-first payload. CreditTrust first calls the configured Mobile Prefill vendor API, derives the CIBIL payload, then calls Bureau API Standard internally.
 
 Generic future API endpoint pattern:
 
@@ -139,7 +149,17 @@ Sample payload:
   "idNumber": "GEAPP1589H",
   "stateCode": "23",
   "pinCode": "450221",
-  "telephoneNumber": "7067384810"
+  "telephoneNumber": "7067384810",
+  "consent": true
+}
+```
+
+Advanced sample payload:
+
+```json
+{
+  "mobile_number": "9876543210",
+  "consent": true
 }
 ```
 
@@ -151,6 +171,7 @@ Field rules:
 - `telephoneNumber`: 10 digit mobile number
 - `pinCode`: 6 digits
 - `stateCode`: CIBIL/TransUnion state code
+- `consent`: `true`, confirms customer consent was captured before the CIBIL request
 
 ## Integration Architecture
 
@@ -167,6 +188,12 @@ Client System
 Admin remains the control plane. Client portal is the developer-facing console.
 
 The admin API Hub must allow multiple master APIs, not only Bureau API. Each configured API has its own code, master URL, auth header, internal token, per-hit credit cost, test payload, and status. Client keys are generated for one selected API at a time.
+
+Bureau products:
+
+- `Bureau API Standard`: full request payload, configured with the Jaadugar/CIBIL master API.
+- `Bureau API Advanced`: mobile prefill request, configured with the Gridlines Mobile Prefill API. It reuses the Standard Bureau configuration for the final CIBIL hit.
+- `Mobile Prefill API`: standalone prefill product for clients who only need mobile enrichment. Endpoint: `POST /api/v1/mobile-prefill`.
 
 ## Build Order
 

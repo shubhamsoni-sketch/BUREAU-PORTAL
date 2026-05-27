@@ -15,6 +15,45 @@ function readMaskedValue(payload: Record<string, unknown>, names: string[]) {
   return '';
 }
 
+function cleanString(value: unknown) {
+  return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
+}
+
+function digits(value: unknown) {
+  return cleanString(value).replace(/\D/g, '');
+}
+
+async function hitMobilePrefillApi(
+  api: { master_url: string; method: 'POST' | 'GET'; auth_header: string; auth_token?: string },
+  payload: Record<string, unknown>,
+  requestId: string,
+) {
+  const endpoint = api.master_url.trim();
+  if (!endpoint) throw new Error('Mobile Prefill API URL is not configured');
+
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+    'content-type': 'application/json',
+    'X-Auth-Type': 'API-Key',
+    'X-Reference-ID': requestId,
+  };
+  if (api.auth_header && api.auth_token) headers[api.auth_header] = api.auth_token;
+
+  const response = await fetch(endpoint, {
+    method: api.method || 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  const text = await response.text();
+  let data: unknown = text;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text };
+  }
+  return { ok: response.ok, status: response.status, data };
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ apiCode: string }> },
@@ -46,7 +85,7 @@ export async function POST(
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return jsonError('Request body must be a JSON object', 400, requestId);
 
     const pan = readMaskedValue(payload as Record<string, unknown>, ['idNumber', 'panNumber', 'pan', 'PAN']);
-    const mobile = readMaskedValue(payload as Record<string, unknown>, ['telephoneNumber', 'mobile', 'mobileNumber', 'phone']);
+    const mobile = readMaskedValue(payload as Record<string, unknown>, ['mobile_number', 'telephoneNumber', 'mobile', 'mobileNumber', 'phone']);
     const now = new Date().toISOString();
     const baseLog = {
       id: crypto.randomUUID(),
@@ -59,7 +98,22 @@ export async function POST(
       created_at: now,
     };
 
-    const response = await hitMasterApi(api, payload);
+    let upstreamPayload = payload as Record<string, unknown>;
+    if (api.code === 'mobile-prefill') {
+      if ((payload as Record<string, unknown>).consent !== true) return jsonError('consent must be true', 400, requestId);
+      const mobileNumber = digits(mobile).slice(-10);
+      if (!/^\d{10}$/.test(mobileNumber)) return jsonError('mobile_number must be 10 digits', 400, requestId);
+      upstreamPayload = {
+        mobile_number: mobileNumber,
+        first_name: cleanString((payload as Record<string, unknown>).first_name || (payload as Record<string, unknown>).firstName),
+        lastName: cleanString((payload as Record<string, unknown>).lastName || (payload as Record<string, unknown>).last_name),
+        consent: 'Y',
+      };
+    }
+
+    const response = api.code === 'mobile-prefill'
+      ? await hitMobilePrefillApi(api, upstreamPayload, requestId)
+      : await hitMasterApi(api, upstreamPayload);
     const responseTime = Date.now() - startedAt;
 
     if (!response.ok) {

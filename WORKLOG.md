@@ -8,8 +8,12 @@ Summary:
 
 - Replaced the overbuilt API Hub flow with a simple admin control panel for APIs, clients, API keys, credits, and usage.
 - Added multi-API admin creation with quick API templates for Bureau, PAN, Aadhaar, and Name Fetch so future vendor APIs can be configured from the same section.
+- Split Bureau into Standard and Advanced products: Standard accepts full CIBIL payloads, Advanced accepts mobile-first requests and runs Mobile Prefill before the Bureau hit.
+- Added `consent: true` validation to Bureau Standard and Advanced so the final CIBIL request carries captured customer consent.
 - Added a lightweight API Hub store that keeps the Jaadugar/master API token internal and exposes only CreditTrust-generated client keys.
 - Updated `POST /api/v1/cibil/consumer-score` to validate a CreditTrust `x-api-key`, check client credits, call the configured master Bureau API, deduct per-hit credits on success, and log masked usage.
+- Added `POST /api/v1/cibil/mobile-prefill` for Bureau API Advanced using the configured Gridlines Mobile Prefill API and the configured Bureau API Standard.
+- Added standalone `Mobile Prefill API` as an independent API Hub product with `POST /api/v1/mobile-prefill`.
 - Added generic `POST /api/v1/{apiCode}` reseller proxy for future APIs that do not need the Bureau-specific request validation route.
 - Parked the separate client-facing API portal plan in `docs/tasks/api-client-portal-plan.md` for later work.
 

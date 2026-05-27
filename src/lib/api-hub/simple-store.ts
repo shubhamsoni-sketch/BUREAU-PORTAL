@@ -76,11 +76,12 @@ export const defaultBureauPayload = {
   stateCode: '23',
   pinCode: '450221',
   telephoneNumber: '7067384810',
+  consent: true,
 };
 
 export const defaultBureauApi: SimpleApiConfig = {
   id: 'bureau-api',
-  name: 'Bureau API',
+  name: 'Bureau API Standard',
   code: 'bureau',
   master_url: '',
   method: 'POST',
@@ -89,6 +90,48 @@ export const defaultBureauApi: SimpleApiConfig = {
   has_auth_token: false,
   per_hit_credits: 1,
   test_payload: defaultBureauPayload,
+  status: 'active',
+  created_at: new Date(0).toISOString(),
+  updated_at: new Date(0).toISOString(),
+};
+
+export const defaultBureauAdvancedApi: SimpleApiConfig = {
+  id: 'bureau-advanced',
+  name: 'Bureau API Advanced',
+  code: 'bureau-advanced',
+  master_url: 'https://api.gridlines.io/profile-api/mobile/prefill',
+  method: 'POST',
+  auth_header: 'X-API-Key',
+  auth_token: '',
+  has_auth_token: false,
+  per_hit_credits: 1,
+  test_payload: {
+    mobile_number: '9XXXXXXXX8',
+    first_name: '',
+    lastName: '',
+    consent: true,
+  },
+  status: 'active',
+  created_at: new Date(0).toISOString(),
+  updated_at: new Date(0).toISOString(),
+};
+
+export const defaultMobilePrefillApi: SimpleApiConfig = {
+  id: 'mobile-prefill',
+  name: 'Mobile Prefill API',
+  code: 'mobile-prefill',
+  master_url: 'https://api.gridlines.io/profile-api/mobile/prefill',
+  method: 'POST',
+  auth_header: 'X-API-Key',
+  auth_token: '',
+  has_auth_token: false,
+  per_hit_credits: 1,
+  test_payload: {
+    mobile_number: '9XXXXXXXX8',
+    first_name: '',
+    lastName: '',
+    consent: true,
+  },
   status: 'active',
   created_at: new Date(0).toISOString(),
   updated_at: new Date(0).toISOString(),
@@ -159,7 +202,11 @@ function normalizeKey(raw: Record<string, any>): SimpleApiKey {
 
 export function normalizeStore(raw: LegacyStore | null | undefined): SimpleApiHubStore {
   const sourceApis = raw?.apis?.length ? raw.apis : raw?.products;
-  const apis = sourceApis?.length ? sourceApis.map(normalizeApi) : [defaultBureauApi];
+  const apis = sourceApis?.length ? sourceApis.map(normalizeApi) : [defaultBureauApi, defaultBureauAdvancedApi, defaultMobilePrefillApi];
+  const hasAdvanced = apis.some((api) => api.code === defaultBureauAdvancedApi.code || api.id === defaultBureauAdvancedApi.id);
+  if (!hasAdvanced) apis.push(defaultBureauAdvancedApi);
+  const hasMobilePrefill = apis.some((api) => api.code === defaultMobilePrefillApi.code || api.id === defaultMobilePrefillApi.id);
+  if (!hasMobilePrefill) apis.push(defaultMobilePrefillApi);
   const clients = (raw?.clients || []).map(normalizeClient);
   const keys = (raw?.keys || []).map(normalizeKey).filter((key) => key.client_id && key.api_id && key.key_hash);
   const usage: SimpleUsageLog[] = (raw?.usage || raw?.logs || []).map((log: Record<string, any>) => ({
