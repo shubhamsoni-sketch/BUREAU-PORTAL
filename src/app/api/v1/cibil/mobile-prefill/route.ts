@@ -80,23 +80,72 @@ function splitName(fullName: string) {
   };
 }
 
+function nestedObject(source: unknown, path: string[]) {
+  let current = source;
+  for (const key of path) {
+    if (!isObject(current)) return {};
+    current = current[key];
+  }
+  return isObject(current) ? current : {};
+}
+
+function nestedArray(source: unknown, path: string[]) {
+  let current = source;
+  for (const key of path) {
+    if (!isObject(current)) return [];
+    current = current[key];
+  }
+  return Array.isArray(current) ? current.filter(isObject) : [];
+}
+
+function parseReportedDate(value: unknown) {
+  const text = cleanString(value);
+  const time = text ? Date.parse(text) : NaN;
+  return Number.isFinite(time) ? time : 0;
+}
+
+function chooseBestAddress(prefill: unknown) {
+  const addresses = nestedArray(prefill, ['data', 'data', 'personal_data', 'address']);
+  const valid = addresses
+    .map((address) => ({
+      state: cleanString(address.state || address.state_name || address.stateName),
+      pincode: digits(address.pincode || address.pinCode || address.postal_code || address.postalCode).slice(0, 6),
+      reportedAt: parseReportedDate(address.date_of_reporting || address.reported_at || address.updated_at),
+      detailedAddress: cleanString(address.detailed_address || address.address),
+    }))
+    .filter((address) => /^\d{6}$/.test(address.pincode) && getStateCode(address.state));
+
+  if (valid.length) {
+    return valid.sort((a, b) => b.reportedAt - a.reportedAt || Number(Boolean(b.detailedAddress)) - Number(Boolean(a.detailedAddress)))[0];
+  }
+
+  return null;
+}
+
+function firstArrayValue(source: unknown, path: string[]) {
+  const items = nestedArray(source, path);
+  return cleanString(items[0]?.value);
+}
+
 function buildCibilPayload(prefill: unknown, fallback: Record<string, unknown>): CibilPayload {
-  const fullName = firstValue(prefill, ['full_name', 'fullName', 'name', 'customer_name']);
+  const personalInfo = nestedObject(prefill, ['data', 'data', 'personal_data', 'personal_information']);
+  const bestAddress = chooseBestAddress(prefill);
+  const fullName = cleanString(personalInfo.full_name || personalInfo.fullName || personalInfo.name) || firstValue(prefill, ['full_name', 'fullName', 'name', 'customer_name']);
   const split = splitName(fullName);
-  const stateName = firstValue(prefill, ['state', 'state_name', 'stateName']);
+  const stateName = bestAddress?.state || firstValue(prefill, ['state', 'state_name', 'stateName']);
   const stateCode = firstValue(prefill, ['state_code', 'stateCode']) || getStateCode(stateName) || cleanString(fallback.stateCode);
-  const pan = firstValue(prefill, ['pan', 'pan_number', 'panNumber', 'idNumber']);
-  const dob = firstValue(prefill, ['dob', 'date_of_birth', 'dateOfBirth', 'birthDate']);
+  const pan = firstArrayValue(prefill, ['data', 'data', 'personal_data', 'document_data', 'pan']) || firstValue(prefill, ['pan', 'pan_number', 'panNumber', 'idNumber']);
+  const dob = cleanString(personalInfo.date_of_birth || personalInfo.dateOfBirth || personalInfo.dob) || firstValue(prefill, ['dob', 'date_of_birth', 'dateOfBirth', 'birthDate']);
 
   return {
     firstName: (firstValue(prefill, ['first_name', 'firstName']) || cleanString(fallback.firstName) || split.firstName).toUpperCase(),
     middleName: (firstValue(prefill, ['middle_name', 'middleName']) || cleanString(fallback.middleName) || split.middleName).toUpperCase(),
     lastName: (firstValue(prefill, ['last_name', 'lastName']) || cleanString(fallback.lastName) || split.lastName).toUpperCase(),
     birthDate: normalizeDate(dob || cleanString(fallback.birthDate)),
-    gender: normalizeGender(firstValue(prefill, ['gender', 'sex']) || cleanString(fallback.gender)),
+    gender: normalizeGender(cleanString(personalInfo.gender || personalInfo.sex) || firstValue(prefill, ['gender', 'sex']) || cleanString(fallback.gender)),
     idNumber: (pan || cleanString(fallback.idNumber)).toUpperCase(),
     stateCode,
-    pinCode: digits(firstValue(prefill, ['pincode', 'pinCode', 'postal_code', 'postalCode', 'zip']) || cleanString(fallback.pinCode)).slice(0, 6),
+    pinCode: bestAddress?.pincode || digits(firstValue(prefill, ['pincode', 'pinCode', 'postal_code', 'postalCode', 'zip']) || cleanString(fallback.pinCode)).slice(0, 6),
     telephoneNumber: digits(cleanString(fallback.mobile_number) || cleanString(fallback.telephoneNumber) || cleanString(fallback.mobile)).slice(-10),
     consent: fallback.consent === true,
   };
