@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-31 - Developer - Bureau API Routing Guard
+
+Summary:
+
+- Routed generic `POST /api/v1/bureau` requests through the Bureau API Standard handler.
+- Routed generic `POST /api/v1/bureau-advanced` requests through the Bureau API Advanced handler so clients receive the final CIBIL response instead of the raw prefill response.
+- Added a guard so the Bureau Standard endpoint only accepts keys generated for the standard bureau product.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=... npm run build` passed.
+
 ## 2026-05-30 - Developer - Client Bureau API Documentation
 
 Summary:

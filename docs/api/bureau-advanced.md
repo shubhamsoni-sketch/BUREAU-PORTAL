@@ -8,6 +8,12 @@ CreditTrust is the client-facing vendor for this API. The client sends a mobile-
 POST https://credittrust.in/api/v1/cibil/mobile-prefill
 ```
 
+Alias:
+
+```http
+POST https://credittrust.in/api/v1/bureau-advanced
+```
+
 ## Headers
 
 ```http
@@ -79,4 +85,3 @@ Common statuses:
 - `402`: insufficient credits
 - `403`: key is not allowed for this API
 - `502`: prefill or bureau master API failed
-

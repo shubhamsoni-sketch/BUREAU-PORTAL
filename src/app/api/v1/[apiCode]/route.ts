@@ -63,6 +63,29 @@ export async function POST(
 
   try {
     const { apiCode } = await params;
+    if (['bureau', 'bureau-standard', 'cibil.consumer_score'].includes(apiCode)) {
+      const endpoint = new URL('/api/v1/cibil/consumer-score', request.url);
+      const headers = new Headers(request.headers);
+      headers.delete('host');
+      headers.delete('content-length');
+      return fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: await request.text(),
+      });
+    }
+    if (apiCode === 'bureau-advanced') {
+      const endpoint = new URL('/api/v1/cibil/mobile-prefill', request.url);
+      const headers = new Headers(request.headers);
+      headers.delete('host');
+      headers.delete('content-length');
+      return fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: await request.text(),
+      });
+    }
+
     const apiKey = request.headers.get('x-api-key')?.trim();
     if (!apiKey) return jsonError('x-api-key header is required', 401, requestId);
 

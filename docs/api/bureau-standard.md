@@ -8,6 +8,12 @@ CreditTrust is the client-facing vendor for this API. Jaadugar remains the inter
 POST https://credittrust.in/api/v1/cibil/consumer-score
 ```
 
+Alias:
+
+```http
+POST https://credittrust.in/api/v1/bureau
+```
+
 ## Headers
 
 ```http
@@ -75,4 +81,3 @@ Common statuses:
 - `402`: insufficient credits
 - `403`: key is not allowed for this API
 - `502`: upstream/master API failed
-

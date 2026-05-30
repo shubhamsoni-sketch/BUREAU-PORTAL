@@ -68,6 +68,9 @@ export async function POST(request: NextRequest) {
     const api = store.apis.find((item) => item.id === keyRecord.api_id && item.status === 'active');
     if (!client) return jsonError('Client is not active', 403, requestId);
     if (!api) return jsonError('API is not active', 403, requestId);
+    if (!['bureau', 'bureau-standard', 'cibil.consumer_score'].includes(api.code)) {
+      return jsonError('API key is not allowed for Bureau API Standard', 403, requestId);
+    }
 
     const cost = Math.max(1, Number(api.per_hit_credits || 1));
     if (Number(client.credits || 0) < cost) return jsonError('Insufficient credits', 402, requestId);
