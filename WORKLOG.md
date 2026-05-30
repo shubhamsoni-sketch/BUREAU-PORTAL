@@ -9,6 +9,7 @@ Summary:
 - Routed generic `POST /api/v1/bureau` requests through the Bureau API Standard handler.
 - Routed generic `POST /api/v1/bureau-advanced` requests through the Bureau API Advanced handler so clients receive the final CIBIL response instead of the raw prefill response.
 - Added a guard so the Bureau Standard endpoint only accepts keys generated for the standard bureau product.
+- Updated client docs so `/api/v1/bureau` and `/api/v1/bureau-advanced` are the primary handover endpoints.
 
 Verification:
 

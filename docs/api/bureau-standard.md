@@ -5,13 +5,13 @@ CreditTrust is the client-facing vendor for this API. Jaadugar remains the inter
 ## Endpoint
 
 ```http
-POST https://credittrust.in/api/v1/cibil/consumer-score
+POST https://credittrust.in/api/v1/bureau
 ```
 
-Alias:
+Internal alias:
 
 ```http
-POST https://credittrust.in/api/v1/bureau
+POST https://credittrust.in/api/v1/cibil/consumer-score
 ```
 
 ## Headers

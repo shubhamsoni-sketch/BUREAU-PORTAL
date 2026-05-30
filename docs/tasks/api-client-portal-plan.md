@@ -116,7 +116,7 @@ Admin-side client setup treats CreditTrust as the client-facing vendor. Jaadugar
 Standard endpoint:
 
 ```http
-POST /api/v1/cibil/consumer-score
+POST /api/v1/bureau
 ```
 
 Standard request requires the full CIBIL payload.
@@ -124,7 +124,7 @@ Standard request requires the full CIBIL payload.
 Advanced endpoint:
 
 ```http
-POST /api/v1/cibil/mobile-prefill
+POST /api/v1/bureau-advanced
 ```
 
 Advanced request accepts a mobile-first payload. CreditTrust first calls the configured Mobile Prefill vendor API, derives the CIBIL payload, then calls Bureau API Standard internally.

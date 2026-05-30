@@ -97,7 +97,7 @@ const clientApiDocs = [
   {
     code: 'bureau',
     title: 'Bureau API Standard',
-    endpoint: '/api/v1/cibil/consumer-score',
+    endpoint: '/api/v1/bureau',
     summary: 'Client sends complete customer details. CreditTrust validates client key, checks credits, calls Jaadugar master API, deducts credits on success, and returns the provider response.',
     payload: `{
   "firstName": "HARSHAL",
@@ -120,7 +120,7 @@ const clientApiDocs = [
   {
     code: 'bureau-advanced',
     title: 'Bureau API Advanced',
-    endpoint: '/api/v1/cibil/mobile-prefill',
+    endpoint: '/api/v1/bureau-advanced',
     summary: 'Client sends mobile number and consent only. CreditTrust runs Mobile Prefill in the background, builds the Bureau Standard payload, calls Jaadugar master API, and returns the bureau response.',
     payload: `{
   "mobile_number": "9876543210",

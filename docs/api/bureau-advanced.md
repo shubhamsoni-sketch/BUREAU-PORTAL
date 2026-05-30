@@ -5,13 +5,13 @@ CreditTrust is the client-facing vendor for this API. The client sends a mobile-
 ## Endpoint
 
 ```http
-POST https://credittrust.in/api/v1/cibil/mobile-prefill
+POST https://credittrust.in/api/v1/bureau-advanced
 ```
 
-Alias:
+Internal alias:
 
 ```http
-POST https://credittrust.in/api/v1/bureau-advanced
+POST https://credittrust.in/api/v1/cibil/mobile-prefill
 ```
 
 ## Headers
