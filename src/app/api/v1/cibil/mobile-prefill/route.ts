@@ -2,19 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getApiHubStore, hitMasterApi, saveApiHubStore, SimpleApiConfig } from '@/lib/api-hub/simple-store';
 import { hashApiKey, maskMobile, maskPan } from '@/lib/api-hub/keys';
-import { getStateCode } from '@/lib/bureau/state-codes';
+import { getStateName } from '@/lib/bureau/state-codes';
 
 type CibilPayload = {
   firstName: string;
-  middleName?: string;
   lastName: string;
-  birthDate: string;
+  dob: string;
   gender: string;
-  idNumber: string;
-  stateCode: string;
-  pinCode: string;
-  telephoneNumber: string;
-  consent: boolean;
+  pan: string;
+  mobile: string;
+  address: string;
+  state: string;
+  pincode: string;
 };
 
 function jsonError(message: string, status = 400, requestId?: string) {
@@ -53,22 +52,22 @@ function firstValue(source: unknown, aliases: string[]) {
   return collectByKey(source, aliases)[0] || '';
 }
 
-function normalizeDate(value: string) {
+function normalizeDob(value: string) {
   const raw = value.trim();
-  if (/^\d{8}$/.test(raw)) return raw;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   const match = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
-  if (match) return `${match[3].padStart(2, '0')}${match[2].padStart(2, '0')}${match[1]}`;
+  if (match) return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
   const indian = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
-  if (indian) return `${indian[1].padStart(2, '0')}${indian[2].padStart(2, '0')}${indian[3]}`;
-  return digits(raw).slice(0, 8);
+  if (indian) return `${indian[1].padStart(2, '0')}/${indian[2].padStart(2, '0')}/${indian[3]}`;
+  return raw;
 }
 
 function normalizeGender(value: string) {
   const gender = value.toLowerCase();
-  if (gender === '1' || gender.includes('female')) return '1';
-  if (gender === '2' || gender.includes('male')) return '2';
-  if (gender === '3' || gender.includes('trans')) return '3';
-  return '';
+  if (gender === '1' || gender.includes('female')) return 'female';
+  if (gender === '2' || gender.includes('male')) return 'male';
+  if (gender === '3' || gender.includes('trans')) return 'transgender';
+  return gender;
 }
 
 function splitName(fullName: string) {
@@ -113,7 +112,7 @@ function chooseBestAddress(prefill: unknown) {
       reportedAt: parseReportedDate(address.date_of_reporting || address.reported_at || address.updated_at),
       detailedAddress: cleanString(address.detailed_address || address.address),
     }))
-    .filter((address) => /^\d{6}$/.test(address.pincode) && getStateCode(address.state));
+    .filter((address) => /^\d{6}$/.test(address.pincode) && address.state);
 
   if (valid.length) {
     return valid.sort((a, b) => b.reportedAt - a.reportedAt || Number(Boolean(b.detailedAddress)) - Number(Boolean(a.detailedAddress)))[0];
@@ -133,34 +132,29 @@ function buildCibilPayload(prefill: unknown, fallback: Record<string, unknown>):
   const fullName = cleanString(personalInfo.full_name || personalInfo.fullName || personalInfo.name) || firstValue(prefill, ['full_name', 'fullName', 'name', 'customer_name']);
   const split = splitName(fullName);
   const stateName = bestAddress?.state || firstValue(prefill, ['state', 'state_name', 'stateName']);
-  const stateCode = firstValue(prefill, ['state_code', 'stateCode']) || getStateCode(stateName) || cleanString(fallback.stateCode);
   const pan = firstArrayValue(prefill, ['data', 'data', 'personal_data', 'document_data', 'pan']) || firstValue(prefill, ['pan', 'pan_number', 'panNumber', 'idNumber']);
   const dob = cleanString(personalInfo.date_of_birth || personalInfo.dateOfBirth || personalInfo.dob) || firstValue(prefill, ['dob', 'date_of_birth', 'dateOfBirth', 'birthDate']);
 
   return {
-    firstName: (firstValue(prefill, ['first_name', 'firstName']) || cleanString(fallback.firstName) || split.firstName).toUpperCase(),
-    middleName: (firstValue(prefill, ['middle_name', 'middleName']) || cleanString(fallback.middleName) || split.middleName).toUpperCase(),
-    lastName: (firstValue(prefill, ['last_name', 'lastName']) || cleanString(fallback.lastName) || split.lastName).toUpperCase(),
-    birthDate: normalizeDate(dob || cleanString(fallback.birthDate)),
+    firstName: firstValue(prefill, ['first_name', 'firstName']) || cleanString(fallback.firstName) || split.firstName,
+    lastName: firstValue(prefill, ['last_name', 'lastName']) || cleanString(fallback.lastName) || split.lastName,
+    dob: normalizeDob(dob || cleanString(fallback.dob || fallback.birthDate)),
     gender: normalizeGender(cleanString(personalInfo.gender || personalInfo.sex) || firstValue(prefill, ['gender', 'sex']) || cleanString(fallback.gender)),
-    idNumber: (pan || cleanString(fallback.idNumber)).toUpperCase(),
-    stateCode,
-    pinCode: bestAddress?.pincode || digits(firstValue(prefill, ['pincode', 'pinCode', 'postal_code', 'postalCode', 'zip']) || cleanString(fallback.pinCode)).slice(0, 6),
-    telephoneNumber: digits(cleanString(fallback.mobile_number) || cleanString(fallback.telephoneNumber) || cleanString(fallback.mobile)).slice(-10),
-    consent: fallback.consent === true,
+    pan: (pan || cleanString(fallback.pan || fallback.idNumber)).toUpperCase(),
+    mobile: digits(cleanString(fallback.mobile_number) || cleanString(fallback.telephoneNumber) || cleanString(fallback.mobile)).slice(-10),
+    address: bestAddress?.detailedAddress || cleanString(fallback.address),
+    state: getStateName(stateName || cleanString(fallback.state || fallback.stateName)),
+    pincode: bestAddress?.pincode || digits(firstValue(prefill, ['pincode', 'pinCode', 'postal_code', 'postalCode', 'zip']) || cleanString(fallback.pincode || fallback.pinCode)).slice(0, 6),
   };
 }
 
 function validatePayload(payload: CibilPayload) {
-  const required: Array<keyof CibilPayload> = ['firstName', 'lastName', 'birthDate', 'gender', 'idNumber', 'stateCode', 'pinCode', 'telephoneNumber'];
+  const required: Array<keyof CibilPayload> = ['firstName', 'lastName', 'dob', 'gender', 'pan', 'mobile', 'address', 'state', 'pincode'];
   const missing = required.filter((field) => !payload[field]);
-  if (missing.length) return `Prefill response missing fields for CIBIL payload: ${missing.join(', ')}`;
-  if (!/^\d{8}$/.test(payload.birthDate)) return 'birthDate must be DDMMYYYY';
-  if (!/^[123]$/.test(payload.gender)) return 'gender must be 1, 2, or 3';
-  if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(payload.idNumber)) return 'idNumber must be a valid PAN format';
-  if (!/^\d{6}$/.test(payload.pinCode)) return 'pinCode must be 6 digits';
-  if (!/^\d{10}$/.test(payload.telephoneNumber)) return 'telephoneNumber must be 10 digits';
-  if (payload.consent !== true) return 'consent must be true';
+  if (missing.length) return `Prefill response missing fields for Jaadugar payload: ${missing.join(', ')}`;
+  if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(payload.pan)) return 'pan must be a valid PAN format';
+  if (!/^\d{10}$/.test(payload.mobile)) return 'mobile must be 10 digits';
+  if (!/^\d{6}$/.test(payload.pincode)) return 'pincode must be 6 digits';
   return null;
 }
 
@@ -276,7 +270,7 @@ export async function POST(request: NextRequest) {
         key_id: keyRecord.id,
         status: 'failed' as const,
         credits_deducted: 0,
-        masked_pan: maskPan(cibilPayload.idNumber),
+        masked_pan: maskPan(cibilPayload.pan),
         masked_mobile: maskMobile(mobile),
         response_time_ms: responseTime,
         error_message: message,
@@ -298,7 +292,7 @@ export async function POST(request: NextRequest) {
       key_id: keyRecord.id,
       status: 'success' as const,
       credits_deducted: cost,
-      masked_pan: maskPan(cibilPayload.idNumber),
+      masked_pan: maskPan(cibilPayload.pan),
       masked_mobile: maskMobile(mobile),
       response_time_ms: responseTime,
       created_at: new Date().toISOString(),

@@ -37,6 +37,47 @@ export const STATE_CODE_BY_NAME: Record<string, string> = {
   'West Bengal': '19',
 };
 
+export const STATE_NAME_BY_ABBREVIATION: Record<string, string> = {
+  AN: 'ANDAMAN AND NICOBAR ISLANDS',
+  AP: 'ANDHRA PRADESH',
+  AR: 'ARUNACHAL PRADESH',
+  AS: 'ASSAM',
+  BR: 'BIHAR',
+  CH: 'CHANDIGARH',
+  CG: 'CHHATTISGARH',
+  DD: 'DADRA AND NAGAR HAVELI AND DAMAN AND DIU',
+  DL: 'DELHI',
+  GA: 'GOA',
+  GJ: 'GUJARAT',
+  HR: 'HARYANA',
+  HP: 'HIMACHAL PRADESH',
+  JK: 'JAMMU AND KASHMIR',
+  JH: 'JHARKHAND',
+  KA: 'KARNATAKA',
+  KL: 'KERALA',
+  LA: 'LADAKH',
+  LD: 'LAKSHADWEEP',
+  MP: 'MADHYA PRADESH',
+  MH: 'MAHARASHTRA',
+  MN: 'MANIPUR',
+  ML: 'MEGHALAYA',
+  MZ: 'MIZORAM',
+  NL: 'NAGALAND',
+  OD: 'ODISHA',
+  OR: 'ODISHA',
+  PY: 'PUDUCHERRY',
+  PB: 'PUNJAB',
+  RJ: 'RAJASTHAN',
+  SK: 'SIKKIM',
+  TN: 'TAMIL NADU',
+  TS: 'TELANGANA',
+  TG: 'TELANGANA',
+  TR: 'TRIPURA',
+  UP: 'UTTAR PRADESH',
+  UK: 'UTTARAKHAND',
+  WB: 'WEST BENGAL',
+};
+
 export const STATE_CODE_BY_ABBREVIATION: Record<string, string> = {
   AN: '35',
   AP: '28',
@@ -82,4 +123,10 @@ export function getStateCode(stateName: string) {
   const cleaned = stateName.trim();
   if (!cleaned) return null;
   return STATE_CODE_BY_NAME[cleaned] ?? STATE_CODE_BY_ABBREVIATION[cleaned.toUpperCase()] ?? null;
+}
+
+export function getStateName(stateNameOrAbbreviation: string) {
+  const cleaned = stateNameOrAbbreviation.trim();
+  if (!cleaned) return '';
+  return STATE_NAME_BY_ABBREVIATION[cleaned.toUpperCase()] ?? cleaned.toUpperCase();
 }

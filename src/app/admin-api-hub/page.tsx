@@ -70,15 +70,14 @@ const tabs = ['APIs', 'Clients', 'API Keys', 'Credits', 'Usage'] as const;
 
 const defaultPayload = `{
   "firstName": "HARSHAL",
-  "middleName": "ARUN",
   "lastName": "PAWAR",
-  "birthDate": "13122000",
-  "gender": "2",
-  "idNumber": "GEAPP1589H",
-  "stateCode": "23",
-  "pinCode": "450221",
-  "telephoneNumber": "7067384810",
-  "consent": true
+  "dob": "2000-12-13",
+  "gender": "male",
+  "pan": "GEAPP1589H",
+  "mobile": "7067384810",
+  "address": "450221 MADHYA PRADESH",
+  "state": "MADHYA PRADESH",
+  "pincode": "450221"
 }`;
 
 const blankPayload = `{

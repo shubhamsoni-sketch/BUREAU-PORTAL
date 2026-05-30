@@ -142,14 +142,14 @@ Sample payload:
 ```json
 {
   "firstName": "HARSHAL",
-  "middleName": "ARUN",
   "lastName": "PAWAR",
-  "birthDate": "13122000",
-  "gender": "2",
-  "idNumber": "GEAPP1589H",
-  "stateCode": "23",
-  "pinCode": "450221",
-  "telephoneNumber": "7067384810",
+  "dob": "2000-12-13",
+  "gender": "male",
+  "pan": "GEAPP1589H",
+  "mobile": "7067384810",
+  "address": "450221 MADHYA PRADESH",
+  "state": "MADHYA PRADESH",
+  "pincode": "450221",
   "consent": true
 }
 ```
@@ -165,12 +165,12 @@ Advanced sample payload:
 
 Field rules:
 
-- `birthDate`: DDMMYYYY
-- `gender`: `1` female, `2` male, `3` transgender
-- `idNumber`: PAN format
-- `telephoneNumber`: 10 digit mobile number
-- `pinCode`: 6 digits
-- `stateCode`: CIBIL/TransUnion state code
+- `dob`: `YYYY-MM-DD` or `DD/MM/YYYY`
+- `gender`: `male`, `female`, or `transgender`
+- `pan`: PAN format
+- `mobile`: 10 digit mobile number
+- `pincode`: 6 digits
+- `state`: full state name, for example `MADHYA PRADESH`
 - `consent`: `true`, confirms customer consent was captured before the CIBIL request
 
 ## Integration Architecture

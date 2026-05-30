@@ -3,17 +3,16 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getApiHubStore, hitMasterApi, saveApiHubStore } from '@/lib/api-hub/simple-store';
 import { hashApiKey, maskMobile, maskPan } from '@/lib/api-hub/keys';
 
-type CibilPayload = {
+type JaadugarCibilPayload = {
   firstName: string;
-  middleName?: string;
   lastName: string;
-  birthDate: string;
+  dob: string;
   gender: string;
-  idNumber: string;
-  stateCode: string;
-  pinCode: string;
-  telephoneNumber: string;
-  consent: boolean;
+  pan: string;
+  mobile: string;
+  address: string;
+  state: string;
+  pincode: string;
 };
 
 function jsonError(message: string, status = 400, requestId?: string) {
@@ -21,34 +20,34 @@ function jsonError(message: string, status = 400, requestId?: string) {
 }
 
 function cleanString(value: unknown) {
-  return typeof value === 'string' ? value.trim() : '';
+  return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
 }
 
-function normalizePayload(body: Record<string, unknown>): CibilPayload {
+function digits(value: unknown) {
+  return cleanString(value).replace(/\D/g, '');
+}
+
+function normalizePayload(body: Record<string, unknown>): JaadugarCibilPayload {
   return {
-    firstName: cleanString(body.firstName).toUpperCase(),
-    middleName: cleanString(body.middleName).toUpperCase(),
-    lastName: cleanString(body.lastName).toUpperCase(),
-    birthDate: cleanString(body.birthDate),
+    firstName: cleanString(body.firstName),
+    lastName: cleanString(body.lastName),
+    dob: cleanString(body.dob || body.birthDate || body.dateOfBirth),
     gender: cleanString(body.gender),
-    idNumber: cleanString(body.idNumber).toUpperCase(),
-    stateCode: cleanString(body.stateCode),
-    pinCode: cleanString(body.pinCode),
-    telephoneNumber: cleanString(body.telephoneNumber),
-    consent: body.consent === true,
+    pan: cleanString(body.pan || body.idNumber).toUpperCase(),
+    mobile: digits(body.mobile || body.telephoneNumber || body.mobile_number).slice(-10),
+    address: cleanString(body.address || body.detailed_address),
+    state: cleanString(body.state || body.stateName),
+    pincode: digits(body.pincode || body.pinCode).slice(0, 6),
   };
 }
 
-function validatePayload(payload: CibilPayload) {
-  const required: Array<keyof CibilPayload> = ['firstName', 'lastName', 'birthDate', 'gender', 'idNumber', 'stateCode', 'pinCode', 'telephoneNumber'];
+function validatePayload(payload: JaadugarCibilPayload) {
+  const required: Array<keyof JaadugarCibilPayload> = ['firstName', 'lastName', 'dob', 'gender', 'pan', 'mobile', 'address', 'state', 'pincode'];
   const missing = required.filter((field) => !payload[field]);
   if (missing.length) return `Missing required fields: ${missing.join(', ')}`;
-  if (!/^\d{8}$/.test(payload.birthDate)) return 'birthDate must be DDMMYYYY';
-  if (!/^[123]$/.test(payload.gender)) return 'gender must be 1, 2, or 3';
-  if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(payload.idNumber)) return 'idNumber must be a valid PAN format';
-  if (!/^\d{6}$/.test(payload.pinCode)) return 'pinCode must be 6 digits';
-  if (!/^\d{10}$/.test(payload.telephoneNumber)) return 'telephoneNumber must be 10 digits';
-  if (payload.consent !== true) return 'consent must be true';
+  if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(payload.pan)) return 'pan must be a valid PAN format';
+  if (!/^\d{10}$/.test(payload.mobile)) return 'mobile must be 10 digits';
+  if (!/^\d{6}$/.test(payload.pincode)) return 'pincode must be 6 digits';
   return null;
 }
 
@@ -62,8 +61,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient();
     const { rowId, store } = await getApiHubStore(supabase);
-    const apiKeyHash = hashApiKey(apiKey);
-    const keyRecord = store.keys.find((key) => key.key_hash === apiKeyHash && key.status === 'active');
+    const keyRecord = store.keys.find((key) => key.key_hash === hashApiKey(apiKey) && key.status === 'active');
     if (!keyRecord) return jsonError('Invalid or inactive API key', 401, requestId);
 
     const client = store.clients.find((item) => item.id === keyRecord.client_id && item.status === 'active');
@@ -79,22 +77,15 @@ export async function POST(request: NextRequest) {
     const validationError = validatePayload(payload);
     if (validationError) return jsonError(validationError, 400, requestId);
 
-    const maskedRequest = {
-      ...payload,
-      idNumber: maskPan(payload.idNumber),
-      telephoneNumber: maskMobile(payload.telephoneNumber),
-    };
-
-    const now = new Date().toISOString();
     const baseLog = {
       id: crypto.randomUUID(),
       request_id: requestId,
       client_id: client.id,
       api_id: api.id,
       key_id: keyRecord.id,
-      masked_pan: maskPan(payload.idNumber),
-      masked_mobile: maskMobile(payload.telephoneNumber),
-      created_at: now,
+      masked_pan: maskPan(payload.pan),
+      masked_mobile: maskMobile(payload.mobile),
+      created_at: new Date().toISOString(),
     };
 
     const response = await hitMasterApi(api, payload);
@@ -132,7 +123,6 @@ export async function POST(request: NextRequest) {
       request_id: requestId,
       charged: { credits: cost },
       data: response.data,
-      request: maskedRequest,
     });
   } catch (error) {
     console.error('[api-hub:cibil] unexpected error:', error);

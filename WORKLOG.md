@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-30 - Developer - Jaadugar Bureau Payload Contract
+
+Summary:
+
+- Switched Bureau API Standard to forward CreditTrust requests to the Jaadugar CIBIL master API using `firstName`, `lastName`, `dob`, `gender`, `pan`, `mobile`, `address`, `state`, and `pincode`.
+- Updated Bureau API Advanced so Mobile Prefill runs first, then maps the best reported address, PAN, DOB, gender, and full state name into the same Jaadugar payload contract.
+- Updated API Hub defaults and the parked client-portal plan so admin tests and future client docs use the new payload rules instead of old CIBIL code fields.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=... npm run build` passed.
+
 ## 2026-05-28 - Developer - Simplified API Hub Reseller Flow
 
 Summary:
