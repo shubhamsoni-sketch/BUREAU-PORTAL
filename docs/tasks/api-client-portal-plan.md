@@ -108,6 +108,11 @@ When a client selects an API, show:
 
 ## First API: Bureau API
 
+Admin-side client setup treats CreditTrust as the client-facing vendor. Jaadugar remains the internal master/vendor gateway. Versioned handover docs are available in:
+
+- `docs/api/bureau-standard.md`
+- `docs/api/bureau-advanced.md`
+
 Standard endpoint:
 
 ```http

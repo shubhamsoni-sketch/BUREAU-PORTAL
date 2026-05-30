@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { createClient } from '@/lib/supabase/client';
-import { Activity, Ban, Copy, KeyRound, Play, Plus, RefreshCw, Save, Server, ShieldCheck, WalletCards } from 'lucide-react';
+import { Activity, Ban, BookOpen, Copy, KeyRound, Play, Plus, RefreshCw, Save, Server, ShieldCheck, WalletCards } from 'lucide-react';
 
 type ApiConfig = {
   id: string;
@@ -66,7 +66,7 @@ type ApiHubData = {
   usage: UsageLog[];
 };
 
-const tabs = ['APIs', 'Clients', 'API Keys', 'Credits', 'Usage'] as const;
+const tabs = ['APIs', 'Clients', 'API Keys', 'Credits', 'Usage', 'Docs'] as const;
 
 const defaultPayload = `{
   "firstName": "HARSHAL",
@@ -91,6 +91,48 @@ const apiTemplates = [
   { name: 'PAN API', code: 'pan', payload: '{\n  "panNumber": "ABCDE1234F"\n}' },
   { name: 'Aadhaar API', code: 'aadhaar', payload: '{\n  "aadhaarNumber": "999988887777"\n}' },
   { name: 'Name Fetch API', code: 'name-fetch', payload: '{\n  "idNumber": "ABCDE1234F"\n}' },
+];
+
+const clientApiDocs = [
+  {
+    code: 'bureau',
+    title: 'Bureau API Standard',
+    endpoint: '/api/v1/cibil/consumer-score',
+    summary: 'Client sends complete customer details. CreditTrust validates client key, checks credits, calls Jaadugar master API, deducts credits on success, and returns the provider response.',
+    payload: `{
+  "firstName": "HARSHAL",
+  "lastName": "PAWAR",
+  "dob": "2000-12-13",
+  "gender": "male",
+  "pan": "GEAPP1589H",
+  "mobile": "7067384810",
+  "address": "450221 MADHYA PRADESH",
+  "state": "MADHYA PRADESH",
+  "pincode": "450221"
+}`,
+    notes: [
+      'dob accepts YYYY-MM-DD or DD/MM/YYYY.',
+      'gender accepts male, female, or transgender.',
+      'state must be the full state name, for example MADHYA PRADESH.',
+      'pan, mobile, and pincode are validated before the vendor hit.',
+    ],
+  },
+  {
+    code: 'bureau-advanced',
+    title: 'Bureau API Advanced',
+    endpoint: '/api/v1/cibil/mobile-prefill',
+    summary: 'Client sends mobile number and consent only. CreditTrust runs Mobile Prefill in the background, builds the Bureau Standard payload, calls Jaadugar master API, and returns the bureau response.',
+    payload: `{
+  "mobile_number": "9876543210",
+  "consent": true
+}`,
+    notes: [
+      'Client sees one CreditTrust API call only; prefill stays internal.',
+      'consent must be true before CreditTrust starts the bureau workflow.',
+      'Prefill chooses the latest valid reported address with pincode and state.',
+      'Advanced requires a key generated specifically for Bureau API Advanced.',
+    ],
+  },
 ];
 
 const emptyData: ApiHubData = {
@@ -524,6 +566,10 @@ export default function AdminApiHubPage() {
             <UsageTable usage={data.usage} clientById={clientById} apiById={apiById} />
           </section>
         )}
+
+        {activeTab === 'Docs' && (
+          <ApiDocsPanel />
+        )}
       </div>
     </AdminLayout>
   );
@@ -703,4 +749,105 @@ function UsageTable({ usage, clientById, apiById }: { usage: UsageLog[]; clientB
 
 function EmptyState({ text }: { text: string }) {
   return <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">{text}</div>;
+}
+
+function ApiDocsPanel() {
+  const baseUrl = typeof window === 'undefined' ? 'https://credittrust.in' : window.location.origin;
+  const [copied, setCopied] = useState('');
+
+  const copyText = async (label: string, value: string) => {
+    await navigator.clipboard?.writeText(value);
+    setCopied(label);
+    window.setTimeout(() => setCopied(''), 1800);
+  };
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+      {clientApiDocs.map((doc) => {
+        const endpoint = `${baseUrl}${doc.endpoint}`;
+        const curl = `curl --request POST '${endpoint}' \\
+  --header 'content-type: application/json' \\
+  --header 'accept: application/json' \\
+  --header 'x-api-key: <client_api_key>' \\
+  --data '${doc.payload.replace(/\n/g, '')}'`;
+
+        return (
+          <section key={doc.code} className="rounded-lg border border-slate-200 bg-white p-5 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <BookOpen size={18} className="text-blue-600" />
+                  <h2 className="text-lg font-bold text-slate-900">{doc.title}</h2>
+                </div>
+                <p className="text-sm text-slate-600 mt-2">{doc.summary}</p>
+              </div>
+              <StatusPill value="active" />
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Client endpoint</p>
+              <div className="mt-2 flex flex-col md:flex-row md:items-center gap-2">
+                <code className="flex-1 rounded-md bg-white border border-slate-200 px-3 py-2 text-xs text-slate-900 break-all">POST {endpoint}</code>
+                <button type="button" onClick={() => copyText(`${doc.code}-endpoint`, endpoint)} className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800">
+                  <Copy size={14} />
+                  {copied === `${doc.code}-endpoint` ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Headers</p>
+              <pre className="overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{`content-type: application/json
+accept: application/json
+x-api-key: <client_api_key>`}</pre>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Request payload</p>
+                <button type="button" onClick={() => copyText(`${doc.code}-payload`, doc.payload)} className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-800">
+                  <Copy size={13} />
+                  {copied === `${doc.code}-payload` ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <pre className="overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{doc.payload}</pre>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">cURL</p>
+                <button type="button" onClick={() => copyText(`${doc.code}-curl`, curl)} className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-800">
+                  <Copy size={13} />
+                  {copied === `${doc.code}-curl` ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <pre className="overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{curl}</pre>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Rules</p>
+              <ul className="space-y-2 text-sm text-slate-700">
+                {doc.notes.map((note) => (
+                  <li key={note} className="flex gap-2">
+                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-blue-600 shrink-0" />
+                    <span>{note}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Success response shape</p>
+              <pre className="overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{`{
+  "success": true,
+  "request_id": "API-...",
+  "charged": { "credits": 1 },
+  "data": {}
+}`}</pre>
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
 }

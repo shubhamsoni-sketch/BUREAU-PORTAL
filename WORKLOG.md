@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-05-30 - Developer - Client Bureau API Documentation
+
+Summary:
+
+- Added a Docs tab in Admin API Hub with client-ready documentation for Bureau API Standard and Bureau API Advanced.
+- Added copyable client endpoints, headers, payloads, cURL examples, response shapes, and field rules for the CreditTrust reseller flow.
+- Added repo documentation files for Standard and Advanced so client handover material stays versioned with the portal.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=... npm run build` passed.
+
 ## 2026-05-30 - Developer - Jaadugar Bureau Payload Contract
 
 Summary:
