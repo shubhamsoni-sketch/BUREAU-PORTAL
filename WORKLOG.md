@@ -2,6 +2,18 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-02 - Developer - Prefill Payload Mapping Fix
+
+Summary:
+
+- Updated Bureau Advanced prefill mapping to support Gridlines responses shaped as `data.personal_data` as well as `data.data.personal_data`.
+- Fixed PAN extraction from `document_data.pan[].value` and address extraction from `personal_data.address[]` for both admin testing and client Advanced API calls.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=... npm run build` passed.
+
 ## 2026-06-02 - Developer - Admin Advanced Bureau Test Flow
 
 Summary:

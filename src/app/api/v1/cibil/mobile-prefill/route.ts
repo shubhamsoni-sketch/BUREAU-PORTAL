@@ -103,8 +103,24 @@ function parseReportedDate(value: unknown) {
   return Number.isFinite(time) ? time : 0;
 }
 
+function personalDataCandidates(prefill: unknown) {
+  return [
+    nestedObject(prefill, ['data', 'data', 'personal_data']),
+    nestedObject(prefill, ['data', 'personal_data']),
+    nestedObject(prefill, ['personal_data']),
+  ].filter((item) => Object.keys(item).length);
+}
+
+function getPersonalInfo(prefill: unknown) {
+  for (const personalData of personalDataCandidates(prefill)) {
+    const info = personalData.personal_information;
+    if (isObject(info)) return info;
+  }
+  return {};
+}
+
 function chooseBestAddress(prefill: unknown) {
-  const addresses = nestedArray(prefill, ['data', 'data', 'personal_data', 'address']);
+  const addresses = personalDataCandidates(prefill).flatMap((personalData) => Array.isArray(personalData.address) ? personalData.address.filter(isObject) : []);
   const valid = addresses
     .map((address) => ({
       state: cleanString(address.state || address.state_name || address.stateName),
@@ -126,13 +142,29 @@ function firstArrayValue(source: unknown, path: string[]) {
   return cleanString(items[0]?.value);
 }
 
+function documentValue(prefill: unknown, documentKey: string) {
+  for (const personalData of personalDataCandidates(prefill)) {
+    const documentData = personalData.document_data;
+    if (!isObject(documentData)) continue;
+    const value = documentData[documentKey];
+    if (Array.isArray(value)) {
+      const first = value.find(isObject);
+      const text = cleanString(first?.value);
+      if (text) return text;
+    }
+    const text = cleanString(value);
+    if (text) return text;
+  }
+  return '';
+}
+
 function buildCibilPayload(prefill: unknown, fallback: Record<string, unknown>): CibilPayload {
-  const personalInfo = nestedObject(prefill, ['data', 'data', 'personal_data', 'personal_information']);
+  const personalInfo = getPersonalInfo(prefill);
   const bestAddress = chooseBestAddress(prefill);
   const fullName = cleanString(personalInfo.full_name || personalInfo.fullName || personalInfo.name) || firstValue(prefill, ['full_name', 'fullName', 'name', 'customer_name']);
   const split = splitName(fullName);
   const stateName = bestAddress?.state || firstValue(prefill, ['state', 'state_name', 'stateName']);
-  const pan = firstArrayValue(prefill, ['data', 'data', 'personal_data', 'document_data', 'pan']) || firstValue(prefill, ['pan', 'pan_number', 'panNumber', 'idNumber']);
+  const pan = documentValue(prefill, 'pan') || firstArrayValue(prefill, ['data', 'data', 'personal_data', 'document_data', 'pan']) || firstValue(prefill, ['pan', 'pan_number', 'panNumber', 'idNumber']);
   const dob = cleanString(personalInfo.date_of_birth || personalInfo.dateOfBirth || personalInfo.dob) || firstValue(prefill, ['dob', 'date_of_birth', 'dateOfBirth', 'birthDate']);
 
   return {
