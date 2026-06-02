@@ -2,6 +2,18 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-02 - Developer - Admin Advanced Bureau Test Flow
+
+Summary:
+
+- Updated Admin API Hub testing for Bureau API Advanced so the admin test runs Mobile Prefill first, builds the Jaadugar CIBIL payload, then calls Bureau API Standard.
+- The admin test response now returns the final CIBIL stage/result instead of stopping at the raw prefill response.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=... npm run build` passed.
+
 ## 2026-05-31 - Developer - Bureau API Routing Guard
 
 Summary:

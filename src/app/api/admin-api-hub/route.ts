@@ -9,6 +9,7 @@ import {
   saveApiHubStore,
   SimpleApiConfig,
 } from '@/lib/api-hub/simple-store';
+import { getStateName } from '@/lib/bureau/state-codes';
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
@@ -51,6 +52,172 @@ function buildApi(body: Record<string, any>, existing?: SimpleApiConfig): Simple
     created_at: existing?.created_at || now,
     updated_at: now,
   };
+}
+
+function cleanString(value: unknown) {
+  return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
+}
+
+function digits(value: unknown) {
+  return cleanString(value).replace(/\D/g, '');
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function collectByKey(value: unknown, aliases: string[], found: string[] = []) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectByKey(item, aliases, found));
+    return found;
+  }
+  if (!isObject(value)) return found;
+  for (const [key, nested] of Object.entries(value)) {
+    if (aliases.some((alias) => alias.toLowerCase() === key.toLowerCase())) {
+      const text = cleanString(nested);
+      if (text) found.push(text);
+    }
+    collectByKey(nested, aliases, found);
+  }
+  return found;
+}
+
+function firstValue(source: unknown, aliases: string[]) {
+  return collectByKey(source, aliases)[0] || '';
+}
+
+function nestedObject(source: unknown, path: string[]) {
+  let current = source;
+  for (const key of path) {
+    if (!isObject(current)) return {};
+    current = current[key];
+  }
+  return isObject(current) ? current : {};
+}
+
+function nestedArray(source: unknown, path: string[]) {
+  let current = source;
+  for (const key of path) {
+    if (!isObject(current)) return [];
+    current = current[key];
+  }
+  return Array.isArray(current) ? current.filter(isObject) : [];
+}
+
+function normalizeDob(value: string) {
+  const raw = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const match = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (match) return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+  const indian = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (indian) return `${indian[1].padStart(2, '0')}/${indian[2].padStart(2, '0')}/${indian[3]}`;
+  return raw;
+}
+
+function normalizeGender(value: string) {
+  const gender = value.toLowerCase();
+  if (gender === '1' || gender.includes('female')) return 'female';
+  if (gender === '2' || gender.includes('male')) return 'male';
+  if (gender === '3' || gender.includes('trans')) return 'transgender';
+  return gender;
+}
+
+function splitName(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || '',
+    lastName: parts.length > 1 ? parts[parts.length - 1] : '',
+  };
+}
+
+function parseReportedDate(value: unknown) {
+  const text = cleanString(value);
+  const time = text ? Date.parse(text) : NaN;
+  return Number.isFinite(time) ? time : 0;
+}
+
+function chooseBestAddress(prefill: unknown) {
+  const addresses = nestedArray(prefill, ['data', 'data', 'personal_data', 'address']);
+  const valid = addresses
+    .map((address) => ({
+      state: cleanString(address.state || address.state_name || address.stateName),
+      pincode: digits(address.pincode || address.pinCode || address.postal_code || address.postalCode).slice(0, 6),
+      reportedAt: parseReportedDate(address.date_of_reporting || address.reported_at || address.updated_at),
+      detailedAddress: cleanString(address.detailed_address || address.address),
+    }))
+    .filter((address) => /^\d{6}$/.test(address.pincode) && address.state);
+
+  return valid.length
+    ? valid.sort((a, b) => b.reportedAt - a.reportedAt || Number(Boolean(b.detailedAddress)) - Number(Boolean(a.detailedAddress)))[0]
+    : null;
+}
+
+function firstArrayValue(source: unknown, path: string[]) {
+  const items = nestedArray(source, path);
+  return cleanString(items[0]?.value);
+}
+
+function buildAdvancedCibilPayload(prefill: unknown, fallback: Record<string, unknown>) {
+  const personalInfo = nestedObject(prefill, ['data', 'data', 'personal_data', 'personal_information']);
+  const bestAddress = chooseBestAddress(prefill);
+  const fullName = cleanString(personalInfo.full_name || personalInfo.fullName || personalInfo.name) || firstValue(prefill, ['full_name', 'fullName', 'name', 'customer_name']);
+  const split = splitName(fullName);
+  const stateName = bestAddress?.state || firstValue(prefill, ['state', 'state_name', 'stateName']);
+  const pan = firstArrayValue(prefill, ['data', 'data', 'personal_data', 'document_data', 'pan']) || firstValue(prefill, ['pan', 'pan_number', 'panNumber', 'idNumber']);
+  const dob = cleanString(personalInfo.date_of_birth || personalInfo.dateOfBirth || personalInfo.dob) || firstValue(prefill, ['dob', 'date_of_birth', 'dateOfBirth', 'birthDate']);
+
+  return {
+    firstName: firstValue(prefill, ['first_name', 'firstName']) || cleanString(fallback.firstName) || split.firstName,
+    lastName: firstValue(prefill, ['last_name', 'lastName']) || cleanString(fallback.lastName) || split.lastName,
+    dob: normalizeDob(dob || cleanString(fallback.dob || fallback.birthDate)),
+    gender: normalizeGender(cleanString(personalInfo.gender || personalInfo.sex) || firstValue(prefill, ['gender', 'sex']) || cleanString(fallback.gender)),
+    pan: (pan || cleanString(fallback.pan || fallback.idNumber)).toUpperCase(),
+    mobile: digits(cleanString(fallback.mobile_number) || cleanString(fallback.telephoneNumber) || cleanString(fallback.mobile)).slice(-10),
+    address: bestAddress?.detailedAddress || cleanString(fallback.address),
+    state: getStateName(stateName || cleanString(fallback.state || fallback.stateName)),
+    pincode: bestAddress?.pincode || digits(firstValue(prefill, ['pincode', 'pinCode', 'postal_code', 'postalCode', 'zip']) || cleanString(fallback.pincode || fallback.pinCode)).slice(0, 6),
+  };
+}
+
+function validateAdvancedCibilPayload(payload: ReturnType<typeof buildAdvancedCibilPayload>) {
+  const required = ['firstName', 'lastName', 'dob', 'gender', 'pan', 'mobile', 'address', 'state', 'pincode'] as const;
+  const missing = required.filter((field) => !payload[field]);
+  if (missing.length) return `Prefill response missing fields for Jaadugar payload: ${missing.join(', ')}`;
+  if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(payload.pan)) return 'pan must be a valid PAN format';
+  if (!/^\d{10}$/.test(payload.mobile)) return 'mobile must be 10 digits';
+  if (!/^\d{6}$/.test(payload.pincode)) return 'pincode must be 6 digits';
+  return null;
+}
+
+function findStandardApi(apis: SimpleApiConfig[], advancedId: string) {
+  return apis.find((api) => api.id !== advancedId && api.status === 'active' && ['bureau-standard', 'bureau', 'cibil.consumer_score'].includes(api.code));
+}
+
+async function hitPrefillApi(api: SimpleApiConfig, payload: Record<string, unknown>, requestId: string) {
+  const endpoint = api.master_url.trim().replace(/\/+$/, '');
+  if (!endpoint) throw new Error('Mobile Prefill API URL is not configured');
+
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+    'content-type': 'application/json',
+    'X-Auth-Type': 'API-Key',
+    'X-Reference-ID': requestId,
+  };
+  if (api.auth_header && api.auth_token) headers[api.auth_header] = api.auth_token;
+
+  const response = await fetch(endpoint, {
+    method: api.method || 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  const text = await response.text();
+  let data: unknown = text;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text };
+  }
+  return { ok: response.ok, status: response.status, data };
 }
 
 export async function GET(request: NextRequest) {
@@ -110,6 +277,56 @@ export async function POST(request: NextRequest) {
       }
 
       const startedAt = Date.now();
+      if (api.code === 'bureau-advanced') {
+        const standardApi = findStandardApi(store.apis, api.id);
+        if (!standardApi) return jsonError('Bureau API Standard is not configured', 500);
+        if (!isObject(payload)) return jsonError('Request body must be a JSON object');
+        if (payload.consent !== true) return jsonError('consent must be true');
+        const mobile = digits(payload.mobile_number || payload.telephoneNumber || payload.mobile).slice(-10);
+        if (!/^\d{10}$/.test(mobile)) return jsonError('mobile_number must be 10 digits');
+
+        const requestId = `ADMIN-ADV-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+        const prefillPayload = {
+          mobile_number: mobile,
+          first_name: cleanString(payload.first_name || payload.firstName),
+          lastName: cleanString(payload.lastName || payload.last_name),
+          consent: 'Y',
+        };
+        const prefillResponse = await hitPrefillApi(api, prefillPayload, requestId);
+        if (!prefillResponse.ok) {
+          return NextResponse.json({
+            success: false,
+            status: prefillResponse.status,
+            response_time_ms: Date.now() - startedAt,
+            stage: 'mobile_prefill',
+            data: prefillResponse.data,
+          }, { status: 502 });
+        }
+
+        const cibilPayload = buildAdvancedCibilPayload(prefillResponse.data, { ...payload, mobile_number: mobile });
+        const validationError = validateAdvancedCibilPayload(cibilPayload);
+        if (validationError) {
+          return NextResponse.json({
+            success: false,
+            status: 422,
+            response_time_ms: Date.now() - startedAt,
+            stage: 'build_cibil_payload',
+            error: validationError,
+            cibil_payload: cibilPayload,
+          }, { status: 422 });
+        }
+
+        const bureauResponse = await hitMasterApi(standardApi, cibilPayload);
+        return NextResponse.json({
+          success: bureauResponse.ok,
+          status: bureauResponse.status,
+          response_time_ms: Date.now() - startedAt,
+          stage: 'bureau_cibil',
+          cibil_payload: cibilPayload,
+          data: bureauResponse.data,
+        }, { status: bureauResponse.ok ? 200 : 502 });
+      }
+
       const response = await hitMasterApi(api, payload);
       return NextResponse.json({
         success: response.ok,
