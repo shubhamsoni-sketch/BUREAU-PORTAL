@@ -35,6 +35,9 @@ Thumbs.db
 coverage/
 jest-test-results.json
 
+# Local generated handover files
+artifacts/
+
 # Optional: if using IDEs
 .vscode/
 .idea/
