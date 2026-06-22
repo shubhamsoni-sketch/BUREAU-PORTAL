@@ -10,6 +10,8 @@ Summary:
 - Kept the existing partner portal routes untouched while introducing the modern CRM shell.
 - Added dashboard cards for leads, follow-ups, eligibility checks, team users, setup, priorities, exceptions, and business modules.
 - Marked `/crm` as a standalone public workspace so existing partner sessions do not route it through partner portal auth handling.
+- Wired CRM dashboard navigation, module cards, setup links, priorities, and queue items to real `/crm/...` routes.
+- Added a modern catch-all CRM module placeholder so early navigation opens usable CRM pages while detailed workflows are built.
 
 Verification:
 

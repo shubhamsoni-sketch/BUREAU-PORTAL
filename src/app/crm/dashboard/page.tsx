@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   AlertCircle,
   ArrowRight,
@@ -38,28 +39,28 @@ const navGroups = [
   {
     title: '',
     items: [
-      { label: 'Home', icon: Home, active: true },
-      { label: 'Leads', icon: FolderKanban },
-      { label: 'Customers', icon: UsersRound },
-      { label: 'Follow-ups', icon: PhoneCall },
+      { label: 'Home', href: '/crm/dashboard', icon: Home, active: true },
+      { label: 'Leads', href: '/crm/leads', icon: FolderKanban },
+      { label: 'Customers', href: '/crm/customers', icon: UsersRound },
+      { label: 'Follow-ups', href: '/crm/follow-ups', icon: PhoneCall },
     ],
   },
   {
     title: 'Business',
     items: [
-      { label: 'Eligibility Check', icon: ShieldCheck },
-      { label: 'Applications', icon: BriefcaseBusiness },
-      { label: 'Eligibility Reports', icon: FileCheck2 },
-      { label: 'Performance', icon: PieChart },
+      { label: 'Eligibility Check', href: '/crm/eligibility-check', icon: ShieldCheck },
+      { label: 'Applications', href: '/crm/applications', icon: BriefcaseBusiness },
+      { label: 'Eligibility Reports', href: '/crm/eligibility-reports', icon: FileCheck2 },
+      { label: 'Performance', href: '/crm/performance', icon: PieChart },
     ],
   },
   {
     title: 'Setup',
     items: [
-      { label: 'Team Users', icon: UserCheck },
-      { label: 'Eligibility Credits', icon: WalletCards },
-      { label: 'Invoices', icon: FileText },
-      { label: 'Settings', icon: Settings },
+      { label: 'Team Users', href: '/crm/setup/team', icon: UserCheck },
+      { label: 'Eligibility Credits', href: '/crm/setup/eligibility-credits', icon: WalletCards },
+      { label: 'Invoices', href: '/crm/setup/invoices', icon: FileText },
+      { label: 'Settings', href: '/crm/setup/settings', icon: Settings },
     ],
   },
 ];
@@ -100,6 +101,7 @@ const kpis = [
 const modules = [
   {
     title: 'Sales Desk',
+    href: '/crm/leads',
     text: 'Leads, customers, assignments',
     status: 'Open',
     icon: Headphones,
@@ -107,6 +109,7 @@ const modules = [
   },
   {
     title: 'Calling Desk',
+    href: '/crm/follow-ups',
     text: 'Call queue, follow-ups, notes',
     status: 'Ready',
     icon: PhoneCall,
@@ -114,6 +117,7 @@ const modules = [
   },
   {
     title: 'DSA Team',
+    href: '/crm/setup/team',
     text: 'Users, roles, permissions',
     status: 'Setup',
     icon: UsersRound,
@@ -121,6 +125,7 @@ const modules = [
   },
   {
     title: 'Eligibility Engine',
+    href: '/crm/eligibility-check',
     text: 'Standard and advanced checks',
     status: 'Live',
     icon: ShieldCheck,
@@ -128,6 +133,7 @@ const modules = [
   },
   {
     title: 'File Process',
+    href: '/crm/applications',
     text: 'Applications, docs, lender status',
     status: 'Partial',
     icon: BriefcaseBusiness,
@@ -135,6 +141,7 @@ const modules = [
   },
   {
     title: 'Lender Desk',
+    href: '/crm/lenders',
     text: 'Banks, products, query tracking',
     status: 'Next',
     icon: Landmark,
@@ -167,6 +174,7 @@ const team = [
 
 const setupItems: Array<{
   label: string;
+  href: string;
   value: string;
   icon: LucideIcon;
   text: string;
@@ -174,6 +182,7 @@ const setupItems: Array<{
 }> = [
   {
     label: 'Eligibility Credits',
+    href: '/crm/setup/eligibility-credits',
     value: '126 available',
     icon: WalletCards,
     text: 'text-emerald-600',
@@ -181,6 +190,7 @@ const setupItems: Array<{
   },
   {
     label: 'Invoices',
+    href: '/crm/setup/invoices',
     value: '3 unpaid',
     icon: FileText,
     text: 'text-amber-600',
@@ -188,6 +198,7 @@ const setupItems: Array<{
   },
   {
     label: 'Lead Sources',
+    href: '/crm/setup/lead-sources',
     value: '8 configured',
     icon: Gauge,
     text: 'text-indigo-600',
@@ -195,6 +206,7 @@ const setupItems: Array<{
   },
   {
     label: 'Loan Products',
+    href: '/crm/setup/loan-products',
     value: '12 active',
     icon: Banknote,
     text: 'text-sky-600',
@@ -202,11 +214,11 @@ const setupItems: Array<{
   },
 ];
 
-const queueItems: Array<{ label: string; icon: LucideIcon }> = [
-  { label: 'My Tasks', icon: ListTodo },
-  { label: 'My Approvals', icon: CheckCircle2 },
-  { label: 'Calls Today', icon: PhoneCall },
-  { label: 'Files Ageing', icon: Clock3 },
+const queueItems: Array<{ label: string; href: string; icon: LucideIcon }> = [
+  { label: 'My Tasks', href: '/crm/tasks', icon: ListTodo },
+  { label: 'My Approvals', href: '/crm/approvals', icon: CheckCircle2 },
+  { label: 'Calls Today', href: '/crm/follow-ups', icon: PhoneCall },
+  { label: 'Files Ageing', href: '/crm/applications', icon: Clock3 },
 ];
 
 const toneClasses: Record<string, { icon: string; bg: string; text: string; pill: string }> = {
@@ -286,8 +298,9 @@ export default function CrmDashboardPage() {
                   {group.items.map((item) => {
                     const Icon = item.icon;
                     return (
-                      <button
+                      <Link
                         key={item.label}
+                        href={item.href}
                         className={`flex h-14 w-full items-center gap-4 rounded-2xl px-5 text-left text-[15px] font-semibold transition ${
                           item.active
                             ? 'bg-white/12 text-white shadow-inner'
@@ -296,7 +309,7 @@ export default function CrmDashboardPage() {
                       >
                         <Icon size={20} />
                         <span className="truncate">{item.label}</span>
-                      </button>
+                      </Link>
                     );
                   })}
                 </div>
@@ -364,12 +377,18 @@ export default function CrmDashboardPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-3">
-                    <button className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-slate-900/10">
+                    <Link
+                      href="/crm/leads"
+                      className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-slate-900/10"
+                    >
                       Add Lead
-                    </button>
-                    <button className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700">
+                    </Link>
+                    <Link
+                      href="/crm/eligibility-check"
+                      className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700"
+                    >
                       Run Eligibility
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </section>
@@ -425,8 +444,9 @@ export default function CrmDashboardPage() {
                       const Icon = item.icon;
                       const tone = toneClasses[item.tone];
                       return (
-                        <article
+                        <Link
                           key={item.title}
+                          href={item.href}
                           className="group min-h-[210px] rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
                         >
                           <div
@@ -451,7 +471,7 @@ export default function CrmDashboardPage() {
                               className="text-slate-300 transition group-hover:text-indigo-600"
                             />
                           </div>
-                        </article>
+                        </Link>
                       );
                     })}
                   </div>
@@ -466,9 +486,12 @@ export default function CrmDashboardPage() {
                           Role-based access from day one.
                         </p>
                       </div>
-                      <button className="rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white">
+                      <Link
+                        href="/crm/setup/team"
+                        className="rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white"
+                      >
                         Add User
-                      </button>
+                      </Link>
                     </div>
                     <div className="space-y-3">
                       {team.map((member) => (
@@ -512,8 +535,9 @@ export default function CrmDashboardPage() {
                       {setupItems.map((item) => {
                         const Icon = item.icon;
                         return (
-                          <div
+                          <Link
                             key={item.label}
+                            href={item.href}
                             className="flex items-center gap-3 rounded-2xl border border-slate-100 p-4"
                           >
                             <div
@@ -526,7 +550,7 @@ export default function CrmDashboardPage() {
                               <p className="text-sm text-slate-500">{item.value}</p>
                             </div>
                             <ChevronRight size={18} className="text-slate-300" />
-                          </div>
+                          </Link>
                         );
                       })}
                     </div>
@@ -543,8 +567,19 @@ export default function CrmDashboardPage() {
                     const Icon = item.icon;
                     const tone = toneClasses[item.tone];
                     return (
-                      <button
+                      <Link
                         key={item.label}
+                        href={
+                          item.label === 'Pending Follow-ups'
+                            ? '/crm/follow-ups'
+                            : item.label === 'Documents Pending'
+                              ? '/crm/applications'
+                              : item.label === 'Eligibility No-hit Review'
+                                ? '/crm/eligibility-reports'
+                                : item.label === 'Lender Queries'
+                                  ? '/crm/lenders'
+                                  : '/crm/applications'
+                        }
                         className="flex w-full items-center gap-4 rounded-2xl p-3 text-left transition hover:bg-slate-50"
                       >
                         <span
@@ -559,7 +594,7 @@ export default function CrmDashboardPage() {
                           {item.value}
                         </span>
                         <ChevronRight size={17} className="text-slate-300" />
-                      </button>
+                      </Link>
                     );
                   })}
                 </div>
@@ -587,14 +622,15 @@ export default function CrmDashboardPage() {
                     {queueItems.map((item) => {
                       const Icon = item.icon;
                       return (
-                        <button
+                        <Link
                           key={item.label}
+                          href={item.href}
                           className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-slate-50"
                         >
                           <Icon size={18} className="text-slate-400" />
                           <span className="flex-1 font-semibold text-slate-700">{item.label}</span>
                           <ChevronRight size={17} className="text-slate-300" />
-                        </button>
+                        </Link>
                       );
                     })}
                   </div>
