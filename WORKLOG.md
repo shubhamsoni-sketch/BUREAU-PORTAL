@@ -9,6 +9,7 @@ Summary:
 - Added a parallel `/crm/dashboard` workspace for the new CreditTrust DSA CRM experience.
 - Kept the existing partner portal routes untouched while introducing the modern CRM shell.
 - Added dashboard cards for leads, follow-ups, eligibility checks, team users, setup, priorities, exceptions, and business modules.
+- Marked `/crm` as a standalone public workspace so existing partner sessions do not route it through partner portal auth handling.
 
 Verification:
 
