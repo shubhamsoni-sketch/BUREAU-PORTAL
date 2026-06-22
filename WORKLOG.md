@@ -12,6 +12,7 @@ Summary:
 - Marked `/crm` as a standalone public workspace so existing partner sessions do not route it through partner portal auth handling.
 - Wired CRM dashboard navigation, module cards, setup links, priorities, and queue items to real `/crm/...` routes.
 - Added a modern catch-all CRM module placeholder so early navigation opens usable CRM pages while detailed workflows are built.
+- Replaced the generic CRM placeholder with route-specific module screens for leads, customers, follow-ups, applications, eligibility, reports, performance, lenders, tasks, approvals, and setup.
 
 Verification:
 
