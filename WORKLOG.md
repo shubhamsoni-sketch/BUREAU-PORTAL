@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-23 - Developer - DSA CRM Dashboard Shell
+
+Summary:
+
+- Added a parallel `/crm/dashboard` workspace for the new CreditTrust DSA CRM experience.
+- Kept the existing partner portal routes untouched while introducing the modern CRM shell.
+- Added dashboard cards for leads, follow-ups, eligibility checks, team users, setup, priorities, exceptions, and business modules.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=... npm run build` passed.
+
 ## 2026-06-02 - Developer - Prefill Payload Mapping Fix
 
 Summary:
