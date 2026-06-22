@@ -3,6 +3,7 @@ module.exports = {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/crm/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
@@ -11,6 +12,12 @@ module.exports = {
         sans: ['DM Sans', 'sans-serif'],
         mono: ['IBM Plex Mono', 'monospace'],
         display: ['Fraunces', 'serif'],
+      },
+      fontWeight: {
+        500: '500',
+        600: '600',
+        700: '700',
+        800: '800',
       },
       colors: {
         background: 'hsl(var(--background))',
@@ -45,10 +52,16 @@ module.exports = {
         warning: {
           DEFAULT: 'hsl(var(--warning))',
           foreground: 'hsl(var(--warning-foreground))',
+          bg: '#FFFBEB',
         },
         success: {
           DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',
+          bg: '#F0FDF4',
+        },
+        info: {
+          DEFAULT: '#0369A1',
+          bg: '#F0F9FF',
         },
         bg: {
           DEFAULT: '#060E1A',
@@ -60,7 +73,11 @@ module.exports = {
           muted: '#7A9BB5',
           subtle: '#3D5A73',
         },
-        danger: '#FF4D6D',
+        danger: {
+          DEFAULT: '#FF4D6D',
+          foreground: '#FFFFFF',
+          bg: '#FEF2F2',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -83,9 +100,9 @@ module.exports = {
           'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0,212,170,0.15) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 80%, rgba(245,166,35,0.08) 0%, transparent 50%)',
       },
       transitionDuration: {
-        '150': '150ms',
-        '200': '200ms',
-        '300': '300ms',
+        150: '150ms',
+        200: '200ms',
+        300: '300ms',
       },
     },
   },

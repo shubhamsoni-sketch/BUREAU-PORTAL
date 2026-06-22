@@ -2,17 +2,15 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
-## 2026-06-23 - Developer - DSA CRM Dashboard Shell
+## 2026-06-23 - Developer - DSA CRM Zip Integration And Eligibility Backend
 
 Summary:
 
-- Added a parallel `/crm/dashboard` workspace for the new CreditTrust DSA CRM experience.
-- Kept the existing partner portal routes untouched while introducing the modern CRM shell.
-- Added dashboard cards for leads, follow-ups, eligibility checks, team users, setup, priorities, exceptions, and business modules.
-- Marked `/crm` as a standalone public workspace so existing partner sessions do not route it through partner portal auth handling.
-- Wired CRM dashboard navigation, module cards, setup links, priorities, and queue items to real `/crm/...` routes.
-- Added a modern catch-all CRM module placeholder so early navigation opens usable CRM pages while detailed workflows are built.
-- Replaced the generic CRM placeholder with route-specific module screens for leads, customers, follow-ups, applications, eligibility, reports, performance, lenders, tasks, approvals, and setup.
+- Replaced the earlier custom `/crm` shell with the provided DSA CRM UI from `dsa_crm.zip`.
+- Mounted the CRM under `/crm` with zip routes for dashboard, lead management, loan tracking, lender management, team management, tools, reports, eligibility check, eligibility reports, and eligibility credits.
+- Kept the provided CRM UI structure intact while isolating its shared components under `src/crm`.
+- Added `/api/crm/eligibility-check` backend with CRM eligibility credits, report persistence, and Bureau Standard API Hub integration.
+- Wired Eligibility Check to call the backend and Eligibility Reports/Credits to read from the CRM store.
 
 Verification:
 
