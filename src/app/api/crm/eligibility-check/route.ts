@@ -4,9 +4,11 @@ import {
   getApiHubStore,
   hitMasterApi,
   saveApiHubStore,
+  SimpleApiConfig,
 } from '@/lib/api-hub/simple-store';
 import { maskMobile, maskPan } from '@/lib/api-hub/keys';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getStateName } from '@/lib/bureau/state-codes';
 
 const CRM_STORE_MOBILE = '0000000001';
 const CRM_STORE_STATUS = 'crm_store';
@@ -98,6 +100,22 @@ function splitName(fullName: string) {
   };
 }
 
+function normalizeGender(value: unknown) {
+  const gender = cleanString(value).toLowerCase();
+  if (gender === '1' || gender.includes('female')) return 'female';
+  if (gender === '2' || gender.includes('male')) return 'male';
+  if (gender === '3' || gender.includes('trans')) return 'transgender';
+  return gender;
+}
+
+function normalizeDob(value: unknown) {
+  const raw = cleanString(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const indian = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (indian) return `${indian[1].padStart(2, '0')}/${indian[2].padStart(2, '0')}/${indian[3]}`;
+  return raw;
+}
+
 function stateFromPincode(pincode: string, city: string) {
   const prefix = pincode.slice(0, 2);
   const cityText = city.toLowerCase();
@@ -161,6 +179,147 @@ function stateFromPincode(pincode: string, city: string) {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function nestedObject(source: unknown, path: string[]) {
+  let current = source;
+  for (const key of path) {
+    if (!isObject(current)) return {};
+    current = current[key];
+  }
+  return isObject(current) ? current : {};
+}
+
+function personalDataCandidates(prefill: unknown) {
+  return [
+    nestedObject(prefill, ['data', 'data', 'personal_data']),
+    nestedObject(prefill, ['data', 'personal_data']),
+    nestedObject(prefill, ['personal_data']),
+  ].filter((item) => Object.keys(item).length);
+}
+
+function getPersonalInfo(prefill: unknown) {
+  for (const personalData of personalDataCandidates(prefill)) {
+    const info = personalData.personal_information;
+    if (isObject(info)) return info;
+  }
+  return {};
+}
+
+function parseReportedDate(value: unknown) {
+  const text = cleanString(value);
+  const time = text ? Date.parse(text) : NaN;
+  return Number.isFinite(time) ? time : 0;
+}
+
+function chooseBestAddress(prefill: unknown) {
+  const addresses = personalDataCandidates(prefill).flatMap((personalData) =>
+    Array.isArray(personalData.address) ? personalData.address.filter(isObject) : []
+  );
+  return addresses
+    .map((address) => ({
+      state: cleanString(address.state || address.state_name || address.stateName),
+      pincode: digits(address.pincode || address.pinCode || address.postal_code).slice(0, 6),
+      detailedAddress: cleanString(address.detailed_address || address.address),
+      reportedAt: parseReportedDate(address.date_of_reporting || address.updated_at),
+    }))
+    .filter((address) => /^\d{6}$/.test(address.pincode) && address.detailedAddress)
+    .sort((a, b) => b.reportedAt - a.reportedAt)[0];
+}
+
+function documentValue(prefill: unknown, documentKey: string) {
+  for (const personalData of personalDataCandidates(prefill)) {
+    const documentData = personalData.document_data;
+    if (!isObject(documentData)) continue;
+    const value = documentData[documentKey];
+    if (Array.isArray(value)) {
+      const first = value.find(isObject);
+      const text = cleanString(first?.value);
+      if (text) return text;
+    }
+    const text = cleanString(value);
+    if (text) return text;
+  }
+  return '';
+}
+
+function buildPrefillCibilPayload(prefill: unknown, mobile: string) {
+  const personalInfo = getPersonalInfo(prefill);
+  const bestAddress = chooseBestAddress(prefill);
+  const fullName = cleanString(
+    personalInfo.full_name || personalInfo.fullName || personalInfo.name
+  );
+  const name = splitName(fullName);
+  const state = getStateName(bestAddress?.state || '');
+
+  return {
+    firstName: name.firstName,
+    lastName: name.lastName,
+    dob: normalizeDob(personalInfo.date_of_birth || personalInfo.dateOfBirth || personalInfo.dob),
+    gender: normalizeGender(personalInfo.gender || personalInfo.sex),
+    pan: documentValue(prefill, 'pan').toUpperCase(),
+    mobile,
+    address: bestAddress?.detailedAddress || '',
+    state,
+    pincode: bestAddress?.pincode || '',
+  };
+}
+
+function validateCibilPayload(payload: Record<string, unknown>) {
+  const required = [
+    'firstName',
+    'lastName',
+    'dob',
+    'gender',
+    'pan',
+    'mobile',
+    'address',
+    'state',
+    'pincode',
+  ];
+  const missing = required.filter((field) => !cleanString(payload[field]));
+  if (missing.length) return `Missing bureau payload fields: ${missing.join(', ')}`;
+  if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(cleanString(payload.pan))) return 'Valid PAN is required';
+  if (!/^\d{10}$/.test(digits(payload.mobile))) return 'Valid mobile is required';
+  if (!/^\d{6}$/.test(digits(payload.pincode))) return 'Valid pincode is required';
+  return null;
+}
+
+async function hitPrefillApi(api: SimpleApiConfig, mobile: string, requestId: string) {
+  const endpoint = api.master_url.trim().replace(/\/+$/, '');
+  if (!endpoint) throw new Error('Bureau Advanced / Mobile Prefill API is not configured');
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+    'content-type': 'application/json',
+    'X-Auth-Type': 'API-Key',
+    'X-Reference-ID': requestId,
+  };
+  if (api.auth_header && api.auth_token) headers[api.auth_header] = api.auth_token;
+  const response = await fetch(endpoint, {
+    method: api.method || 'POST',
+    headers,
+    body: JSON.stringify({ mobile_number: mobile, consent: 'Y' }),
+  });
+  const text = await response.text();
+  let data: unknown = text;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text };
+  }
+  return { ok: response.ok, status: response.status, data };
+}
+
+function findStandardApi(apis: SimpleApiConfig[]) {
+  return apis.find(
+    (api) =>
+      api.status === 'active' &&
+      ['bureau', 'bureau-standard', 'cibil.consumer_score'].includes(api.code)
+  );
+}
+
+function findAdvancedApi(apis: SimpleApiConfig[]) {
+  return apis.find((api) => api.status === 'active' && api.code === 'bureau-advanced');
 }
 
 function findScore(value: unknown): number | null {
@@ -322,8 +481,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, data: store });
     }
 
-    const fullName = cleanString(body.fullName);
-    const name = splitName(fullName);
+    const mode = cleanString(body.mode || 'full_details');
+    const firstName = cleanString(body.firstName);
+    const lastName = cleanString(body.lastName);
+    const fullName =
+      cleanString(body.fullName) || [firstName, lastName].filter(Boolean).join(' ').trim();
+    const name = firstName || lastName ? { firstName, lastName } : splitName(fullName);
     const mobile = digits(body.mobile).slice(-10);
     const pan = cleanString(body.pan).toUpperCase();
     const pincode = digits(body.pincode).slice(0, 6);
@@ -335,12 +498,7 @@ export async function POST(request: NextRequest) {
     const existingEmi = Number(body.existingEMI || 0);
     const tenure = Math.max(1, Number(body.tenure || 60));
 
-    if (!fullName) return jsonError('Full name is required', 400);
     if (!/^\d{10}$/.test(mobile)) return jsonError('Valid mobile is required', 400);
-    if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(pan)) return jsonError('Valid PAN is required', 400);
-    if (!loanType) return jsonError('Loan type is required', 400);
-    if (!loanAmount || loanAmount <= 0) return jsonError('Loan amount is required', 400);
-    if (!monthlyIncome || monthlyIncome <= 0) return jsonError('Monthly income is required', 400);
 
     const supabase = createAdminClient();
     const { rowId: crmRowId, store: crmStore } = await getCrmStore(supabase);
@@ -349,33 +507,62 @@ export async function POST(request: NextRequest) {
       return jsonError('Insufficient eligibility credits', 402);
 
     const { rowId: apiHubRowId, store: apiHubStore } = await getApiHubStore(supabase);
-    const bureauApi =
-      apiHubStore.apis.find(
-        (api) =>
-          api.status === 'active' &&
-          ['bureau', 'bureau-standard', 'cibil.consumer_score'].includes(api.code)
-      ) || defaultBureauApi;
+    const bureauApi = findStandardApi(apiHubStore.apis) || defaultBureauApi;
     if (!bureauApi.master_url)
       return jsonError('Bureau API Standard is not configured in API Hub', 500);
 
-    const state = stateFromPincode(pincode, city);
-    const cibilPayload = {
-      firstName: name.firstName,
-      lastName: name.lastName,
-      dob,
-      gender: cleanString(body.gender) || 'male',
-      pan,
-      mobile,
-      address: cleanString(body.address) || [city, pincode].filter(Boolean).join(' '),
-      state,
-      pincode,
-    };
+    let cibilPayload: Record<string, unknown>;
+    let borrowerName = fullName || 'Mobile Customer';
 
-    const missing = Object.entries(cibilPayload)
-      .filter(([, value]) => !cleanString(value))
-      .map(([key]) => key);
-    if (missing.length)
-      return jsonError(`Missing bureau payload fields: ${missing.join(', ')}`, 400);
+    if (mode === 'mobile_advanced') {
+      const advancedApi = findAdvancedApi(apiHubStore.apis);
+      if (!advancedApi?.master_url)
+        return jsonError('Bureau API Advanced / Mobile Prefill is not configured in API Hub', 500);
+
+      const prefillResponse = await hitPrefillApi(advancedApi, mobile, requestId);
+      if (!prefillResponse.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            request_id: requestId,
+            error: `Mobile Prefill API failed with ${prefillResponse.status}`,
+            data: prefillResponse.data,
+          },
+          { status: 502 }
+        );
+      }
+
+      cibilPayload = buildPrefillCibilPayload(prefillResponse.data, mobile);
+      borrowerName = [cleanString(cibilPayload.firstName), cleanString(cibilPayload.lastName)]
+        .filter(Boolean)
+        .join(' ');
+    } else {
+      if (!name.firstName) return jsonError('First name is required', 400);
+      if (!name.lastName) return jsonError('Last name is required', 400);
+      if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(pan)) return jsonError('Valid PAN is required', 400);
+      if (!dob) return jsonError('Date of birth is required', 400);
+      if (!cleanString(body.gender)) return jsonError('Gender is required', 400);
+      if (!cleanString(body.address)) return jsonError('Address is required', 400);
+      if (!loanType) return jsonError('Loan type is required', 400);
+      if (!loanAmount || loanAmount <= 0) return jsonError('Loan amount is required', 400);
+      if (!monthlyIncome || monthlyIncome <= 0) return jsonError('Monthly income is required', 400);
+
+      const state = cleanString(body.state) || stateFromPincode(pincode, city);
+      cibilPayload = {
+        firstName: name.firstName,
+        lastName: name.lastName,
+        dob,
+        gender: normalizeGender(body.gender),
+        pan,
+        mobile,
+        address: cleanString(body.address),
+        state,
+        pincode,
+      };
+    }
+
+    const validationError = validateCibilPayload(cibilPayload);
+    if (validationError) return jsonError(validationError, mode === 'mobile_advanced' ? 422 : 400);
 
     const bureauResponse = await hitMasterApi(bureauApi, cibilPayload);
     if (!bureauResponse.ok) {
@@ -394,17 +581,26 @@ export async function POST(request: NextRequest) {
     const score = findScore(bureauResponse.data);
     const status = findStatus(bureauResponse.data) || (score ? 'score_pulled' : 'no_hit');
     const r = 10.5 / 12 / 100;
-    const emi = (loanAmount * r * Math.pow(1 + r, tenure)) / (Math.pow(1 + r, tenure) - 1);
-    const foir = Math.round(((existingEmi + emi) / monthlyIncome) * 100);
-    const eligible = Boolean(score && score >= 680 && foir <= 55);
+    const emi =
+      loanAmount > 0
+        ? (loanAmount * r * Math.pow(1 + r, tenure)) / (Math.pow(1 + r, tenure) - 1)
+        : 0;
+    const foir = monthlyIncome > 0 ? Math.round(((existingEmi + emi) / monthlyIncome) * 100) : 0;
+    const eligible = Boolean(score && score >= 680 && (monthlyIncome > 0 ? foir <= 55 : true));
     const maxLoanAmount = Math.max(
       0,
-      Math.round(((monthlyIncome * 0.55) / r) * (1 - Math.pow(1 + r, -tenure)))
+      monthlyIncome > 0
+        ? Math.round(((monthlyIncome * 0.55) / r) * (1 - Math.pow(1 + r, -tenure)))
+        : 0
     );
 
     const remarks = [
       score ? `Bureau score received: ${score}` : `Bureau response status: ${status}`,
-      foir <= 55 ? `FOIR within policy at ${foir}%` : `FOIR is high at ${foir}%`,
+      monthlyIncome > 0
+        ? foir <= 55
+          ? `FOIR within policy at ${foir}%`
+          : `FOIR is high at ${foir}%`
+        : 'Mobile flow completed. Add income and loan details for FOIR-based lender matching.',
       eligible
         ? 'Customer is eligible as per CRM policy.'
         : 'Customer needs manual review or alternate lender mapping.',
@@ -413,10 +609,10 @@ export async function POST(request: NextRequest) {
     const report: CrmEligibilityReport = {
       id: crypto.randomUUID(),
       request_id: requestId,
-      borrower_name: fullName,
-      pan: maskPan(pan),
+      borrower_name: borrowerName,
+      pan: maskPan(cleanString(cibilPayload.pan)),
       mobile: maskMobile(mobile),
-      loan_type: loanType,
+      loan_type: loanType || (mode === 'mobile_advanced' ? 'mobile_advanced' : ''),
       loan_amount: loanAmount,
       score,
       eligible,
@@ -436,7 +632,7 @@ export async function POST(request: NextRequest) {
       id: crypto.randomUUID(),
       type: 'debit',
       credits: creditCost,
-      description: `Eligibility check for ${fullName}`,
+      description: `Eligibility check for ${borrowerName}`,
       status: 'paid',
       created_at: new Date().toISOString(),
     };

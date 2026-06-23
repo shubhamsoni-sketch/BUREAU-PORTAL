@@ -1,25 +1,27 @@
 'use client';
+
 import React, { useState } from 'react';
 import Link from 'next/link';
 
-type EmploymentType = 'salaried' | 'self_employed' | 'business' | 'professional';
+type EligibilityMode = 'mobile_advanced' | 'full_details';
 type LoanType = 'home_loan' | 'personal_loan' | 'business_loan' | 'lap' | 'car_loan';
 
 interface EligibilityForm {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   mobile: string;
-  email: string;
   dob: string;
   pan: string;
-  employmentType: EmploymentType | '';
+  address: string;
+  pincode: string;
+  state: string;
+  gender: string;
   monthlyIncome: string;
   otherIncome: string;
   existingEMI: string;
   loanType: LoanType | '';
   loanAmount: string;
   tenure: string;
-  city: string;
-  pincode: string;
 }
 
 interface EligibilityResult {
@@ -31,33 +33,50 @@ interface EligibilityResult {
   foir: number;
   remarks: string[];
   matchedLenders: { name: string; roi: string; maxLoan: string }[];
+  rawBureauResponse?: unknown;
 }
 
 const emptyForm: EligibilityForm = {
-  fullName: '',
+  firstName: '',
+  lastName: '',
   mobile: '',
-  email: '',
   dob: '',
   pan: '',
-  employmentType: '',
+  address: '',
+  pincode: '',
+  state: '',
+  gender: '',
   monthlyIncome: '',
   otherIncome: '',
   existingEMI: '',
   loanType: '',
   loanAmount: '',
-  tenure: '',
-  city: '',
-  pincode: '',
+  tenure: '60',
 };
+
+const stateOptions = [
+  'MADHYA PRADESH',
+  'MAHARASHTRA',
+  'DELHI',
+  'RAJASTHAN',
+  'GUJARAT',
+  'KARNATAKA',
+  'TAMIL NADU',
+  'UTTAR PRADESH',
+  'HARYANA',
+  'PUNJAB',
+  'WEST BENGAL',
+];
 
 const formatINR = (n: number) =>
   new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 0,
-  }).format(n);
+  }).format(Number.isFinite(n) ? n : 0);
 
 export default function EligibilityCheckContent() {
+  const [mode, setMode] = useState<EligibilityMode>('mobile_advanced');
   const [form, setForm] = useState<EligibilityForm>(emptyForm);
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<EligibilityResult | null>(null);
@@ -65,35 +84,58 @@ export default function EligibilityCheckContent() {
   const [serverError, setServerError] = useState('');
 
   const setField = (key: keyof EligibilityForm, value: string) => {
-    setForm((p) => ({ ...p, [key]: value }));
-    setErrors((p) => {
-      const n = { ...p };
-      delete n[key];
-      return n;
+    setForm((previous) => ({ ...previous, [key]: value }));
+    setErrors((previous) => {
+      const next = { ...previous };
+      delete next[key];
+      return next;
     });
   };
 
+  const selectMode = (nextMode: EligibilityMode) => {
+    setMode(nextMode);
+    setErrors({});
+    setServerError('');
+    setResult(null);
+  };
+
   const validate = () => {
-    const e: Record<string, string> = {};
-    if (!form.fullName.trim()) e.fullName = 'Full name is required';
-    if (!form.mobile || !/^[6-9]\d{9}$/.test(form.mobile)) e.mobile = '10-digit mobile required';
-    if (!form.pan || !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(form.pan.toUpperCase()))
-      e.pan = 'Valid PAN required (e.g. ABCDE1234F)';
-    if (!form.employmentType) e.employmentType = 'Select employment type';
-    if (!form.monthlyIncome || isNaN(Number(form.monthlyIncome)))
-      e.monthlyIncome = 'Monthly income required';
-    if (!form.loanType) e.loanType = 'Select loan type';
-    if (!form.loanAmount || isNaN(Number(form.loanAmount))) e.loanAmount = 'Loan amount required';
-    if (!form.tenure || isNaN(Number(form.tenure))) e.tenure = 'Tenure required';
-    return e;
+    const nextErrors: Record<string, string> = {};
+    if (!/^[6-9]\d{9}$/.test(form.mobile)) {
+      nextErrors.mobile = '10-digit mobile required';
+    }
+
+    if (mode === 'full_details') {
+      if (!form.firstName.trim()) nextErrors.firstName = 'First name is required';
+      if (!form.lastName.trim()) nextErrors.lastName = 'Last name is required';
+      if (!form.dob) nextErrors.dob = 'Date of birth is required';
+      if (!form.gender) nextErrors.gender = 'Gender is required';
+      if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(form.pan.toUpperCase())) {
+        nextErrors.pan = 'Valid PAN required';
+      }
+      if (!form.address.trim()) nextErrors.address = 'Address is required';
+      if (!/^\d{6}$/.test(form.pincode)) nextErrors.pincode = '6-digit pincode required';
+      if (!form.state) nextErrors.state = 'State is required';
+      if (!form.monthlyIncome || isNaN(Number(form.monthlyIncome))) {
+        nextErrors.monthlyIncome = 'Monthly income required';
+      }
+      if (!form.loanType) nextErrors.loanType = 'Select loan type';
+      if (!form.loanAmount || isNaN(Number(form.loanAmount))) {
+        nextErrors.loanAmount = 'Loan amount required';
+      }
+      if (!form.tenure || isNaN(Number(form.tenure))) nextErrors.tenure = 'Tenure required';
+    }
+
+    return nextErrors;
   };
 
   const handleCheck = async () => {
-    const e = validate();
-    if (Object.keys(e).length > 0) {
-      setErrors(e);
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       return;
     }
+
     setChecking(true);
     setResult(null);
     setServerError('');
@@ -101,12 +143,10 @@ export default function EligibilityCheckContent() {
       const response = await fetch('/api/crm/eligibility-check', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...form, consent: true }),
+        body: JSON.stringify({ ...form, mode, consent: true }),
       });
       const json = await response.json();
-      if (!response.ok || !json.success) {
-        throw new Error(json.error || 'Eligibility check failed');
-      }
+      if (!response.ok || !json.success) throw new Error(json.error || 'Eligibility check failed');
       setResult(json.data as EligibilityResult);
     } catch (error) {
       setServerError(error instanceof Error ? error.message : 'Eligibility check failed');
@@ -136,7 +176,7 @@ export default function EligibilityCheckContent() {
         <div>
           <h1 className="text-2xl font-700 text-foreground">Eligibility Checker</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Assess borrower eligibility and get matched lender recommendations
+            Pull bureau data and assess lender eligibility from one screen
           </p>
         </div>
         <Link
@@ -160,457 +200,565 @@ export default function EligibilityCheckContent() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Form */}
-        <div className="lg:col-span-3 bg-card rounded-lg border border-border shadow-card p-5 space-y-5">
-          {/* Personal Info */}
-          <div>
-            <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
-              Borrower Information
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">
-                  Full Name <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.fullName}
-                  onChange={(e) => setField('fullName', e.target.value)}
-                  placeholder="Ramesh Gupta"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-                {errors.fullName && <p className="text-xs text-danger">{errors.fullName}</p>}
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">
-                  Mobile <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={form.mobile}
-                  onChange={(e) => setField('mobile', e.target.value)}
-                  placeholder="9876543210"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-                {errors.mobile && <p className="text-xs text-danger">{errors.mobile}</p>}
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">
-                  PAN Number <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.pan}
-                  onChange={(e) => setField('pan', e.target.value.toUpperCase())}
-                  placeholder="ABCDE1234F"
-                  maxLength={10}
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 uppercase"
-                />
-                {errors.pan && <p className="text-xs text-danger">{errors.pan}</p>}
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">Date of Birth</label>
-                <input
-                  type="date"
-                  value={form.dob}
-                  onChange={(e) => setField('dob', e.target.value)}
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">City</label>
-                <input
-                  type="text"
-                  value={form.city}
-                  onChange={(e) => setField('city', e.target.value)}
-                  placeholder="Mumbai"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">Pincode</label>
-                <input
-                  type="text"
-                  value={form.pincode}
-                  onChange={(e) => setField('pincode', e.target.value)}
-                  placeholder="400001"
-                  maxLength={6}
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Financial Info */}
-          <div>
-            <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
-              Financial Profile
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">
-                  Employment Type <span className="text-danger">*</span>
-                </label>
-                <select
-                  value={form.employmentType}
-                  onChange={(e) => setField('employmentType', e.target.value)}
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                >
-                  <option value="">Select type</option>
-                  <option value="salaried">Salaried</option>
-                  <option value="self_employed">Self Employed</option>
-                  <option value="business">Business Owner</option>
-                  <option value="professional">Professional (CA/Doctor)</option>
-                </select>
-                {errors.employmentType && (
-                  <p className="text-xs text-danger">{errors.employmentType}</p>
-                )}
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">
-                  Monthly Income (₹) <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={form.monthlyIncome}
-                  onChange={(e) => setField('monthlyIncome', e.target.value)}
-                  placeholder="75000"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-                {errors.monthlyIncome && (
-                  <p className="text-xs text-danger">{errors.monthlyIncome}</p>
-                )}
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">
-                  Other Monthly Income (₹)
-                </label>
-                <input
-                  type="number"
-                  value={form.otherIncome}
-                  onChange={(e) => setField('otherIncome', e.target.value)}
-                  placeholder="0"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">
-                  Existing EMI Obligations (₹/month)
-                </label>
-                <input
-                  type="number"
-                  value={form.existingEMI}
-                  onChange={(e) => setField('existingEMI', e.target.value)}
-                  placeholder="0"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Loan Details */}
-          <div>
-            <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
-              Loan Requirements
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">
-                  Loan Type <span className="text-danger">*</span>
-                </label>
-                <select
-                  value={form.loanType}
-                  onChange={(e) => setField('loanType', e.target.value)}
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                >
-                  <option value="">Select loan type</option>
-                  <option value="home_loan">Home Loan</option>
-                  <option value="personal_loan">Personal Loan</option>
-                  <option value="business_loan">Business Loan</option>
-                  <option value="lap">Loan Against Property</option>
-                  <option value="car_loan">Car Loan</option>
-                </select>
-                {errors.loanType && <p className="text-xs text-danger">{errors.loanType}</p>}
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">
-                  Required Loan Amount (₹) <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={form.loanAmount}
-                  onChange={(e) => setField('loanAmount', e.target.value)}
-                  placeholder="2500000"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-                {errors.loanAmount && <p className="text-xs text-danger">{errors.loanAmount}</p>}
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">
-                  Tenure (months) <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={form.tenure}
-                  onChange={(e) => setField('tenure', e.target.value)}
-                  placeholder="60"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-                {errors.tenure && <p className="text-xs text-danger">{errors.tenure}</p>}
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-border">
-            <div className="bg-muted/40 rounded-lg p-3 mb-4 text-xs text-muted-foreground">
-              <p className="font-600 text-foreground mb-1">How it works</p>
-              <p>
-                CreditTrust uses eligibility credits to run the configured Bureau API engine and
-                saves the report in CRM history.
-              </p>
-            </div>
-            {serverError && (
-              <div className="bg-danger/5 border border-danger/20 rounded-sm p-3 mb-4 text-xs font-600 text-danger">
-                {serverError}
-              </div>
-            )}
-            <button
-              onClick={handleCheck}
-              disabled={checking}
-              className="w-full h-10 rounded-sm bg-primary text-primary-foreground text-sm font-700 hover:bg-primary/90 active:scale-95 transition-all duration-150 disabled:opacity-60 flex items-center justify-center gap-2"
-            >
-              {checking ? (
-                <>
-                  <svg
-                    className="animate-spin"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                  </svg>
-                  Checking Eligibility...
-                </>
-              ) : (
-                <>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  Check Eligibility
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Result Panel */}
-        <div className="lg:col-span-2 space-y-4">
-          {result ? (
-            <>
-              {/* Eligibility verdict */}
-              <div
-                className={`rounded-lg border p-5 ${result.eligible ? 'bg-success/5 border-success/20' : 'bg-danger/5 border-danger/20'}`}
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        <div className="xl:col-span-3 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[
+              {
+                id: 'mobile_advanced' as const,
+                title: 'Check Eligibility by Mobile',
+                desc: 'Enter mobile number and run the advanced bureau flow in background.',
+              },
+              {
+                id: 'full_details' as const,
+                title: 'Check Eligibility with Full Details',
+                desc: 'Enter customer, bureau, income, and loan details for lender matching.',
+              },
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => selectMode(item.id)}
+                className={[
+                  'text-left rounded-lg border p-4 transition-all shadow-card bg-card',
+                  mode === item.id
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/40 hover:bg-muted/30',
+                ].join(' ')}
               >
-                <div className="flex items-center gap-3 mb-3">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${result.eligible ? 'bg-success/10' : 'bg-danger/10'}`}
-                  >
-                    {result.eligible ? (
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="var(--success)"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    ) : (
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="var(--danger)"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    )}
-                  </div>
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p
-                      className={`text-base font-700 ${result.eligible ? 'text-success' : 'text-danger'}`}
-                    >
-                      {result.eligible ? 'Eligible for Loan' : 'Not Eligible'}
+                    <h2 className="text-sm font-700 text-foreground">{item.title}</h2>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      {item.desc}
                     </p>
-                    <p className="text-xs text-muted-foreground">{form.fullName}</p>
                   </div>
-                </div>
-                {result.eligible && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-background/60 rounded-sm p-2">
-                      <p className="text-[10px] text-muted-foreground">Max Eligible Loan</p>
-                      <p className="text-sm font-700 text-foreground">
-                        {formatINR(result.maxLoanAmount)}
-                      </p>
-                    </div>
-                    <div className="bg-background/60 rounded-sm p-2">
-                      <p className="text-[10px] text-muted-foreground">Est. Monthly EMI</p>
-                      <p className="text-sm font-700 text-foreground">
-                        {formatINR(result.recommendedEMI)}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Credit Score */}
-              <div className="bg-card rounded-lg border border-border shadow-card p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-700 text-foreground">Credit Score</p>
                   <span
-                    className={`text-xs font-700 px-2 py-0.5 rounded-full ${result.score >= 750 ? 'bg-success/10 text-success' : result.score >= 680 ? 'bg-warning/10 text-warning' : 'bg-danger/10 text-danger'}`}
-                  >
-                    {result.scoreGrade}
-                  </span>
-                </div>
-                <div className="flex items-end gap-3 mb-2">
-                  <span className={`text-4xl font-700 tabular-nums ${scoreColor}`}>
-                    {result.score}
-                  </span>
-                  <span className="text-xs text-muted-foreground mb-1">/ 900</span>
-                </div>
-                <div className="h-2 rounded-full bg-border overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ${scoreBarColor}`}
-                    style={{ width: `${((result.score - 300) / 600) * 100}%` }}
+                    className={[
+                      'w-4 h-4 rounded-full border shrink-0 mt-0.5',
+                      mode === item.id ? 'border-primary bg-primary' : 'border-border',
+                    ].join(' ')}
                   />
                 </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                  <span>300</span>
-                  <span>Poor</span>
-                  <span>Fair</span>
-                  <span>Good</span>
-                  <span>900</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="bg-card rounded-lg border border-border shadow-card p-5 space-y-5">
+            {mode === 'mobile_advanced' ? (
+              <div>
+                <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
+                  Mobile Bureau Pull
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-sm font-600 text-foreground">
+                      Mobile Number <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={form.mobile}
+                      onChange={(event) => setField('mobile', event.target.value)}
+                      placeholder="9876543210"
+                      maxLength={10}
+                      className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                    />
+                    {errors.mobile && <p className="text-xs text-danger">{errors.mobile}</p>}
+                  </div>
                 </div>
               </div>
+            ) : (
+              <>
+                <div>
+                  <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
+                    Bureau Payload Details
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <TextInput
+                      label="First Name"
+                      required
+                      value={form.firstName}
+                      error={errors.firstName}
+                      onChange={(value) => setField('firstName', value)}
+                      placeholder="Harshal"
+                    />
+                    <TextInput
+                      label="Last Name"
+                      required
+                      value={form.lastName}
+                      error={errors.lastName}
+                      onChange={(value) => setField('lastName', value)}
+                      placeholder="Pawar"
+                    />
+                    <TextInput
+                      label="Mobile Number"
+                      required
+                      value={form.mobile}
+                      error={errors.mobile}
+                      onChange={(value) => setField('mobile', value)}
+                      placeholder="9876543210"
+                      maxLength={10}
+                    />
+                    <TextInput
+                      label="PAN Number"
+                      required
+                      value={form.pan}
+                      error={errors.pan}
+                      onChange={(value) => setField('pan', value.toUpperCase())}
+                      placeholder="ABCDE1234F"
+                      maxLength={10}
+                      className="uppercase"
+                    />
+                    <TextInput
+                      label="Date of Birth"
+                      required
+                      type="date"
+                      value={form.dob}
+                      error={errors.dob}
+                      onChange={(value) => setField('dob', value)}
+                    />
+                    <SelectInput
+                      label="Gender"
+                      required
+                      value={form.gender}
+                      error={errors.gender}
+                      onChange={(value) => setField('gender', value)}
+                      options={[
+                        ['male', 'Male'],
+                        ['female', 'Female'],
+                        ['transgender', 'Transgender'],
+                      ]}
+                    />
+                    <div className="sm:col-span-2">
+                      <TextInput
+                        label="Address"
+                        required
+                        value={form.address}
+                        error={errors.address}
+                        onChange={(value) => setField('address', value)}
+                        placeholder="House no, street, locality"
+                      />
+                    </div>
+                    <TextInput
+                      label="Pincode"
+                      required
+                      value={form.pincode}
+                      error={errors.pincode}
+                      onChange={(value) => setField('pincode', value)}
+                      placeholder="450221"
+                      maxLength={6}
+                    />
+                    <SelectInput
+                      label="State"
+                      required
+                      value={form.state}
+                      error={errors.state}
+                      onChange={(value) => setField('state', value)}
+                      options={stateOptions.map((state) => [state, state])}
+                    />
+                  </div>
+                </div>
 
-              {/* FOIR */}
-              <div className="bg-card rounded-lg border border-border shadow-card p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-700 text-foreground">
-                    FOIR (Fixed Obligation to Income Ratio)
-                  </p>
-                  <span
-                    className={`text-sm font-700 tabular-nums ${result.foir <= 40 ? 'text-success' : result.foir <= 55 ? 'text-warning' : 'text-danger'}`}
-                  >
-                    {result.foir}%
-                  </span>
+                <div>
+                  <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
+                    Loan And Income Details
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <TextInput
+                      label="Monthly Income"
+                      required
+                      type="number"
+                      value={form.monthlyIncome}
+                      error={errors.monthlyIncome}
+                      onChange={(value) => setField('monthlyIncome', value)}
+                      placeholder="75000"
+                    />
+                    <TextInput
+                      label="Other Monthly Income"
+                      type="number"
+                      value={form.otherIncome}
+                      onChange={(value) => setField('otherIncome', value)}
+                      placeholder="0"
+                    />
+                    <TextInput
+                      label="Existing EMI"
+                      type="number"
+                      value={form.existingEMI}
+                      onChange={(value) => setField('existingEMI', value)}
+                      placeholder="0"
+                    />
+                    <SelectInput
+                      label="Loan Type"
+                      required
+                      value={form.loanType}
+                      error={errors.loanType}
+                      onChange={(value) => setField('loanType', value)}
+                      options={[
+                        ['home_loan', 'Home Loan'],
+                        ['personal_loan', 'Personal Loan'],
+                        ['business_loan', 'Business Loan'],
+                        ['lap', 'Loan Against Property'],
+                        ['car_loan', 'Car Loan'],
+                      ]}
+                    />
+                    <TextInput
+                      label="Required Loan Amount"
+                      required
+                      type="number"
+                      value={form.loanAmount}
+                      error={errors.loanAmount}
+                      onChange={(value) => setField('loanAmount', value)}
+                      placeholder="2500000"
+                    />
+                    <TextInput
+                      label="Tenure (months)"
+                      required
+                      type="number"
+                      value={form.tenure}
+                      error={errors.tenure}
+                      onChange={(value) => setField('tenure', value)}
+                      placeholder="60"
+                    />
+                  </div>
                 </div>
-                <div className="h-2 rounded-full bg-border overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${result.foir <= 40 ? 'bg-success' : result.foir <= 55 ? 'bg-warning' : 'bg-danger'}`}
-                    style={{ width: `${Math.min(100, result.foir)}%` }}
-                  />
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Ideal: ≤ 40% | Acceptable: ≤ 55%
+              </>
+            )}
+
+            <div className="pt-2 border-t border-border">
+              <div className="bg-muted/40 rounded-lg p-3 mb-4 text-xs text-muted-foreground">
+                <p className="font-600 text-foreground mb-1">How it works</p>
+                <p>
+                  {mode === 'mobile_advanced'
+                    ? 'CreditTrust runs mobile prefill first, builds the bureau payload in background, then pulls the CIBIL response.'
+                    : 'CreditTrust sends the full bureau payload, calculates FOIR, and maps eligible lenders from the result.'}
                 </p>
               </div>
-
-              {/* Remarks */}
-              <div className="bg-card rounded-lg border border-border shadow-card p-4">
-                <p className="text-sm font-700 text-foreground mb-3">Assessment Remarks</p>
-                <ul className="space-y-2">
-                  {result.remarks.map((r, i) => (
-                    <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="var(--primary)"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="shrink-0 mt-0.5"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      {r}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Matched Lenders */}
-              {result.matchedLenders.length > 0 && (
-                <div className="bg-card rounded-lg border border-border shadow-card p-4">
-                  <p className="text-sm font-700 text-foreground mb-3">Matched Lenders</p>
-                  <div className="space-y-2">
-                    {result.matchedLenders.map((l) => (
-                      <div
-                        key={l.name}
-                        className="flex items-center justify-between p-2.5 rounded-sm bg-muted/40 border border-border"
-                      >
-                        <p className="text-xs font-700 text-foreground">{l.name}</p>
-                        <div className="text-right">
-                          <p className="text-[10px] text-muted-foreground">ROI: {l.roi}</p>
-                          <p className="text-[10px] font-600 text-foreground">Up to {l.maxLoan}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              {serverError && (
+                <div className="bg-danger/5 border border-danger/20 rounded-sm p-3 mb-4 text-xs font-600 text-danger">
+                  {serverError}
                 </div>
               )}
-            </>
-          ) : (
-            <div className="bg-card rounded-lg border border-border shadow-card p-10 text-center">
-              <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-muted-foreground"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </div>
-              <p className="text-sm font-600 text-foreground">Fill in borrower details</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Complete the form and click Check Eligibility to get the assessment
-              </p>
+              <button
+                onClick={handleCheck}
+                disabled={checking}
+                className="w-full h-10 rounded-sm bg-primary text-primary-foreground text-sm font-700 hover:bg-primary/90 active:scale-95 transition-all duration-150 disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {checking ? (
+                  <>
+                    <svg
+                      className="animate-spin"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    Checking...
+                  </>
+                ) : mode === 'mobile_advanced' ? (
+                  'Check by Mobile'
+                ) : (
+                  'Check with Full Details'
+                )}
+              </button>
             </div>
-          )}
+          </div>
+        </div>
+
+        <ResultPanel
+          result={result}
+          mode={mode}
+          scoreColor={scoreColor}
+          scoreBarColor={scoreBarColor}
+        />
+      </div>
+    </div>
+  );
+}
+
+function TextInput({
+  label,
+  value,
+  onChange,
+  error,
+  required,
+  type = 'text',
+  placeholder,
+  maxLength,
+  className = '',
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  required?: boolean;
+  type?: string;
+  placeholder?: string;
+  maxLength?: number;
+  className?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="block text-sm font-600 text-foreground">
+        {label} {required && <span className="text-danger">*</span>}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        className={`w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 ${className}`}
+      />
+      {error && <p className="text-xs text-danger">{error}</p>}
+    </div>
+  );
+}
+
+function SelectInput({
+  label,
+  value,
+  onChange,
+  options,
+  error,
+  required,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[][];
+  error?: string;
+  required?: boolean;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="block text-sm font-600 text-foreground">
+        {label} {required && <span className="text-danger">*</span>}
+      </label>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+      >
+        <option value="">Select</option>
+        {options.map(([optionValue, labelText]) => (
+          <option key={optionValue} value={optionValue}>
+            {labelText}
+          </option>
+        ))}
+      </select>
+      {error && <p className="text-xs text-danger">{error}</p>}
+    </div>
+  );
+}
+
+function ResultPanel({
+  result,
+  mode,
+  scoreColor,
+  scoreBarColor,
+}: {
+  result: EligibilityResult | null;
+  mode: EligibilityMode;
+  scoreColor: string;
+  scoreBarColor: string;
+}) {
+  if (!result) {
+    return (
+      <div className="xl:col-span-2">
+        <div className="bg-card rounded-lg border border-border shadow-card p-10 text-center">
+          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-muted-foreground"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </div>
+          <p className="text-sm font-600 text-foreground">Choose a check type</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Run mobile-only bureau pull or full-details lender eligibility
+          </p>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="xl:col-span-2 space-y-4">
+      <div
+        className={`rounded-lg border p-5 ${
+          result.eligible ? 'bg-success/5 border-success/20' : 'bg-danger/5 border-danger/20'
+        }`}
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              result.eligible ? 'bg-success/10' : 'bg-danger/10'
+            }`}
+          >
+            {result.eligible ? (
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--success)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : (
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--danger)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            )}
+          </div>
+          <div>
+            <p className={`text-base font-700 ${result.eligible ? 'text-success' : 'text-danger'}`}>
+              {result.eligible ? 'Eligible' : 'Needs Review'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {mode === 'mobile_advanced' ? 'Mobile bureau response received' : 'Lender assessment'}
+            </p>
+          </div>
+        </div>
+        {mode === 'full_details' && (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-background/60 rounded-sm p-2">
+              <p className="text-[10px] text-muted-foreground">Max Eligible Loan</p>
+              <p className="text-sm font-700 text-foreground">{formatINR(result.maxLoanAmount)}</p>
+            </div>
+            <div className="bg-background/60 rounded-sm p-2">
+              <p className="text-[10px] text-muted-foreground">Est. Monthly EMI</p>
+              <p className="text-sm font-700 text-foreground">{formatINR(result.recommendedEMI)}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-card rounded-lg border border-border shadow-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-700 text-foreground">Credit Score</p>
+          <span
+            className={`text-xs font-700 px-2 py-0.5 rounded-full ${
+              result.score >= 750
+                ? 'bg-success/10 text-success'
+                : result.score >= 680
+                  ? 'bg-warning/10 text-warning'
+                  : 'bg-danger/10 text-danger'
+            }`}
+          >
+            {result.scoreGrade}
+          </span>
+        </div>
+        <div className="flex items-end gap-3 mb-2">
+          <span className={`text-4xl font-700 tabular-nums ${scoreColor}`}>{result.score}</span>
+          <span className="text-xs text-muted-foreground mb-1">/ 900</span>
+        </div>
+        <div className="h-2 rounded-full bg-border overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${scoreBarColor}`}
+            style={{ width: `${Math.max(0, Math.min(100, ((result.score - 300) / 600) * 100))}%` }}
+          />
+        </div>
+      </div>
+
+      {mode === 'full_details' && (
+        <div className="bg-card rounded-lg border border-border shadow-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-700 text-foreground">FOIR</p>
+            <span
+              className={`text-sm font-700 tabular-nums ${
+                result.foir <= 40
+                  ? 'text-success'
+                  : result.foir <= 55
+                    ? 'text-warning'
+                    : 'text-danger'
+              }`}
+            >
+              {result.foir}%
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-border overflow-hidden">
+            <div
+              className={`h-full rounded-full ${
+                result.foir <= 40 ? 'bg-success' : result.foir <= 55 ? 'bg-warning' : 'bg-danger'
+              }`}
+              style={{ width: `${Math.min(100, result.foir)}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Ideal: {'<='} 40% | Acceptable: {'<='} 55%
+          </p>
+        </div>
+      )}
+
+      <div className="bg-card rounded-lg border border-border shadow-card p-4">
+        <p className="text-sm font-700 text-foreground mb-3">Assessment Remarks</p>
+        <ul className="space-y-2">
+          {result.remarks.map((remark) => (
+            <li key={remark} className="flex items-start gap-2 text-xs text-muted-foreground">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--primary)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="shrink-0 mt-0.5"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              {remark}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {result.matchedLenders.length > 0 && (
+        <div className="bg-card rounded-lg border border-border shadow-card p-4">
+          <p className="text-sm font-700 text-foreground mb-3">Matched Lenders</p>
+          <div className="space-y-2">
+            {result.matchedLenders.map((lender) => (
+              <div
+                key={lender.name}
+                className="flex items-center justify-between p-2.5 rounded-sm bg-muted/40 border border-border"
+              >
+                <p className="text-xs font-700 text-foreground">{lender.name}</p>
+                <div className="text-right">
+                  <p className="text-[10px] text-muted-foreground">ROI: {lender.roi}</p>
+                  <p className="text-[10px] font-600 text-foreground">Up to {lender.maxLoan}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

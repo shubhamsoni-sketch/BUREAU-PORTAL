@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-23 - Developer - Two Mode CRM Eligibility Checker
+
+Summary:
+
+- Split CRM Eligibility Checker into two flows: mobile-only advanced bureau pull and full-details lender eligibility.
+- Added mobile-only flow that runs Bureau Advanced / Mobile Prefill internally, builds the CIBIL payload, and then calls Bureau Standard.
+- Updated full-details flow to accept first name, last name, mobile, DOB, PAN, address, pincode, state, and gender before calculating FOIR and matched lenders.
+- Kept all CRM eligibility checks on eligibility credits with report history and wallet ledger deduction.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=... npm run build` passed.
+
 ## 2026-06-23 - Developer - CRM Setup Credits And Tools Cleanup
 
 Summary:
