@@ -28,6 +28,26 @@ type CrmEligibilityReport = {
   bureau_response: unknown;
 };
 
+type CrmCreditTransaction = {
+  id: string;
+  type: 'credit' | 'debit';
+  credits: number;
+  description: string;
+  status: 'paid' | 'pending';
+  invoice_number?: string;
+  created_at: string;
+};
+
+type CrmInvoice = {
+  id: string;
+  invoice_number: string;
+  amount: number;
+  credits_added: number;
+  status: 'paid' | 'draft';
+  issued_at: string;
+  notes: string;
+};
+
 type CrmStore = {
   eligibility_credits: {
     balance: number;
@@ -35,6 +55,8 @@ type CrmStore = {
     total_used: number;
     per_check_cost: number;
   };
+  credit_transactions: CrmCreditTransaction[];
+  invoices: CrmInvoice[];
   reports: CrmEligibilityReport[];
 };
 
@@ -45,8 +67,16 @@ const defaultCrmStore: CrmStore = {
     total_used: 0,
     per_check_cost: 1,
   },
+  credit_transactions: [],
+  invoices: [],
   reports: [],
 };
+
+function generateInvoiceNumber() {
+  const year = new Date().getFullYear();
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `CRM-INV-${year}-${rand}`;
+}
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
@@ -200,6 +230,10 @@ async function getCrmStore(supabase: ReturnType<typeof createAdminClient>) {
           total_used: Math.max(0, Number(credits.total_used ?? 0)),
           per_check_cost: Math.max(1, Number(credits.per_check_cost ?? 1)),
         },
+        credit_transactions: Array.isArray(raw.credit_transactions)
+          ? (raw.credit_transactions.slice(0, 200) as CrmCreditTransaction[])
+          : [],
+        invoices: Array.isArray(raw.invoices) ? (raw.invoices.slice(0, 200) as CrmInvoice[]) : [],
         reports: Array.isArray(raw.reports)
           ? (raw.reports.slice(0, 200) as CrmEligibilityReport[])
           : [],
@@ -257,11 +291,33 @@ export async function POST(request: NextRequest) {
       const credits = Math.max(1, Number(body.credits || 0));
       const supabase = createAdminClient();
       const { rowId, store } = await getCrmStore(supabase);
+      const invoiceNumber = generateInvoiceNumber();
+      const createdAt = new Date().toISOString();
       store.eligibility_credits = {
         ...store.eligibility_credits,
         balance: store.eligibility_credits.balance + credits,
         total_added: store.eligibility_credits.total_added + credits,
       };
+      const transaction: CrmCreditTransaction = {
+        id: crypto.randomUUID(),
+        type: 'credit',
+        credits,
+        description: cleanString(body.note) || `Eligibility credits recharge: ${credits}`,
+        status: 'paid',
+        invoice_number: invoiceNumber,
+        created_at: createdAt,
+      };
+      const invoice: CrmInvoice = {
+        id: crypto.randomUUID(),
+        invoice_number: invoiceNumber,
+        amount: credits,
+        credits_added: credits,
+        status: 'paid',
+        issued_at: createdAt,
+        notes: cleanString(body.note),
+      };
+      store.credit_transactions = [transaction, ...(store.credit_transactions || [])].slice(0, 200);
+      store.invoices = [invoice, ...(store.invoices || [])].slice(0, 200);
       await saveCrmStore(supabase, rowId, store);
       return NextResponse.json({ success: true, data: store });
     }
@@ -376,6 +432,18 @@ export async function POST(request: NextRequest) {
       balance: Math.max(0, crmStore.eligibility_credits.balance - creditCost),
       total_used: crmStore.eligibility_credits.total_used + creditCost,
     };
+    const usageTransaction: CrmCreditTransaction = {
+      id: crypto.randomUUID(),
+      type: 'debit',
+      credits: creditCost,
+      description: `Eligibility check for ${fullName}`,
+      status: 'paid',
+      created_at: new Date().toISOString(),
+    };
+    crmStore.credit_transactions = [
+      usageTransaction,
+      ...(crmStore.credit_transactions || []),
+    ].slice(0, 200);
     crmStore.reports = [report, ...crmStore.reports].slice(0, 200);
     await saveCrmStore(supabase, crmRowId, crmStore);
     await saveApiHubStore(supabase, apiHubRowId, apiHubStore);

@@ -1,11 +1,5 @@
-'use client';
-import AppLayout from '@/crm/components/AppLayout';
-import ToolsContent from './components/ToolsContent';
+import { redirect } from 'next/navigation';
 
-export default function ToolsPage() {
-  return (
-    <AppLayout>
-      <ToolsContent />
-    </AppLayout>
-  );
+export default function ToolsRedirect() {
+  redirect('/crm/emi-calculator');
 }

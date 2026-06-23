@@ -59,7 +59,7 @@ export default function ToolsContent() {
   return (
     <div className="px-4 lg:px-6 xl:px-8 py-6 max-w-screen-2xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-700 text-foreground">Tools</h1>
+        <h1 className="text-2xl font-700 text-foreground">EMI Calculator</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
           Financial calculators and utilities for DSA agents
         </p>

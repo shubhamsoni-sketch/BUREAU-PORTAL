@@ -134,7 +134,7 @@ export default function EligibilityCheckContent() {
     <div className="px-4 lg:px-6 xl:px-8 py-6 max-w-screen-2xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-700 text-foreground">Eligibility Check</h1>
+          <h1 className="text-2xl font-700 text-foreground">Eligibility Checker</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Assess borrower eligibility and get matched lender recommendations
           </p>

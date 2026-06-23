@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-23 - Developer - CRM Setup Credits And Tools Cleanup
+
+Summary:
+
+- Moved CRM eligibility credits out of the main navigation and into a new `/crm/setup` section.
+- Added setup tabs for Eligibility Credits, Wallet Ledger, and Invoices so recharge, usage, and billing history live together.
+- Extended the CRM eligibility backend store with credit transactions and invoice records.
+- Cleaned the sidebar Tools group so it only contains Eligibility Checker and EMI Calculator.
+- Added `/crm/emi-calculator` as the direct EMI route and kept old `/crm/tools` and `/crm/eligibility-credits` routes as redirects.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-06-23 - Developer - DSA CRM Zip Integration And Eligibility Backend
 
 Summary:
