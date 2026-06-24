@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Modal from '@/crm/components/ui/Modal';
 import StatusBadge from '@/crm/components/ui/StatusBadge';
 import AddLeadForm from './AddLeadForm';
@@ -8,13 +8,12 @@ import LeadKanban from './LeadKanban';
 type LeadStage =
   | 'new'
   | 'contacted'
-  | 'interested'
-  | 'docs_submitted'
-  | 'login_pending'
-  | 'logged_in'
-  | 'approved'
-  | 'disbursed'
+  | 'eligibility_pending'
+  | 'eligibility_done'
+  | 'submitted_to_lender'
+  | 'sanctioned'
   | 'rejected'
+  | 'disbursed'
   | 'lost';
 type ProductType =
   | 'home_loan'
@@ -39,7 +38,9 @@ export interface Lead {
   nextFollowUp: string;
   daysInStage: number;
   city: string;
-  cibil?: number;
+  notes?: string;
+  eligibilityReportId?: string;
+  selectedLender?: string;
 }
 
 const MOCK_LEADS: Lead[] = [
@@ -51,13 +52,12 @@ const MOCK_LEADS: Lead[] = [
     product: 'home_loan',
     loanAmount: 4200000,
     source: 'reference',
-    stage: 'docs_submitted',
+    stage: 'eligibility_pending',
     assignedAgent: 'Priya Sharma',
     lastContact: '20 Jun 2026',
     nextFollowUp: '23 Jun 2026',
     daysInStage: 3,
     city: 'Mumbai',
-    cibil: 748,
   },
   {
     id: 'lead-002',
@@ -67,13 +67,12 @@ const MOCK_LEADS: Lead[] = [
     product: 'personal_loan',
     loanAmount: 850000,
     source: 'web',
-    stage: 'approved',
+    stage: 'eligibility_done',
     assignedAgent: 'Anil Mehta',
     lastContact: '21 Jun 2026',
     nextFollowUp: '22 Jun 2026',
     daysInStage: 1,
     city: 'Pune',
-    cibil: 792,
   },
   {
     id: 'lead-003',
@@ -83,13 +82,12 @@ const MOCK_LEADS: Lead[] = [
     product: 'business_loan',
     loanAmount: 2500000,
     source: 'walk_in',
-    stage: 'login_pending',
+    stage: 'submitted_to_lender',
     assignedAgent: 'Priya Sharma',
     lastContact: '18 Jun 2026',
     nextFollowUp: '22 Jun 2026',
     daysInStage: 4,
     city: 'Ahmedabad',
-    cibil: 712,
   },
   {
     id: 'lead-004',
@@ -105,7 +103,6 @@ const MOCK_LEADS: Lead[] = [
     nextFollowUp: '-',
     daysInStage: 0,
     city: 'Bangalore',
-    cibil: 768,
   },
   {
     id: 'lead-005',
@@ -121,7 +118,6 @@ const MOCK_LEADS: Lead[] = [
     nextFollowUp: '24 Jun 2026',
     daysInStage: 0,
     city: 'Chennai',
-    cibil: undefined,
   },
   {
     id: 'lead-006',
@@ -131,13 +127,12 @@ const MOCK_LEADS: Lead[] = [
     product: 'lap',
     loanAmount: 3800000,
     source: 'reference',
-    stage: 'interested',
+    stage: 'eligibility_pending',
     assignedAgent: 'Kavitha Nair',
     lastContact: '19 Jun 2026',
     nextFollowUp: '23 Jun 2026',
     daysInStage: 5,
     city: 'Hyderabad',
-    cibil: 731,
   },
   {
     id: 'lead-007',
@@ -153,7 +148,6 @@ const MOCK_LEADS: Lead[] = [
     nextFollowUp: '-',
     daysInStage: 5,
     city: 'Delhi',
-    cibil: 612,
   },
   {
     id: 'lead-008',
@@ -169,7 +163,6 @@ const MOCK_LEADS: Lead[] = [
     nextFollowUp: '23 Jun 2026',
     daysInStage: 2,
     city: 'Surat',
-    cibil: 698,
   },
   {
     id: 'lead-009',
@@ -179,13 +172,12 @@ const MOCK_LEADS: Lead[] = [
     product: 'home_loan',
     loanAmount: 3200000,
     source: 'campaign',
-    stage: 'logged_in',
+    stage: 'submitted_to_lender',
     assignedAgent: 'Sunita Rao',
     lastContact: '21 Jun 2026',
     nextFollowUp: '25 Jun 2026',
     daysInStage: 6,
     city: 'Coimbatore',
-    cibil: 756,
   },
   {
     id: 'lead-010',
@@ -201,7 +193,6 @@ const MOCK_LEADS: Lead[] = [
     nextFollowUp: '24 Jun 2026',
     daysInStage: 0,
     city: 'Jaipur',
-    cibil: undefined,
   },
   {
     id: 'lead-011',
@@ -211,13 +202,12 @@ const MOCK_LEADS: Lead[] = [
     product: 'business_loan',
     loanAmount: 1200000,
     source: 'reference',
-    stage: 'docs_submitted',
+    stage: 'eligibility_pending',
     assignedAgent: 'Kavitha Nair',
     lastContact: '20 Jun 2026',
     nextFollowUp: '23 Jun 2026',
     daysInStage: 3,
     city: 'Mumbai',
-    cibil: 724,
   },
   {
     id: 'lead-012',
@@ -227,13 +217,12 @@ const MOCK_LEADS: Lead[] = [
     product: 'home_loan',
     loanAmount: 6500000,
     source: 'reference',
-    stage: 'interested',
+    stage: 'eligibility_pending',
     assignedAgent: 'Anil Mehta',
     lastContact: '21 Jun 2026',
     nextFollowUp: '24 Jun 2026',
     daysInStage: 1,
     city: 'Chennai',
-    cibil: 782,
   },
 ];
 
@@ -254,6 +243,7 @@ const formatINR = (n: number) => {
 
 export default function LeadManagementContent() {
   const [leads, setLeads] = useState<Lead[]>(MOCK_LEADS);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'table' | 'kanban'>('table');
   const [filterProduct, setFilterProduct] = useState('all');
   const [filterStage, setFilterStage] = useState('all');
@@ -270,19 +260,33 @@ export default function LeadManagementContent() {
   );
   const [uploadCount, setUploadCount] = useState(0);
 
+  const loadLeads = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/crm/leads', { cache: 'no-store' });
+      const json = await response.json();
+      if (json.success && Array.isArray(json.data)) setLeads(json.data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLeads();
+  }, []);
+
   const stageOptions: LeadStage[] = [
     'new',
     'contacted',
-    'interested',
-    'docs_submitted',
-    'login_pending',
-    'logged_in',
-    'approved',
-    'disbursed',
+    'eligibility_pending',
+    'eligibility_done',
+    'submitted_to_lender',
+    'sanctioned',
     'rejected',
+    'disbursed',
     'lost',
   ];
-  const agents = Array.from(new Set(MOCK_LEADS.map((l) => l.assignedAgent)));
+  const agents = Array.from(new Set(leads.map((l) => l.assignedAgent)));
 
   const filtered = leads.filter((l) => {
     const matchSearch =
@@ -302,9 +306,17 @@ export default function LeadManagementContent() {
   };
 
   const changeStage = (leadId: string, newStage: LeadStage) => {
+    const lead = leads.find((item) => item.id === leadId);
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, stage: newStage, daysInStage: 0 } : l))
     );
+    if (lead) {
+      fetch('/api/crm/leads', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...lead, stage: newStage, daysInStage: 0 }),
+      }).catch(() => undefined);
+    }
     setStageDropdownId(null);
   };
 
@@ -349,7 +361,9 @@ export default function LeadManagementContent() {
         <div>
           <h1 className="text-2xl font-700 text-foreground">Lead Management</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {filtered.length} leads — {leads.filter((l) => l.stage === 'new').length} new today
+            {loading
+              ? 'Loading leads...'
+              : `${filtered.length} leads — ${leads.filter((l) => l.stage === 'new').length} new today`}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -703,7 +717,10 @@ export default function LeadManagementContent() {
         size="lg"
       >
         <AddLeadForm
-          onSuccess={() => setAddLeadOpen(false)}
+          onSuccess={() => {
+            setAddLeadOpen(false);
+            loadLeads();
+          }}
           onCancel={() => setAddLeadOpen(false)}
         />
       </Modal>

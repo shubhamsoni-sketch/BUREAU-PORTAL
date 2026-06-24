@@ -15,6 +15,13 @@ import {
   matchLenders,
   normalizeLenders,
 } from '@/lib/crm/lender-policy';
+import {
+  CrmApplication,
+  CrmLead,
+  defaultCrmLeads,
+  normalizeApplications,
+  normalizeLeads,
+} from '@/lib/crm/leads';
 
 const CRM_STORE_MOBILE = '0000000001';
 const CRM_STORE_STATUS = 'crm_store';
@@ -66,6 +73,8 @@ type CrmStore = {
   credit_transactions: CrmCreditTransaction[];
   invoices: CrmInvoice[];
   lenders: CrmLender[];
+  leads: CrmLead[];
+  applications: CrmApplication[];
   reports: CrmEligibilityReport[];
 };
 
@@ -79,6 +88,8 @@ const defaultCrmStore: CrmStore = {
   credit_transactions: [],
   invoices: [],
   lenders: defaultCrmLenders,
+  leads: defaultCrmLeads,
+  applications: [],
   reports: [],
 };
 
@@ -286,7 +297,7 @@ function validateCibilPayload(payload: Record<string, unknown>) {
     'pincode',
   ];
   const missing = required.filter((field) => !cleanString(payload[field]));
-  if (missing.length) return `Missing bureau payload fields: ${missing.join(', ')}`;
+  if (missing.length) return `Missing required customer fields: ${missing.join(', ')}`;
   if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(cleanString(payload.pan))) return 'Valid PAN is required';
   if (!/^\d{10}$/.test(digits(payload.mobile))) return 'Valid mobile is required';
   if (!/^\d{6}$/.test(digits(payload.pincode))) return 'Valid pincode is required';
@@ -295,7 +306,7 @@ function validateCibilPayload(payload: Record<string, unknown>) {
 
 async function hitPrefillApi(api: SimpleApiConfig, mobile: string, requestId: string) {
   const endpoint = api.master_url.trim().replace(/\/+$/, '');
-  if (!endpoint) throw new Error('Bureau Advanced / Mobile Prefill API is not configured');
+  if (!endpoint) throw new Error('Mobile eligibility service is not configured');
   const headers: Record<string, string> = {
     accept: 'application/json',
     'content-type': 'application/json',
@@ -402,6 +413,8 @@ async function getCrmStore(supabase: ReturnType<typeof createAdminClient>) {
           : [],
         invoices: Array.isArray(raw.invoices) ? (raw.invoices.slice(0, 200) as CrmInvoice[]) : [],
         lenders: normalizeLenders(raw.lenders),
+        leads: normalizeLeads(raw.leads),
+        applications: normalizeApplications(raw.applications),
         reports: Array.isArray(raw.reports)
           ? (raw.reports.slice(0, 200) as CrmEligibilityReport[])
           : [],
@@ -490,7 +503,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, data: store });
     }
 
+    if (body.action === 'submit_to_lender') {
+      const leadId = cleanString(body.leadId);
+      const lenderName = cleanString(body.lenderName);
+      if (!leadId) return jsonError('Lead is required', 400);
+      if (!lenderName) return jsonError('Lender is required', 400);
+
+      const supabase = createAdminClient();
+      const { rowId, store } = await getCrmStore(supabase);
+      const lead = store.leads.find((item) => item.id === leadId);
+      if (!lead) return jsonError('Lead not found', 404);
+
+      const now = new Date().toISOString();
+      const application: CrmApplication = {
+        id: crypto.randomUUID(),
+        leadId,
+        customerName: lead.name,
+        mobile: lead.mobile,
+        lenderName,
+        product: lead.product,
+        loanAmount: lead.loanAmount,
+        status: 'login_pending',
+        createdAt: now,
+      };
+
+      store.applications = [application, ...(store.applications || [])].slice(0, 200);
+      store.leads = store.leads.map((item) =>
+        item.id === leadId
+          ? {
+              ...item,
+              stage: 'submitted_to_lender',
+              selectedLender: lenderName,
+              updatedAt: now,
+            }
+          : item
+      );
+      await saveCrmStore(supabase, rowId, store);
+      return NextResponse.json({ success: true, data: { application, leads: store.leads } });
+    }
+
     const mode = cleanString(body.mode || 'full_details');
+    const leadId = cleanString(body.leadId);
     const firstName = cleanString(body.firstName);
     const lastName = cleanString(body.lastName);
     const fullName =
@@ -517,8 +570,7 @@ export async function POST(request: NextRequest) {
 
     const { rowId: apiHubRowId, store: apiHubStore } = await getApiHubStore(supabase);
     const bureauApi = findStandardApi(apiHubStore.apis) || defaultBureauApi;
-    if (!bureauApi.master_url)
-      return jsonError('Bureau API Standard is not configured in API Hub', 500);
+    if (!bureauApi.master_url) return jsonError('Eligibility service is not configured', 500);
 
     let cibilPayload: Record<string, unknown>;
     let borrowerName = fullName || 'Mobile Customer';
@@ -526,7 +578,7 @@ export async function POST(request: NextRequest) {
     if (mode === 'mobile_advanced') {
       const advancedApi = findAdvancedApi(apiHubStore.apis);
       if (!advancedApi?.master_url)
-        return jsonError('Bureau API Advanced / Mobile Prefill is not configured in API Hub', 500);
+        return jsonError('Mobile eligibility service is not configured', 500);
 
       const prefillResponse = await hitPrefillApi(advancedApi, mobile, requestId);
       if (!prefillResponse.ok) {
@@ -534,7 +586,7 @@ export async function POST(request: NextRequest) {
           {
             success: false,
             request_id: requestId,
-            error: `Mobile Prefill API failed with ${prefillResponse.status}`,
+            error: `Mobile eligibility check failed with ${prefillResponse.status}`,
             data: prefillResponse.data,
           },
           { status: 502 }
@@ -579,7 +631,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           request_id: requestId,
-          error: `Bureau API failed with ${bureauResponse.status}`,
+          error: `Eligibility check failed with ${bureauResponse.status}`,
           cibil_payload: cibilPayload,
           data: bureauResponse.data,
         },
@@ -664,6 +716,18 @@ export async function POST(request: NextRequest) {
       usageTransaction,
       ...(crmStore.credit_transactions || []),
     ].slice(0, 200);
+    if (leadId) {
+      crmStore.leads = crmStore.leads.map((lead) =>
+        lead.id === leadId
+          ? {
+              ...lead,
+              stage: 'eligibility_done',
+              eligibilityReportId: report.id,
+              updatedAt: new Date().toISOString(),
+            }
+          : lead
+      );
+    }
     crmStore.reports = [report, ...crmStore.reports].slice(0, 200);
     await saveCrmStore(supabase, crmRowId, crmStore);
     await saveApiHubStore(supabase, apiHubRowId, apiHubStore);

@@ -1,11 +1,12 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import StatusBadge from '@/crm/components/ui/StatusBadge';
 
 import ApplicationDetailPanel from './ApplicationDetailPanel';
 
 type AppStage =
+  | 'login_pending'
   | 'draft'
   | 'submitted'
   | 'under_review'
@@ -16,7 +17,13 @@ type AppStage =
   | 'disbursed'
   | 'rejected';
 
-type ProductType = 'home_loan' | 'personal_loan' | 'business_loan' | 'lap' | 'car_loan';
+type ProductType =
+  | 'home_loan'
+  | 'personal_loan'
+  | 'business_loan'
+  | 'lap'
+  | 'car_loan'
+  | 'credit_card';
 
 interface LoanApplication {
   id: string;
@@ -227,12 +234,13 @@ const formatINR = (n: number) => {
 };
 
 const CIBILBadge = ({ score }: { score: number }) => {
+  if (!score) return <span className="text-xs font-700 text-muted-foreground">—</span>;
   const color = score >= 750 ? 'text-success' : score >= 700 ? 'text-warning' : 'text-danger';
   return <span className={`text-xs font-700 tabular-nums ${color}`}>{score}</span>;
 };
 
 export default function LoanApplicationContent() {
-  const [apps] = useState<LoanApplication[]>(MOCK_APPS);
+  const [apps, setApps] = useState<LoanApplication[]>(MOCK_APPS);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedApp, setSelectedApp] = useState<LoanApplication | null>(null);
   const [filterStage, setFilterStage] = useState('all');
@@ -240,7 +248,65 @@ export default function LoanApplicationContent() {
   const [filterLender, setFilterLender] = useState('all');
   const [search, setSearch] = useState('');
 
-  const lenders = Array.from(new Set(MOCK_APPS.map((a) => a.lender)));
+  useEffect(() => {
+    const loadApplications = async () => {
+      try {
+        const response = await fetch('/api/crm/leads', { cache: 'no-store' });
+        const json = await response.json();
+        const applications = Array.isArray(json.applications) ? json.applications : [];
+        const leads = Array.isArray(json.data) ? json.data : [];
+        const liveApps: LoanApplication[] = applications.map(
+          (application: {
+            id: string;
+            leadId: string;
+            customerName: string;
+            mobile: string;
+            lenderName: string;
+            product: ProductType;
+            loanAmount: number;
+            status: AppStage;
+            createdAt: string;
+          }) => {
+            const lead = leads.find((item: { id: string }) => item.id === application.leadId);
+            const created = application.createdAt ? new Date(application.createdAt) : new Date();
+            const daysPending = Math.max(
+              0,
+              Math.floor((Date.now() - created.getTime()) / 86400000)
+            );
+            return {
+              id: application.id,
+              appId: `DSA-${application.product.replace(/_/g, '').toUpperCase().slice(0, 3)}-${created.getFullYear()}-${application.id.slice(0, 4).toUpperCase()}`,
+              applicant: application.customerName,
+              product: application.product,
+              loanAmount: Number(application.loanAmount || 0),
+              lender: application.lenderName,
+              stage: application.status || 'login_pending',
+              cibil: 0,
+              emi: 0,
+              assignedAgent: lead?.assignedAgent || 'Unassigned',
+              lastUpdate: created.toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              }),
+              daysPending,
+              city: lead?.city || '-',
+              processingFee: 0,
+              roi: 0,
+              tenure: 0,
+            };
+          }
+        );
+        if (liveApps.length) setApps([...liveApps, ...MOCK_APPS]);
+      } catch {
+        setApps(MOCK_APPS);
+      }
+    };
+
+    loadApplications();
+  }, []);
+
+  const lenders = Array.from(new Set(apps.map((a) => a.lender)));
 
   const filtered = apps.filter((a) => {
     const matchSearch =
@@ -258,6 +324,7 @@ export default function LoanApplicationContent() {
     setSelectedRows(selectedRows.length === filtered.length ? [] : filtered.map((a) => a.id));
 
   const stageOptions: AppStage[] = [
+    'login_pending',
     'draft',
     'submitted',
     'under_review',
@@ -316,8 +383,8 @@ export default function LoanApplicationContent() {
             color: 'bg-danger-bg text-danger border-danger/20',
           },
           {
-            label: 'Awaiting Credit Check',
-            count: apps.filter((a) => a.stage === 'credit_check').length,
+            label: 'Login Pending',
+            count: apps.filter((a) => a.stage === 'login_pending').length,
             color: 'bg-warning-bg text-warning border-warning/20',
           },
         ].map((pill) => (
@@ -416,7 +483,7 @@ export default function LoanApplicationContent() {
                     'Amount',
                     'Lender',
                     'Stage',
-                    'CIBIL',
+                    'Score',
                     'EMI/mo',
                     'Agent',
                     'Days Pending',

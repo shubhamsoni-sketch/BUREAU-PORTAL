@@ -2,6 +2,21 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-24 - Developer - Lead Queue Eligibility Flow
+
+Summary:
+
+- Added a CRM leads backend store behind `/api/crm/leads` so lead capture, queue state, and lender submissions persist with the CRM data.
+- Simplified Add Lead to basic inquiry fields only: customer, mobile, city, product, amount, source, assignment, follow-up, and notes.
+- Added a Pending Leads queue inside Eligibility Checker so agents can select leads one-by-one and run mobile/full-details eligibility.
+- Updated eligibility checks to mark selected leads as eligibility done and added a lender submission action that creates a loan application queue entry.
+- Wired Loan Application Tracking to read submitted applications from the CRM store while keeping the existing UI layout intact.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-24 - Developer - Hide Internal Eligibility Workflow Copy
 
 Summary:

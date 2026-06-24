@@ -8,11 +8,10 @@ type LeadStage = Lead['stage'];
 const KANBAN_STAGES: { key: LeadStage; label: string; color: string }[] = [
   { key: 'new', label: 'New', color: 'border-t-info' },
   { key: 'contacted', label: 'Contacted', color: 'border-t-primary' },
-  { key: 'interested', label: 'Interested', color: 'border-t-warning' },
-  { key: 'docs_submitted', label: 'Docs Submitted', color: 'border-t-purple-500' },
-  { key: 'login_pending', label: 'Login Pending', color: 'border-t-orange-500' },
-  { key: 'logged_in', label: 'Logged In', color: 'border-t-blue-500' },
-  { key: 'approved', label: 'Approved', color: 'border-t-success' },
+  { key: 'eligibility_pending', label: 'Eligibility Pending', color: 'border-t-warning' },
+  { key: 'eligibility_done', label: 'Eligibility Done', color: 'border-t-purple-500' },
+  { key: 'submitted_to_lender', label: 'Submitted to Lender', color: 'border-t-blue-500' },
+  { key: 'sanctioned', label: 'Sanctioned', color: 'border-t-success' },
   { key: 'disbursed', label: 'Disbursed', color: 'border-t-success' },
 ];
 

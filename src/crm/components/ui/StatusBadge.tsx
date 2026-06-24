@@ -4,6 +4,10 @@ type BadgeVariant =
   | 'new'
   | 'contacted'
   | 'interested'
+  | 'eligibility_pending'
+  | 'eligibility_done'
+  | 'submitted_to_lender'
+  | 'sanctioned'
   | 'docs_submitted'
   | 'login_pending'
   | 'logged_in'
@@ -43,6 +47,19 @@ const variantMap: Record<BadgeVariant, { label: string; classes: string }> = {
     classes: 'bg-secondary text-secondary-foreground border-primary/20',
   },
   interested: { label: 'Interested', classes: 'bg-warning-bg text-warning border-warning/20' },
+  eligibility_pending: {
+    label: 'Eligibility Pending',
+    classes: 'bg-warning-bg text-warning border-warning/20',
+  },
+  eligibility_done: {
+    label: 'Eligibility Done',
+    classes: 'bg-success-bg text-success border-success/20',
+  },
+  submitted_to_lender: {
+    label: 'Submitted to Lender',
+    classes: 'bg-blue-50 text-blue-700 border-blue-200',
+  },
+  sanctioned: { label: 'Sanctioned', classes: 'bg-success-bg text-success border-success/20' },
   docs_submitted: {
     label: 'Docs Submitted',
     classes: 'bg-purple-50 text-purple-700 border-purple-200',

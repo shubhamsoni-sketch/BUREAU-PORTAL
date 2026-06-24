@@ -163,7 +163,7 @@ export default function ApplicationDetailPanel({ app, onClose }: Props) {
 
             <div className="bg-muted/30 rounded-sm p-2.5">
               <p className="text-[10px] font-600 uppercase tracking-wide text-muted-foreground mb-1">
-                CIBIL Score
+                Credit Score
               </p>
               <div className="flex items-center gap-2">
                 <span
@@ -176,7 +176,7 @@ export default function ApplicationDetailPanel({ app, onClose }: Props) {
                         : 'text-danger',
                   ].join(' ')}
                 >
-                  {app.cibil}
+                  {app.cibil || '—'}
                 </span>
                 <span
                   className={[
@@ -188,7 +188,13 @@ export default function ApplicationDetailPanel({ app, onClose }: Props) {
                         : 'text-danger',
                   ].join(' ')}
                 >
-                  {app.cibil >= 750 ? 'Excellent' : app.cibil >= 700 ? 'Good' : 'Poor'}
+                  {app.cibil
+                    ? app.cibil >= 750
+                      ? 'Excellent'
+                      : app.cibil >= 700
+                        ? 'Good'
+                        : 'Poor'
+                    : 'Pending'}
                 </span>
               </div>
               <div className="mt-2 h-1.5 rounded-full bg-border overflow-hidden">
@@ -197,7 +203,7 @@ export default function ApplicationDetailPanel({ app, onClose }: Props) {
                     'h-full rounded-full',
                     app.cibil >= 750 ? 'bg-success' : app.cibil >= 700 ? 'bg-warning' : 'bg-danger',
                   ].join(' ')}
-                  style={{ width: `${((app.cibil - 300) / 600) * 100}%` }}
+                  style={{ width: `${app.cibil ? ((app.cibil - 300) / 600) * 100 : 0}%` }}
                 />
               </div>
               <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">

@@ -11,9 +11,6 @@ interface AddLeadFormData {
   loanAmount: string;
   source: string;
   assignedAgent: string;
-  cibil: string;
-  employmentType: string;
-  monthlyIncome: string;
   nextFollowUp: string;
   notes: string;
 }
@@ -30,9 +27,14 @@ export default function AddLeadForm({ onSuccess, onCancel }: AddLeadFormProps) {
     formState: { errors, isSubmitting },
   } = useForm<AddLeadFormData>();
 
-  const onSubmit = handleSubmit(async () => {
-    // BACKEND: POST /api/leads with form data
-    await new Promise((r) => setTimeout(r, 800));
+  const onSubmit = handleSubmit(async (data) => {
+    const response = await fetch('/api/crm/leads', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...data, stage: 'eligibility_pending' }),
+    });
+    const json = await response.json();
+    if (!response.ok || !json.success) throw new Error(json.error || 'Unable to add lead');
     onSuccess();
   });
 
@@ -147,58 +149,6 @@ export default function AddLeadForm({ onSuccess, onCancel }: AddLeadFormProps) {
             {errors.loanAmount && (
               <p className="text-xs text-danger">{errors.loanAmount.message}</p>
             )}
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="al-employment" className="block text-sm font-600 text-foreground">
-              Employment type <span className="text-danger">*</span>
-            </label>
-            <select
-              id="al-employment"
-              className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-              {...register('employmentType', { required: 'Select employment type' })}
-            >
-              <option value="">Select type</option>
-              <option value="salaried">Salaried</option>
-              <option value="self_employed">Self Employed</option>
-              <option value="business">Business Owner</option>
-              <option value="professional">Professional (CA/Doctor)</option>
-            </select>
-            {errors.employmentType && (
-              <p className="text-xs text-danger">{errors.employmentType.message}</p>
-            )}
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="al-income" className="block text-sm font-600 text-foreground">
-              Monthly income (₹)
-            </label>
-            <input
-              id="al-income"
-              type="number"
-              placeholder="75000"
-              className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-              {...register('monthlyIncome')}
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="al-cibil" className="block text-sm font-600 text-foreground">
-              CIBIL score
-            </label>
-            <p className="text-[11px] text-muted-foreground">
-              Leave blank if unknown — will be fetched later
-            </p>
-            <input
-              id="al-cibil"
-              type="number"
-              placeholder="750"
-              min="300"
-              max="900"
-              className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-              {...register('cibil', {
-                min: { value: 300, message: 'CIBIL score 300–900' },
-                max: { value: 900, message: 'CIBIL score 300–900' },
-              })}
-            />
-            {errors.cibil && <p className="text-xs text-danger">{errors.cibil.message}</p>}
           </div>
           <div className="space-y-1">
             <label htmlFor="al-source" className="block text-sm font-600 text-foreground">

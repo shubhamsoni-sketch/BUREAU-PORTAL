@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 type EligibilityMode = 'mobile_advanced' | 'full_details';
@@ -34,6 +34,18 @@ interface EligibilityResult {
   remarks: string[];
   matchedLenders: { name: string; roi: string; maxLoan: string }[];
   rawBureauResponse?: unknown;
+}
+
+interface QueueLead {
+  id: string;
+  name: string;
+  mobile: string;
+  product: LoanType | 'credit_card' | string;
+  loanAmount: number;
+  stage: string;
+  assignedAgent: string;
+  city: string;
+  nextFollowUp: string;
 }
 
 const emptyForm: EligibilityForm = {
@@ -78,10 +90,27 @@ const formatINR = (n: number) =>
 export default function EligibilityCheckContent() {
   const [mode, setMode] = useState<EligibilityMode>('mobile_advanced');
   const [form, setForm] = useState<EligibilityForm>(emptyForm);
+  const [leadQueue, setLeadQueue] = useState<QueueLead[]>([]);
+  const [selectedLead, setSelectedLead] = useState<QueueLead | null>(null);
   const [checking, setChecking] = useState(false);
+  const [submittingLender, setSubmittingLender] = useState('');
   const [result, setResult] = useState<EligibilityResult | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState('');
+
+  const loadLeadQueue = async () => {
+    try {
+      const response = await fetch('/api/crm/leads?queue=eligibility', { cache: 'no-store' });
+      const json = await response.json();
+      if (json.success && Array.isArray(json.data)) setLeadQueue(json.data);
+    } catch {
+      setLeadQueue([]);
+    }
+  };
+
+  useEffect(() => {
+    loadLeadQueue();
+  }, []);
 
   const setField = (key: keyof EligibilityForm, value: string) => {
     setForm((previous) => ({ ...previous, [key]: value }));
@@ -94,6 +123,21 @@ export default function EligibilityCheckContent() {
 
   const selectMode = (nextMode: EligibilityMode) => {
     setMode(nextMode);
+    setSelectedLead(null);
+    setErrors({});
+    setServerError('');
+    setResult(null);
+  };
+
+  const selectLead = (lead: QueueLead) => {
+    setSelectedLead(lead);
+    setMode('mobile_advanced');
+    setForm((previous) => ({
+      ...previous,
+      mobile: lead.mobile,
+      loanType: lead.product === 'credit_card' ? 'personal_loan' : (lead.product as LoanType),
+      loanAmount: String(lead.loanAmount || ''),
+    }));
     setErrors({});
     setServerError('');
     setResult(null);
@@ -143,15 +187,42 @@ export default function EligibilityCheckContent() {
       const response = await fetch('/api/crm/eligibility-check', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...form, mode, consent: true }),
+        body: JSON.stringify({ ...form, mode, consent: true, leadId: selectedLead?.id }),
       });
       const json = await response.json();
       if (!response.ok || !json.success) throw new Error(json.error || 'Eligibility check failed');
       setResult(json.data as EligibilityResult);
+      if (selectedLead) await loadLeadQueue();
     } catch (error) {
       setServerError(error instanceof Error ? error.message : 'Eligibility check failed');
     } finally {
       setChecking(false);
+    }
+  };
+
+  const submitToLenderQueue = async (lenderName: string) => {
+    if (!selectedLead) return;
+    setSubmittingLender(lenderName);
+    setServerError('');
+    try {
+      const response = await fetch('/api/crm/eligibility-check', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'submit_to_lender',
+          leadId: selectedLead.id,
+          lenderName,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || 'Unable to submit lead');
+      await loadLeadQueue();
+      setSelectedLead(null);
+      setResult(null);
+    } catch (error) {
+      setServerError(error instanceof Error ? error.message : 'Unable to submit lead');
+    } finally {
+      setSubmittingLender('');
     }
   };
 
@@ -202,6 +273,55 @@ export default function EligibilityCheckContent() {
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         <div className="xl:col-span-3 space-y-5">
+          <div className="bg-card rounded-lg border border-border shadow-card p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <h2 className="text-sm font-700 text-foreground">Pending Leads</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Select a lead to run eligibility from the inquiry queue
+                </p>
+              </div>
+              <span className="h-6 min-w-6 px-2 rounded-full bg-muted text-xs font-700 text-muted-foreground flex items-center justify-center">
+                {leadQueue.length}
+              </span>
+            </div>
+            {leadQueue.length === 0 ? (
+              <div className="rounded-sm border border-dashed border-border bg-muted/30 p-5 text-center text-xs text-muted-foreground">
+                No pending leads in queue
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-52 overflow-y-auto scrollbar-thin pr-1">
+                {leadQueue.map((lead) => (
+                  <button
+                    key={lead.id}
+                    onClick={() => selectLead(lead)}
+                    className={[
+                      'text-left rounded-sm border p-3 transition-colors',
+                      selectedLead?.id === lead.id
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border bg-background hover:bg-muted/40',
+                    ].join(' ')}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-700 text-foreground">{lead.name}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {lead.mobile} · {lead.city || 'City pending'}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-700 text-primary">
+                        {formatINR(lead.loanAmount)}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      {String(lead.product).replace(/_/g, ' ')} · {lead.assignedAgent}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
               {
@@ -212,7 +332,7 @@ export default function EligibilityCheckContent() {
               {
                 id: 'full_details' as const,
                 title: 'Check Eligibility with Full Details',
-                desc: 'Enter customer, bureau, income, and loan details for lender matching.',
+                desc: 'Enter customer, income, and loan details for lender matching.',
               },
             ].map((item) => (
               <button
@@ -424,14 +544,11 @@ export default function EligibilityCheckContent() {
             )}
 
             <div className="pt-2 border-t border-border">
-              <div className="bg-muted/40 rounded-lg p-3 mb-4 text-xs text-muted-foreground">
-                <p className="font-600 text-foreground mb-1">How it works</p>
-                <p>
-                  {mode === 'mobile_advanced'
-                    ? 'Enter the customer mobile number and confirm consent to generate an eligibility result.'
-                    : 'Enter customer and loan details to generate eligibility, affordability, and lender recommendations.'}
-                </p>
-              </div>
+              {selectedLead && (
+                <div className="bg-primary/5 border border-primary/20 rounded-sm p-3 mb-4 text-xs text-primary font-600">
+                  Selected lead: {selectedLead.name} · {selectedLead.mobile}
+                </div>
+              )}
               {serverError && (
                 <div className="bg-danger/5 border border-danger/20 rounded-sm p-3 mb-4 text-xs font-600 text-danger">
                   {serverError}
@@ -472,6 +589,9 @@ export default function EligibilityCheckContent() {
           mode={mode}
           scoreColor={scoreColor}
           scoreBarColor={scoreBarColor}
+          selectedLead={selectedLead}
+          submittingLender={submittingLender}
+          onSubmitLender={submitToLenderQueue}
         />
       </div>
     </div>
@@ -559,11 +679,17 @@ function ResultPanel({
   mode,
   scoreColor,
   scoreBarColor,
+  selectedLead,
+  submittingLender,
+  onSubmitLender,
 }: {
   result: EligibilityResult | null;
   mode: EligibilityMode;
   scoreColor: string;
   scoreBarColor: string;
+  selectedLead: QueueLead | null;
+  submittingLender: string;
+  onSubmitLender: (lenderName: string) => void;
 }) {
   if (!result) {
     return (
@@ -747,12 +873,23 @@ function ResultPanel({
             {result.matchedLenders.map((lender) => (
               <div
                 key={lender.name}
-                className="flex items-center justify-between p-2.5 rounded-sm bg-muted/40 border border-border"
+                className="flex items-center justify-between gap-3 p-2.5 rounded-sm bg-muted/40 border border-border"
               >
                 <p className="text-xs font-700 text-foreground">{lender.name}</p>
-                <div className="text-right">
-                  <p className="text-[10px] text-muted-foreground">ROI: {lender.roi}</p>
-                  <p className="text-[10px] font-600 text-foreground">Up to {lender.maxLoan}</p>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-[10px] text-muted-foreground">ROI: {lender.roi}</p>
+                    <p className="text-[10px] font-600 text-foreground">Up to {lender.maxLoan}</p>
+                  </div>
+                  {selectedLead && (
+                    <button
+                      onClick={() => onSubmitLender(lender.name)}
+                      disabled={Boolean(submittingLender)}
+                      className="h-7 px-2 rounded-sm bg-primary text-primary-foreground text-[10px] font-700 hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {submittingLender === lender.name ? 'Sending...' : 'Send'}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
