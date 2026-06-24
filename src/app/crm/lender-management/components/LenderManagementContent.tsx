@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Modal from '@/crm/components/ui/Modal';
 import StatusBadge from '@/crm/components/ui/StatusBadge';
 
@@ -15,9 +15,11 @@ interface Lender {
   approvalRate: number;
   activeApps: number;
   scoreCutoff: number;
+  minIncome: number;
   maxTenure: number;
   foirLimit: number;
   ltvMax: number;
+  states: string[];
   status: 'active' | 'inactive';
   contact: string;
   rm: string;
@@ -37,9 +39,11 @@ const MOCK_LENDERS: Lender[] = [
     approvalRate: 84.2,
     activeApps: 28,
     scoreCutoff: 700,
+    minIncome: 50000,
     maxTenure: 360,
     foirLimit: 55,
     ltvMax: 80,
+    states: [],
     status: 'active',
     contact: '+91 22 6652 6652',
     rm: 'Sunil Kapoor',
@@ -57,9 +61,11 @@ const MOCK_LENDERS: Lender[] = [
     approvalRate: 78.6,
     activeApps: 19,
     scoreCutoff: 700,
+    minIncome: 45000,
     maxTenure: 300,
     foirLimit: 50,
     ltvMax: 75,
+    states: [],
     status: 'active',
     contact: '+91 22 2653 1414',
     rm: 'Meera Pillai',
@@ -77,9 +83,11 @@ const MOCK_LENDERS: Lender[] = [
     approvalRate: 91.4,
     activeApps: 34,
     scoreCutoff: 685,
+    minIncome: 30000,
     maxTenure: 84,
     foirLimit: 60,
     ltvMax: 0,
+    states: [],
     status: 'active',
     contact: '+91 20 3957 5152',
     rm: 'Rohit Sharma',
@@ -97,9 +105,11 @@ const MOCK_LENDERS: Lender[] = [
     approvalRate: 76.3,
     activeApps: 14,
     scoreCutoff: 710,
+    minIncome: 50000,
     maxTenure: 300,
     foirLimit: 50,
     ltvMax: 80,
+    states: [],
     status: 'active',
     contact: '+91 22 2425 2525',
     rm: 'Deepa Venkat',
@@ -117,9 +127,11 @@ const MOCK_LENDERS: Lender[] = [
     approvalRate: 72.1,
     activeApps: 11,
     scoreCutoff: 720,
+    minIncome: 60000,
     maxTenure: 240,
     foirLimit: 45,
     ltvMax: 80,
+    states: [],
     status: 'active',
     contact: '+91 22 6166 0001',
     rm: 'Anand Nair',
@@ -137,9 +149,11 @@ const MOCK_LENDERS: Lender[] = [
     approvalRate: 82.7,
     activeApps: 22,
     scoreCutoff: 680,
+    minIncome: 35000,
     maxTenure: 120,
     foirLimit: 55,
     ltvMax: 70,
+    states: [],
     status: 'active',
     contact: '+91 22 6606 5100',
     rm: 'Priya Bhat',
@@ -157,9 +171,11 @@ const MOCK_LENDERS: Lender[] = [
     approvalRate: 88.9,
     activeApps: 9,
     scoreCutoff: 650,
+    minIncome: 25000,
     maxTenure: 60,
     foirLimit: 65,
     ltvMax: 0,
+    states: [],
     status: 'active',
     contact: '+91 44 6656 0000',
     rm: 'Kiran Rao',
@@ -177,9 +193,11 @@ const MOCK_LENDERS: Lender[] = [
     approvalRate: 69.4,
     activeApps: 6,
     scoreCutoff: 660,
+    minIncome: 35000,
     maxTenure: 240,
     foirLimit: 55,
     ltvMax: 75,
+    states: [],
     status: 'inactive',
     contact: '+91 22 3046 6300',
     rm: 'Sanjay Mehta',
@@ -206,20 +224,22 @@ const formatCr = (n: number) => {
 
 const emptyForm = {
   name: '',
-  type: "bank' as 'bank' | 'nbfc",
+  type: 'bank' as 'bank' | 'nbfc',
   products: [] as string[],
   roiMin: '',
   roiMax: '',
   maxLoan: '',
   processingFee: '',
   scoreCutoff: '',
+  minIncome: '',
   maxTenure: '',
   foirLimit: '',
   ltvMax: '',
+  states: '',
   contact: '',
   rm: '',
   avgTat: '',
-  status: "active' as 'active' | 'inactive",
+  status: 'active' as 'active' | 'inactive',
 };
 
 export default function LenderManagementContent() {
@@ -234,7 +254,23 @@ export default function LenderManagementContent() {
   const [editLender, setEditLender] = useState<Lender | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const loadLenders = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/crm/lenders', { cache: 'no-store' });
+      const json = await response.json();
+      if (json.success && Array.isArray(json.data)) setLenders(json.data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLenders();
+  }, []);
 
   const filtered = lenders.filter((l) => {
     const matchSearch = l.name.toLowerCase().includes(search.toLowerCase());
@@ -271,9 +307,11 @@ export default function LenderManagementContent() {
       maxLoan: String(l.maxLoan),
       processingFee: l.processingFee,
       scoreCutoff: String(l.scoreCutoff),
+      minIncome: String(l.minIncome || 0),
       maxTenure: String(l.maxTenure),
       foirLimit: String(l.foirLimit),
       ltvMax: String(l.ltvMax),
+      states: l.states?.join(', ') || '',
       contact: l.contact,
       rm: l.rm,
       avgTat: l.avgTat,
@@ -301,8 +339,8 @@ export default function LenderManagementContent() {
       return;
     }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    const lenderData: Omit<Lender, 'id'> = {
+    const lenderData: Omit<Lender, 'id'> & { id?: string } = {
+      id: editLender?.id,
       name: form.name,
       type: form.type as Lender['type'],
       products: form.products,
@@ -313,21 +351,34 @@ export default function LenderManagementContent() {
       approvalRate: editLender?.approvalRate ?? 75,
       activeApps: editLender?.activeApps ?? 0,
       scoreCutoff: Number(form.scoreCutoff) || 700,
+      minIncome: Number(form.minIncome) || 0,
       maxTenure: Number(form.maxTenure) || 120,
       foirLimit: Number(form.foirLimit) || 50,
       ltvMax: Number(form.ltvMax) || 0,
+      states: form.states
+        .split(',')
+        .map((item) => item.trim().toUpperCase())
+        .filter(Boolean),
       contact: form.contact,
       rm: form.rm,
       avgTat: form.avgTat,
       status: form.status as Lender['status'],
     };
-    if (editLender) {
-      setLenders((prev) => prev.map((l) => (l.id === editLender.id ? { ...l, ...lenderData } : l)));
-    } else {
-      setLenders((prev) => [{ id: `lndr-${Date.now()}`, ...lenderData }, ...prev]);
+    try {
+      const response = await fetch('/api/crm/lenders', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(lenderData),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || 'Unable to save lender');
+      setLenders(json.data);
+      setLenderFormOpen(false);
+    } catch (error) {
+      setErrors({ form: error instanceof Error ? error.message : 'Unable to save lender' });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    setLenderFormOpen(false);
   };
 
   const toggleProduct = (p: string) => {
@@ -345,7 +396,10 @@ export default function LenderManagementContent() {
         <div>
           <h1 className="text-2xl font-700 text-foreground">Lender Management</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {lenders.filter((l) => l.status === 'active').length} active lenders —{' '}
+            {loading
+              ? 'Loading lender policies...'
+              : lenders.filter((l) => l.status === 'active').length}{' '}
+            {loading ? '' : 'active lenders — '}
             {lenders.reduce((s, l) => s + l.activeApps, 0)} live applications
           </p>
         </div>
@@ -652,6 +706,13 @@ export default function LenderManagementContent() {
                     { label: 'Max Tenure', value: `${selectedLender.maxTenure} months` },
                     { label: 'Processing Fee', value: selectedLender.processingFee },
                     { label: 'Score Cutoff', value: `${selectedLender.scoreCutoff}+` },
+                    {
+                      label: 'Min Income',
+                      value:
+                        selectedLender.minIncome > 0
+                          ? `₹${selectedLender.minIncome.toLocaleString('en-IN')}`
+                          : 'Any',
+                    },
                     { label: 'FOIR Limit', value: `${selectedLender.foirLimit}%` },
                     {
                       label: 'Max LTV',
@@ -671,6 +732,14 @@ export default function LenderManagementContent() {
                   </p>
                   <p className="text-xs text-foreground">{selectedLender.contact}</p>
                   <p className="text-xs text-muted-foreground">RM: {selectedLender.rm}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-700 uppercase tracking-wider text-muted-foreground">
+                    State Coverage
+                  </p>
+                  <p className="text-xs text-foreground">
+                    {selectedLender.states?.length ? selectedLender.states.join(', ') : 'All India'}
+                  </p>
                 </div>
                 <button
                   onClick={() => openEdit(selectedLender)}
@@ -892,6 +961,16 @@ export default function LenderManagementContent() {
                 />
               </div>
               <div className="space-y-1">
+                <label className="block text-sm font-600 text-foreground">Min Income (₹)</label>
+                <input
+                  type="number"
+                  value={form.minIncome}
+                  onChange={(e) => setForm((p) => ({ ...p, minIncome: e.target.value }))}
+                  placeholder="50000"
+                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </div>
+              <div className="space-y-1">
                 <label className="block text-sm font-600 text-foreground">
                   Max Tenure (months)
                 </label>
@@ -933,8 +1012,25 @@ export default function LenderManagementContent() {
                   className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
                 />
               </div>
+              <div className="space-y-1 sm:col-span-2">
+                <label className="block text-sm font-600 text-foreground">State Coverage</label>
+                <input
+                  type="text"
+                  value={form.states}
+                  onChange={(e) => setForm((p) => ({ ...p, states: e.target.value }))}
+                  placeholder="MADHYA PRADESH, MAHARASHTRA"
+                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+                <p className="text-[10px] text-muted-foreground">Blank means All India.</p>
+              </div>
             </div>
           </div>
+
+          {errors.form && (
+            <div className="rounded-sm border border-danger/20 bg-danger/5 px-3 py-2 text-xs font-600 text-danger">
+              {errors.form}
+            </div>
+          )}
 
           <div className="space-y-1">
             <label className="block text-sm font-600 text-foreground">Status</label>

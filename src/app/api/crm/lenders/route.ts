@@ -1,0 +1,127 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { CrmLender, defaultCrmLenders, normalizeLenders } from '@/lib/crm/lender-policy';
+
+const CRM_STORE_MOBILE = '0000000001';
+const CRM_STORE_STATUS = 'crm_store';
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function jsonError(message: string, status = 400) {
+  return NextResponse.json({ success: false, error: message }, { status });
+}
+
+async function getStore() {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('b2c_report_requests')
+    .select('id,report_json')
+    .eq('mobile', CRM_STORE_MOBILE)
+    .eq('status', CRM_STORE_STATUS)
+    .maybeSingle();
+  if (error) throw error;
+
+  if (data?.id) {
+    const raw = isObject(data.report_json) ? data.report_json : {};
+    const store = { ...raw, lenders: normalizeLenders(raw.lenders) };
+    return { supabase, rowId: data.id as string, store };
+  }
+
+  const store = {
+    eligibility_credits: { balance: 100, total_added: 100, total_used: 0, per_check_cost: 1 },
+    credit_transactions: [],
+    invoices: [],
+    lenders: defaultCrmLenders,
+    reports: [],
+  };
+  const { data: inserted, error: insertError } = await supabase
+    .from('b2c_report_requests')
+    .insert({
+      mobile: CRM_STORE_MOBILE,
+      full_name: 'DSA CRM Store',
+      status: CRM_STORE_STATUS,
+      report_type: CRM_STORE_STATUS,
+      report_json: store,
+      consent_given: true,
+      consent_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single();
+  if (insertError) throw insertError;
+  return { supabase, rowId: inserted.id as string, store };
+}
+
+async function saveStore(
+  supabase: ReturnType<typeof createAdminClient>,
+  rowId: string,
+  store: Record<string, unknown>
+) {
+  const { error } = await supabase
+    .from('b2c_report_requests')
+    .update({ report_json: store, updated_at: new Date().toISOString() })
+    .eq('id', rowId);
+  if (error) throw error;
+}
+
+function normalizeIncomingLender(value: Record<string, unknown>, existing?: CrmLender): CrmLender {
+  return {
+    id: String(value.id || existing?.id || `lndr-${Date.now()}`),
+    name: String(value.name || existing?.name || '').trim(),
+    type: value.type === 'nbfc' ? 'nbfc' : 'bank',
+    products: Array.isArray(value.products) ? value.products.map(String) : existing?.products || [],
+    roiMin: Number(value.roiMin ?? existing?.roiMin ?? 0),
+    roiMax: Number(value.roiMax ?? existing?.roiMax ?? 0),
+    maxLoan: Number(value.maxLoan ?? existing?.maxLoan ?? 0),
+    processingFee: String(value.processingFee ?? existing?.processingFee ?? ''),
+    approvalRate: Number(value.approvalRate ?? existing?.approvalRate ?? 75),
+    activeApps: Number(value.activeApps ?? existing?.activeApps ?? 0),
+    scoreCutoff: Number(value.scoreCutoff ?? existing?.scoreCutoff ?? 700),
+    minIncome: Number(value.minIncome ?? existing?.minIncome ?? 0),
+    maxTenure: Number(value.maxTenure ?? existing?.maxTenure ?? 120),
+    foirLimit: Number(value.foirLimit ?? existing?.foirLimit ?? 50),
+    ltvMax: Number(value.ltvMax ?? existing?.ltvMax ?? 0),
+    states: Array.isArray(value.states) ? value.states.map(String) : existing?.states || [],
+    status: value.status === 'inactive' ? 'inactive' : 'active',
+    contact: String(value.contact ?? existing?.contact ?? ''),
+    rm: String(value.rm ?? existing?.rm ?? ''),
+    avgTat: String(value.avgTat ?? existing?.avgTat ?? ''),
+  };
+}
+
+export async function GET() {
+  try {
+    const { store } = await getStore();
+    return NextResponse.json({ success: true, data: normalizeLenders(store.lenders) });
+  } catch (error) {
+    console.error('[crm:lenders] GET failed:', error);
+    return jsonError(error instanceof Error ? error.message : 'Unable to load lenders', 500);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    if (!isObject(body)) return jsonError('Request body must be JSON');
+    const { supabase, rowId, store } = await getStore();
+    const lenders = normalizeLenders(store.lenders);
+    const existing = lenders.find((item) => item.id === body.id);
+    const lender = normalizeIncomingLender(body, existing);
+
+    if (!lender.name) return jsonError('Lender name is required');
+    if (!lender.products.length) return jsonError('At least one product is required');
+    if (!lender.roiMin || !lender.roiMax) return jsonError('ROI range is required');
+    if (!lender.maxLoan) return jsonError('Max loan is required');
+
+    const nextLenders = existing
+      ? lenders.map((item) => (item.id === lender.id ? lender : item))
+      : [lender, ...lenders];
+    const nextStore = { ...store, lenders: nextLenders };
+    await saveStore(supabase, rowId, nextStore);
+    return NextResponse.json({ success: true, data: nextLenders });
+  } catch (error) {
+    console.error('[crm:lenders] POST failed:', error);
+    return jsonError(error instanceof Error ? error.message : 'Unable to save lender', 500);
+  }
+}

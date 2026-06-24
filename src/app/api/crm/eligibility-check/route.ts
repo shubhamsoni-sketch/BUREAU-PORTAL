@@ -9,6 +9,12 @@ import {
 import { maskMobile, maskPan } from '@/lib/api-hub/keys';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getStateName } from '@/lib/bureau/state-codes';
+import {
+  CrmLender,
+  defaultCrmLenders,
+  matchLenders,
+  normalizeLenders,
+} from '@/lib/crm/lender-policy';
 
 const CRM_STORE_MOBILE = '0000000001';
 const CRM_STORE_STATUS = 'crm_store';
@@ -59,6 +65,7 @@ type CrmStore = {
   };
   credit_transactions: CrmCreditTransaction[];
   invoices: CrmInvoice[];
+  lenders: CrmLender[];
   reports: CrmEligibilityReport[];
 };
 
@@ -71,6 +78,7 @@ const defaultCrmStore: CrmStore = {
   },
   credit_transactions: [],
   invoices: [],
+  lenders: defaultCrmLenders,
   reports: [],
 };
 
@@ -393,6 +401,7 @@ async function getCrmStore(supabase: ReturnType<typeof createAdminClient>) {
           ? (raw.credit_transactions.slice(0, 200) as CrmCreditTransaction[])
           : [],
         invoices: Array.isArray(raw.invoices) ? (raw.invoices.slice(0, 200) as CrmInvoice[]) : [],
+        lenders: normalizeLenders(raw.lenders),
         reports: Array.isArray(raw.reports)
           ? (raw.reports.slice(0, 200) as CrmEligibilityReport[])
           : [],
@@ -593,6 +602,19 @@ export async function POST(request: NextRequest) {
         ? Math.round(((monthlyIncome * 0.55) / r) * (1 - Math.pow(1 + r, -tenure)))
         : 0
     );
+    const matchedLenders =
+      monthlyIncome > 0 && loanType
+        ? matchLenders(crmStore.lenders, {
+            score,
+            loanType,
+            loanAmount,
+            monthlyIncome,
+            tenure,
+            foir,
+            state: cleanString(cibilPayload.state),
+            maxLoanAmount,
+          })
+        : [];
 
     const remarks = [
       score ? `Bureau score received: ${score}` : `Bureau response status: ${status}`,
@@ -602,7 +624,9 @@ export async function POST(request: NextRequest) {
           : `FOIR is high at ${foir}%`
         : 'Mobile flow completed. Add income and loan details for FOIR-based lender matching.',
       eligible
-        ? 'Customer is eligible as per CRM policy.'
+        ? matchedLenders.length
+          ? `${matchedLenders.length} lender policy match found.`
+          : 'Customer passes score/FOIR policy, but no lender rule matched.'
         : 'Customer needs manual review or alternate lender mapping.',
     ];
 
@@ -656,37 +680,7 @@ export async function POST(request: NextRequest) {
         recommendedEMI: emi,
         foir,
         remarks,
-        matchedLenders: eligible
-          ? [
-              {
-                name: 'HDFC Bank',
-                roi: '8.75-12%',
-                maxLoan: new Intl.NumberFormat('en-IN', {
-                  style: 'currency',
-                  currency: 'INR',
-                  maximumFractionDigits: 0,
-                }).format(Math.min(loanAmount, maxLoanAmount)),
-              },
-              {
-                name: 'ICICI Bank',
-                roi: '9.0-13.5%',
-                maxLoan: new Intl.NumberFormat('en-IN', {
-                  style: 'currency',
-                  currency: 'INR',
-                  maximumFractionDigits: 0,
-                }).format(Math.min(loanAmount, maxLoanAmount)),
-              },
-              {
-                name: 'Bajaj Finserv',
-                roi: '11-24%',
-                maxLoan: new Intl.NumberFormat('en-IN', {
-                  style: 'currency',
-                  currency: 'INR',
-                  maximumFractionDigits: 0,
-                }).format(Math.min(loanAmount, maxLoanAmount)),
-              },
-            ]
-          : [],
+        matchedLenders: eligible ? matchedLenders : [],
         rawBureauResponse: bureauResponse.data,
       },
     });

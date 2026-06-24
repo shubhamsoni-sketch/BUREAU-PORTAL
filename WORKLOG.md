@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-24 - Developer - CRM Lender Policy Engine
+
+Summary:
+
+- Added a CRM lender policy store behind `/api/crm/lenders` so lender changes persist in the CRM backend.
+- Kept the existing Lender Management UI shape while wiring list load and add/edit save to the backend.
+- Added lender policy fields for minimum income and state coverage alongside existing score, FOIR, tenure, amount, ROI, and product rules.
+- Updated CRM Eligibility Checker so matched lenders come from configured lender rules instead of hardcoded lenders.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder npm run build` passed.
+
 ## 2026-06-23 - Developer - Two Mode CRM Eligibility Checker
 
 Summary:
