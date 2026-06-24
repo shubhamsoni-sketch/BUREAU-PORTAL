@@ -510,75 +510,153 @@ export async function POST(request: NextRequest) {
       const supabase = createAdminClient();
       const { rowId, store } = await getCrmStore(supabase);
       const now = new Date().toISOString();
-      const demoLeadId = 'lead-demo-lender-flow';
-      const demoReportId = 'rpt-demo-lender-flow';
-      const matchedLenders = [
-        { name: 'HDFC Bank', roi: '8.65%', maxLoan: '₹42L' },
-        { name: 'Axis Bank', roi: '8.9%', maxLoan: '₹38L' },
-        { name: 'ICICI Bank', roi: '9.1%', maxLoan: '₹35L' },
-      ];
-      const demoReport: CrmEligibilityReport = {
-        id: demoReportId,
-        request_id: 'CRM-DEMO-LENDER-FLOW',
-        borrower_name: 'Demo Eligible Customer',
-        pan: 'DEMOX1234X',
-        mobile: '98765XXXXX',
-        loan_type: 'home_loan',
-        loan_amount: 4200000,
-        score: 782,
-        eligible: true,
-        status: 'score_pulled',
-        foir: 38,
-        max_loan_amount: 4800000,
-        matched_lenders: matchedLenders,
-        credits_deducted: 0,
-        created_at: now,
-        cibil_payload: {
+      const demos = [
+        {
+          leadId: 'lead-demo-lender-flow',
+          reportId: 'rpt-demo-lender-flow',
+          requestId: 'CRM-DEMO-LENDER-FLOW',
+          name: 'Demo Eligible Customer',
           firstName: 'Demo',
           lastName: 'Customer',
           mobile: '9876543210',
+          maskedMobile: '98765XXXXX',
+          email: 'demo.customer@credittrust.in',
+          product: 'home_loan',
+          loanAmount: 4200000,
+          city: 'Mumbai',
           state: 'MAHARASHTRA',
           pincode: '400001',
+          pan: 'DEMOX1234X',
+          score: 782,
+          foir: 38,
+          maxLoanAmount: 4800000,
+          agent: 'Priya Sharma',
+          matchedLenders: [
+            { name: 'HDFC Bank', roi: '8.65%', maxLoan: '₹42L' },
+            { name: 'Axis Bank', roi: '8.9%', maxLoan: '₹38L' },
+            { name: 'ICICI Bank', roi: '9.1%', maxLoan: '₹35L' },
+          ],
+        },
+        {
+          leadId: 'lead-demo-lender-flow-2',
+          reportId: 'rpt-demo-lender-flow-2',
+          requestId: 'CRM-DEMO-LENDER-FLOW-2',
+          name: 'Amit Sharma Demo',
+          firstName: 'Amit',
+          lastName: 'Sharma',
+          mobile: '9123456780',
+          maskedMobile: '91234XXXXX',
+          email: 'amit.demo@credittrust.in',
+          product: 'personal_loan',
+          loanAmount: 850000,
+          city: 'Pune',
+          state: 'MAHARASHTRA',
+          pincode: '411001',
+          pan: 'DEMOS2345A',
+          score: 756,
+          foir: 41,
+          maxLoanAmount: 1100000,
+          agent: 'Anil Mehta',
+          matchedLenders: [
+            { name: 'Bajaj Finserv', roi: '11-24%', maxLoan: '₹8.5L' },
+            { name: 'HDFC Bank', roi: '8.5-12%', maxLoan: '₹8.5L' },
+            { name: 'ICICI Bank', roi: '8.75-13.5%', maxLoan: '₹8.5L' },
+          ],
+        },
+        {
+          leadId: 'lead-demo-lender-flow-3',
+          reportId: 'rpt-demo-lender-flow-3',
+          requestId: 'CRM-DEMO-LENDER-FLOW-3',
+          name: 'Kavita Rao Demo',
+          firstName: 'Kavita',
+          lastName: 'Rao',
+          mobile: '9988776655',
+          maskedMobile: '99887XXXXX',
+          email: 'kavita.demo@credittrust.in',
+          product: 'business_loan',
+          loanAmount: 2500000,
+          city: 'Ahmedabad',
+          state: 'GUJARAT',
+          pincode: '380001',
+          pan: 'DEMOR6789K',
+          score: 724,
+          foir: 47,
+          maxLoanAmount: 2800000,
+          agent: 'Priya Sharma',
+          matchedLenders: [
+            { name: 'ICICI Bank', roi: '8.75-13.5%', maxLoan: '₹25L' },
+            { name: 'Tata Capital', roi: '10.99-18%', maxLoan: '₹25L' },
+            { name: 'Bajaj Finserv', roi: '11-24%', maxLoan: '₹25L' },
+          ],
+        },
+      ];
+
+      const demoReports: CrmEligibilityReport[] = demos.map((demo) => ({
+        id: demo.reportId,
+        request_id: demo.requestId,
+        borrower_name: demo.name,
+        pan: demo.pan,
+        mobile: demo.maskedMobile,
+        loan_type: demo.product,
+        loan_amount: demo.loanAmount,
+        score: demo.score,
+        eligible: true,
+        status: 'score_pulled',
+        foir: demo.foir,
+        max_loan_amount: demo.maxLoanAmount,
+        matched_lenders: demo.matchedLenders,
+        credits_deducted: 0,
+        created_at: now,
+        cibil_payload: {
+          firstName: demo.firstName,
+          lastName: demo.lastName,
+          mobile: demo.mobile,
+          state: demo.state,
+          pincode: demo.pincode,
         },
         bureau_response: {
           provider: 'demo',
-          score: 782,
+          score: demo.score,
           status: 'demo_lender_match',
         },
-      };
-      const demoLead: CrmLead = {
-        id: demoLeadId,
-        name: 'Demo Eligible Customer',
-        mobile: '9876543210',
-        email: 'demo.customer@credittrust.in',
-        product: 'home_loan',
-        loanAmount: 4200000,
+      }));
+
+      const demoLeads: CrmLead[] = demos.map((demo) => ({
+        id: demo.leadId,
+        name: demo.name,
+        mobile: demo.mobile,
+        email: demo.email,
+        product: demo.product,
+        loanAmount: demo.loanAmount,
         source: 'web',
         stage: 'eligibility_done',
-        assignedAgent: 'Priya Sharma',
+        assignedAgent: demo.agent,
         lastContact: new Date().toLocaleDateString('en-IN'),
         nextFollowUp: '-',
         daysInStage: 0,
-        city: 'Mumbai',
-        notes: 'Demo lead for lender queue testing',
-        eligibilityReportId: demoReportId,
+        city: demo.city,
+        notes: 'Demo lead for lender selection testing',
+        eligibilityReportId: demo.reportId,
         createdAt: now,
         updatedAt: now,
-      };
+      }));
+
+      const demoLeadIds = new Set(demos.map((demo) => demo.leadId));
+      const demoReportIds = new Set(demos.map((demo) => demo.reportId));
 
       store.reports = [
-        demoReport,
-        ...(store.reports || []).filter((report) => report.id !== demoReportId),
+        ...demoReports,
+        ...(store.reports || []).filter((report) => !demoReportIds.has(report.id)),
       ].slice(0, 200);
       store.leads = [
-        demoLead,
-        ...(store.leads || []).filter((lead) => lead.id !== demoLeadId),
+        ...demoLeads,
+        ...(store.leads || []).filter((lead) => !demoLeadIds.has(lead.id)),
       ].slice(0, 500);
       store.applications = (store.applications || []).filter(
-        (application) => application.leadId !== demoLeadId
+        (application) => !demoLeadIds.has(application.leadId)
       );
       await saveCrmStore(supabase, rowId, store);
-      return NextResponse.json({ success: true, data: { lead: demoLead, report: demoReport } });
+      return NextResponse.json({ success: true, data: { leads: demoLeads, reports: demoReports } });
     }
 
     if (body.action === 'submit_to_lender') {

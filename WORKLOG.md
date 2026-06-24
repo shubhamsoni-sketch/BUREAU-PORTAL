@@ -599,6 +599,19 @@ Verification:
 
 - Migration file added. Existing DB already has the demo account; apply migration only where demo seed is needed.
 
+## 2026-06-24 - Developer - Add Lender Selection Demo Leads
+
+Summary:
+
+- Expanded the CRM demo eligibility seed to create three fresh checked leads.
+- Added home loan, personal loan, and business loan demo reports with lender matches.
+- Reset demo applications during seed so the lender selection flow can be tested repeatedly.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL="https://placeholder.supabase.co" NEXT_PUBLIC_SUPABASE_ANON_KEY="placeholder" SUPABASE_SERVICE_ROLE_KEY="placeholder" NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-24 - Developer - Link Lender Selection To Application View
 
 Summary:
