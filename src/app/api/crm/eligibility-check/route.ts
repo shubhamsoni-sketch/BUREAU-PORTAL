@@ -574,6 +574,9 @@ export async function POST(request: NextRequest) {
         demoLead,
         ...(store.leads || []).filter((lead) => lead.id !== demoLeadId),
       ].slice(0, 500);
+      store.applications = (store.applications || []).filter(
+        (application) => application.leadId !== demoLeadId
+      );
       await saveCrmStore(supabase, rowId, store);
       return NextResponse.json({ success: true, data: { lead: demoLead, report: demoReport } });
     }
@@ -590,7 +593,10 @@ export async function POST(request: NextRequest) {
       if (!lead) return jsonError('Lead not found', 404);
 
       const now = new Date().toISOString();
-      const application: CrmApplication = {
+      const existingApplication = (store.applications || []).find(
+        (item) => item.leadId === leadId && item.lenderName === lenderName
+      );
+      const application: CrmApplication = existingApplication || {
         id: crypto.randomUUID(),
         leadId,
         customerName: lead.name,
@@ -602,7 +608,9 @@ export async function POST(request: NextRequest) {
         createdAt: now,
       };
 
-      store.applications = [application, ...(store.applications || [])].slice(0, 200);
+      store.applications = existingApplication
+        ? store.applications
+        : [application, ...(store.applications || [])].slice(0, 200);
       store.leads = store.leads.map((item) =>
         item.id === leadId
           ? {

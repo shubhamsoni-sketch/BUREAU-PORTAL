@@ -599,6 +599,20 @@ Verification:
 
 - Migration file added. Existing DB already has the demo account; apply migration only where demo seed is needed.
 
+## 2026-06-24 - Developer - Clarify Send To Lender Flow
+
+Summary:
+
+- Added clear success feedback after a checked lead is sent to a lender.
+- Added a `Sent` badge for leads already submitted to lender queue.
+- Made the demo lender eligibility seed reset prior demo applications so the `Send to Lender` action can be tested repeatedly.
+- Prevented duplicate lender applications for the same lead and lender.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL="https://placeholder.supabase.co" NEXT_PUBLIC_SUPABASE_ANON_KEY="placeholder" SUPABASE_SERVICE_ROLE_KEY="placeholder" NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-05-10 - Coordinator - Agent Operating System
 
 Summary:

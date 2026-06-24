@@ -113,6 +113,7 @@ export default function EligibilityCheckContent() {
   const [checking, setChecking] = useState(false);
   const [checkingLeadId, setCheckingLeadId] = useState('');
   const [submittingLender, setSubmittingLender] = useState('');
+  const [lenderMessage, setLenderMessage] = useState('');
   const [result, setResult] = useState<EligibilityResult | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState('');
@@ -287,6 +288,7 @@ export default function EligibilityCheckContent() {
     if (!lead) return;
     setSubmittingLender(lenderName);
     setServerError('');
+    setLenderMessage('');
     try {
       const response = await fetch('/api/crm/eligibility-check', {
         method: 'POST',
@@ -302,6 +304,8 @@ export default function EligibilityCheckContent() {
       await loadEligibilityData();
       if (!leadOverride) setSelectedLead(null);
       setResult(null);
+      setQueueTab('checked');
+      setLenderMessage(`${lead.name} sent to ${lenderName}. Check Loan Application Tracking.`);
     } catch (error) {
       setServerError(error instanceof Error ? error.message : 'Unable to submit lead');
     } finally {
@@ -358,6 +362,17 @@ export default function EligibilityCheckContent() {
         <EligibilityReportContent embedded />
       ) : (
         <div className="space-y-5">
+          {lenderMessage && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-success/20 bg-success/5 p-3">
+              <p className="text-xs font-700 text-success">{lenderMessage}</p>
+              <a
+                href="/crm/loan-application-tracking"
+                className="inline-flex h-8 items-center justify-center rounded-sm bg-success px-3 text-xs font-700 text-white hover:bg-success/90"
+              >
+                Open Applications
+              </a>
+            </div>
+          )}
           <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 border-b border-border">
               <div>
@@ -526,6 +541,11 @@ export default function EligibilityCheckContent() {
                                         ? 'Sending...'
                                         : 'Send to Lender'}
                                     </button>
+                                  )}
+                                  {lead.selectedLender && (
+                                    <span className="inline-flex h-8 items-center rounded-sm bg-success/10 px-3 text-xs font-700 text-success">
+                                      Sent
+                                    </span>
                                   )}
                                   <button
                                     onClick={() => setMainTab('reports')}
