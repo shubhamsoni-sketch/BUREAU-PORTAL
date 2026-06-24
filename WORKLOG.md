@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-24 - Developer - Demo Lender Eligibility Seed
+
+Summary:
+
+- Added a CRM backend seed action for a demo eligibility report with lender matches.
+- The seeded demo lead appears in Eligibility Checked Leads and can be sent to the lender queue for flow testing.
+- Demo data is idempotent so repeated seeding updates the same demo lead/report instead of creating duplicates.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-24 - Developer - Show Lender Eligibility In Reports
 
 Summary:

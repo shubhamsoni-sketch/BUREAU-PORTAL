@@ -506,6 +506,78 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, data: store });
     }
 
+    if (body.action === 'seed_demo_eligibility') {
+      const supabase = createAdminClient();
+      const { rowId, store } = await getCrmStore(supabase);
+      const now = new Date().toISOString();
+      const demoLeadId = 'lead-demo-lender-flow';
+      const demoReportId = 'rpt-demo-lender-flow';
+      const matchedLenders = [
+        { name: 'HDFC Bank', roi: '8.65%', maxLoan: '₹42L' },
+        { name: 'Axis Bank', roi: '8.9%', maxLoan: '₹38L' },
+        { name: 'ICICI Bank', roi: '9.1%', maxLoan: '₹35L' },
+      ];
+      const demoReport: CrmEligibilityReport = {
+        id: demoReportId,
+        request_id: 'CRM-DEMO-LENDER-FLOW',
+        borrower_name: 'Demo Eligible Customer',
+        pan: 'DEMOX1234X',
+        mobile: '98765XXXXX',
+        loan_type: 'home_loan',
+        loan_amount: 4200000,
+        score: 782,
+        eligible: true,
+        status: 'score_pulled',
+        foir: 38,
+        max_loan_amount: 4800000,
+        matched_lenders: matchedLenders,
+        credits_deducted: 0,
+        created_at: now,
+        cibil_payload: {
+          firstName: 'Demo',
+          lastName: 'Customer',
+          mobile: '9876543210',
+          state: 'MAHARASHTRA',
+          pincode: '400001',
+        },
+        bureau_response: {
+          provider: 'demo',
+          score: 782,
+          status: 'demo_lender_match',
+        },
+      };
+      const demoLead: CrmLead = {
+        id: demoLeadId,
+        name: 'Demo Eligible Customer',
+        mobile: '9876543210',
+        email: 'demo.customer@credittrust.in',
+        product: 'home_loan',
+        loanAmount: 4200000,
+        source: 'web',
+        stage: 'eligibility_done',
+        assignedAgent: 'Priya Sharma',
+        lastContact: new Date().toLocaleDateString('en-IN'),
+        nextFollowUp: '-',
+        daysInStage: 0,
+        city: 'Mumbai',
+        notes: 'Demo lead for lender queue testing',
+        eligibilityReportId: demoReportId,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      store.reports = [
+        demoReport,
+        ...(store.reports || []).filter((report) => report.id !== demoReportId),
+      ].slice(0, 200);
+      store.leads = [
+        demoLead,
+        ...(store.leads || []).filter((lead) => lead.id !== demoLeadId),
+      ].slice(0, 500);
+      await saveCrmStore(supabase, rowId, store);
+      return NextResponse.json({ success: true, data: { lead: demoLead, report: demoReport } });
+    }
+
     if (body.action === 'submit_to_lender') {
       const leadId = cleanString(body.leadId);
       const lenderName = cleanString(body.lenderName);
