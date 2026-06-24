@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import React, { useEffect, useMemo, useState } from 'react';
 
 type LenderMatch = {
@@ -43,6 +44,12 @@ type SelectionRow = {
   report: Report;
 };
 
+type CreatedApplication = {
+  id: string;
+  customerName: string;
+  lenderName: string;
+};
+
 const formatINR = (value: number) =>
   new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -58,7 +65,7 @@ export default function LenderSelectionContent() {
   const [query, setQuery] = useState('');
   const [activeLeadId, setActiveLeadId] = useState('');
   const [submitting, setSubmitting] = useState('');
-  const [message, setMessage] = useState('');
+  const [createdApplication, setCreatedApplication] = useState<CreatedApplication | null>(null);
   const [error, setError] = useState('');
 
   const loadData = async () => {
@@ -118,7 +125,7 @@ export default function LenderSelectionContent() {
 
   const submitToLender = async (leadId: string, lenderName: string) => {
     setSubmitting(`${leadId}-${lenderName}`);
-    setMessage('');
+    setCreatedApplication(null);
     setError('');
     try {
       const response = await fetch('/api/crm/eligibility-check', {
@@ -129,9 +136,12 @@ export default function LenderSelectionContent() {
       const json = await response.json();
       if (!response.ok || !json.success)
         throw new Error(json.error || 'Unable to create application');
-      setMessage(
-        `Application created for ${json.data?.application?.customerName || 'lead'} with ${lenderName}.`
-      );
+      const application = json.data?.application;
+      setCreatedApplication({
+        id: application?.id || '',
+        customerName: application?.customerName || 'Lead',
+        lenderName,
+      });
       await loadData();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Unable to select lender');
@@ -165,9 +175,18 @@ export default function LenderSelectionContent() {
         </div>
       </div>
 
-      {message && (
-        <div className="mb-4 rounded-lg border border-success/20 bg-success/5 p-3 text-xs font-700 text-success">
-          {message}
+      {createdApplication && (
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-success/20 bg-success/5 p-3">
+          <p className="text-xs font-700 text-success">
+            Application created for {createdApplication.customerName} with{' '}
+            {createdApplication.lenderName}.
+          </p>
+          <Link
+            href={`/crm/loan-application-tracking?application=${encodeURIComponent(createdApplication.id)}`}
+            className="inline-flex h-8 items-center justify-center rounded-sm bg-success px-3 text-xs font-700 text-white hover:bg-success/90"
+          >
+            View Application
+          </Link>
         </div>
       )}
       {error && (

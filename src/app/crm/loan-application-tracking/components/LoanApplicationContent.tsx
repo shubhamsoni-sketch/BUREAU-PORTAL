@@ -249,6 +249,11 @@ export default function LoanApplicationContent() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
+    const highlightedApplicationId =
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('application')
+        : '';
+
     const loadApplications = async () => {
       try {
         const response = await fetch('/api/crm/leads', { cache: 'no-store' });
@@ -297,7 +302,15 @@ export default function LoanApplicationContent() {
             };
           }
         );
-        if (liveApps.length) setApps([...liveApps, ...MOCK_APPS]);
+        const nextApps = liveApps.length ? [...liveApps, ...MOCK_APPS] : MOCK_APPS;
+        setApps(nextApps);
+        if (highlightedApplicationId) {
+          const highlightedApp = nextApps.find((app) => app.id === highlightedApplicationId);
+          if (highlightedApp) {
+            setSelectedApp(highlightedApp);
+            setSearch(highlightedApp.applicant);
+          }
+        }
       } catch {
         setApps(MOCK_APPS);
       }

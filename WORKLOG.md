@@ -599,6 +599,19 @@ Verification:
 
 - Migration file added. Existing DB already has the demo account; apply migration only where demo seed is needed.
 
+## 2026-06-24 - Developer - Link Lender Selection To Application View
+
+Summary:
+
+- Added a `View Application` CTA after creating a loan application from Lender Selection.
+- Passed the created application id into Loan Application Tracking through the URL.
+- Auto-opened and filtered the created application in Loan Application Tracking.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL="https://placeholder.supabase.co" NEXT_PUBLIC_SUPABASE_ANON_KEY="placeholder" SUPABASE_SERVICE_ROLE_KEY="placeholder" NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-24 - Developer - Separate Lender Selection Workflow
 
 Summary:
