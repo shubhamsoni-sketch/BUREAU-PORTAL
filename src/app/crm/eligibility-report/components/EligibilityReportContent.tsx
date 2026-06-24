@@ -151,7 +151,7 @@ const STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
 };
 
-export default function EligibilityReportContent() {
+export default function EligibilityReportContent({ embedded = false }: { embedded?: boolean }) {
   const [reports, setReports] = useState<EligibilityReport[]>(MOCK_REPORTS);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -225,35 +225,38 @@ export default function EligibilityReportContent() {
   };
 
   return (
-    <div className="px-4 lg:px-6 xl:px-8 py-6 max-w-screen-2xl mx-auto">
+    <div className={embedded ? '' : 'px-4 lg:px-6 xl:px-8 py-6 max-w-screen-2xl mx-auto'}>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-        <div>
-          <h1 className="text-2xl font-700 text-foreground">Eligibility Reports</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {stats.total} assessments — {stats.eligible} eligible, {stats.notEligible} not eligible
-          </p>
-        </div>
-        <Link
-          href="/crm/eligibility-check"
-          className="flex items-center gap-1.5 h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-600 hover:bg-primary/90 active:scale-95 transition-all duration-150"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+          <div>
+            <h1 className="text-2xl font-700 text-foreground">Eligibility Reports</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {stats.total} assessments — {stats.eligible} eligible, {stats.notEligible} not
+              eligible
+            </p>
+          </div>
+          <Link
+            href="/crm/eligibility-check"
+            className="flex items-center gap-1.5 h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-600 hover:bg-primary/90 active:scale-95 transition-all duration-150"
           >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          New Check
-        </Link>
-      </div>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            New Check
+          </Link>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">

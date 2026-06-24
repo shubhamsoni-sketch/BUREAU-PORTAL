@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import EligibilityReportContent from '../../eligibility-report/components/EligibilityReportContent';
 
+type MainTab = 'queue' | 'reports';
 type EligibilityMode = 'mobile_advanced' | 'full_details';
 type QueueTab = 'pending' | 'checked';
 type LoanType = 'home_loan' | 'personal_loan' | 'business_loan' | 'lap' | 'car_loan';
@@ -100,6 +101,7 @@ const formatINR = (n: number) =>
   }).format(Number.isFinite(n) ? n : 0);
 
 export default function EligibilityCheckContent() {
+  const [mainTab, setMainTab] = useState<MainTab>('queue');
   const [mode, setMode] = useState<EligibilityMode>('mobile_advanced');
   const [form, setForm] = useState<EligibilityForm>(emptyForm);
   const [leads, setLeads] = useState<QueueLead[]>([]);
@@ -329,29 +331,31 @@ export default function EligibilityCheckContent() {
             Check customer eligibility and view lender recommendations from one screen
           </p>
         </div>
-        <Link
-          href="/crm/eligibility-report"
-          className="flex items-center gap-1.5 h-8 px-3 rounded-sm border border-border bg-card text-xs font-600 text-foreground hover:bg-muted transition-colors"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-          </svg>
-          View Reports
-        </Link>
+        <div className="flex items-center rounded-sm border border-border bg-muted p-0.5">
+          {[
+            ['queue', 'Lead Queue'],
+            ['reports', 'Eligibility Reports'],
+          ].map(([tab, label]) => (
+            <button
+              key={tab}
+              onClick={() => setMainTab(tab as MainTab)}
+              className={[
+                'h-8 px-3 rounded-sm text-xs font-700 transition-colors',
+                mainTab === tab
+                  ? 'bg-card text-foreground shadow-card'
+                  : 'text-muted-foreground hover:text-foreground',
+              ].join(' ')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        <div className="xl:col-span-3 space-y-5">
+      {mainTab === 'reports' ? (
+        <EligibilityReportContent embedded />
+      ) : (
+        <div className="space-y-5">
           <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 border-b border-border">
               <div>
@@ -503,12 +507,12 @@ export default function EligibilityCheckContent() {
                                   {checkingLeadId === lead.id ? 'Running...' : 'Run Eligibility'}
                                 </button>
                               ) : (
-                                <Link
-                                  href="/crm/eligibility-report"
+                                <button
+                                  onClick={() => setMainTab('reports')}
                                   className="inline-flex items-center justify-center h-8 px-3 rounded-sm border border-border bg-background text-xs font-700 text-foreground hover:bg-muted"
                                 >
                                   View Report
-                                </Link>
+                                </button>
                               )}
                             </td>
                           </tr>
@@ -781,20 +785,19 @@ export default function EligibilityCheckContent() {
               </button>
             </div>
           </div>
+          {result && (
+            <ResultPanel
+              result={result}
+              mode={mode}
+              scoreColor={scoreColor}
+              scoreBarColor={scoreBarColor}
+              selectedLead={selectedLead}
+              submittingLender={submittingLender}
+              onSubmitLender={submitToLenderQueue}
+            />
+          )}
         </div>
-
-        <ResultPanel
-          result={result}
-          mode={mode}
-          scoreColor={scoreColor}
-          scoreBarColor={scoreBarColor}
-          selectedLead={selectedLead}
-          pendingCount={pendingLeads.length}
-          checkedCount={checkedLeads.length}
-          submittingLender={submittingLender}
-          onSubmitLender={submitToLenderQueue}
-        />
-      </div>
+      )}
     </div>
   );
 }
@@ -881,8 +884,6 @@ function ResultPanel({
   scoreColor,
   scoreBarColor,
   selectedLead,
-  pendingCount,
-  checkedCount,
   submittingLender,
   onSubmitLender,
 }: {
@@ -891,62 +892,15 @@ function ResultPanel({
   scoreColor: string;
   scoreBarColor: string;
   selectedLead: QueueLead | null;
-  pendingCount: number;
-  checkedCount: number;
   submittingLender: string;
   onSubmitLender: (lenderName: string) => void;
 }) {
   if (!result) {
-    return (
-      <div className="xl:col-span-2 space-y-4">
-        <div className="bg-card rounded-lg border border-border shadow-card p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm font-700 text-foreground">Queue Summary</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Live eligibility work status</p>
-            </div>
-            <Link
-              href="/crm/eligibility-report"
-              className="h-8 px-3 rounded-sm border border-border bg-background text-xs font-700 text-foreground hover:bg-muted inline-flex items-center"
-            >
-              Reports
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-sm border border-border bg-muted/30 p-3">
-              <p className="text-[10px] uppercase tracking-wide font-700 text-muted-foreground">
-                Pending
-              </p>
-              <p className="text-2xl font-800 text-foreground tabular-nums mt-1">{pendingCount}</p>
-            </div>
-            <div className="rounded-sm border border-border bg-muted/30 p-3">
-              <p className="text-[10px] uppercase tracking-wide font-700 text-muted-foreground">
-                Checked
-              </p>
-              <p className="text-2xl font-800 text-foreground tabular-nums mt-1">{checkedCount}</p>
-            </div>
-          </div>
-          {selectedLead ? (
-            <div className="mt-3 rounded-sm border border-primary/20 bg-primary/5 p-3">
-              <p className="text-xs font-700 text-primary">{selectedLead.name}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {selectedLead.mobile} · {formatINR(selectedLead.loanAmount)}
-              </p>
-            </div>
-          ) : (
-            <div className="mt-3 rounded-sm border border-dashed border-border bg-background p-3">
-              <p className="text-xs text-muted-foreground">
-                Use the table actions to run eligibility for pending leads.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="xl:col-span-2 space-y-4">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <div
         className={`rounded-lg border p-5 ${
           result.eligible ? 'bg-success/5 border-success/20' : 'bg-danger/5 border-danger/20'

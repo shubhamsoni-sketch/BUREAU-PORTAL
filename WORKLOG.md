@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-24 - Developer - Embed Eligibility Reports In Checker
+
+Summary:
+
+- Removed the right-side Queue Summary panel from CRM Eligibility Checker so the lead table can use full width.
+- Added top sub-tabs inside Eligibility Checker for Lead Queue and Eligibility Reports.
+- Embedded the existing Eligibility Reports screen inside the checker tab while keeping the direct reports route available.
+- Removed Eligibility Reports from the main CRM sidebar so reports are managed inside Eligibility Checker.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-24 - Developer - Scalable Eligibility Lead Queue
 
 Summary:
