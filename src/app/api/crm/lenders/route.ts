@@ -73,6 +73,7 @@ function normalizeIncomingLender(value: Record<string, unknown>, existing?: CrmL
     products: Array.isArray(value.products) ? value.products.map(String) : existing?.products || [],
     roiMin: Number(value.roiMin ?? existing?.roiMin ?? 0),
     roiMax: Number(value.roiMax ?? existing?.roiMax ?? 0),
+    minLoan: Number(value.minLoan ?? existing?.minLoan ?? 0),
     maxLoan: Number(value.maxLoan ?? existing?.maxLoan ?? 0),
     processingFee: String(value.processingFee ?? existing?.processingFee ?? ''),
     approvalRate: Number(value.approvalRate ?? existing?.approvalRate ?? 75),

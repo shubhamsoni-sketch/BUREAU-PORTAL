@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-24 - Developer - Lender Policy Form Upgrade
+
+Summary:
+
+- Reworked the Add/Edit Lender modal into a visible policy setup form while keeping the same CRM design language.
+- Split lender setup into Basic Information, Products & Coverage, Eligibility Policy Rules, and Commercials & Operations.
+- Added minimum loan amount as a matching rule and surfaced policy context directly inside the form.
+- Updated lender matching so minimum loan amount is enforced along with score, income, FOIR, tenure, max loan, product, and state rules.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder npm run build` passed.
+
 ## 2026-06-24 - Developer - CRM Lender Policy Engine
 
 Summary:

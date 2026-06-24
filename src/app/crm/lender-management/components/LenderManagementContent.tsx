@@ -10,6 +10,7 @@ interface Lender {
   products: string[];
   roiMin: number;
   roiMax: number;
+  minLoan: number;
   maxLoan: number;
   processingFee: string;
   approvalRate: number;
@@ -34,6 +35,7 @@ const MOCK_LENDERS: Lender[] = [
     products: ['home_loan', 'lap', 'personal_loan'],
     roiMin: 8.5,
     roiMax: 12.0,
+    minLoan: 500000,
     maxLoan: 100000000,
     processingFee: '0.50%',
     approvalRate: 84.2,
@@ -56,6 +58,7 @@ const MOCK_LENDERS: Lender[] = [
     products: ['home_loan', 'personal_loan', 'car_loan', 'business_loan'],
     roiMin: 8.75,
     roiMax: 13.5,
+    minLoan: 300000,
     maxLoan: 50000000,
     processingFee: '0.50%',
     approvalRate: 78.6,
@@ -78,6 +81,7 @@ const MOCK_LENDERS: Lender[] = [
     products: ['personal_loan', 'business_loan'],
     roiMin: 11.0,
     roiMax: 24.0,
+    minLoan: 50000,
     maxLoan: 4000000,
     processingFee: '1.00–3.00%',
     approvalRate: 91.4,
@@ -100,6 +104,7 @@ const MOCK_LENDERS: Lender[] = [
     products: ['home_loan', 'car_loan', 'personal_loan', 'lap'],
     roiMin: 8.75,
     roiMax: 14.0,
+    minLoan: 300000,
     maxLoan: 50000000,
     processingFee: '0.25–1.00%',
     approvalRate: 76.3,
@@ -122,6 +127,7 @@ const MOCK_LENDERS: Lender[] = [
     products: ['home_loan', 'personal_loan', 'business_loan'],
     roiMin: 8.7,
     roiMax: 16.0,
+    minLoan: 300000,
     maxLoan: 75000000,
     processingFee: '0.50%',
     approvalRate: 72.1,
@@ -144,6 +150,7 @@ const MOCK_LENDERS: Lender[] = [
     products: ['business_loan', 'personal_loan', 'lap'],
     roiMin: 10.99,
     roiMax: 18.0,
+    minLoan: 100000,
     maxLoan: 30000000,
     processingFee: '1.50–2.50%',
     approvalRate: 82.7,
@@ -166,6 +173,7 @@ const MOCK_LENDERS: Lender[] = [
     products: ['personal_loan', 'business_loan'],
     roiMin: 14.0,
     roiMax: 24.0,
+    minLoan: 50000,
     maxLoan: 2500000,
     processingFee: '2.00–3.00%',
     approvalRate: 88.9,
@@ -188,6 +196,7 @@ const MOCK_LENDERS: Lender[] = [
     products: ['home_loan', 'lap'],
     roiMin: 9.5,
     roiMax: 15.0,
+    minLoan: 500000,
     maxLoan: 50000000,
     processingFee: '1.00–2.00%',
     approvalRate: 69.4,
@@ -228,6 +237,7 @@ const emptyForm = {
   products: [] as string[],
   roiMin: '',
   roiMax: '',
+  minLoan: '',
   maxLoan: '',
   processingFee: '',
   scoreCutoff: '',
@@ -304,6 +314,7 @@ export default function LenderManagementContent() {
       products: l.products,
       roiMin: String(l.roiMin),
       roiMax: String(l.roiMax),
+      minLoan: String(l.minLoan || 0),
       maxLoan: String(l.maxLoan),
       processingFee: l.processingFee,
       scoreCutoff: String(l.scoreCutoff),
@@ -346,6 +357,7 @@ export default function LenderManagementContent() {
       products: form.products,
       roiMin: Number(form.roiMin),
       roiMax: Number(form.roiMax),
+      minLoan: Number(form.minLoan) || 0,
       maxLoan: Number(form.maxLoan),
       processingFee: form.processingFee,
       approvalRate: editLender?.approvalRate ?? 75,
@@ -713,6 +725,7 @@ export default function LenderManagementContent() {
                           ? `₹${selectedLender.minIncome.toLocaleString('en-IN')}`
                           : 'Any',
                     },
+                    { label: 'Min Loan', value: formatCr(selectedLender.minLoan || 0) },
                     { label: 'FOIR Limit', value: `${selectedLender.foirLimit}%` },
                     {
                       label: 'Max LTV',
@@ -778,10 +791,16 @@ export default function LenderManagementContent() {
               {[
                 { label: 'Type', fn: (l: Lender) => l.type.toUpperCase() },
                 { label: 'ROI Range', fn: (l: Lender) => `${l.roiMin}–${l.roiMax}%` },
+                { label: 'Min Loan', fn: (l: Lender) => formatCr(l.minLoan || 0) },
                 { label: 'Max Loan', fn: (l: Lender) => formatCr(l.maxLoan) },
                 { label: 'Processing Fee', fn: (l: Lender) => l.processingFee },
                 { label: 'Approval Rate', fn: (l: Lender) => `${l.approvalRate}%` },
                 { label: 'Score Cutoff', fn: (l: Lender) => `${l.scoreCutoff}+` },
+                {
+                  label: 'Min Income',
+                  fn: (l: Lender) =>
+                    l.minIncome > 0 ? `₹${l.minIncome.toLocaleString('en-IN')}` : 'Any',
+                },
                 { label: 'Max Tenure', fn: (l: Lender) => `${l.maxTenure} months` },
                 { label: 'FOIR Limit', fn: (l: Lender) => `${l.foirLimit}%` },
                 { label: 'Avg TAT', fn: (l: Lender) => l.avgTat },
@@ -868,11 +887,15 @@ export default function LenderManagementContent() {
             </div>
           </div>
 
-          {/* Products */}
+          {/* Products & Coverage */}
           <div>
             <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
-              Loan Products <span className="text-danger">*</span>
+              Products & Coverage <span className="text-danger">*</span>
             </h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              Select products this lender can accept. These products are used directly in
+              Eligibility Checker matching.
+            </p>
             <div className="flex flex-wrap gap-2">
               {ALL_PRODUCTS.map((p) => (
                 <button
@@ -891,12 +914,115 @@ export default function LenderManagementContent() {
               ))}
             </div>
             {errors.products && <p className="text-xs text-danger mt-1">{errors.products}</p>}
+            <div className="mt-4 space-y-1">
+              <label className="block text-sm font-600 text-foreground">State Coverage</label>
+              <input
+                type="text"
+                value={form.states}
+                onChange={(e) => setForm((p) => ({ ...p, states: e.target.value }))}
+                placeholder="MADHYA PRADESH, MAHARASHTRA"
+                className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Blank means All India. Use comma-separated state names.
+              </p>
+            </div>
           </div>
 
-          {/* Rates */}
+          {/* Eligibility Rules */}
           <div>
             <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
-              Rates & Limits
+              Eligibility Policy Rules
+            </h3>
+            <div className="rounded-sm border border-primary/20 bg-primary/5 px-3 py-2 mb-3">
+              <p className="text-xs font-600 text-foreground">
+                These rules decide whether this lender appears in Matched Lenders after an
+                eligibility check.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <label className="block text-sm font-600 text-foreground">Min CIBIL Score</label>
+                <input
+                  type="number"
+                  value={form.scoreCutoff}
+                  onChange={(e) => setForm((p) => ({ ...p, scoreCutoff: e.target.value }))}
+                  placeholder="700"
+                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-600 text-foreground">Min Income (₹)</label>
+                <input
+                  type="number"
+                  value={form.minIncome}
+                  onChange={(e) => setForm((p) => ({ ...p, minIncome: e.target.value }))}
+                  placeholder="50000"
+                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-600 text-foreground">Max FOIR (%)</label>
+                <input
+                  type="number"
+                  value={form.foirLimit}
+                  onChange={(e) => setForm((p) => ({ ...p, foirLimit: e.target.value }))}
+                  placeholder="55"
+                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-600 text-foreground">Min Loan (₹)</label>
+                <input
+                  type="number"
+                  value={form.minLoan}
+                  onChange={(e) => setForm((p) => ({ ...p, minLoan: e.target.value }))}
+                  placeholder="100000"
+                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-600 text-foreground">
+                  Max Loan (₹) <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={form.maxLoan}
+                  onChange={(e) => setForm((p) => ({ ...p, maxLoan: e.target.value }))}
+                  placeholder="10000000"
+                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+                {errors.maxLoan && <p className="text-xs text-danger">{errors.maxLoan}</p>}
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-600 text-foreground">
+                  Max Tenure (months)
+                </label>
+                <input
+                  type="number"
+                  value={form.maxTenure}
+                  onChange={(e) => setForm((p) => ({ ...p, maxTenure: e.target.value }))}
+                  placeholder="360"
+                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-sm font-600 text-foreground">Max LTV (%)</label>
+                <input
+                  type="number"
+                  value={form.ltvMax}
+                  onChange={(e) => setForm((p) => ({ ...p, ltvMax: e.target.value }))}
+                  placeholder="80"
+                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Commercials */}
+          <div>
+            <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
+              Commercials & Operations
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div className="space-y-1">
@@ -928,77 +1054,12 @@ export default function LenderManagementContent() {
                 {errors.roiMax && <p className="text-xs text-danger">{errors.roiMax}</p>}
               </div>
               <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">
-                  Max Loan (₹) <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={form.maxLoan}
-                  onChange={(e) => setForm((p) => ({ ...p, maxLoan: e.target.value }))}
-                  placeholder="10000000"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-                {errors.maxLoan && <p className="text-xs text-danger">{errors.maxLoan}</p>}
-              </div>
-              <div className="space-y-1">
                 <label className="block text-sm font-600 text-foreground">Processing Fee</label>
                 <input
                   type="text"
                   value={form.processingFee}
                   onChange={(e) => setForm((p) => ({ ...p, processingFee: e.target.value }))}
                   placeholder="0.50%"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">Score Cutoff</label>
-                <input
-                  type="number"
-                  value={form.scoreCutoff}
-                  onChange={(e) => setForm((p) => ({ ...p, scoreCutoff: e.target.value }))}
-                  placeholder="700"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">Min Income (₹)</label>
-                <input
-                  type="number"
-                  value={form.minIncome}
-                  onChange={(e) => setForm((p) => ({ ...p, minIncome: e.target.value }))}
-                  placeholder="50000"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">
-                  Max Tenure (months)
-                </label>
-                <input
-                  type="number"
-                  value={form.maxTenure}
-                  onChange={(e) => setForm((p) => ({ ...p, maxTenure: e.target.value }))}
-                  placeholder="360"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">FOIR Limit (%)</label>
-                <input
-                  type="number"
-                  value={form.foirLimit}
-                  onChange={(e) => setForm((p) => ({ ...p, foirLimit: e.target.value }))}
-                  placeholder="55"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-sm font-600 text-foreground">Max LTV (%)</label>
-                <input
-                  type="number"
-                  value={form.ltvMax}
-                  onChange={(e) => setForm((p) => ({ ...p, ltvMax: e.target.value }))}
-                  placeholder="80"
                   className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
                 />
               </div>
@@ -1011,17 +1072,6 @@ export default function LenderManagementContent() {
                   placeholder="4–6 days"
                   className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
                 />
-              </div>
-              <div className="space-y-1 sm:col-span-2">
-                <label className="block text-sm font-600 text-foreground">State Coverage</label>
-                <input
-                  type="text"
-                  value={form.states}
-                  onChange={(e) => setForm((p) => ({ ...p, states: e.target.value }))}
-                  placeholder="MADHYA PRADESH, MAHARASHTRA"
-                  className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-                <p className="text-[10px] text-muted-foreground">Blank means All India.</p>
               </div>
             </div>
           </div>

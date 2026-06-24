@@ -5,6 +5,7 @@ export type CrmLender = {
   products: string[];
   roiMin: number;
   roiMax: number;
+  minLoan: number;
   maxLoan: number;
   processingFee: string;
   approvalRate: number;
@@ -40,6 +41,7 @@ export const defaultCrmLenders: CrmLender[] = [
     products: ['home_loan', 'lap', 'personal_loan'],
     roiMin: 8.5,
     roiMax: 12,
+    minLoan: 500000,
     maxLoan: 100000000,
     processingFee: '0.50%',
     approvalRate: 84.2,
@@ -62,6 +64,7 @@ export const defaultCrmLenders: CrmLender[] = [
     products: ['home_loan', 'personal_loan', 'car_loan', 'business_loan'],
     roiMin: 8.75,
     roiMax: 13.5,
+    minLoan: 300000,
     maxLoan: 50000000,
     processingFee: '0.50%',
     approvalRate: 78.6,
@@ -84,6 +87,7 @@ export const defaultCrmLenders: CrmLender[] = [
     products: ['personal_loan', 'business_loan'],
     roiMin: 11,
     roiMax: 24,
+    minLoan: 50000,
     maxLoan: 4000000,
     processingFee: '1.00-3.00%',
     approvalRate: 91.4,
@@ -106,6 +110,7 @@ export const defaultCrmLenders: CrmLender[] = [
     products: ['business_loan', 'personal_loan', 'lap'],
     roiMin: 10.99,
     roiMax: 18,
+    minLoan: 100000,
     maxLoan: 30000000,
     processingFee: '1.50-2.50%',
     approvalRate: 82.7,
@@ -128,6 +133,7 @@ export const defaultCrmLenders: CrmLender[] = [
     products: ['personal_loan', 'business_loan'],
     roiMin: 14,
     roiMax: 24,
+    minLoan: 50000,
     maxLoan: 2500000,
     processingFee: '2.00-3.00%',
     approvalRate: 88.9,
@@ -157,6 +163,7 @@ export function normalizeLenders(value: unknown): CrmLender[] {
         products: Array.isArray(lender.products) ? lender.products.map(String) : [],
         roiMin: Number(lender.roiMin || 0),
         roiMax: Number(lender.roiMax || 0),
+        minLoan: Number(lender.minLoan || 0),
         maxLoan: Number(lender.maxLoan || 0),
         processingFee: String(lender.processingFee || ''),
         approvalRate: Number(lender.approvalRate || 0),
@@ -183,6 +190,7 @@ export function matchLenders(lenders: CrmLender[], input: LenderMatchInput) {
       if (lender.status !== 'active') return false;
       if (!lender.products.includes(input.loanType)) return false;
       if (!input.score || input.score < lender.scoreCutoff) return false;
+      if (lender.minLoan > 0 && input.loanAmount < lender.minLoan) return false;
       if (input.loanAmount > lender.maxLoan) return false;
       if (lender.minIncome > 0 && input.monthlyIncome < lender.minIncome) return false;
       if (lender.maxTenure > 0 && input.tenure > lender.maxTenure) return false;
