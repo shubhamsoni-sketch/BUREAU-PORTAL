@@ -59,6 +59,7 @@ interface ReportSummary {
   eligible: boolean;
   status: string;
   created_at: string;
+  matched_lenders?: { name: string; roi: string; maxLoan: string }[];
 }
 
 const emptyForm: EligibilityForm = {
@@ -281,8 +282,9 @@ export default function EligibilityCheckContent() {
     await runEligibility(leadForm(lead), 'mobile_advanced', lead);
   };
 
-  const submitToLenderQueue = async (lenderName: string) => {
-    if (!selectedLead) return;
+  const submitToLenderQueue = async (lenderName: string, leadOverride?: QueueLead | null) => {
+    const lead = leadOverride || selectedLead;
+    if (!lead) return;
     setSubmittingLender(lenderName);
     setServerError('');
     try {
@@ -291,14 +293,14 @@ export default function EligibilityCheckContent() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           action: 'submit_to_lender',
-          leadId: selectedLead.id,
+          leadId: lead.id,
           lenderName,
         }),
       });
       const json = await response.json();
       if (!response.ok || !json.success) throw new Error(json.error || 'Unable to submit lead');
       await loadEligibilityData();
-      setSelectedLead(null);
+      if (!leadOverride) setSelectedLead(null);
       setResult(null);
     } catch (error) {
       setServerError(error instanceof Error ? error.message : 'Unable to submit lead');
@@ -492,7 +494,11 @@ export default function EligibilityCheckContent() {
                                       : 'Report saved'}
                                   </p>
                                   <p className="text-[10px] text-muted-foreground">
-                                    {lead.selectedLender || lead.stage.replace(/_/g, ' ')}
+                                    {lead.selectedLender
+                                      ? `Sent to ${lead.selectedLender}`
+                                      : report?.matched_lenders?.length
+                                        ? `${report.matched_lenders.length} lender match`
+                                        : lead.stage.replace(/_/g, ' ')}
                                   </p>
                                 </div>
                               )}
@@ -507,12 +513,27 @@ export default function EligibilityCheckContent() {
                                   {checkingLeadId === lead.id ? 'Running...' : 'Run Eligibility'}
                                 </button>
                               ) : (
-                                <button
-                                  onClick={() => setMainTab('reports')}
-                                  className="inline-flex items-center justify-center h-8 px-3 rounded-sm border border-border bg-background text-xs font-700 text-foreground hover:bg-muted"
-                                >
-                                  View Report
-                                </button>
+                                <div className="flex items-center justify-end gap-2">
+                                  {!lead.selectedLender && report?.matched_lenders?.[0] && (
+                                    <button
+                                      onClick={() =>
+                                        submitToLenderQueue(report.matched_lenders![0].name, lead)
+                                      }
+                                      disabled={Boolean(submittingLender)}
+                                      className="inline-flex items-center justify-center h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-700 hover:bg-primary/90 disabled:opacity-60"
+                                    >
+                                      {submittingLender === report.matched_lenders[0].name
+                                        ? 'Sending...'
+                                        : 'Send to Lender'}
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => setMainTab('reports')}
+                                    className="inline-flex items-center justify-center h-8 px-3 rounded-sm border border-border bg-background text-xs font-700 text-foreground hover:bg-muted"
+                                  >
+                                    View Report
+                                  </button>
+                                </div>
                               )}
                             </td>
                           </tr>

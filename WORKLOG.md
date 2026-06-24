@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-24 - Developer - Show Lender Eligibility In Reports
+
+Summary:
+
+- Persisted matched lender recommendations with each CRM eligibility report.
+- Added lender match visibility to Eligibility Checked Leads and Eligibility Reports.
+- Added a checked-lead Send to Lender action so eligible leads can be pushed to the lender queue after the report is reviewed.
+- Added lender eligibility details in the report drawer.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-24 - Developer - Embed Eligibility Reports In Checker
 
 Summary:

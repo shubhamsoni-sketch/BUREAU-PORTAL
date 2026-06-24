@@ -13,6 +13,7 @@ interface EligibilityReport {
   scoreGrade: 'Excellent' | 'Good' | 'Fair' | 'Poor';
   foir: number;
   eligible: boolean;
+  matchedLenders: { name: string; roi: string; maxLoan: string }[];
   checkedBy: string;
   checkedOn: string;
   status: 'eligible' | 'not_eligible' | 'pending';
@@ -30,6 +31,10 @@ const MOCK_REPORTS: EligibilityReport[] = [
     scoreGrade: 'Good',
     foir: 38,
     eligible: true,
+    matchedLenders: [
+      { name: 'HDFC Bank', roi: '8.65%', maxLoan: '₹42L' },
+      { name: 'Axis Bank', roi: '8.9%', maxLoan: '₹38L' },
+    ],
     checkedBy: 'Priya Sharma',
     checkedOn: '22 Jun 2026, 10:30 AM',
     status: 'eligible',
@@ -45,6 +50,7 @@ const MOCK_REPORTS: EligibilityReport[] = [
     scoreGrade: 'Excellent',
     foir: 29,
     eligible: true,
+    matchedLenders: [{ name: 'Bajaj Finserv', roi: '13.5%', maxLoan: '₹8.5L' }],
     checkedBy: 'Anil Mehta',
     checkedOn: '21 Jun 2026, 03:15 PM',
     status: 'eligible',
@@ -60,6 +66,7 @@ const MOCK_REPORTS: EligibilityReport[] = [
     scoreGrade: 'Poor',
     foir: 67,
     eligible: false,
+    matchedLenders: [],
     checkedBy: 'Anil Mehta',
     checkedOn: '20 Jun 2026, 11:45 AM',
     status: 'not_eligible',
@@ -75,6 +82,7 @@ const MOCK_REPORTS: EligibilityReport[] = [
     scoreGrade: 'Good',
     foir: 44,
     eligible: true,
+    matchedLenders: [{ name: 'ICICI Bank', roi: '9.8%', maxLoan: '₹38L' }],
     checkedBy: 'Kavitha Nair',
     checkedOn: '19 Jun 2026, 02:00 PM',
     status: 'eligible',
@@ -90,6 +98,7 @@ const MOCK_REPORTS: EligibilityReport[] = [
     scoreGrade: 'Good',
     foir: 51,
     eligible: true,
+    matchedLenders: [{ name: 'Tata Capital', roi: '16%', maxLoan: '₹25L' }],
     checkedBy: 'Priya Sharma',
     checkedOn: '18 Jun 2026, 09:20 AM',
     status: 'eligible',
@@ -105,6 +114,7 @@ const MOCK_REPORTS: EligibilityReport[] = [
     scoreGrade: 'Fair',
     foir: 0,
     eligible: false,
+    matchedLenders: [],
     checkedBy: 'Vikram Joshi',
     checkedOn: '22 Jun 2026, 04:00 PM',
     status: 'pending',
@@ -120,6 +130,7 @@ const MOCK_REPORTS: EligibilityReport[] = [
     scoreGrade: 'Good',
     foir: 36,
     eligible: true,
+    matchedLenders: [{ name: 'Axis Bank', roi: '8.9%', maxLoan: '₹32L' }],
     checkedBy: 'Sunita Rao',
     checkedOn: '17 Jun 2026, 01:30 PM',
     status: 'eligible',
@@ -184,6 +195,13 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                       : 'Poor',
               foir: 0,
               eligible: Boolean(report.eligible),
+              matchedLenders: Array.isArray(report.matched_lenders)
+                ? report.matched_lenders.map((lender: any) => ({
+                    name: String(lender.name || ''),
+                    roi: String(lender.roi || ''),
+                    maxLoan: String(lender.maxLoan || lender.max_loan || ''),
+                  }))
+                : [],
               checkedBy: 'CreditTrust CRM',
               checkedOn: report.created_at
                 ? new Date(report.created_at).toLocaleString('en-IN', {
@@ -222,6 +240,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
     eligible: reports.filter((r) => r.status === 'eligible').length,
     notEligible: reports.filter((r) => r.status === 'not_eligible').length,
     pending: reports.filter((r) => r.status === 'pending').length,
+    lenderMatched: reports.filter((r) => r.matchedLenders.length > 0).length,
   };
 
   return (
@@ -264,7 +283,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
           { label: 'Total Checks', value: stats.total, color: 'text-foreground' },
           { label: 'Eligible', value: stats.eligible, color: 'text-success' },
           { label: 'Not Eligible', value: stats.notEligible, color: 'text-danger' },
-          { label: 'Pending', value: stats.pending, color: 'text-warning' },
+          { label: 'Lender Matched', value: stats.lenderMatched, color: 'text-primary' },
         ].map((s) => (
           <div
             key={s.label}
@@ -326,6 +345,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                     'Credit Score',
                     'FOIR',
                     'Status',
+                    'Lender Match',
                     'Checked By',
                     'Date',
                     '',
@@ -343,7 +363,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                 {filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={10}
+                      colSpan={11}
                       className="px-4 py-12 text-center text-sm text-muted-foreground"
                     >
                       No reports found
@@ -409,6 +429,20 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                         >
                           {STATUS_LABELS[report.status]}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {report.matchedLenders.length > 0 ? (
+                          <div>
+                            <p className="text-xs font-700 text-success">
+                              {report.matchedLenders.length} matched
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {report.matchedLenders[0].name}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No match</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
                         {report.checkedBy}
@@ -504,6 +538,27 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                       </p>
                     </div>
                   ))}
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-700 text-foreground">Lender Eligibility</p>
+                  {selectedReport.matchedLenders.length > 0 ? (
+                    selectedReport.matchedLenders.map((lender) => (
+                      <div
+                        key={`${selectedReport.id}-${lender.name}`}
+                        className="rounded-sm border border-border bg-muted/40 p-2"
+                      >
+                        <p className="text-xs font-700 text-foreground">{lender.name}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          ROI {lender.roi || '-'} · Up to {lender.maxLoan || '-'}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-sm border border-border bg-muted/40 p-2 text-xs text-muted-foreground">
+                      No lender match found for this check.
+                    </div>
+                  )}
                 </div>
 
                 <button className="w-full h-8 rounded-sm border border-border text-xs font-600 text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5">

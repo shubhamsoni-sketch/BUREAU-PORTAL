@@ -37,6 +37,9 @@ type CrmEligibilityReport = {
   score: number | null;
   eligible: boolean;
   status: string;
+  foir: number;
+  max_loan_amount: number;
+  matched_lenders: { name: string; roi: string; maxLoan: string }[];
   credits_deducted: number;
   created_at: string;
   cibil_payload: Record<string, unknown>;
@@ -693,6 +696,9 @@ export async function POST(request: NextRequest) {
       score,
       eligible,
       status,
+      foir,
+      max_loan_amount: maxLoanAmount,
+      matched_lenders: eligible ? matchedLenders : [],
       credits_deducted: creditCost,
       created_at: new Date().toISOString(),
       cibil_payload: cibilPayload,
