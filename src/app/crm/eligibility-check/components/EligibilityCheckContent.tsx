@@ -789,6 +789,8 @@ export default function EligibilityCheckContent() {
           scoreColor={scoreColor}
           scoreBarColor={scoreBarColor}
           selectedLead={selectedLead}
+          pendingCount={pendingLeads.length}
+          checkedCount={checkedLeads.length}
           submittingLender={submittingLender}
           onSubmitLender={submitToLenderQueue}
         />
@@ -879,6 +881,8 @@ function ResultPanel({
   scoreColor,
   scoreBarColor,
   selectedLead,
+  pendingCount,
+  checkedCount,
   submittingLender,
   onSubmitLender,
 }: {
@@ -887,33 +891,55 @@ function ResultPanel({
   scoreColor: string;
   scoreBarColor: string;
   selectedLead: QueueLead | null;
+  pendingCount: number;
+  checkedCount: number;
   submittingLender: string;
   onSubmitLender: (lenderName: string) => void;
 }) {
   if (!result) {
     return (
-      <div className="xl:col-span-2">
-        <div className="bg-card rounded-lg border border-border shadow-card p-10 text-center">
-          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-muted-foreground"
+      <div className="xl:col-span-2 space-y-4">
+        <div className="bg-card rounded-lg border border-border shadow-card p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-700 text-foreground">Queue Summary</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Live eligibility work status</p>
+            </div>
+            <Link
+              href="/crm/eligibility-report"
+              className="h-8 px-3 rounded-sm border border-border bg-background text-xs font-700 text-foreground hover:bg-muted inline-flex items-center"
             >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
+              Reports
+            </Link>
           </div>
-          <p className="text-sm font-600 text-foreground">Choose a check type</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Run a quick mobile check or a full-details eligibility assessment
-          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-sm border border-border bg-muted/30 p-3">
+              <p className="text-[10px] uppercase tracking-wide font-700 text-muted-foreground">
+                Pending
+              </p>
+              <p className="text-2xl font-800 text-foreground tabular-nums mt-1">{pendingCount}</p>
+            </div>
+            <div className="rounded-sm border border-border bg-muted/30 p-3">
+              <p className="text-[10px] uppercase tracking-wide font-700 text-muted-foreground">
+                Checked
+              </p>
+              <p className="text-2xl font-800 text-foreground tabular-nums mt-1">{checkedCount}</p>
+            </div>
+          </div>
+          {selectedLead ? (
+            <div className="mt-3 rounded-sm border border-primary/20 bg-primary/5 p-3">
+              <p className="text-xs font-700 text-primary">{selectedLead.name}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {selectedLead.mobile} · {formatINR(selectedLead.loanAmount)}
+              </p>
+            </div>
+          ) : (
+            <div className="mt-3 rounded-sm border border-dashed border-border bg-background p-3">
+              <p className="text-xs text-muted-foreground">
+                Use the table actions to run eligibility for pending leads.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
