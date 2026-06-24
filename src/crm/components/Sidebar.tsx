@@ -59,7 +59,7 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    label: 'Loan Applications',
+    label: 'File Process',
     href: '/loan-application-tracking',
     group: 'Pipeline',
     badge: 5,

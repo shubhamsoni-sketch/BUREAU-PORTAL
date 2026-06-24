@@ -38,7 +38,19 @@ export type CrmApplication = {
   lenderName: string;
   product: string;
   loanAmount: number;
-  status: 'login_pending' | 'submitted' | 'under_review' | 'sanctioned' | 'rejected' | 'disbursed';
+  status:
+    | 'case_sent_to_lender'
+    | 'login_pending'
+    | 'draft'
+    | 'submitted'
+    | 'under_review'
+    | 'credit_check'
+    | 'conditional_approval'
+    | 'final_approval'
+    | 'disbursal_initiated'
+    | 'sanctioned'
+    | 'rejected'
+    | 'disbursed';
   createdAt: string;
 };
 

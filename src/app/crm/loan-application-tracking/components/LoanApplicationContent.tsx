@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import StatusBadge from '@/crm/components/ui/StatusBadge';
@@ -6,6 +7,7 @@ import StatusBadge from '@/crm/components/ui/StatusBadge';
 import ApplicationDetailPanel from './ApplicationDetailPanel';
 
 type AppStage =
+  | 'case_sent_to_lender'
   | 'login_pending'
   | 'draft'
   | 'submitted'
@@ -13,6 +15,7 @@ type AppStage =
   | 'credit_check'
   | 'conditional_approval'
   | 'final_approval'
+  | 'sanctioned'
   | 'disbursal_initiated'
   | 'disbursed'
   | 'rejected';
@@ -27,6 +30,7 @@ type ProductType =
 
 interface LoanApplication {
   id: string;
+  leadId?: string;
   appId: string;
   applicant: string;
   product: ProductType;
@@ -281,6 +285,7 @@ export default function LoanApplicationContent() {
             );
             return {
               id: application.id,
+              leadId: application.leadId,
               appId: `DSA-${application.product.replace(/_/g, '').toUpperCase().slice(0, 3)}-${created.getFullYear()}-${application.id.slice(0, 4).toUpperCase()}`,
               applicant: application.customerName,
               product: application.product,
@@ -331,7 +336,9 @@ export default function LoanApplicationContent() {
         ? true
         : filterStage === 'in_progress'
           ? !['disbursed', 'rejected'].includes(a.stage)
-          : a.stage === filterStage;
+          : filterStage === 'case_sent_to_lender'
+            ? ['case_sent_to_lender', 'login_pending'].includes(a.stage)
+            : a.stage === filterStage;
     const matchProduct = filterProduct === 'all' || a.product === filterProduct;
     const matchLender = filterLender === 'all' || a.lender === filterLender;
     return matchSearch && matchStage && matchProduct && matchLender;
@@ -343,6 +350,7 @@ export default function LoanApplicationContent() {
     setSelectedRows(selectedRows.length === filtered.length ? [] : filtered.map((a) => a.id));
 
   const stageOptions: AppStage[] = [
+    'case_sent_to_lender',
     'login_pending',
     'draft',
     'submitted',
@@ -350,6 +358,7 @@ export default function LoanApplicationContent() {
     'credit_check',
     'conditional_approval',
     'final_approval',
+    'sanctioned',
     'disbursal_initiated',
     'disbursed',
     'rejected',
@@ -377,22 +386,52 @@ export default function LoanApplicationContent() {
       active: 'ring-danger/25 border-danger/50',
     },
     {
-      key: 'login_pending',
-      label: 'Login Pending',
-      count: apps.filter((a) => a.stage === 'login_pending').length,
+      key: 'case_sent_to_lender',
+      label: 'Case Sent',
+      count: apps.filter((a) => a.stage === 'case_sent_to_lender' || a.stage === 'login_pending')
+        .length,
       color: 'bg-warning-bg text-warning border-warning/20',
       active: 'ring-warning/25 border-warning/50',
     },
   ];
 
+  const updateApplicationStatus = async (applicationId: string, status: AppStage) => {
+    const previousApps = apps;
+    const nextApps = apps.map((app) =>
+      app.id === applicationId ? { ...app, stage: status } : app
+    );
+    setApps(nextApps);
+    setSelectedApp((current) =>
+      current?.id === applicationId ? { ...current, stage: status } : current
+    );
+    try {
+      const response = await fetch('/api/crm/eligibility-check', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_application_status',
+          applicationId,
+          status,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || 'Unable to update status');
+      toast.success('File status updated');
+    } catch (statusError) {
+      setApps(previousApps);
+      setSelectedApp(previousApps.find((app) => app.id === applicationId) || null);
+      toast.error(statusError instanceof Error ? statusError.message : 'Unable to update status');
+    }
+  };
+
   return (
     <div className="px-4 lg:px-6 xl:px-8 py-6 max-w-screen-2xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-2xl font-700 text-foreground">Loan Application Tracking</h1>
+          <h1 className="text-2xl font-700 text-foreground">File Process</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {filtered.length} applications — {apps.filter((a) => a.daysPending >= 5).length} require
-            urgent attention
+            {filtered.length} files — {apps.filter((a) => a.daysPending >= 5).length} require urgent
+            attention
           </p>
         </div>
         <button className="flex items-center gap-1.5 h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-600 hover:bg-primary/90 active:scale-95 transition-all duration-150 self-start sm:self-auto">
@@ -409,7 +448,7 @@ export default function LoanApplicationContent() {
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          New Application
+          New File
         </button>
       </div>
 
@@ -518,7 +557,7 @@ export default function LoanApplicationContent() {
                     />
                   </th>
                   {[
-                    'App ID',
+                    'File ID',
                     'Applicant',
                     'Product',
                     'Amount',
@@ -528,6 +567,7 @@ export default function LoanApplicationContent() {
                     'EMI/mo',
                     'Agent',
                     'Days Pending',
+                    'Change Lender',
                     '',
                   ].map((col) => (
                     <th
@@ -579,7 +619,20 @@ export default function LoanApplicationContent() {
                       {app.lender}
                     </td>
                     <td className="px-3 py-3">
-                      <StatusBadge variant={app.stage} size="sm" />
+                      <select
+                        value={app.stage}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) =>
+                          updateApplicationStatus(app.id, event.target.value as AppStage)
+                        }
+                        className="h-7 rounded-full border border-border bg-background px-2 text-[10px] font-700 text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                      >
+                        {stageOptions.map((stage) => (
+                          <option key={`${app.id}-${stage}`} value={stage}>
+                            {stage.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td className="px-3 py-3">
                       <CIBILBadge score={app.cibil} />
@@ -603,6 +656,18 @@ export default function LoanApplicationContent() {
                       >
                         {app.daysPending}d
                       </span>
+                    </td>
+                    <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                      {app.leadId ? (
+                        <Link
+                          href={`/crm/lender-selection?lead=${encodeURIComponent(app.leadId)}`}
+                          className="inline-flex h-7 items-center justify-center rounded-sm border border-border bg-background px-2 text-[10px] font-700 text-foreground hover:bg-muted"
+                        >
+                          Change
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
                     </td>
                     <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

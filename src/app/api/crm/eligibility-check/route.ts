@@ -682,7 +682,7 @@ export async function POST(request: NextRequest) {
         lenderName,
         product: lead.product,
         loanAmount: lead.loanAmount,
-        status: 'login_pending',
+        status: 'case_sent_to_lender',
         createdAt: now,
       };
 
@@ -701,6 +701,42 @@ export async function POST(request: NextRequest) {
       );
       await saveCrmStore(supabase, rowId, store);
       return NextResponse.json({ success: true, data: { application, leads: store.leads } });
+    }
+
+    if (body.action === 'update_application_status') {
+      const applicationId = cleanString(body.applicationId);
+      const status = cleanString(body.status);
+      const allowedStatuses = new Set([
+        'case_sent_to_lender',
+        'login_pending',
+        'draft',
+        'submitted',
+        'under_review',
+        'credit_check',
+        'conditional_approval',
+        'final_approval',
+        'disbursal_initiated',
+        'sanctioned',
+        'rejected',
+        'disbursed',
+      ]);
+      if (!applicationId) return jsonError('Application is required', 400);
+      if (!allowedStatuses.has(status)) return jsonError('Valid status is required', 400);
+
+      const supabase = createAdminClient();
+      const { rowId, store } = await getCrmStore(supabase);
+      const existingApplication = (store.applications || []).find(
+        (application) => application.id === applicationId
+      );
+      if (!existingApplication) return jsonError('Application not found', 404);
+
+      store.applications = (store.applications || []).map((application) =>
+        application.id === applicationId
+          ? { ...application, status: status as CrmApplication['status'] }
+          : application
+      );
+      await saveCrmStore(supabase, rowId, store);
+      return NextResponse.json({ success: true, data: { applications: store.applications } });
     }
 
     const mode = cleanString(body.mode || 'full_details');

@@ -9,6 +9,7 @@ type BadgeVariant =
   | 'submitted_to_lender'
   | 'sanctioned'
   | 'docs_submitted'
+  | 'case_sent_to_lender'
   | 'login_pending'
   | 'logged_in'
   | 'approved'
@@ -63,6 +64,10 @@ const variantMap: Record<BadgeVariant, { label: string; classes: string }> = {
   docs_submitted: {
     label: 'Docs Submitted',
     classes: 'bg-purple-50 text-purple-700 border-purple-200',
+  },
+  case_sent_to_lender: {
+    label: 'Case Sent',
+    classes: 'bg-blue-50 text-blue-700 border-blue-200',
   },
   login_pending: {
     label: 'Login Pending',

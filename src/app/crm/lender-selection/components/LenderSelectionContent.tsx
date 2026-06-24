@@ -95,7 +95,11 @@ export default function LenderSelectionContent() {
         );
 
       setRows(nextRows);
-      setActiveLeadId((current) => current || nextRows[0]?.lead.id || '');
+      setActiveLeadId((current) =>
+        current && nextRows.some((row) => row.lead.id === current)
+          ? current
+          : nextRows[0]?.lead.id || ''
+      );
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load lender selection');
       setRows([]);
@@ -105,6 +109,9 @@ export default function LenderSelectionContent() {
   };
 
   useEffect(() => {
+    const requestedLeadId =
+      typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('lead') : '';
+    if (requestedLeadId) setActiveLeadId(requestedLeadId);
     loadData();
   }, []);
 
@@ -178,14 +185,14 @@ export default function LenderSelectionContent() {
       {createdApplication && (
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-success/20 bg-success/5 p-3">
           <p className="text-xs font-700 text-success">
-            Application created for {createdApplication.customerName} with{' '}
+            File process created for {createdApplication.customerName} with{' '}
             {createdApplication.lenderName}.
           </p>
           <Link
             href={`/crm/loan-application-tracking?application=${encodeURIComponent(createdApplication.id)}`}
             className="inline-flex h-8 items-center justify-center rounded-sm bg-success px-3 text-xs font-700 text-white hover:bg-success/90"
           >
-            View Application
+            View File
           </Link>
         </div>
       )}
@@ -195,13 +202,15 @@ export default function LenderSelectionContent() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[390px_minmax(0,1fr)] gap-5">
+      <div className="grid grid-cols-1 gap-5">
         <section className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
           <div className="p-4 border-b border-border">
             <div className="flex items-center justify-between gap-3 mb-3">
               <div>
-                <h2 className="text-sm font-700 text-foreground">Checked Leads</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Reports with lender matches</p>
+                <h2 className="text-sm font-700 text-foreground">Eligibility Checked Files</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Click a file to select lender and move it to File Process
+                </p>
               </div>
               <button
                 onClick={loadData}
@@ -232,7 +241,7 @@ export default function LenderSelectionContent() {
             </div>
           </div>
 
-          <div className="max-h-[620px] overflow-y-auto scrollbar-thin divide-y divide-border">
+          <div className="overflow-x-auto scrollbar-thin">
             {loading ? (
               <div className="p-6 text-sm text-muted-foreground">Loading lender selection...</div>
             ) : filteredRows.length === 0 ? (
@@ -240,40 +249,83 @@ export default function LenderSelectionContent() {
                 No eligibility-checked lead with lender match found.
               </div>
             ) : (
-              filteredRows.map(({ lead, report }) => (
-                <button
-                  key={lead.id}
-                  onClick={() => setActiveLeadId(lead.id)}
-                  className={[
-                    'w-full text-left p-4 transition-colors hover:bg-muted/40',
-                    activeRow?.lead.id === lead.id ? 'bg-primary/5' : 'bg-card',
-                  ].join(' ')}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-700 text-foreground truncate">{lead.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {lead.mobile} · {lead.city || 'City pending'}
-                      </p>
-                    </div>
-                    <span
+              <table className="w-full min-w-[980px] text-sm">
+                <thead>
+                  <tr className="bg-muted/40 border-b border-border">
+                    {[
+                      'File',
+                      'Product',
+                      'Amount',
+                      'Score',
+                      'FOIR',
+                      'Matches',
+                      'Current Lender',
+                      'Agent',
+                      '',
+                    ].map((column) => (
+                      <th
+                        key={column}
+                        className="px-4 py-3 text-left text-[11px] font-700 uppercase tracking-wide text-muted-foreground whitespace-nowrap"
+                      >
+                        {column}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredRows.map(({ lead, report }) => (
+                    <tr
+                      key={lead.id}
+                      onClick={() => setActiveLeadId(lead.id)}
                       className={[
-                        'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-700',
-                        lead.selectedLender
-                          ? 'bg-success/10 text-success'
-                          : 'bg-warning/10 text-warning',
+                        'cursor-pointer hover:bg-muted/30 transition-colors',
+                        activeRow?.lead.id === lead.id ? 'bg-primary/5' : '',
                       ].join(' ')}
                     >
-                      {lead.selectedLender ? 'Selected' : 'Ready'}
-                    </span>
-                  </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <MiniStat label="Score" value={report.score || '-'} />
-                    <MiniStat label="Matches" value={report.matched_lenders.length} />
-                    <MiniStat label="Amount" value={formatINR(lead.loanAmount)} />
-                  </div>
-                </button>
-              ))
+                      <td className="px-4 py-3">
+                        <p className="text-xs font-700 text-foreground">{lead.name}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {lead.mobile} · {lead.city || 'City pending'}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-xs capitalize text-foreground">
+                        {formatProduct(lead.product)}
+                      </td>
+                      <td className="px-4 py-3 text-xs font-700 text-foreground">
+                        {formatINR(lead.loanAmount)}
+                      </td>
+                      <td className="px-4 py-3 text-xs font-800 text-foreground">
+                        {report.score || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {report.foir || 0}%
+                      </td>
+                      <td className="px-4 py-3 text-xs font-700 text-primary">
+                        {report.matched_lenders.length}
+                      </td>
+                      <td className="px-4 py-3">
+                        {lead.selectedLender ? (
+                          <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-700 text-success">
+                            {lead.selectedLender}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-700 text-warning">
+                            Ready
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {lead.assignedAgent}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button className="h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-700 hover:bg-primary/90">
+                          Select Lender
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </section>
@@ -318,7 +370,7 @@ export default function LenderSelectionContent() {
                   <div>
                     <h3 className="text-sm font-700 text-foreground">Eligible Lenders</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Choose one lender to create the loan application case
+                      Choose or change lender, then move the file into File Process
                     </p>
                   </div>
                 </div>
@@ -326,7 +378,7 @@ export default function LenderSelectionContent() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   {activeRow.report.matched_lenders.map((lender, index) => {
                     const isSelected = activeRow.lead.selectedLender === lender.name;
-                    const disabled = Boolean(activeRow.lead.selectedLender);
+                    const canSwitch = Boolean(activeRow.lead.selectedLender && !isSelected);
                     const submitKey = `${activeRow.lead.id}-${lender.name}`;
                     return (
                       <div
@@ -367,7 +419,7 @@ export default function LenderSelectionContent() {
 
                         <button
                           onClick={() => submitToLender(activeRow.lead.id, lender.name)}
-                          disabled={disabled || Boolean(submitting)}
+                          disabled={isSelected || Boolean(submitting)}
                           className={[
                             'w-full h-9 rounded-sm text-xs font-700 transition-colors disabled:opacity-60',
                             isSelected
@@ -376,10 +428,12 @@ export default function LenderSelectionContent() {
                           ].join(' ')}
                         >
                           {isSelected
-                            ? 'Application Created'
+                            ? 'File Created'
                             : submitting === submitKey
                               ? 'Creating...'
-                              : 'Create Loan Application'}
+                              : canSwitch
+                                ? 'Send to This Lender'
+                                : 'Create File Process'}
                         </button>
                       </div>
                     );
