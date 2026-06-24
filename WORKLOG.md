@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-24 - Developer - Scalable Eligibility Lead Queue
+
+Summary:
+
+- Reworked CRM Eligibility Checker queue from lead cards into a table layout suitable for large bulk-uploaded lead lists.
+- Added queue tabs for Pending Leads and Eligibility Checked Leads with counts, search, sticky table headers, and row-level actions.
+- Added Run Eligibility action directly on pending lead rows so a lead can be checked without first opening a card.
+- Added checked-lead rows with result summary and View Report action so completed checks move out of the pending queue.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-24 - Developer - Lead Queue Eligibility Flow
 
 Summary:

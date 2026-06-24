@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 type EligibilityMode = 'mobile_advanced' | 'full_details';
+type QueueTab = 'pending' | 'checked';
 type LoanType = 'home_loan' | 'personal_loan' | 'business_loan' | 'lap' | 'car_loan';
 
 interface EligibilityForm {
@@ -46,6 +47,17 @@ interface QueueLead {
   assignedAgent: string;
   city: string;
   nextFollowUp: string;
+  eligibilityReportId?: string;
+  selectedLender?: string;
+  updatedAt?: string;
+}
+
+interface ReportSummary {
+  id: string;
+  score: number | null;
+  eligible: boolean;
+  status: string;
+  created_at: string;
 }
 
 const emptyForm: EligibilityForm = {
@@ -90,27 +102,63 @@ const formatINR = (n: number) =>
 export default function EligibilityCheckContent() {
   const [mode, setMode] = useState<EligibilityMode>('mobile_advanced');
   const [form, setForm] = useState<EligibilityForm>(emptyForm);
-  const [leadQueue, setLeadQueue] = useState<QueueLead[]>([]);
+  const [leads, setLeads] = useState<QueueLead[]>([]);
+  const [reports, setReports] = useState<Record<string, ReportSummary>>({});
+  const [queueTab, setQueueTab] = useState<QueueTab>('pending');
+  const [queueSearch, setQueueSearch] = useState('');
   const [selectedLead, setSelectedLead] = useState<QueueLead | null>(null);
   const [checking, setChecking] = useState(false);
+  const [checkingLeadId, setCheckingLeadId] = useState('');
   const [submittingLender, setSubmittingLender] = useState('');
   const [result, setResult] = useState<EligibilityResult | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState('');
 
-  const loadLeadQueue = async () => {
+  const loadEligibilityData = async () => {
     try {
-      const response = await fetch('/api/crm/leads?queue=eligibility', { cache: 'no-store' });
-      const json = await response.json();
-      if (json.success && Array.isArray(json.data)) setLeadQueue(json.data);
+      const [leadsResponse, storeResponse] = await Promise.all([
+        fetch('/api/crm/leads', { cache: 'no-store' }),
+        fetch('/api/crm/eligibility-check', { cache: 'no-store' }),
+      ]);
+      const leadsJson = await leadsResponse.json();
+      const storeJson = await storeResponse.json();
+      if (leadsJson.success && Array.isArray(leadsJson.data)) setLeads(leadsJson.data);
+      const nextReports: Record<string, ReportSummary> = {};
+      const storeReports = storeJson?.data?.reports;
+      if (Array.isArray(storeReports)) {
+        storeReports.forEach((report: ReportSummary) => {
+          if (report?.id) nextReports[report.id] = report;
+        });
+      }
+      setReports(nextReports);
     } catch {
-      setLeadQueue([]);
+      setLeads([]);
+      setReports({});
     }
   };
 
   useEffect(() => {
-    loadLeadQueue();
+    loadEligibilityData();
   }, []);
+
+  const pendingLeads = leads.filter((lead) =>
+    ['new', 'contacted', 'eligibility_pending'].includes(lead.stage)
+  );
+  const checkedLeads = leads.filter((lead) =>
+    ['eligibility_done', 'submitted_to_lender', 'sanctioned', 'rejected', 'disbursed'].includes(
+      lead.stage
+    )
+  );
+  const visibleQueue = (queueTab === 'pending' ? pendingLeads : checkedLeads).filter((lead) => {
+    const query = queueSearch.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      lead.name.toLowerCase().includes(query) ||
+      lead.mobile.includes(query) ||
+      String(lead.product).toLowerCase().includes(query) ||
+      lead.city.toLowerCase().includes(query)
+    );
+  });
 
   const setField = (key: keyof EligibilityForm, value: string) => {
     setForm((previous) => ({ ...previous, [key]: value }));
@@ -143,61 +191,92 @@ export default function EligibilityCheckContent() {
     setResult(null);
   };
 
-  const validate = () => {
+  const leadForm = (lead: QueueLead): EligibilityForm => ({
+    ...emptyForm,
+    mobile: lead.mobile,
+    loanType: lead.product === 'credit_card' ? 'personal_loan' : (lead.product as LoanType),
+    loanAmount: String(lead.loanAmount || ''),
+  });
+
+  const validateForm = (values: EligibilityForm, selectedMode: EligibilityMode) => {
     const nextErrors: Record<string, string> = {};
-    if (!/^[6-9]\d{9}$/.test(form.mobile)) {
+    if (!/^[6-9]\d{9}$/.test(values.mobile)) {
       nextErrors.mobile = '10-digit mobile required';
     }
 
-    if (mode === 'full_details') {
-      if (!form.firstName.trim()) nextErrors.firstName = 'First name is required';
-      if (!form.lastName.trim()) nextErrors.lastName = 'Last name is required';
-      if (!form.dob) nextErrors.dob = 'Date of birth is required';
-      if (!form.gender) nextErrors.gender = 'Gender is required';
-      if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(form.pan.toUpperCase())) {
+    if (selectedMode === 'full_details') {
+      if (!values.firstName.trim()) nextErrors.firstName = 'First name is required';
+      if (!values.lastName.trim()) nextErrors.lastName = 'Last name is required';
+      if (!values.dob) nextErrors.dob = 'Date of birth is required';
+      if (!values.gender) nextErrors.gender = 'Gender is required';
+      if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(values.pan.toUpperCase())) {
         nextErrors.pan = 'Valid PAN required';
       }
-      if (!form.address.trim()) nextErrors.address = 'Address is required';
-      if (!/^\d{6}$/.test(form.pincode)) nextErrors.pincode = '6-digit pincode required';
-      if (!form.state) nextErrors.state = 'State is required';
-      if (!form.monthlyIncome || isNaN(Number(form.monthlyIncome))) {
+      if (!values.address.trim()) nextErrors.address = 'Address is required';
+      if (!/^\d{6}$/.test(values.pincode)) nextErrors.pincode = '6-digit pincode required';
+      if (!values.state) nextErrors.state = 'State is required';
+      if (!values.monthlyIncome || isNaN(Number(values.monthlyIncome))) {
         nextErrors.monthlyIncome = 'Monthly income required';
       }
-      if (!form.loanType) nextErrors.loanType = 'Select loan type';
-      if (!form.loanAmount || isNaN(Number(form.loanAmount))) {
+      if (!values.loanType) nextErrors.loanType = 'Select loan type';
+      if (!values.loanAmount || isNaN(Number(values.loanAmount))) {
         nextErrors.loanAmount = 'Loan amount required';
       }
-      if (!form.tenure || isNaN(Number(form.tenure))) nextErrors.tenure = 'Tenure required';
+      if (!values.tenure || isNaN(Number(values.tenure))) nextErrors.tenure = 'Tenure required';
     }
 
     return nextErrors;
   };
 
-  const handleCheck = async () => {
-    const validationErrors = validate();
+  const runEligibility = async (
+    payload: EligibilityForm,
+    runMode: EligibilityMode,
+    lead?: QueueLead | null
+  ) => {
+    const previousForm = form;
+    const previousMode = mode;
+    setForm(payload);
+    setMode(runMode);
+    const validationErrors = validateForm(payload, runMode);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
 
     setChecking(true);
+    setCheckingLeadId(lead?.id || '');
+    setSelectedLead(lead || null);
     setResult(null);
     setServerError('');
     try {
       const response = await fetch('/api/crm/eligibility-check', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...form, mode, consent: true, leadId: selectedLead?.id }),
+        body: JSON.stringify({ ...payload, mode: runMode, consent: true, leadId: lead?.id }),
       });
       const json = await response.json();
       if (!response.ok || !json.success) throw new Error(json.error || 'Eligibility check failed');
       setResult(json.data as EligibilityResult);
-      if (selectedLead) await loadLeadQueue();
+      if (lead) {
+        setQueueTab('checked');
+        await loadEligibilityData();
+      }
     } catch (error) {
+      setForm(previousForm);
+      setMode(previousMode);
       setServerError(error instanceof Error ? error.message : 'Eligibility check failed');
     } finally {
       setChecking(false);
+      setCheckingLeadId('');
     }
+  };
+
+  const handleCheck = async () => {
+    await runEligibility(form, mode, selectedLead);
+  };
+
+  const runLeadEligibility = async (lead: QueueLead) => {
+    await runEligibility(leadForm(lead), 'mobile_advanced', lead);
   };
 
   const submitToLenderQueue = async (lenderName: string) => {
@@ -216,7 +295,7 @@ export default function EligibilityCheckContent() {
       });
       const json = await response.json();
       if (!response.ok || !json.success) throw new Error(json.error || 'Unable to submit lead');
-      await loadLeadQueue();
+      await loadEligibilityData();
       setSelectedLead(null);
       setResult(null);
     } catch (error) {
@@ -273,53 +352,173 @@ export default function EligibilityCheckContent() {
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         <div className="xl:col-span-3 space-y-5">
-          <div className="bg-card rounded-lg border border-border shadow-card p-4">
-            <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 border-b border-border">
               <div>
-                <h2 className="text-sm font-700 text-foreground">Pending Leads</h2>
+                <h2 className="text-sm font-700 text-foreground">Lead Eligibility Queue</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Select a lead to run eligibility from the inquiry queue
+                  Run checks from pending leads and review completed results in one place
                 </p>
               </div>
-              <span className="h-6 min-w-6 px-2 rounded-full bg-muted text-xs font-700 text-muted-foreground flex items-center justify-center">
-                {leadQueue.length}
-              </span>
-            </div>
-            {leadQueue.length === 0 ? (
-              <div className="rounded-sm border border-dashed border-border bg-muted/30 p-5 text-center text-xs text-muted-foreground">
-                No pending leads in queue
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-52 overflow-y-auto scrollbar-thin pr-1">
-                {leadQueue.map((lead) => (
-                  <button
-                    key={lead.id}
-                    onClick={() => selectLead(lead)}
-                    className={[
-                      'text-left rounded-sm border p-3 transition-colors',
-                      selectedLead?.id === lead.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border bg-background hover:bg-muted/40',
-                    ].join(' ')}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center rounded-sm border border-border bg-muted p-0.5">
+                  {[
+                    ['pending', 'Pending Leads', pendingLeads.length],
+                    ['checked', 'Eligibility Checked Leads', checkedLeads.length],
+                  ].map(([tab, label, count]) => (
+                    <button
+                      key={String(tab)}
+                      onClick={() => setQueueTab(tab as QueueTab)}
+                      className={[
+                        'h-7 px-3 rounded-sm text-xs font-700 transition-colors',
+                        queueTab === tab
+                          ? 'bg-card text-foreground shadow-card'
+                          : 'text-muted-foreground hover:text-foreground',
+                      ].join(' ')}
+                    >
+                      {label}
+                      <span className="ml-1 tabular-nums">{count}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="relative w-full sm:w-64">
+                  <svg
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-xs font-700 text-foreground">{lead.name}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {lead.mobile} · {lead.city || 'City pending'}
-                        </p>
-                      </div>
-                      <span className="text-[10px] font-700 text-primary">
-                        {formatINR(lead.loanAmount)}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-2">
-                      {String(lead.product).replace(/_/g, ' ')} · {lead.assignedAgent}
-                    </p>
-                  </button>
-                ))}
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    value={queueSearch}
+                    onChange={(event) => setQueueSearch(event.target.value)}
+                    placeholder="Search lead..."
+                    className="w-full h-8 pl-8 pr-3 rounded-sm border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                  />
+                </div>
               </div>
-            )}
+            </div>
+
+            <div className="overflow-x-auto scrollbar-thin">
+              <div className="max-h-[420px] overflow-y-auto scrollbar-thin">
+                <table className="w-full min-w-[860px] text-sm">
+                  <thead className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border">
+                    <tr>
+                      {[
+                        'Lead',
+                        'Mobile',
+                        'Product',
+                        'Amount',
+                        'Agent',
+                        queueTab === 'pending' ? 'Follow-up' : 'Result',
+                        '',
+                      ].map((column) => (
+                        <th
+                          key={column}
+                          className="px-4 py-3 text-left text-[11px] font-700 uppercase tracking-wide text-muted-foreground whitespace-nowrap"
+                        >
+                          {column}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {visibleQueue.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-4 py-10 text-center text-sm text-muted-foreground"
+                        >
+                          {queueTab === 'pending'
+                            ? 'No pending leads found'
+                            : 'No checked leads found'}
+                        </td>
+                      </tr>
+                    ) : (
+                      visibleQueue.map((lead) => {
+                        const report = lead.eligibilityReportId
+                          ? reports[lead.eligibilityReportId]
+                          : undefined;
+                        return (
+                          <tr
+                            key={lead.id}
+                            className={[
+                              'hover:bg-muted/30 transition-colors',
+                              selectedLead?.id === lead.id ? 'bg-primary/5' : '',
+                            ].join(' ')}
+                          >
+                            <td className="px-4 py-3">
+                              <p className="text-xs font-700 text-foreground">{lead.name}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {lead.city || 'City pending'}
+                              </p>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
+                              {lead.mobile}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-foreground capitalize">
+                              {String(lead.product).replace(/_/g, ' ')}
+                            </td>
+                            <td className="px-4 py-3 text-xs font-700 text-foreground">
+                              {formatINR(lead.loanAmount)}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                              {lead.assignedAgent}
+                            </td>
+                            <td className="px-4 py-3">
+                              {queueTab === 'pending' ? (
+                                <span className="text-xs text-muted-foreground">
+                                  {lead.nextFollowUp || '-'}
+                                </span>
+                              ) : (
+                                <div>
+                                  <p
+                                    className={[
+                                      'text-xs font-700',
+                                      report?.eligible ? 'text-success' : 'text-warning',
+                                    ].join(' ')}
+                                  >
+                                    {report
+                                      ? `${report.eligible ? 'Eligible' : 'Review'} · ${report.score || '-'}`
+                                      : 'Report saved'}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {lead.selectedLender || lead.stage.replace(/_/g, ' ')}
+                                  </p>
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {queueTab === 'pending' ? (
+                                <button
+                                  onClick={() => runLeadEligibility(lead)}
+                                  disabled={checking}
+                                  className="h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-700 hover:bg-primary/90 disabled:opacity-60"
+                                >
+                                  {checkingLeadId === lead.id ? 'Running...' : 'Run Eligibility'}
+                                </button>
+                              ) : (
+                                <Link
+                                  href="/crm/eligibility-report"
+                                  className="inline-flex items-center justify-center h-8 px-3 rounded-sm border border-border bg-background text-xs font-700 text-foreground hover:bg-muted"
+                                >
+                                  View Report
+                                </Link>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
