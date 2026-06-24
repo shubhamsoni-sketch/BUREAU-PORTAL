@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-24 - Developer - Hide Internal Eligibility Workflow Copy
+
+Summary:
+
+- Removed internal implementation wording from CRM Eligibility Checker UI.
+- Replaced public-facing copy that mentioned mobile prefill, bureau payload building, background processing, CIBIL response, and FOIR with neutral eligibility language.
+- Kept backend flow unchanged while making the UI suitable for agents/customers.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder npm run build` passed.
+
 ## 2026-06-24 - Developer - Lender Policy Form Upgrade
 
 Summary:

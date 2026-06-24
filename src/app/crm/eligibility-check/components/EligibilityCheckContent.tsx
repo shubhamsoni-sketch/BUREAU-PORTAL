@@ -176,7 +176,7 @@ export default function EligibilityCheckContent() {
         <div>
           <h1 className="text-2xl font-700 text-foreground">Eligibility Checker</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Pull bureau data and assess lender eligibility from one screen
+            Check customer eligibility and view lender recommendations from one screen
           </p>
         </div>
         <Link
@@ -207,7 +207,7 @@ export default function EligibilityCheckContent() {
               {
                 id: 'mobile_advanced' as const,
                 title: 'Check Eligibility by Mobile',
-                desc: 'Enter mobile number and run the advanced bureau flow in background.',
+                desc: 'Enter mobile number and run a quick consent-based eligibility check.',
               },
               {
                 id: 'full_details' as const,
@@ -247,7 +247,7 @@ export default function EligibilityCheckContent() {
             {mode === 'mobile_advanced' ? (
               <div>
                 <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
-                  Mobile Bureau Pull
+                  Quick Eligibility Check
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -270,7 +270,7 @@ export default function EligibilityCheckContent() {
               <>
                 <div>
                   <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
-                    Bureau Payload Details
+                    Customer Details
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <TextInput
@@ -428,8 +428,8 @@ export default function EligibilityCheckContent() {
                 <p className="font-600 text-foreground mb-1">How it works</p>
                 <p>
                   {mode === 'mobile_advanced'
-                    ? 'CreditTrust runs mobile prefill first, builds the bureau payload in background, then pulls the CIBIL response.'
-                    : 'CreditTrust sends the full bureau payload, calculates FOIR, and maps eligible lenders from the result.'}
+                    ? 'Enter the customer mobile number and confirm consent to generate an eligibility result.'
+                    : 'Enter customer and loan details to generate eligibility, affordability, and lender recommendations.'}
                 </p>
               </div>
               {serverError && (
@@ -587,7 +587,7 @@ function ResultPanel({
           </div>
           <p className="text-sm font-600 text-foreground">Choose a check type</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Run mobile-only bureau pull or full-details lender eligibility
+            Run a quick mobile check or a full-details eligibility assessment
           </p>
         </div>
       </div>
@@ -641,7 +641,7 @@ function ResultPanel({
               {result.eligible ? 'Eligible' : 'Needs Review'}
             </p>
             <p className="text-xs text-muted-foreground">
-              {mode === 'mobile_advanced' ? 'Mobile bureau response received' : 'Lender assessment'}
+              {mode === 'mobile_advanced' ? 'Quick eligibility result' : 'Lender assessment'}
             </p>
           </div>
         </div>
@@ -689,7 +689,7 @@ function ResultPanel({
       {mode === 'full_details' && (
         <div className="bg-card rounded-lg border border-border shadow-card p-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-700 text-foreground">FOIR</p>
+            <p className="text-sm font-700 text-foreground">Affordability Ratio</p>
             <span
               className={`text-sm font-700 tabular-nums ${
                 result.foir <= 40
