@@ -244,6 +244,7 @@ export default function LoanApplicationContent() {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedApp, setSelectedApp] = useState<LoanApplication | null>(null);
   const [filterStage, setFilterStage] = useState('all');
+  const [quickStageFilter, setQuickStageFilter] = useState('all');
   const [filterProduct, setFilterProduct] = useState('all');
   const [filterLender, setFilterLender] = useState('all');
   const [search, setSearch] = useState('');
@@ -325,7 +326,12 @@ export default function LoanApplicationContent() {
     const matchSearch =
       a.applicant.toLowerCase().includes(search.toLowerCase()) ||
       a.appId.toLowerCase().includes(search.toLowerCase());
-    const matchStage = filterStage === 'all' || a.stage === filterStage;
+    const matchStage =
+      filterStage === 'all'
+        ? true
+        : filterStage === 'in_progress'
+          ? !['disbursed', 'rejected'].includes(a.stage)
+          : a.stage === filterStage;
     const matchProduct = filterProduct === 'all' || a.product === filterProduct;
     const matchLender = filterLender === 'all' || a.lender === filterLender;
     return matchSearch && matchStage && matchProduct && matchLender;
@@ -347,6 +353,36 @@ export default function LoanApplicationContent() {
     'disbursal_initiated',
     'disbursed',
     'rejected',
+  ];
+  const quickFilters = [
+    {
+      key: 'in_progress',
+      label: 'In Progress',
+      count: apps.filter((a) => !['disbursed', 'rejected'].includes(a.stage)).length,
+      color: 'bg-info-bg text-info border-info/20',
+      active: 'ring-info/25 border-info/50',
+    },
+    {
+      key: 'disbursed',
+      label: 'Disbursed (MTD)',
+      count: apps.filter((a) => a.stage === 'disbursed').length,
+      color: 'bg-success-bg text-success border-success/20',
+      active: 'ring-success/25 border-success/50',
+    },
+    {
+      key: 'rejected',
+      label: 'Rejected',
+      count: apps.filter((a) => a.stage === 'rejected').length,
+      color: 'bg-danger-bg text-danger border-danger/20',
+      active: 'ring-danger/25 border-danger/50',
+    },
+    {
+      key: 'login_pending',
+      label: 'Login Pending',
+      count: apps.filter((a) => a.stage === 'login_pending').length,
+      color: 'bg-warning-bg text-warning border-warning/20',
+      active: 'ring-warning/25 border-warning/50',
+    },
   ];
 
   return (
@@ -379,35 +415,23 @@ export default function LoanApplicationContent() {
 
       {/* Summary pills */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {[
-          {
-            label: 'In Progress',
-            count: apps.filter((a) => !['disbursed', 'rejected'].includes(a.stage)).length,
-            color: 'bg-info-bg text-info border-info/20',
-          },
-          {
-            label: 'Disbursed (MTD)',
-            count: apps.filter((a) => a.stage === 'disbursed').length,
-            color: 'bg-success-bg text-success border-success/20',
-          },
-          {
-            label: 'Rejected',
-            count: apps.filter((a) => a.stage === 'rejected').length,
-            color: 'bg-danger-bg text-danger border-danger/20',
-          },
-          {
-            label: 'Login Pending',
-            count: apps.filter((a) => a.stage === 'login_pending').length,
-            color: 'bg-warning-bg text-warning border-warning/20',
-          },
-        ].map((pill) => (
-          <div
+        {quickFilters.map((pill) => (
+          <button
             key={`pill-${pill.label}`}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-600 ${pill.color}`}
+            onClick={() => {
+              const nextFilter = quickStageFilter === pill.key ? 'all' : pill.key;
+              setQuickStageFilter(nextFilter);
+              setFilterStage(nextFilter);
+            }}
+            className={[
+              'flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-600 transition-all hover:shadow-card',
+              pill.color,
+              quickStageFilter === pill.key ? `ring-2 ${pill.active}` : '',
+            ].join(' ')}
           >
             <span>{pill.label}</span>
             <span className="font-800">{pill.count}</span>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -438,10 +462,14 @@ export default function LoanApplicationContent() {
         </div>
         <select
           value={filterStage}
-          onChange={(e) => setFilterStage(e.target.value)}
+          onChange={(e) => {
+            setFilterStage(e.target.value);
+            setQuickStageFilter(e.target.value);
+          }}
           className="h-8 px-2 rounded-sm border border-input bg-card text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
         >
           <option value="all">All Stages</option>
+          <option value="in_progress">In Progress</option>
           {stageOptions.map((s) => (
             <option key={`fs-${s}`} value={s}>
               {s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}

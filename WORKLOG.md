@@ -599,6 +599,19 @@ Verification:
 
 - Migration file added. Existing DB already has the demo account; apply migration only where demo seed is needed.
 
+## 2026-06-24 - Developer - Make Application Status Pills Clickable
+
+Summary:
+
+- Converted Loan Application Tracking status summary pills into quick filters.
+- Added active visual state for selected pill filters.
+- Synced the status dropdown with quick filter selections, including an In Progress filter.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL="https://placeholder.supabase.co" NEXT_PUBLIC_SUPABASE_ANON_KEY="placeholder" SUPABASE_SERVICE_ROLE_KEY="placeholder" NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-24 - Developer - Add Lender Selection Demo Leads
 
 Summary:
