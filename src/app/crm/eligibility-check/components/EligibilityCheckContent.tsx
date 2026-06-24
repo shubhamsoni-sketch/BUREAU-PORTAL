@@ -112,8 +112,6 @@ export default function EligibilityCheckContent() {
   const [selectedLead, setSelectedLead] = useState<QueueLead | null>(null);
   const [checking, setChecking] = useState(false);
   const [checkingLeadId, setCheckingLeadId] = useState('');
-  const [submittingLender, setSubmittingLender] = useState('');
-  const [lenderMessage, setLenderMessage] = useState('');
   const [result, setResult] = useState<EligibilityResult | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState('');
@@ -283,36 +281,6 @@ export default function EligibilityCheckContent() {
     await runEligibility(leadForm(lead), 'mobile_advanced', lead);
   };
 
-  const submitToLenderQueue = async (lenderName: string, leadOverride?: QueueLead | null) => {
-    const lead = leadOverride || selectedLead;
-    if (!lead) return;
-    setSubmittingLender(lenderName);
-    setServerError('');
-    setLenderMessage('');
-    try {
-      const response = await fetch('/api/crm/eligibility-check', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          action: 'submit_to_lender',
-          leadId: lead.id,
-          lenderName,
-        }),
-      });
-      const json = await response.json();
-      if (!response.ok || !json.success) throw new Error(json.error || 'Unable to submit lead');
-      await loadEligibilityData();
-      if (!leadOverride) setSelectedLead(null);
-      setResult(null);
-      setQueueTab('checked');
-      setLenderMessage(`${lead.name} sent to ${lenderName}. Check Loan Application Tracking.`);
-    } catch (error) {
-      setServerError(error instanceof Error ? error.message : 'Unable to submit lead');
-    } finally {
-      setSubmittingLender('');
-    }
-  };
-
   const scoreColor = result
     ? result.score >= 750
       ? 'text-success'
@@ -334,7 +302,7 @@ export default function EligibilityCheckContent() {
         <div>
           <h1 className="text-2xl font-700 text-foreground">Eligibility Checker</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Check customer eligibility and view lender recommendations from one screen
+            Run customer eligibility checks and save bureau reports
           </p>
         </div>
         <div className="flex items-center rounded-sm border border-border bg-muted p-0.5">
@@ -362,23 +330,12 @@ export default function EligibilityCheckContent() {
         <EligibilityReportContent embedded />
       ) : (
         <div className="space-y-5">
-          {lenderMessage && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-success/20 bg-success/5 p-3">
-              <p className="text-xs font-700 text-success">{lenderMessage}</p>
-              <a
-                href="/crm/loan-application-tracking"
-                className="inline-flex h-8 items-center justify-center rounded-sm bg-success px-3 text-xs font-700 text-white hover:bg-success/90"
-              >
-                Open Applications
-              </a>
-            </div>
-          )}
           <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 border-b border-border">
               <div>
                 <h2 className="text-sm font-700 text-foreground">Lead Eligibility Queue</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Run checks from pending leads and review completed results in one place
+                  Run checks from pending leads and keep completed reports ready for next workflow
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -511,8 +468,8 @@ export default function EligibilityCheckContent() {
                                   <p className="text-[10px] text-muted-foreground">
                                     {lead.selectedLender
                                       ? `Sent to ${lead.selectedLender}`
-                                      : report?.matched_lenders?.length
-                                        ? `${report.matched_lenders.length} lender match`
+                                      : report
+                                        ? 'Report ready'
                                         : lead.stage.replace(/_/g, ' ')}
                                   </p>
                                 </div>
@@ -529,22 +486,9 @@ export default function EligibilityCheckContent() {
                                 </button>
                               ) : (
                                 <div className="flex items-center justify-end gap-2">
-                                  {!lead.selectedLender && report?.matched_lenders?.[0] && (
-                                    <button
-                                      onClick={() =>
-                                        submitToLenderQueue(report.matched_lenders![0].name, lead)
-                                      }
-                                      disabled={Boolean(submittingLender)}
-                                      className="inline-flex items-center justify-center h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-700 hover:bg-primary/90 disabled:opacity-60"
-                                    >
-                                      {submittingLender === report.matched_lenders[0].name
-                                        ? 'Sending...'
-                                        : 'Send to Lender'}
-                                    </button>
-                                  )}
                                   {lead.selectedLender && (
                                     <span className="inline-flex h-8 items-center rounded-sm bg-success/10 px-3 text-xs font-700 text-success">
-                                      Sent
+                                      Application Created
                                     </span>
                                   )}
                                   <button
@@ -832,9 +776,6 @@ export default function EligibilityCheckContent() {
               mode={mode}
               scoreColor={scoreColor}
               scoreBarColor={scoreBarColor}
-              selectedLead={selectedLead}
-              submittingLender={submittingLender}
-              onSubmitLender={submitToLenderQueue}
             />
           )}
         </div>
@@ -924,17 +865,11 @@ function ResultPanel({
   mode,
   scoreColor,
   scoreBarColor,
-  selectedLead,
-  submittingLender,
-  onSubmitLender,
 }: {
   result: EligibilityResult | null;
   mode: EligibilityMode;
   scoreColor: string;
   scoreBarColor: string;
-  selectedLead: QueueLead | null;
-  submittingLender: string;
-  onSubmitLender: (lenderName: string) => void;
 }) {
   if (!result) {
     return null;
@@ -986,9 +921,7 @@ function ResultPanel({
             <p className={`text-base font-700 ${result.eligible ? 'text-success' : 'text-danger'}`}>
               {result.eligible ? 'Eligible' : 'Needs Review'}
             </p>
-            <p className="text-xs text-muted-foreground">
-              {mode === 'mobile_advanced' ? 'Quick eligibility result' : 'Lender assessment'}
-            </p>
+            <p className="text-xs text-muted-foreground">Eligibility report generated</p>
           </div>
         </div>
         {mode === 'full_details' && (
@@ -1085,37 +1018,6 @@ function ResultPanel({
           ))}
         </ul>
       </div>
-
-      {result.matchedLenders.length > 0 && (
-        <div className="bg-card rounded-lg border border-border shadow-card p-4">
-          <p className="text-sm font-700 text-foreground mb-3">Matched Lenders</p>
-          <div className="space-y-2">
-            {result.matchedLenders.map((lender) => (
-              <div
-                key={lender.name}
-                className="flex items-center justify-between gap-3 p-2.5 rounded-sm bg-muted/40 border border-border"
-              >
-                <p className="text-xs font-700 text-foreground">{lender.name}</p>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-[10px] text-muted-foreground">ROI: {lender.roi}</p>
-                    <p className="text-[10px] font-600 text-foreground">Up to {lender.maxLoan}</p>
-                  </div>
-                  {selectedLead && (
-                    <button
-                      onClick={() => onSubmitLender(lender.name)}
-                      disabled={Boolean(submittingLender)}
-                      className="h-7 px-2 rounded-sm bg-primary text-primary-foreground text-[10px] font-700 hover:bg-primary/90 disabled:opacity-60"
-                    >
-                      {submittingLender === lender.name ? 'Sending...' : 'Send'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

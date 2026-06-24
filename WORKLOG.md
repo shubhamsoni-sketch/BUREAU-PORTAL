@@ -599,6 +599,21 @@ Verification:
 
 - Migration file added. Existing DB already has the demo account; apply migration only where demo seed is needed.
 
+## 2026-06-24 - Developer - Separate Lender Selection Workflow
+
+Summary:
+
+- Kept Eligibility Checker focused on running eligibility checks and saving bureau reports.
+- Removed direct lender submission actions from Eligibility Checker and Eligibility Reports.
+- Added a dedicated CRM Lender Selection module for eligibility-checked leads with matched lender options.
+- Wired Lender Selection to create loan applications through the existing lender submission action.
+- Added Lender Selection to the CRM sidebar.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL="https://placeholder.supabase.co" NEXT_PUBLIC_SUPABASE_ANON_KEY="placeholder" SUPABASE_SERVICE_ROLE_KEY="placeholder" NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-24 - Developer - Clarify Send To Lender Flow
 
 Summary:

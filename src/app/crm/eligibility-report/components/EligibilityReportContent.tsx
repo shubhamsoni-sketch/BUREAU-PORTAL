@@ -235,12 +235,17 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
     return matchSearch && matchStatus;
   });
 
+  const scoredReports = reports.filter((r) => r.creditScore > 0);
   const stats = {
     total: reports.length,
     eligible: reports.filter((r) => r.status === 'eligible').length,
     notEligible: reports.filter((r) => r.status === 'not_eligible').length,
     pending: reports.filter((r) => r.status === 'pending').length,
-    lenderMatched: reports.filter((r) => r.matchedLenders.length > 0).length,
+    averageScore: scoredReports.length
+      ? Math.round(
+          scoredReports.reduce((sum, report) => sum + report.creditScore, 0) / scoredReports.length
+        )
+      : 0,
   };
 
   return (
@@ -283,7 +288,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
           { label: 'Total Checks', value: stats.total, color: 'text-foreground' },
           { label: 'Eligible', value: stats.eligible, color: 'text-success' },
           { label: 'Not Eligible', value: stats.notEligible, color: 'text-danger' },
-          { label: 'Lender Matched', value: stats.lenderMatched, color: 'text-primary' },
+          { label: 'Avg Score', value: stats.averageScore || '-', color: 'text-primary' },
         ].map((s) => (
           <div
             key={s.label}
@@ -345,7 +350,6 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                     'Credit Score',
                     'FOIR',
                     'Status',
-                    'Lender Match',
                     'Checked By',
                     'Date',
                     '',
@@ -363,7 +367,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                 {filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={11}
+                      colSpan={10}
                       className="px-4 py-12 text-center text-sm text-muted-foreground"
                     >
                       No reports found
@@ -429,20 +433,6 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                         >
                           {STATUS_LABELS[report.status]}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {report.matchedLenders.length > 0 ? (
-                          <div>
-                            <p className="text-xs font-700 text-success">
-                              {report.matchedLenders.length} matched
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {report.matchedLenders[0].name}
-                            </p>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">No match</span>
-                        )}
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
                         {report.checkedBy}
@@ -538,27 +528,6 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                       </p>
                     </div>
                   ))}
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-xs font-700 text-foreground">Lender Eligibility</p>
-                  {selectedReport.matchedLenders.length > 0 ? (
-                    selectedReport.matchedLenders.map((lender) => (
-                      <div
-                        key={`${selectedReport.id}-${lender.name}`}
-                        className="rounded-sm border border-border bg-muted/40 p-2"
-                      >
-                        <p className="text-xs font-700 text-foreground">{lender.name}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          ROI {lender.roi || '-'} · Up to {lender.maxLoan || '-'}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="rounded-sm border border-border bg-muted/40 p-2 text-xs text-muted-foreground">
-                      No lender match found for this check.
-                    </div>
-                  )}
                 </div>
 
                 <button className="w-full h-8 rounded-sm border border-border text-xs font-600 text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5">
