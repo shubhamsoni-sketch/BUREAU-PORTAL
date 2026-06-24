@@ -599,6 +599,19 @@ Verification:
 
 - Migration file added. Existing DB already has the demo account; apply migration only where demo seed is needed.
 
+## 2026-06-24 - Developer - Open Lender Details From Button
+
+Summary:
+
+- Removed the always-visible lender details section below the Lender Selection table.
+- Made lender details open only from the row `Select Lender` button.
+- Moved lender options into a modal so the file table remains the primary screen.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL="https://placeholder.supabase.co" NEXT_PUBLIC_SUPABASE_ANON_KEY="placeholder" SUPABASE_SERVICE_ROLE_KEY="placeholder" NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-24 - Developer - Reshape Lender Selection And File Process
 
 Summary:

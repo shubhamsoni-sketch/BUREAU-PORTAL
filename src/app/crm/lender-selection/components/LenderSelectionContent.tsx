@@ -64,6 +64,7 @@ export default function LenderSelectionContent() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [activeLeadId, setActiveLeadId] = useState('');
+  const [selectionOpen, setSelectionOpen] = useState(false);
   const [submitting, setSubmitting] = useState('');
   const [createdApplication, setCreatedApplication] = useState<CreatedApplication | null>(null);
   const [error, setError] = useState('');
@@ -111,7 +112,10 @@ export default function LenderSelectionContent() {
   useEffect(() => {
     const requestedLeadId =
       typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('lead') : '';
-    if (requestedLeadId) setActiveLeadId(requestedLeadId);
+    if (requestedLeadId) {
+      setActiveLeadId(requestedLeadId);
+      setSelectionOpen(true);
+    }
     loadData();
   }, []);
 
@@ -209,7 +213,7 @@ export default function LenderSelectionContent() {
               <div>
                 <h2 className="text-sm font-700 text-foreground">Eligibility Checked Files</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Click a file to select lender and move it to File Process
+                  Use Select Lender to open lender details and move a file to File Process
                 </p>
               </div>
               <button
@@ -276,10 +280,9 @@ export default function LenderSelectionContent() {
                   {filteredRows.map(({ lead, report }) => (
                     <tr
                       key={lead.id}
-                      onClick={() => setActiveLeadId(lead.id)}
                       className={[
-                        'cursor-pointer hover:bg-muted/30 transition-colors',
-                        activeRow?.lead.id === lead.id ? 'bg-primary/5' : '',
+                        'hover:bg-muted/30 transition-colors',
+                        selectionOpen && activeRow?.lead.id === lead.id ? 'bg-primary/5' : '',
                       ].join(' ')}
                     >
                       <td className="px-4 py-3">
@@ -318,7 +321,13 @@ export default function LenderSelectionContent() {
                         {lead.assignedAgent}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button className="h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-700 hover:bg-primary/90">
+                        <button
+                          onClick={() => {
+                            setActiveLeadId(lead.id);
+                            setSelectionOpen(true);
+                          }}
+                          className="h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-700 hover:bg-primary/90"
+                        >
                           Select Lender
                         </button>
                       </td>
@@ -329,121 +338,133 @@ export default function LenderSelectionContent() {
             )}
           </div>
         </section>
+      </div>
 
-        <section className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
-          {!activeRow ? (
-            <div className="p-10 text-center text-sm text-muted-foreground">
-              Select an eligibility-checked lead to view lender options.
+      {selectionOpen && activeRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 p-4 backdrop-blur-sm">
+          <section className="w-full max-w-5xl max-h-[88vh] overflow-hidden rounded-lg border border-border bg-card shadow-modal">
+            <div className="flex items-start justify-between gap-4 border-b border-border p-5">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-800 text-foreground">{activeRow.lead.name}</h2>
+                  {activeRow.lead.selectedLender && (
+                    <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-700 text-success">
+                      Sent to {activeRow.lead.selectedLender}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {activeRow.lead.mobile} · {formatProduct(activeRow.lead.product)} ·{' '}
+                  {formatINR(activeRow.lead.loanAmount)}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectionOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Close lender selection"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
-          ) : (
-            <>
-              <div className="p-5 border-b border-border">
-                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-lg font-800 text-foreground">{activeRow.lead.name}</h2>
-                      {activeRow.lead.selectedLender && (
-                        <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-700 text-success">
-                          Sent to {activeRow.lead.selectedLender}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {activeRow.lead.mobile} · {formatProduct(activeRow.lead.product)} ·{' '}
-                      {formatINR(activeRow.lead.loanAmount)}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 min-w-[260px]">
-                    <MiniStat label="Score" value={activeRow.report.score || '-'} large />
-                    <MiniStat label="FOIR" value={`${activeRow.report.foir || 0}%`} large />
-                    <MiniStat
-                      label="Max Loan"
-                      value={formatINR(activeRow.report.max_loan_amount)}
-                      large
-                    />
-                  </div>
+
+            <div className="max-h-[calc(88vh-88px)] overflow-y-auto p-5 scrollbar-thin">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-5">
+                <MiniStat label="Score" value={activeRow.report.score || '-'} large />
+                <MiniStat label="FOIR" value={`${activeRow.report.foir || 0}%`} large />
+                <MiniStat
+                  label="Max Loan"
+                  value={formatINR(activeRow.report.max_loan_amount)}
+                  large
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-sm font-700 text-foreground">Eligible Lenders</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Choose or change lender, then move the file into File Process
+                  </p>
                 </div>
               </div>
 
-              <div className="p-5">
-                <div className="flex items-center justify-between gap-3 mb-4">
-                  <div>
-                    <h3 className="text-sm font-700 text-foreground">Eligible Lenders</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Choose or change lender, then move the file into File Process
-                    </p>
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {activeRow.report.matched_lenders.map((lender, index) => {
+                  const isSelected = activeRow.lead.selectedLender === lender.name;
+                  const canSwitch = Boolean(activeRow.lead.selectedLender && !isSelected);
+                  const submitKey = `${activeRow.lead.id}-${lender.name}`;
+                  return (
+                    <div
+                      key={`${activeRow.lead.id}-${lender.name}`}
+                      className={[
+                        'rounded-lg border p-4 transition-colors',
+                        isSelected
+                          ? 'border-success bg-success/5'
+                          : 'border-border bg-background hover:border-primary/40',
+                      ].join(' ')}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-800 text-foreground">{lender.name}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Option {index + 1} · {lender.tat || 'TAT pending'}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-700 text-success">
+                            Selected
+                          </span>
+                        )}
+                      </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {activeRow.report.matched_lenders.map((lender, index) => {
-                    const isSelected = activeRow.lead.selectedLender === lender.name;
-                    const canSwitch = Boolean(activeRow.lead.selectedLender && !isSelected);
-                    const submitKey = `${activeRow.lead.id}-${lender.name}`;
-                    return (
-                      <div
-                        key={`${activeRow.lead.id}-${lender.name}`}
+                      <div className="grid grid-cols-3 gap-2 my-4">
+                        <MiniStat label="ROI" value={lender.roi} />
+                        <MiniStat label="Max Loan" value={lender.maxLoan} />
+                        <MiniStat
+                          label="Approval"
+                          value={
+                            typeof lender.approvalRate === 'number'
+                              ? `${lender.approvalRate}%`
+                              : '-'
+                          }
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => submitToLender(activeRow.lead.id, lender.name)}
+                        disabled={isSelected || Boolean(submitting)}
                         className={[
-                          'rounded-lg border p-4 transition-colors',
+                          'w-full h-9 rounded-sm text-xs font-700 transition-colors disabled:opacity-60',
                           isSelected
-                            ? 'border-success bg-success/5'
-                            : 'border-border bg-background hover:border-primary/40',
+                            ? 'bg-success/10 text-success'
+                            : 'bg-primary text-primary-foreground hover:bg-primary/90',
                         ].join(' ')}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-800 text-foreground">{lender.name}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Option {index + 1} · {lender.tat || 'TAT pending'}
-                            </p>
-                          </div>
-                          {isSelected && (
-                            <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-700 text-success">
-                              Selected
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2 my-4">
-                          <MiniStat label="ROI" value={lender.roi} />
-                          <MiniStat label="Max Loan" value={lender.maxLoan} />
-                          <MiniStat
-                            label="Approval"
-                            value={
-                              typeof lender.approvalRate === 'number'
-                                ? `${lender.approvalRate}%`
-                                : '-'
-                            }
-                          />
-                        </div>
-
-                        <button
-                          onClick={() => submitToLender(activeRow.lead.id, lender.name)}
-                          disabled={isSelected || Boolean(submitting)}
-                          className={[
-                            'w-full h-9 rounded-sm text-xs font-700 transition-colors disabled:opacity-60',
-                            isSelected
-                              ? 'bg-success/10 text-success'
-                              : 'bg-primary text-primary-foreground hover:bg-primary/90',
-                          ].join(' ')}
-                        >
-                          {isSelected
-                            ? 'File Created'
-                            : submitting === submitKey
-                              ? 'Creating...'
-                              : canSwitch
-                                ? 'Send to This Lender'
-                                : 'Create File Process'}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                        {isSelected
+                          ? 'File Created'
+                          : submitting === submitKey
+                            ? 'Creating...'
+                            : canSwitch
+                              ? 'Send to This Lender'
+                              : 'Create File Process'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-            </>
-          )}
-        </section>
-      </div>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
