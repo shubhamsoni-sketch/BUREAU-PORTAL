@@ -18,8 +18,10 @@ import {
 import {
   CrmApplication,
   CrmLead,
+  createDefaultApplicationDocuments,
   defaultCrmLeads,
   normalizeApplications,
+  normalizeApplicationDocuments,
   normalizeLeads,
 } from '@/lib/crm/leads';
 
@@ -700,6 +702,7 @@ export async function POST(request: NextRequest) {
             note: `File process created with ${lenderName}`,
           },
         ],
+        documents: createDefaultApplicationDocuments(lead.product),
         createdAt: now,
         updatedAt: now,
       };
@@ -811,6 +814,62 @@ export async function POST(request: NextRequest) {
             }
           : application
       );
+      await saveCrmStore(supabase, rowId, store);
+      return NextResponse.json({ success: true, data: { applications: store.applications } });
+    }
+
+    if (body.action === 'update_application_document') {
+      const applicationId = cleanString(body.applicationId);
+      const documentId = cleanString(body.documentId);
+      const status = cleanString(body.status);
+      const fileName = cleanString(body.fileName);
+      const note = cleanString(body.note);
+      const allowedStatuses = new Set(['missing', 'uploaded', 'verified', 'rejected']);
+      if (!applicationId) return jsonError('Application is required', 400);
+      if (!documentId) return jsonError('Document is required', 400);
+      if (!allowedStatuses.has(status)) return jsonError('Valid document status is required', 400);
+
+      const supabase = createAdminClient();
+      const { rowId, store } = await getCrmStore(supabase);
+      const existingApplication = (store.applications || []).find(
+        (application) => application.id === applicationId
+      );
+      if (!existingApplication) return jsonError('Application not found', 404);
+
+      const now = new Date().toISOString();
+      store.applications = (store.applications || []).map((application) => {
+        if (application.id !== applicationId) return application;
+        const documents = normalizeApplicationDocuments(application.documents, application.product);
+        const nextDocuments = documents.map((document) => {
+          if (document.id !== documentId) return document;
+          return {
+            ...document,
+            status: status as 'missing' | 'uploaded' | 'verified' | 'rejected',
+            fileName: fileName || document.fileName,
+            uploadedAt: status === 'uploaded' ? now : document.uploadedAt,
+            verifiedAt: status === 'verified' ? now : document.verifiedAt,
+            rejectedAt: status === 'rejected' ? now : document.rejectedAt,
+            note: note || document.note,
+          };
+        });
+        const documentName = nextDocuments.find((document) => document.id === documentId)?.name;
+        return {
+          ...application,
+          documents: nextDocuments,
+          notes: [
+            {
+              id: crypto.randomUUID(),
+              note:
+                note ||
+                `${documentName || 'Document'} marked ${status.replace(/_/g, ' ')}`,
+              createdAt: now,
+              createdBy: 'System',
+            },
+            ...(application.notes || []),
+          ].slice(0, 100),
+          updatedAt: now,
+        };
+      });
       await saveCrmStore(supabase, rowId, store);
       return NextResponse.json({ success: true, data: { applications: store.applications } });
     }

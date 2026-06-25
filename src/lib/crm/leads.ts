@@ -69,11 +69,43 @@ export type CrmApplication = {
     changedAt: string;
     note: string;
   }[];
+  documents?: CrmApplicationDocument[];
   followUpDate?: string;
   rejectionReason?: string;
   createdAt: string;
   updatedAt?: string;
 };
+
+export type CrmApplicationDocument = {
+  id: string;
+  name: string;
+  required: boolean;
+  status: 'missing' | 'uploaded' | 'verified' | 'rejected';
+  fileName?: string;
+  uploadedAt?: string;
+  verifiedAt?: string;
+  rejectedAt?: string;
+  note?: string;
+};
+
+export const defaultApplicationDocuments: CrmApplicationDocument[] = [
+  { id: 'aadhaar', name: 'Aadhaar Card', required: true, status: 'missing' },
+  { id: 'pan', name: 'PAN Card', required: true, status: 'missing' },
+  { id: 'bank_statement', name: 'Bank Statement', required: true, status: 'missing' },
+  { id: 'income_proof', name: 'Income Proof', required: true, status: 'missing' },
+  { id: 'photo', name: 'Customer Photo', required: false, status: 'missing' },
+  { id: 'property_documents', name: 'Property Documents', required: false, status: 'missing' },
+];
+
+export function createDefaultApplicationDocuments(product?: string): CrmApplicationDocument[] {
+  const docs = defaultApplicationDocuments.map((document) => ({ ...document }));
+  if (product === 'home_loan' || product === 'lap') {
+    return docs.map((document) =>
+      document.id === 'property_documents' ? { ...document, required: true } : document
+    );
+  }
+  return docs;
+}
 
 export const defaultCrmLeads: CrmLead[] = [
   {
@@ -206,6 +238,7 @@ export function normalizeApplications(value: unknown): CrmApplication[] {
               note: text(item?.note),
             }))
           : [],
+        documents: normalizeApplicationDocuments(application.documents, application.product),
         followUpDate: text(application.followUpDate) || undefined,
         rejectionReason: text(application.rejectionReason) || undefined,
         createdAt: text(application.createdAt) || now,
@@ -213,6 +246,47 @@ export function normalizeApplications(value: unknown): CrmApplication[] {
       };
     })
     .filter((application) => application.id && application.leadId && application.customerName);
+}
+
+export function normalizeApplicationDocuments(
+  value: unknown,
+  product?: string
+): CrmApplicationDocument[] {
+  const defaults = createDefaultApplicationDocuments(text(product));
+  if (!Array.isArray(value)) return defaults;
+
+  const incoming = value
+    .filter((item): item is Partial<CrmApplicationDocument> =>
+      Boolean(item && typeof item === 'object')
+    )
+    .map((document) => ({
+      id: text(document.id) || `doc-${Date.now()}`,
+      name: text(document.name),
+      required: Boolean(document.required),
+      status: normalizeDocumentStatus(document.status),
+      fileName: text(document.fileName) || undefined,
+      uploadedAt: text(document.uploadedAt) || undefined,
+      verifiedAt: text(document.verifiedAt) || undefined,
+      rejectedAt: text(document.rejectedAt) || undefined,
+      note: text(document.note) || undefined,
+    }))
+    .filter((document) => document.id && document.name);
+
+  const merged = defaults.map((defaultDocument) => {
+    const match = incoming.find((document) => document.id === defaultDocument.id);
+    return match ? { ...defaultDocument, ...match } : defaultDocument;
+  });
+  const defaultIds = new Set(defaults.map((document) => document.id));
+  return [...merged, ...incoming.filter((document) => !defaultIds.has(document.id))];
+}
+
+export function normalizeDocumentStatus(value: unknown): CrmApplicationDocument['status'] {
+  const status = text(value);
+  if (['missing', 'uploaded', 'verified', 'rejected'].includes(status)) {
+    return status as CrmApplicationDocument['status'];
+  }
+  if (status === 'pending') return 'uploaded';
+  return 'missing';
 }
 
 export function normalizeApplicationStatus(value: unknown): CrmApplication['status'] {

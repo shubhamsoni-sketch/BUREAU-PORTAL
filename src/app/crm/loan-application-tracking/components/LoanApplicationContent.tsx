@@ -28,6 +28,27 @@ type ProductType =
   | 'car_loan'
   | 'credit_card';
 
+type ApplicationDocument = {
+  id: string;
+  name: string;
+  required: boolean;
+  status: 'missing' | 'uploaded' | 'verified' | 'rejected';
+  fileName?: string;
+  uploadedAt?: string;
+  verifiedAt?: string;
+  rejectedAt?: string;
+  note?: string;
+};
+
+const DEFAULT_APPLICATION_DOCUMENTS: ApplicationDocument[] = [
+  { id: 'aadhaar', name: 'Aadhaar Card', required: true, status: 'missing' },
+  { id: 'pan', name: 'PAN Card', required: true, status: 'missing' },
+  { id: 'bank_statement', name: 'Bank Statement', required: true, status: 'missing' },
+  { id: 'income_proof', name: 'Income Proof', required: true, status: 'missing' },
+  { id: 'photo', name: 'Customer Photo', required: false, status: 'missing' },
+  { id: 'property_documents', name: 'Property Documents', required: false, status: 'missing' },
+];
+
 interface LoanApplication {
   id: string;
   leadId?: string;
@@ -66,6 +87,7 @@ interface LoanApplication {
     changedAt: string;
     note: string;
   }[];
+  documents?: ApplicationDocument[];
 }
 
 const MOCK_APPS: LoanApplication[] = [
@@ -263,6 +285,17 @@ const CIBILBadge = ({ score }: { score: number }) => {
   return <span className={`text-xs font-700 tabular-nums ${color}`}>{score}</span>;
 };
 
+const getDocumentProgress = (documents?: ApplicationDocument[]) => {
+  const source = documents?.length ? documents : DEFAULT_APPLICATION_DOCUMENTS;
+  const required = source.filter((document) => document.required);
+  const verified = required.filter((document) => document.status === 'verified');
+  return {
+    required: required.length,
+    verified: verified.length,
+    ready: required.length === 0 || verified.length === required.length,
+  };
+};
+
 export default function LoanApplicationContent() {
   const [apps, setApps] = useState<LoanApplication[]>(MOCK_APPS);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -301,6 +334,7 @@ export default function LoanApplicationContent() {
             statusHistory?: LoanApplication['statusHistory'];
             notes?: LoanApplication['notes'];
             lenderHistory?: LoanApplication['lenderHistory'];
+            documents?: LoanApplication['documents'];
           }) => {
             const lead = leads.find((item: { id: string }) => item.id === application.leadId);
             const created = application.createdAt ? new Date(application.createdAt) : new Date();
@@ -339,6 +373,7 @@ export default function LoanApplicationContent() {
               lenderHistory: Array.isArray(application.lenderHistory)
                 ? application.lenderHistory
                 : [],
+              documents: Array.isArray(application.documents) ? application.documents : [],
             };
           }
         );
@@ -434,6 +469,13 @@ export default function LoanApplicationContent() {
     status: AppStage,
     options: { note?: string; rejectionReason?: string } = {}
   ) => {
+    const targetApp = apps.find((app) => app.id === applicationId);
+    const documentProgress = getDocumentProgress(targetApp?.documents);
+    if (status === 'submitted' && !documentProgress.ready) {
+      toast.error('Verify required documents before submission');
+      return;
+    }
+
     const previousApps = apps;
     const now = new Date().toISOString();
     const nextApps = apps.map((app) =>
@@ -541,6 +583,70 @@ export default function LoanApplicationContent() {
       setSelectedApp(previousApps.find((app) => app.id === applicationId) || null);
       toast.error(
         followUpError instanceof Error ? followUpError.message : 'Unable to update follow-up'
+      );
+    }
+  };
+
+  const updateApplicationDocument = async (
+    applicationId: string,
+    documentId: string,
+    status: ApplicationDocument['status'],
+    options: { fileName?: string; note?: string } = {}
+  ) => {
+    const previousApps = apps;
+    const now = new Date().toISOString();
+    const nextApps = apps.map((app) =>
+      app.id === applicationId
+        ? {
+            ...app,
+            documents: (app.documents || []).map((document) =>
+              document.id === documentId
+                ? {
+                    ...document,
+                    status,
+                    fileName: options.fileName || document.fileName,
+                    uploadedAt: status === 'uploaded' ? now : document.uploadedAt,
+                    verifiedAt: status === 'verified' ? now : document.verifiedAt,
+                    rejectedAt: status === 'rejected' ? now : document.rejectedAt,
+                    note: options.note || document.note,
+                  }
+                : document
+            ),
+            notes: [
+              {
+                id: `local-doc-${Date.now()}`,
+                note: options.note || `Document marked ${status.replace(/_/g, ' ')}`,
+                createdAt: now,
+                createdBy: 'System',
+              },
+              ...(app.notes || []),
+            ],
+          }
+        : app
+    );
+    setApps(nextApps);
+    setSelectedApp(nextApps.find((app) => app.id === applicationId) || null);
+    try {
+      const response = await fetch('/api/crm/eligibility-check', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_application_document',
+          applicationId,
+          documentId,
+          status,
+          fileName: options.fileName,
+          note: options.note,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || 'Unable to update document');
+      toast.success('Document updated');
+    } catch (documentError) {
+      setApps(previousApps);
+      setSelectedApp(previousApps.find((app) => app.id === applicationId) || null);
+      toast.error(
+        documentError instanceof Error ? documentError.message : 'Unable to update document'
       );
     }
   };
@@ -688,6 +794,7 @@ export default function LoanApplicationContent() {
                     'EMI/mo',
                     'Agent',
                     'Follow-up',
+                    'Docs',
                     'Days Pending',
                     'Change Lender',
                     '',
@@ -775,6 +882,23 @@ export default function LoanApplicationContent() {
                     </td>
                     <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
                       {app.followUpDate || '-'}
+                    </td>
+                    <td className="px-3 py-3">
+                      {(() => {
+                        const progress = getDocumentProgress(app.documents);
+                        return (
+                          <span
+                            className={[
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-700',
+                              progress.ready
+                                ? 'bg-success-bg text-success'
+                                : 'bg-warning-bg text-warning',
+                            ].join(' ')}
+                          >
+                            {progress.verified}/{progress.required || 0}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-3 py-3">
                       <span
@@ -879,6 +1003,7 @@ export default function LoanApplicationContent() {
               onAddNote={addApplicationNote}
               onUpdateFollowUp={updateApplicationFollowUp}
               onUpdateStatus={updateApplicationStatus}
+              onUpdateDocument={updateApplicationDocument}
             />
           </div>
         )}

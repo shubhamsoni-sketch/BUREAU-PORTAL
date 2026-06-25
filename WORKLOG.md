@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-25 - Developer - File Document Checklist
+
+Summary:
+
+- Added application-level document checklist metadata for File Process.
+- Added document upload status, verification, rejection, and missing-state updates.
+- Added document readiness counts in the File Process table and detail panel.
+- Blocked file submission until required documents are verified.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-24 - Developer - Demo Lender Eligibility Seed
 
 Summary:

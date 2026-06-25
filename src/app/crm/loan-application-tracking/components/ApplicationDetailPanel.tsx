@@ -40,7 +40,20 @@ interface LoanApplication {
     changedAt: string;
     note: string;
   }[];
+  documents?: ApplicationDocument[];
 }
+
+type ApplicationDocument = {
+  id: string;
+  name: string;
+  required: boolean;
+  status: 'missing' | 'uploaded' | 'verified' | 'rejected';
+  fileName?: string;
+  uploadedAt?: string;
+  verifiedAt?: string;
+  rejectedAt?: string;
+  note?: string;
+};
 
 interface Props {
   app: LoanApplication;
@@ -52,6 +65,12 @@ interface Props {
     status: any,
     options?: { note?: string; rejectionReason?: string }
   ) => Promise<void>;
+  onUpdateDocument: (
+    applicationId: string,
+    documentId: string,
+    status: ApplicationDocument['status'],
+    options?: { fileName?: string; note?: string }
+  ) => Promise<void>;
 }
 
 const formatINR = (n: number) => {
@@ -60,13 +79,13 @@ const formatINR = (n: number) => {
   return `₹${(n / 1000).toFixed(0)}K`;
 };
 
-const MOCK_DOCS = [
-  { id: 'doc-1', name: 'Aadhaar Card', status: 'verified' },
-  { id: 'doc-2', name: 'PAN Card', status: 'verified' },
-  { id: 'doc-3', name: 'Last 6 months bank statement', status: 'verified' },
-  { id: 'doc-4', name: 'ITR (last 2 years)', status: 'pending' },
-  { id: 'doc-5', name: 'Salary slips (last 3 months)', status: 'pending' },
-  { id: 'doc-6', name: 'Property documents', status: 'pending' },
+const DEFAULT_DOCS: ApplicationDocument[] = [
+  { id: 'aadhaar', name: 'Aadhaar Card', required: true, status: 'missing' },
+  { id: 'pan', name: 'PAN Card', required: true, status: 'missing' },
+  { id: 'bank_statement', name: 'Bank Statement', required: true, status: 'missing' },
+  { id: 'income_proof', name: 'Income Proof', required: true, status: 'missing' },
+  { id: 'photo', name: 'Customer Photo', required: false, status: 'missing' },
+  { id: 'property_documents', name: 'Property Documents', required: false, status: 'missing' },
 ];
 
 const LENDER_OFFERS = [
@@ -102,6 +121,7 @@ export default function ApplicationDetailPanel({
   onAddNote,
   onUpdateFollowUp,
   onUpdateStatus,
+  onUpdateDocument,
 }: Props) {
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'documents' | 'offers'>(
     'overview'
@@ -115,12 +135,21 @@ export default function ApplicationDetailPanel({
     setNote('');
   }, [app.id, app.followUpDate]);
 
-  const handleUpload = async (docId: string) => {
+  const documents = app.documents?.length ? app.documents : DEFAULT_DOCS;
+  const verifiedRequired = documents.filter((doc) => doc.required && doc.status === 'verified')
+    .length;
+  const totalRequired = documents.filter((doc) => doc.required).length;
+  const requiredDocsReady = totalRequired === 0 || verifiedRequired === totalRequired;
+  const uploadedCount = documents.filter((doc) => ['uploaded', 'verified'].includes(doc.status))
+    .length;
+
+  const handleUpload = async (docId: string, fileName: string) => {
     setUploadingDoc(docId);
-    // BACKEND: POST /api/documents/upload with file + applicationId
-    await new Promise((r) => setTimeout(r, 1200));
+    await onUpdateDocument(app.id, docId, 'uploaded', {
+      fileName,
+      note: `${fileName} uploaded`,
+    });
     setUploadingDoc(null);
-    toast.success('Document uploaded — pending verification');
   };
 
   const submitNote = async () => {
@@ -329,8 +358,14 @@ export default function ApplicationDetailPanel({
 
             <div className="flex gap-2 pt-1">
               <button
-                onClick={() => onUpdateStatus(app.id, 'submitted', { note: 'File submitted' })}
-                className="flex-1 h-8 rounded-sm bg-primary text-primary-foreground text-xs font-600 hover:bg-primary/90 active:scale-95 transition-all duration-150"
+                onClick={() => {
+                  if (!requiredDocsReady) {
+                    toast.error('Verify required documents before submission');
+                    return;
+                  }
+                  onUpdateStatus(app.id, 'submitted', { note: 'File submitted' });
+                }}
+                className="flex-1 h-8 rounded-sm bg-primary text-primary-foreground text-xs font-600 hover:bg-primary/90 active:scale-95 transition-all duration-150 disabled:opacity-60"
               >
                 Mark Submitted
               </button>
@@ -431,96 +466,160 @@ export default function ApplicationDetailPanel({
         )}
 
         {activeTab === 'documents' && (
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground mb-3">
-              {MOCK_DOCS.filter((d) => d.status === 'verified').length} of {MOCK_DOCS.length}{' '}
-              documents verified
-            </p>
-            {MOCK_DOCS.map((doc) => (
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Required', value: totalRequired },
+                { label: 'Uploaded', value: uploadedCount },
+                { label: 'Verified', value: `${verifiedRequired}/${totalRequired}` },
+              ].map((item) => (
+                <div key={`doc-metric-${item.label}`} className="rounded-sm bg-muted/30 p-2">
+                  <p className="text-[9px] font-600 uppercase text-muted-foreground">
+                    {item.label}
+                  </p>
+                  <p className="text-sm font-800 text-foreground">{item.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {verifiedRequired < totalRequired && (
+              <div className="rounded-sm border border-warning/20 bg-warning-bg p-2 text-[11px] font-600 text-warning">
+                Required documents pending before final lender submission.
+              </div>
+            )}
+
+            {documents.map((doc) => (
               <div
                 key={doc.id}
-                className="flex items-center justify-between p-2.5 rounded-sm border border-border bg-background hover:bg-muted/20 transition-colors"
+                className="p-2.5 rounded-sm border border-border bg-background hover:bg-muted/20 transition-colors"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <div
+                      className={[
+                        'w-7 h-7 rounded-sm flex items-center justify-center shrink-0',
+                        doc.status === 'verified'
+                          ? 'bg-success-bg text-success'
+                          : doc.status === 'rejected'
+                            ? 'bg-danger-bg text-danger'
+                            : doc.status === 'uploaded'
+                              ? 'bg-info-bg text-info'
+                              : 'bg-warning-bg text-warning',
+                      ].join(' ')}
+                    >
+                      {doc.status === 'verified' ? (
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      ) : (
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-700 text-foreground truncate">{doc.name}</p>
+                        {doc.required && (
+                          <span className="shrink-0 rounded-full bg-danger/10 px-1.5 py-0.5 text-[9px] font-700 text-danger">
+                            Required
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                        {doc.fileName || 'No file uploaded'}
+                      </p>
+                      {doc.note && (
+                        <p className="mt-1 text-[10px] text-muted-foreground">{doc.note}</p>
+                      )}
+                    </div>
+                  </div>
+                  <span
                     className={[
-                      'w-6 h-6 rounded-sm flex items-center justify-center shrink-0',
+                      'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-700 capitalize',
                       doc.status === 'verified'
                         ? 'bg-success-bg text-success'
-                        : 'bg-warning-bg text-warning',
+                        : doc.status === 'rejected'
+                          ? 'bg-danger-bg text-danger'
+                          : doc.status === 'uploaded'
+                            ? 'bg-info-bg text-info'
+                            : 'bg-warning-bg text-warning',
                     ].join(' ')}
                   >
-                    {doc.status === 'verified' ? (
-                      <svg
-                        width="11"
-                        height="11"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    ) : (
-                      <svg
-                        width="11"
-                        height="11"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                      </svg>
-                    )}
-                  </div>
-                  <p className="text-xs font-600 text-foreground truncate">{doc.name}</p>
+                    {doc.status}
+                  </span>
                 </div>
-                {doc.status === 'pending' && (
-                  <button
-                    onClick={() => handleUpload(doc.id)}
-                    disabled={uploadingDoc === doc.id}
-                    className="shrink-0 h-6 px-2 rounded-sm bg-primary/10 text-primary text-[10px] font-700 hover:bg-primary/20 transition-colors disabled:opacity-60 flex items-center gap-1"
-                  >
-                    {uploadingDoc === doc.id ? (
-                      <svg
-                        className="animate-spin"
-                        width="10"
-                        height="10"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                      </svg>
-                    ) : (
-                      <svg
-                        width="10"
-                        height="10"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                      </svg>
-                    )}
-                    Upload
-                  </button>
-                )}
-                {doc.status === 'verified' && (
-                  <span className="text-[10px] font-600 text-success">Verified</span>
-                )}
+
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <label className="inline-flex h-6 cursor-pointer items-center rounded-sm bg-primary/10 px-2 text-[10px] font-700 text-primary hover:bg-primary/20">
+                    {uploadingDoc === doc.id ? 'Saving...' : doc.fileName ? 'Replace' : 'Upload'}
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(event) => {
+                        const fileName = event.target.files?.[0]?.name;
+                        if (fileName) handleUpload(doc.id, fileName);
+                        event.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+                  {doc.status === 'uploaded' && (
+                    <button
+                      onClick={() =>
+                        onUpdateDocument(app.id, doc.id, 'verified', {
+                          note: `${doc.name} verified`,
+                        })
+                      }
+                      className="h-6 rounded-sm bg-success/10 px-2 text-[10px] font-700 text-success hover:bg-success/20"
+                    >
+                      Verify
+                    </button>
+                  )}
+                  {doc.status !== 'missing' && (
+                    <button
+                      onClick={() => {
+                        const reason = window.prompt('Document remark?') || '';
+                        onUpdateDocument(app.id, doc.id, 'rejected', {
+                          note: reason || `${doc.name} rejected`,
+                        });
+                      }}
+                      className="h-6 rounded-sm border border-danger/20 px-2 text-[10px] font-700 text-danger hover:bg-danger/5"
+                    >
+                      Reject
+                    </button>
+                  )}
+                  {doc.status !== 'missing' && (
+                    <button
+                      onClick={() =>
+                        onUpdateDocument(app.id, doc.id, 'missing', {
+                          note: `${doc.name} marked missing`,
+                        })
+                      }
+                      className="h-6 rounded-sm border border-border px-2 text-[10px] font-700 text-muted-foreground hover:bg-muted"
+                    >
+                      Mark Missing
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
