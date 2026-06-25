@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-25 - Developer - CRM Setup Onboarding Sections
+
+Summary:
+
+- Restructured CRM Setup into Setup tabs for Onboarding, Access Control, and Bureau Setup.
+- Moved wallet credits, ledger, invoices, accounting, DSA profile, and agreement into the Onboarding section.
+- Preserved existing eligibility credit add and invoice generation flow inside Wallet Management.
+- Added clear placeholders for admin-linked DSA profile and agreement state until partner-scoped workspace data is wired.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-25 - Developer - CRM Team Roles And Permissions
 
 Summary:
