@@ -3,6 +3,7 @@ import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import StatusBadge from '@/crm/components/ui/StatusBadge';
+import { crmFetch } from '@/lib/crm/api';
 
 import ApplicationDetailPanel from './ApplicationDetailPanel';
 
@@ -314,7 +315,7 @@ export default function LoanApplicationContent() {
 
     const loadApplications = async () => {
       try {
-        const response = await fetch('/api/crm/leads', { cache: 'no-store' });
+        const response = await crmFetch('/api/crm/leads', { cache: 'no-store' });
         const json = await response.json();
         const applications = Array.isArray(json.applications) ? json.applications : [];
         const leads = Array.isArray(json.data) ? json.data : [];
@@ -504,7 +505,7 @@ export default function LoanApplicationContent() {
       current?.id === applicationId ? { ...current, stage: status } : current
     );
     try {
-      const response = await fetch('/api/crm/eligibility-check', {
+      const response = await crmFetch('/api/crm/eligibility-check', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -544,7 +545,7 @@ export default function LoanApplicationContent() {
     setApps(nextApps);
     setSelectedApp(nextApps.find((app) => app.id === applicationId) || null);
     try {
-      const response = await fetch('/api/crm/eligibility-check', {
+      const response = await crmFetch('/api/crm/eligibility-check', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'add_application_note', applicationId, note: cleanNote }),
@@ -565,7 +566,7 @@ export default function LoanApplicationContent() {
     setApps(nextApps);
     setSelectedApp(nextApps.find((app) => app.id === applicationId) || null);
     try {
-      const response = await fetch('/api/crm/eligibility-check', {
+      const response = await crmFetch('/api/crm/eligibility-check', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -627,7 +628,7 @@ export default function LoanApplicationContent() {
     setApps(nextApps);
     setSelectedApp(nextApps.find((app) => app.id === applicationId) || null);
     try {
-      const response = await fetch('/api/crm/eligibility-check', {
+      const response = await crmFetch('/api/crm/eligibility-check', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

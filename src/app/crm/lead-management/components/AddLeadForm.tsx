@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { useForm } from 'react-hook-form';
+import { crmFetch } from '@/lib/crm/api';
 
 interface AddLeadFormData {
   name: string;
@@ -28,7 +29,7 @@ export default function AddLeadForm({ onSuccess, onCancel }: AddLeadFormProps) {
   } = useForm<AddLeadFormData>();
 
   const onSubmit = handleSubmit(async (data) => {
-    const response = await fetch('/api/crm/leads', {
+    const response = await crmFetch('/api/crm/leads', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ...data, stage: 'eligibility_pending' }),

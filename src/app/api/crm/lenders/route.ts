@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveCrmScope } from '@/lib/crm/scope';
 import { CrmLender, defaultCrmLenders, normalizeLenders } from '@/lib/crm/lender-policy';
-
-const CRM_STORE_MOBILE = '0000000001';
-const CRM_STORE_STATUS = 'crm_store';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -13,20 +11,21 @@ function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
 }
 
-async function getStore() {
+async function getStore(request: NextRequest) {
   const supabase = createAdminClient();
+  const scope = await resolveCrmScope(request, supabase);
   const { data, error } = await supabase
     .from('b2c_report_requests')
     .select('id,report_json')
-    .eq('mobile', CRM_STORE_MOBILE)
-    .eq('status', CRM_STORE_STATUS)
+    .eq('mobile', scope.storeMobile)
+    .eq('status', scope.storeStatus)
     .maybeSingle();
   if (error) throw error;
 
   if (data?.id) {
     const raw = isObject(data.report_json) ? data.report_json : {};
     const store = { ...raw, lenders: normalizeLenders(raw.lenders) };
-    return { supabase, rowId: data.id as string, store };
+    return { supabase, rowId: data.id as string, store, scope };
   }
 
   const store = {
@@ -34,15 +33,23 @@ async function getStore() {
     credit_transactions: [],
     invoices: [],
     lenders: defaultCrmLenders,
+    leads: [],
+    applications: [],
+    team: [],
     reports: [],
+    scope: {
+      partner_id: scope.partnerId,
+      user_id: scope.userId,
+      scoped_at: new Date().toISOString(),
+    },
   };
   const { data: inserted, error: insertError } = await supabase
     .from('b2c_report_requests')
     .insert({
-      mobile: CRM_STORE_MOBILE,
-      full_name: 'DSA CRM Store',
-      status: CRM_STORE_STATUS,
-      report_type: CRM_STORE_STATUS,
+      mobile: scope.storeMobile,
+      full_name: scope.storeName,
+      status: scope.storeStatus,
+      report_type: 'crm_store',
       report_json: store,
       consent_given: true,
       consent_at: new Date().toISOString(),
@@ -50,7 +57,7 @@ async function getStore() {
     .select('id')
     .single();
   if (insertError) throw insertError;
-  return { supabase, rowId: inserted.id as string, store };
+  return { supabase, rowId: inserted.id as string, store, scope };
 }
 
 async function saveStore(
@@ -91,10 +98,10 @@ function normalizeIncomingLender(value: Record<string, unknown>, existing?: CrmL
   };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const { store } = await getStore();
-    return NextResponse.json({ success: true, data: normalizeLenders(store.lenders) });
+    const { store, scope } = await getStore(request);
+    return NextResponse.json({ success: true, data: normalizeLenders(store.lenders), scope });
   } catch (error) {
     console.error('[crm:lenders] GET failed:', error);
     return jsonError(error instanceof Error ? error.message : 'Unable to load lenders', 500);
@@ -105,7 +112,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     if (!isObject(body)) return jsonError('Request body must be JSON');
-    const { supabase, rowId, store } = await getStore();
+    const { supabase, rowId, store, scope } = await getStore(request);
     const lenders = normalizeLenders(store.lenders);
     const existing = lenders.find((item) => item.id === body.id);
     const lender = normalizeIncomingLender(body, existing);
@@ -120,7 +127,7 @@ export async function POST(request: NextRequest) {
       : [lender, ...lenders];
     const nextStore = { ...store, lenders: nextLenders };
     await saveStore(supabase, rowId, nextStore);
-    return NextResponse.json({ success: true, data: nextLenders });
+    return NextResponse.json({ success: true, data: nextLenders, scope });
   } catch (error) {
     console.error('[crm:lenders] POST failed:', error);
     return jsonError(error instanceof Error ? error.message : 'Unable to save lender', 500);

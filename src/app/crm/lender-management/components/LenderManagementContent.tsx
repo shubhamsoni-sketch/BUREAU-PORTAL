@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Modal from '@/crm/components/ui/Modal';
 import StatusBadge from '@/crm/components/ui/StatusBadge';
+import { crmFetch } from '@/lib/crm/api';
 
 interface Lender {
   id: string;
@@ -270,7 +271,7 @@ export default function LenderManagementContent() {
   const loadLenders = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/crm/lenders', { cache: 'no-store' });
+      const response = await crmFetch('/api/crm/lenders', { cache: 'no-store' });
       const json = await response.json();
       if (json.success && Array.isArray(json.data)) setLenders(json.data);
     } finally {
@@ -377,7 +378,7 @@ export default function LenderManagementContent() {
       status: form.status as Lender['status'],
     };
     try {
-      const response = await fetch('/api/crm/lenders', {
+      const response = await crmFetch('/api/crm/lenders', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(lenderData),

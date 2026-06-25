@@ -9,6 +9,7 @@ import {
 import { maskMobile, maskPan } from '@/lib/api-hub/keys';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getStateName } from '@/lib/bureau/state-codes';
+import { resolveCrmScope } from '@/lib/crm/scope';
 import {
   CrmLender,
   defaultCrmLenders,
@@ -25,9 +26,6 @@ import {
   normalizeLeads,
 } from '@/lib/crm/leads';
 import { CrmTeamMember, defaultCrmTeam, normalizeTeam } from '@/lib/crm/team';
-
-const CRM_STORE_MOBILE = '0000000001';
-const CRM_STORE_STATUS = 'crm_store';
 
 type CrmEligibilityReport = {
   id: string;
@@ -390,12 +388,13 @@ function scoreGrade(score: number | null) {
   return 'Poor';
 }
 
-async function getCrmStore(supabase: ReturnType<typeof createAdminClient>) {
+async function getCrmStore(request: NextRequest, supabase: ReturnType<typeof createAdminClient>) {
+  const scope = await resolveCrmScope(request, supabase);
   const { data, error } = await supabase
     .from('b2c_report_requests')
     .select('id,report_json')
-    .eq('mobile', CRM_STORE_MOBILE)
-    .eq('status', CRM_STORE_STATUS)
+    .eq('mobile', scope.storeMobile)
+    .eq('status', scope.storeStatus)
     .maybeSingle();
   if (error) throw error;
   if (data?.id) {
@@ -428,24 +427,39 @@ async function getCrmStore(supabase: ReturnType<typeof createAdminClient>) {
           ? (raw.reports.slice(0, 200) as CrmEligibilityReport[])
           : [],
       } satisfies CrmStore,
+      scope,
     };
   }
+
+  const initialStore = {
+    ...defaultCrmStore,
+    leads: scope.isDemo ? defaultCrmStore.leads : [],
+    applications: [],
+    reports: [],
+  } satisfies CrmStore;
 
   const { data: inserted, error: insertError } = await supabase
     .from('b2c_report_requests')
     .insert({
-      mobile: CRM_STORE_MOBILE,
-      full_name: 'DSA CRM Store',
-      status: CRM_STORE_STATUS,
-      report_type: CRM_STORE_STATUS,
-      report_json: defaultCrmStore,
+      mobile: scope.storeMobile,
+      full_name: scope.storeName,
+      status: scope.storeStatus,
+      report_type: 'crm_store',
+      report_json: {
+        ...initialStore,
+        scope: {
+          partner_id: scope.partnerId,
+          user_id: scope.userId,
+          scoped_at: new Date().toISOString(),
+        },
+      },
       consent_given: true,
       consent_at: new Date().toISOString(),
     })
     .select('id')
     .single();
   if (insertError) throw insertError;
-  return { rowId: inserted.id as string, store: defaultCrmStore };
+  return { rowId: inserted.id as string, store: initialStore, scope };
 }
 
 async function saveCrmStore(
@@ -460,11 +474,11 @@ async function saveCrmStore(
   if (error) throw error;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = createAdminClient();
-    const { store } = await getCrmStore(supabase);
-    return NextResponse.json({ success: true, data: store });
+    const { store, scope } = await getCrmStore(request, supabase);
+    return NextResponse.json({ success: true, data: store, scope });
   } catch (error) {
     console.error('[crm:eligibility-wallet] GET failed:', error);
     return jsonError(error instanceof Error ? error.message : 'Unable to load CRM wallet', 500);
@@ -480,7 +494,7 @@ export async function POST(request: NextRequest) {
     if (body.action === 'add_credits') {
       const credits = Math.max(1, Number(body.credits || 0));
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(supabase);
+      const { rowId, store } = await getCrmStore(request, supabase);
       const invoiceNumber = generateInvoiceNumber();
       const createdAt = new Date().toISOString();
       store.eligibility_credits = {
@@ -514,7 +528,7 @@ export async function POST(request: NextRequest) {
 
     if (body.action === 'seed_demo_eligibility') {
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(supabase);
+      const { rowId, store } = await getCrmStore(request, supabase);
       const now = new Date().toISOString();
       const demos = [
         {
@@ -672,7 +686,7 @@ export async function POST(request: NextRequest) {
       if (!lenderName) return jsonError('Lender is required', 400);
 
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(supabase);
+      const { rowId, store } = await getCrmStore(request, supabase);
       const lead = store.leads.find((item) => item.id === leadId);
       if (!lead) return jsonError('Lead not found', 404);
 
@@ -751,7 +765,7 @@ export async function POST(request: NextRequest) {
       if (!allowedStatuses.has(status)) return jsonError('Valid status is required', 400);
 
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(supabase);
+      const { rowId, store } = await getCrmStore(request, supabase);
       const existingApplication = (store.applications || []).find(
         (application) => application.id === applicationId
       );
@@ -794,7 +808,7 @@ export async function POST(request: NextRequest) {
       if (!note) return jsonError('Note is required', 400);
 
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(supabase);
+      const { rowId, store } = await getCrmStore(request, supabase);
       const existingApplication = (store.applications || []).find(
         (application) => application.id === applicationId
       );
@@ -834,7 +848,7 @@ export async function POST(request: NextRequest) {
       if (!allowedStatuses.has(status)) return jsonError('Valid document status is required', 400);
 
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(supabase);
+      const { rowId, store } = await getCrmStore(request, supabase);
       const existingApplication = (store.applications || []).find(
         (application) => application.id === applicationId
       );
@@ -884,7 +898,7 @@ export async function POST(request: NextRequest) {
       if (!applicationId) return jsonError('Application is required', 400);
 
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(supabase);
+      const { rowId, store } = await getCrmStore(request, supabase);
       const existingApplication = (store.applications || []).find(
         (application) => application.id === applicationId
       );
@@ -936,7 +950,7 @@ export async function POST(request: NextRequest) {
     if (!/^\d{10}$/.test(mobile)) return jsonError('Valid mobile is required', 400);
 
     const supabase = createAdminClient();
-    const { rowId: crmRowId, store: crmStore } = await getCrmStore(supabase);
+    const { rowId: crmRowId, store: crmStore } = await getCrmStore(request, supabase);
     const creditCost = Math.max(1, Number(crmStore.eligibility_credits.per_check_cost || 1));
     if (crmStore.eligibility_credits.balance < creditCost)
       return jsonError('Insufficient eligibility credits', 402);

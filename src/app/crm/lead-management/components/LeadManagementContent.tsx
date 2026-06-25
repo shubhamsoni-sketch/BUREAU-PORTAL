@@ -4,6 +4,7 @@ import Modal from '@/crm/components/ui/Modal';
 import StatusBadge from '@/crm/components/ui/StatusBadge';
 import AddLeadForm from './AddLeadForm';
 import LeadKanban from './LeadKanban';
+import { crmFetch } from '@/lib/crm/api';
 
 type LeadStage =
   | 'new'
@@ -263,7 +264,7 @@ export default function LeadManagementContent() {
   const loadLeads = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/crm/leads', { cache: 'no-store' });
+      const response = await crmFetch('/api/crm/leads', { cache: 'no-store' });
       const json = await response.json();
       if (json.success && Array.isArray(json.data)) setLeads(json.data);
     } finally {
@@ -311,7 +312,7 @@ export default function LeadManagementContent() {
       prev.map((l) => (l.id === leadId ? { ...l, stage: newStage, daysInStage: 0 } : l))
     );
     if (lead) {
-      fetch('/api/crm/leads', {
+      crmFetch('/api/crm/leads', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ ...lead, stage: newStage, daysInStage: 0 }),

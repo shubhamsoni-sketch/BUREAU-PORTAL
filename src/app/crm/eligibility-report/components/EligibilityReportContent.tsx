@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { crmFetch } from '@/lib/crm/api';
 
 interface EligibilityReport {
   id: string;
@@ -172,7 +173,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
     let cancelled = false;
     const loadReports = async () => {
       try {
-        const response = await fetch('/api/crm/eligibility-check', { cache: 'no-store' });
+        const response = await crmFetch('/api/crm/eligibility-check', { cache: 'no-store' });
         const json = await response.json();
         const liveReports = json?.data?.reports;
         if (!cancelled && Array.isArray(liveReports) && liveReports.length) {

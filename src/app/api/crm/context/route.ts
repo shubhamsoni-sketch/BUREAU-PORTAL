@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveCrmScope } from '@/lib/crm/scope';
 
 type WalletTxn = {
   type: 'credit' | 'debit' | string;
@@ -53,10 +54,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const supabase = createAdminClient();
+    const scope = await resolveCrmScope(request, supabase);
     const partner = await findPartner(
       supabase,
-      searchParams.get('partner_id'),
-      searchParams.get('user_id')
+      searchParams.get('partner_id') || scope.partnerId,
+      searchParams.get('user_id') || scope.userId
     );
 
     if (!partner) {
@@ -121,6 +123,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         partner,
+        scope,
         wallet: {
           balance: transactions.length ? Math.max(0, balanceFromLedger) : Number(partner.wallet_balance || 0),
           adminBalance: Number(partner.wallet_balance || 0),

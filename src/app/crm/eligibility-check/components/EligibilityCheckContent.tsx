@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import EligibilityReportContent from '../../eligibility-report/components/EligibilityReportContent';
+import { crmFetch } from '@/lib/crm/api';
 
 type MainTab = 'queue' | 'reports';
 type EligibilityMode = 'mobile_advanced' | 'full_details';
@@ -119,8 +120,8 @@ export default function EligibilityCheckContent() {
   const loadEligibilityData = async () => {
     try {
       const [leadsResponse, storeResponse] = await Promise.all([
-        fetch('/api/crm/leads', { cache: 'no-store' }),
-        fetch('/api/crm/eligibility-check', { cache: 'no-store' }),
+        crmFetch('/api/crm/leads', { cache: 'no-store' }),
+        crmFetch('/api/crm/eligibility-check', { cache: 'no-store' }),
       ]);
       const leadsJson = await leadsResponse.json();
       const storeJson = await storeResponse.json();
@@ -251,7 +252,7 @@ export default function EligibilityCheckContent() {
     setResult(null);
     setServerError('');
     try {
-      const response = await fetch('/api/crm/eligibility-check', {
+      const response = await crmFetch('/api/crm/eligibility-check', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ ...payload, mode: runMode, consent: true, leadId: lead?.id }),

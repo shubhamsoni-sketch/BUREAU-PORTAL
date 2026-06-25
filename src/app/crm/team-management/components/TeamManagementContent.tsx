@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import Modal from '@/crm/components/ui/Modal';
 import StatusBadge from '@/crm/components/ui/StatusBadge';
+import { crmFetch } from '@/lib/crm/api';
 import {
   CrmPermissionKey,
   CrmTeamMember,
@@ -50,7 +51,7 @@ export default function TeamManagementContent() {
   useEffect(() => {
     const loadTeam = async () => {
       try {
-        const response = await fetch('/api/crm/team', { cache: 'no-store' });
+        const response = await crmFetch('/api/crm/team', { cache: 'no-store' });
         const json = await response.json();
         if (!response.ok || !json.success) throw new Error(json.error || 'Unable to load team');
         setTeam(Array.isArray(json.data) ? json.data : defaultCrmTeam);
@@ -113,7 +114,7 @@ export default function TeamManagementContent() {
     }
     setSaving(true);
     try {
-      const response = await fetch('/api/crm/team', {
+      const response = await crmFetch('/api/crm/team', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ ...form, id: editMember?.id }),
@@ -133,7 +134,7 @@ export default function TeamManagementContent() {
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     try {
-      const response = await fetch('/api/crm/team', {
+      const response = await crmFetch('/api/crm/team', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'delete', id: deleteConfirm.id }),
@@ -153,7 +154,7 @@ export default function TeamManagementContent() {
     const previousTeam = team;
     setTeam((prev) => prev.map((m) => (m.id === member.id ? { ...m, status: nextStatus } : m)));
     try {
-      const response = await fetch('/api/crm/team', {
+      const response = await crmFetch('/api/crm/team', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'toggle_status', id: member.id, status: nextStatus }),

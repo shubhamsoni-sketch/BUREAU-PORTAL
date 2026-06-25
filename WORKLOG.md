@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-25 - Developer - Partner Scoped CRM Store
+
+Summary:
+
+- Added CRM scope resolution so CRM APIs can resolve the logged-in partner from Supabase auth and store data per partner.
+- Moved leads, team, lenders, eligibility reports, and file applications away from the hardcoded global CRM store for authenticated partners.
+- Added `crmFetch` so CRM pages send the current Supabase session token to CRM APIs.
+- Kept the old demo store as a fallback when CRM pages are opened without a partner session.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-06-25 - Developer - Link CRM Setup To CreditTrust Admin Data
 
 Summary:

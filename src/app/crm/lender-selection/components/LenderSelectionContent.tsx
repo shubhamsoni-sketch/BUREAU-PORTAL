@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import React, { useEffect, useMemo, useState } from 'react';
+import { crmFetch } from '@/lib/crm/api';
 
 type LenderMatch = {
   name: string;
@@ -73,7 +74,7 @@ export default function LenderSelectionContent() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/crm/eligibility-check', { cache: 'no-store' });
+      const response = await crmFetch('/api/crm/eligibility-check', { cache: 'no-store' });
       const json = await response.json();
       if (!response.ok || !json.success) throw new Error(json.error || 'Unable to load data');
 
@@ -139,7 +140,7 @@ export default function LenderSelectionContent() {
     setCreatedApplication(null);
     setError('');
     try {
-      const response = await fetch('/api/crm/eligibility-check', {
+      const response = await crmFetch('/api/crm/eligibility-check', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'submit_to_lender', leadId, lenderName }),

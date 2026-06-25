@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import AppLayout from '@/crm/components/AppLayout';
+import { crmFetch } from '@/lib/crm/api';
 
 type Partner = {
   id: string;
@@ -115,7 +116,7 @@ export default function CrmSetupPage() {
     setLoading(true);
     setMessage('');
     try {
-      const response = await fetch('/api/crm/context', { cache: 'no-store' });
+      const response = await crmFetch('/api/crm/context', { cache: 'no-store' });
       const json = await response.json();
       if (json.success) {
         setContext(json.data);
