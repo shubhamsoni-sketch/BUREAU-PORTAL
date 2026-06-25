@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-25 - Developer - Simplify CRM Setup Layout
+
+Summary:
+
+- Removed nested tab/section switching from CRM Setup.
+- Converted setup into a single scrollable control page with DSA Profile, Wallet Management, Wallet Ledger, Invoice & Accounting, Agreement, Access Control, and Bureau Setup sections.
+- Kept existing add credits, ledger, and invoice display behavior intact.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-25 - Developer - CRM Setup Onboarding Sections
 
 Summary:
