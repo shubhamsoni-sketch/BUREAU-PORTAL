@@ -3,36 +3,79 @@
 import { useEffect, useMemo, useState } from 'react';
 import AppLayout from '@/crm/components/AppLayout';
 
-type CreditTransaction = {
+type Partner = {
   id: string;
-  type: 'credit' | 'debit';
-  credits: number;
-  description: string;
-  status: string;
-  invoice_number?: string;
+  user_id?: string | null;
+  partner_code?: string | null;
+  name?: string | null;
+  company_name?: string | null;
+  email?: string | null;
+  mobile?: string | null;
+  city?: string | null;
+  status?: string | null;
+  wallet_balance?: number | null;
+  reports_pulled?: number | null;
+  pricing_plan?: string | null;
+  created_at?: string | null;
+};
+
+type WalletTransaction = {
+  id: string;
+  type: 'credit' | 'debit' | string;
+  amount: number;
+  description?: string | null;
+  transaction_type?: string | null;
+  running_balance?: number | null;
+  status?: string | null;
   created_at: string;
+  metadata?: Record<string, unknown> | null;
 };
 
 type Invoice = {
   id: string;
-  invoice_number: string;
-  amount: number;
-  credits_added: number;
-  status: string;
-  issued_at: string;
-  notes: string;
+  invoice_number?: string | null;
+  amount?: number | null;
+  credits_added?: number | null;
+  status?: string | null;
+  issued_at?: string | null;
+  notes?: string | null;
+  payment_mode?: string | null;
+  transaction_ref?: string | null;
 };
 
-type CreditStore = {
-  eligibility_credits: {
+type Agreement = {
+  id: string;
+  status?: string | null;
+  file_name?: string | null;
+  signed_at?: string | null;
+  created_at?: string | null;
+  uploaded_at?: string | null;
+  signer_name?: string | null;
+};
+
+type Commercials = {
+  pricing_plan?: string | null;
+  subscription_type?: string | null;
+  consumer_credit_rate?: number | null;
+  commercial_credit_rate?: number | null;
+  bundled_credits?: number | null;
+  credit_limit?: number | null;
+  credit_rate?: number | null;
+  notes?: string | null;
+};
+
+type CrmContext = {
+  partner: Partner;
+  wallet: {
     balance: number;
-    total_added: number;
-    total_used: number;
-    per_check_cost: number;
+    adminBalance: number;
+    totalRecharged: number;
+    totalDeducted: number;
+    transactions: WalletTransaction[];
   };
-  credit_transactions?: CreditTransaction[];
-  invoices?: Invoice[];
-  reports: unknown[];
+  invoices: Invoice[];
+  agreement: Agreement | null;
+  commercials: Commercials | null;
 };
 
 type OnboardingTab = 'profile' | 'wallet' | 'invoice' | 'agreement';
@@ -44,7 +87,7 @@ const onboardingTabs: { id: OnboardingTab; label: string }[] = [
   { id: 'agreement', label: 'Agreement' },
 ];
 
-const formatDate = (value?: string) =>
+const formatDate = (value?: string | null) =>
   value
     ? new Date(value).toLocaleDateString('en-IN', {
         day: '2-digit',
@@ -53,55 +96,56 @@ const formatDate = (value?: string) =>
       })
     : '-';
 
+const money = (value?: number | null) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
+
+const text = (value?: string | number | null) => (value === null || value === undefined || value === '' ? '-' : String(value));
+
 export default function CrmSetupPage() {
   const [activeTab, setActiveTab] = useState<OnboardingTab>('profile');
-  const [store, setStore] = useState<CreditStore | null>(null);
-  const [credits, setCredits] = useState('100');
-  const [note, setNote] = useState('');
+  const [context, setContext] = useState<CrmContext | null>(null);
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
-  const loadStore = async () => {
+  const loadContext = async () => {
     setLoading(true);
+    setMessage('');
     try {
-      const response = await fetch('/api/crm/eligibility-check', { cache: 'no-store' });
+      const response = await fetch('/api/crm/context', { cache: 'no-store' });
       const json = await response.json();
-      if (json.success) setStore(json.data);
+      if (json.success) {
+        setContext(json.data);
+        setMessage(json.message || '');
+      } else {
+        setMessage(json.error || 'Unable to load onboarding setup');
+      }
+    } catch (error) {
+      setMessage('Unable to load onboarding setup');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadStore();
+    loadContext();
   }, []);
 
-  const addCredits = async () => {
-    setSaving(true);
-    try {
-      const response = await fetch('/api/crm/eligibility-check', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          action: 'add_credits',
-          credits: Number(credits || 0),
-          note,
-        }),
-      });
-      const json = await response.json();
-      if (json.success) {
-        setStore(json.data);
-        setNote('');
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const wallet = store?.eligibility_credits;
-  const transactions = useMemo(() => store?.credit_transactions || [], [store]);
-  const invoices = useMemo(() => store?.invoices || [], [store]);
+  const partner = context?.partner;
+  const wallet = context?.wallet;
+  const commercials = context?.commercials;
+  const transactions = useMemo(() => wallet?.transactions || [], [wallet]);
+  const invoices = useMemo(() => context?.invoices || [], [context]);
   const latestInvoice = invoices[0];
+  const agreement = context?.agreement;
+  const perCheckRate =
+    commercials?.consumer_credit_rate ??
+    commercials?.credit_rate ??
+    commercials?.commercial_credit_rate ??
+    null;
 
   return (
     <AppLayout>
@@ -110,16 +154,22 @@ export default function CrmSetupPage() {
           <div>
             <h1 className="text-2xl font-700 text-foreground">Setup</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Manage onboarding setup for this DSA workspace.
+              CreditTrust admin linked onboarding, wallet, invoice, and agreement setup.
             </p>
           </div>
           <button
-            onClick={loadStore}
+            onClick={loadContext}
             className="h-8 px-3 rounded-sm border border-border bg-card text-xs font-600 text-foreground hover:bg-muted transition-colors"
           >
             Refresh
           </button>
         </div>
+
+        {message && (
+          <div className="mb-4 rounded-sm border border-warning/30 bg-warning/10 px-4 py-3 text-sm font-600 text-warning">
+            {message}
+          </div>
+        )}
 
         <section className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
           <div className="px-5 py-4 border-b border-border">
@@ -127,7 +177,7 @@ export default function CrmSetupPage() {
               <div>
                 <h2 className="text-base font-800 text-foreground">Onboarding Setup</h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  DSA profile, wallet, invoices, accounting, and agreement in one place.
+                  Data is synced from the existing CreditTrust admin partner record.
                 </p>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -150,7 +200,19 @@ export default function CrmSetupPage() {
           </div>
 
           <div className="p-5">
-            {activeTab === 'profile' && (
+            {loading && (
+              <div className="rounded-sm border border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+                Loading onboarding setup...
+              </div>
+            )}
+
+            {!loading && !context && (
+              <div className="rounded-sm border border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+                No partner onboarding data found yet.
+              </div>
+            )}
+
+            {!loading && context && activeTab === 'profile' && (
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -159,39 +221,42 @@ export default function CrmSetupPage() {
                       Created from the approved CreditTrust partner onboarding record.
                     </p>
                   </div>
-                  <span className="rounded-full bg-warning/10 px-2 py-1 text-[10px] font-800 text-warning">
-                    Admin Linked
+                  <span className="rounded-full bg-success/10 px-2 py-1 text-[10px] font-800 text-success">
+                    {text(partner?.status || 'Admin Linked')}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mt-5">
                   {[
-                    ['Company Name', 'From partners.company_name'],
-                    ['Authorised Person', 'From partners.name'],
-                    ['Partner Code', 'From partners.partner_code'],
-                    ['Partner Status', 'Approved / Disabled from admin'],
-                    ['Pricing Plan', 'From partner commercials'],
-                    ['Workspace Scope', 'Leads, team, files, reports'],
+                    ['Company Name', partner?.company_name],
+                    ['Authorised Person', partner?.name],
+                    ['Partner Code', partner?.partner_code],
+                    ['Email', partner?.email],
+                    ['Mobile', partner?.mobile],
+                    ['City', partner?.city],
+                    ['Pricing Plan', commercials?.pricing_plan || partner?.pricing_plan],
+                    ['Subscription', commercials?.subscription_type],
+                    ['Created On', formatDate(partner?.created_at)],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-sm border border-border bg-muted/20 p-3">
                       <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
                         {label}
                       </p>
-                      <p className="mt-1 text-sm font-700 text-foreground">{value}</p>
+                      <p className="mt-1 text-sm font-700 text-foreground">{text(value)}</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {activeTab === 'wallet' && (
+            {!loading && context && activeTab === 'wallet' && (
               <div className="space-y-5">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
-                    ['Available Credits', loading ? '-' : (wallet?.balance ?? 0), 'text-success'],
-                    ['Total Added', loading ? '-' : (wallet?.total_added ?? 0), 'text-primary'],
-                    ['Total Used', loading ? '-' : (wallet?.total_used ?? 0), 'text-warning'],
-                    ['Per Check Cost', loading ? '-' : (wallet?.per_check_cost ?? 1), 'text-foreground'],
+                    ['Available Balance', money(wallet?.balance), 'text-success'],
+                    ['Total Recharged', money(wallet?.totalRecharged), 'text-primary'],
+                    ['Total Deducted', money(wallet?.totalDeducted), 'text-warning'],
+                    ['Per Check Rate', perCheckRate === null ? '-' : money(perCheckRate), 'text-foreground'],
                   ].map(([label, value, color]) => (
                     <div key={String(label)} className="rounded-sm border border-border bg-muted/20 p-3">
                       <p className="text-xs text-muted-foreground">{label}</p>
@@ -200,58 +265,30 @@ export default function CrmSetupPage() {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-                  <div className="lg:col-span-2 rounded-lg border border-border bg-background p-5">
-                    <h3 className="text-sm font-800 text-foreground">Add Eligibility Credits</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Credits are deducted after successful eligibility checks.
-                    </p>
-                    <div className="mt-5 space-y-3">
-                      <div className="space-y-1.5">
-                        <label className="block text-sm font-600 text-foreground">Credits</label>
-                        <input
-                          type="number"
-                          value={credits}
-                          onChange={(event) => setCredits(event.target.value)}
-                          className="w-full h-10 px-3 rounded-sm border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="block text-sm font-600 text-foreground">Note</label>
-                        <input
-                          value={note}
-                          onChange={(event) => setNote(event.target.value)}
-                          placeholder="Payment reference or internal note"
-                          className="w-full h-10 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                        />
-                      </div>
-                      <button
-                        onClick={addCredits}
-                        disabled={saving}
-                        className="w-full h-10 rounded-sm bg-primary text-primary-foreground text-sm font-700 hover:bg-primary/90 active:scale-95 transition-all duration-150 disabled:opacity-60"
-                      >
-                        {saving ? 'Adding...' : 'Add Credits & Generate Invoice'}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="lg:col-span-3 rounded-lg border border-border bg-background overflow-hidden">
-                    <div className="px-5 py-4 border-b border-border">
+                <div className="rounded-lg border border-border bg-background overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
                       <h3 className="text-sm font-800 text-foreground">Wallet Ledger</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Recharge, deduction, and running balance from CreditTrust admin.
+                      </p>
                     </div>
-                    <LedgerTable transactions={transactions} />
+                    <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-800 text-primary">
+                      Admin Controlled
+                    </span>
                   </div>
+                  <LedgerTable transactions={transactions} />
                 </div>
               </div>
             )}
 
-            {activeTab === 'invoice' && (
+            {!loading && context && activeTab === 'invoice' && (
               <div className="rounded-lg border border-border bg-background overflow-hidden">
                 <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-800 text-foreground">Invoice & Accounting</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Invoices generated for eligibility credits and wallet recharges.
+                      Invoices generated from the existing CreditTrust admin billing flow.
                     </p>
                   </div>
                   <div className="text-right">
@@ -267,7 +304,7 @@ export default function CrmSetupPage() {
               </div>
             )}
 
-            {activeTab === 'agreement' && (
+            {!loading && context && activeTab === 'agreement' && (
               <div>
                 <h3 className="text-sm font-800 text-foreground">Agreement</h3>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -275,15 +312,18 @@ export default function CrmSetupPage() {
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5">
                   {[
-                    ['Agreement Assigned', 'Admin Agreements'],
-                    ['Signature Status', 'Pending / Signed'],
-                    ['Portal Access', 'Blocked until signed when enforced'],
+                    ['Agreement File', agreement?.file_name],
+                    ['Signature Status', agreement?.status],
+                    ['Signer Name', agreement?.signer_name],
+                    ['Assigned On', formatDate(agreement?.created_at || agreement?.uploaded_at)],
+                    ['Signed On', formatDate(agreement?.signed_at)],
+                    ['Partner Code', partner?.partner_code],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-sm border border-border bg-muted/20 p-3">
                       <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
                         {label}
                       </p>
-                      <p className="mt-1 text-sm font-700 text-foreground">{value}</p>
+                      <p className="mt-1 text-sm font-700 text-foreground">{text(value)}</p>
                     </div>
                   ))}
                 </div>
@@ -296,14 +336,14 @@ export default function CrmSetupPage() {
   );
 }
 
-function LedgerTable({ transactions }: { transactions: CreditTransaction[] }) {
+function LedgerTable({ transactions }: { transactions: WalletTransaction[] }) {
   return (
     <>
       <div className="overflow-x-auto scrollbar-thin">
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-muted/40 border-b border-border">
-              {['Date', 'Type', 'Description', 'Credits', 'Status', 'Invoice'].map((col) => (
+              {['Date', 'Type', 'Description', 'Amount', 'Balance', 'Status'].map((col) => (
                 <th
                   key={col}
                   className="px-4 py-2.5 text-left text-[10px] font-600 uppercase tracking-wide text-muted-foreground"
@@ -314,7 +354,7 @@ function LedgerTable({ transactions }: { transactions: CreditTransaction[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {transactions.slice(0, 10).map((txn) => (
+            {transactions.slice(0, 20).map((txn) => (
               <tr key={txn.id} className="hover:bg-muted/30 transition-colors">
                 <td className="px-4 py-3 text-muted-foreground">{formatDate(txn.created_at)}</td>
                 <td className="px-4 py-3">
@@ -329,13 +369,19 @@ function LedgerTable({ transactions }: { transactions: CreditTransaction[] }) {
                     {txn.type}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-foreground font-600">{txn.description}</td>
+                <td className="px-4 py-3 text-foreground font-600">
+                  {txn.description || txn.transaction_type || '-'}
+                </td>
                 <td className="px-4 py-3 font-700 tabular-nums">
                   {txn.type === 'credit' ? '+' : '-'}
-                  {txn.credits}
+                  {money(txn.amount)}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground capitalize">{txn.status}</td>
-                <td className="px-4 py-3 text-muted-foreground">{txn.invoice_number || '-'}</td>
+                <td className="px-4 py-3 text-muted-foreground tabular-nums">
+                  {txn.running_balance === null || txn.running_balance === undefined
+                    ? '-'
+                    : money(txn.running_balance)}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground capitalize">{txn.status || '-'}</td>
               </tr>
             ))}
           </tbody>
@@ -357,7 +403,7 @@ function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-muted/40 border-b border-border">
-              {['Invoice', 'Date', 'Credits', 'Amount', 'Status', 'Notes'].map((col) => (
+              {['Invoice', 'Date', 'Credits', 'Amount', 'Status', 'Reference'].map((col) => (
                 <th
                   key={col}
                   className="px-4 py-2.5 text-left text-[10px] font-600 uppercase tracking-wide text-muted-foreground"
@@ -370,16 +416,18 @@ function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
           <tbody className="divide-y divide-border">
             {invoices.map((invoice) => (
               <tr key={invoice.id} className="hover:bg-muted/30 transition-colors">
-                <td className="px-4 py-3 font-700 text-foreground">{invoice.invoice_number}</td>
+                <td className="px-4 py-3 font-700 text-foreground">{invoice.invoice_number || '-'}</td>
                 <td className="px-4 py-3 text-muted-foreground">{formatDate(invoice.issued_at)}</td>
-                <td className="px-4 py-3 font-700">{invoice.credits_added}</td>
-                <td className="px-4 py-3 font-700 tabular-nums">Rs {invoice.amount}</td>
+                <td className="px-4 py-3 font-700">{invoice.credits_added ?? '-'}</td>
+                <td className="px-4 py-3 font-700 tabular-nums">{money(invoice.amount)}</td>
                 <td className="px-4 py-3">
                   <span className="inline-flex rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-700 text-success capitalize">
-                    {invoice.status}
+                    {invoice.status || '-'}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{invoice.notes || '-'}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {invoice.transaction_ref || invoice.payment_mode || invoice.notes || '-'}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -2,6 +2,18 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-25 - Developer - Link CRM Setup To CreditTrust Admin Data
+
+Summary:
+
+- Added `/api/crm/context` to resolve the active CreditTrust partner and return admin-managed onboarding data in one response.
+- Wired CRM Setup to show the existing admin partner profile, wallet ledger, invoices, agreement, and commercials.
+- Removed the standalone CRM credit-add flow from Setup display so wallet, invoice, and agreement remain controlled by CreditTrust admin.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-06-25 - Developer - Setup Onboarding Tabs
 
 Summary:
