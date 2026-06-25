@@ -83,10 +83,10 @@ export default function DashboardChartsInner() {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
       {/* Disbursal trend — 3 cols */}
-      <div className="xl:col-span-3 bg-card rounded-lg border border-border p-5 shadow-card">
+      <div className="xl:col-span-3 bg-card rounded-lg border border-border p-5 shadow-card overflow-hidden">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="text-sm font-700 text-foreground">Disbursal Trend</h3>
+            <h3 className="text-sm font-800 text-foreground">Disbursal Momentum</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Last 30 days — actual vs target (₹ Lakhs)
             </p>
@@ -95,7 +95,7 @@ export default function DashboardChartsInner() {
             +12.4% MTD
           </span>
         </div>
-        <ResponsiveContainer width="100%" height={200}>
+        <ResponsiveContainer width="100%" height={190}>
           <AreaChart data={disbursalTrend} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
             <defs>
               <linearGradient id="gradDisbursal" x1="0" y1="0" x2="0" y2="1">
@@ -145,14 +145,14 @@ export default function DashboardChartsInner() {
       </div>
 
       {/* Lender disbursal — 2 cols */}
-      <div className="xl:col-span-2 bg-card rounded-lg border border-border p-5 shadow-card">
+      <div className="xl:col-span-2 bg-card rounded-lg border border-border p-5 shadow-card overflow-hidden">
         <div className="mb-4">
-          <h3 className="text-sm font-700 text-foreground">Lender-wise Disbursals</h3>
+          <h3 className="text-sm font-800 text-foreground">Lender Performance</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Applications approved vs disbursed (MTD)
           </p>
         </div>
-        <ResponsiveContainer width="100%" height={200}>
+        <ResponsiveContainer width="100%" height={190}>
           <BarChart
             data={lenderData}
             layout="vertical"

@@ -1,179 +1,79 @@
-import MetricCard from '@/crm/components/ui/MetricCard';
+const metrics = [
+  {
+    label: 'Lead Queue',
+    value: '286',
+    subtext: '41 fresh leads waiting',
+    change: '+18 today',
+    tone: 'border-blue-200 bg-blue-50 text-blue-700',
+    bar: 'bg-blue-500',
+  },
+  {
+    label: 'Eligibility Checked',
+    value: '124',
+    subtext: '93 bureau reports success',
+    change: '75% hit rate',
+    tone: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    bar: 'bg-emerald-500',
+  },
+  {
+    label: 'Files In Process',
+    value: '58',
+    subtext: '31 sent to lenders',
+    change: '9 urgent',
+    tone: 'border-violet-200 bg-violet-50 text-violet-700',
+    bar: 'bg-violet-500',
+  },
+  {
+    label: 'Login Pending',
+    value: '7',
+    subtext: 'Lender action required',
+    change: '3 ageing',
+    tone: 'border-amber-200 bg-amber-50 text-amber-700',
+    bar: 'bg-amber-500',
+  },
+  {
+    label: 'Disbursed MTD',
+    value: '₹4.82 Cr',
+    subtext: '₹6.00 Cr monthly target',
+    change: '80% achieved',
+    tone: 'border-green-200 bg-green-50 text-green-700',
+    bar: 'bg-green-500',
+  },
+  {
+    label: 'Rejections',
+    value: '11',
+    subtext: '4 can be rerouted',
+    change: 'Review',
+    tone: 'border-rose-200 bg-rose-50 text-rose-700',
+    bar: 'bg-rose-500',
+  },
+];
 
 export default function DashboardMetrics() {
-  // BACKEND: GET /api/dashboard/metrics?period=current_month
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-4 gap-4 mb-5">
-      {/* Hero card spanning 2 cols */}
-      <div className="sm:col-span-2">
-        <MetricCard
-          label="MTD Disbursed Amount"
-          value="₹4.82 Cr"
-          subtext="Target: ₹6.00 Cr — 80.3% achieved"
-          trend={{ value: '+12.4% vs last month', positive: true }}
-          variant="success"
-          className="h-full"
-          icon={
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
-          }
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3 mb-5">
+      {metrics.map((metric) => (
+        <div
+          key={metric.label}
+          className={`rounded-lg border ${metric.tone} px-4 py-3 shadow-sm`}
         >
-          <div className="mt-1">
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>Monthly progress</span>
-              <span className="font-600 text-success">80.3%</span>
+          <div className={`h-1 w-10 rounded-full ${metric.bar} mb-3`} />
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-800 uppercase tracking-wide opacity-80">
+                {metric.label}
+              </p>
+              <p className="text-2xl font-900 text-foreground mt-1 tabular-nums">
+                {metric.value}
+              </p>
             </div>
-            <div className="h-1.5 rounded-full bg-success/20 overflow-hidden">
-              <div className="h-full rounded-full bg-success" style={{ width: '80.3%' }} />
-            </div>
+            <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-800 shadow-sm">
+              {metric.change}
+            </span>
           </div>
-        </MetricCard>
-      </div>
-
-      <MetricCard
-        label="Active Pipeline Value"
-        value="₹12.4 Cr"
-        subtext="48 applications in progress"
-        trend={{ value: '+8 this week', positive: true }}
-        variant="info"
-        icon={
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-          </svg>
-        }
-      />
-
-      <MetricCard
-        label="Pending Follow-ups"
-        value="37"
-        subtext="12 overdue by 2+ days"
-        variant="alert"
-        icon={
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-        }
-      />
-
-      <MetricCard
-        label="Stuck Applications"
-        value="9"
-        subtext="No update for 5+ days"
-        variant="warning"
-        icon={
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-        }
-      />
-
-      <MetricCard
-        label="Docs Pending Verification"
-        value="23"
-        subtext="Across 15 applications"
-        variant="default"
-        icon={
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-          </svg>
-        }
-      />
-
-      <MetricCard
-        label="Incentive Payable"
-        value="₹3.18 L"
-        subtext="To 18 agents this cycle"
-        variant="default"
-        icon={
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-          </svg>
-        }
-      />
-
-      <MetricCard
-        label="Lead Conversion Rate"
-        value="28.4%"
-        subtext="182 leads → 52 disbursals (MTD)"
-        trend={{ value: '+3.1% vs last month', positive: true }}
-        variant="default"
-        icon={
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-            <polyline points="17 6 23 6 23 12" />
-          </svg>
-        }
-      />
+          <p className="text-xs font-600 mt-2 opacity-80">{metric.subtext}</p>
+        </div>
+      ))}
     </div>
   );
 }

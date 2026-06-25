@@ -1,55 +1,41 @@
-export default function DashboardAlerts() {
-  const alerts = [
-    {
-      id: 'alert-1',
-      type: 'danger',
-      text: '3 loan applications have been pending at lender for 7+ days — SLA breach risk',
-      action: 'View Applications',
-    },
-    {
-      id: 'alert-2',
-      type: 'warning',
-      text: '12 leads have no follow-up scheduled — last contact was 5+ days ago',
-      action: 'Review Leads',
-    },
-  ];
+const alerts = [
+  {
+    id: 'alert-1',
+    title: 'Lender SLA Breach',
+    text: '3 files are pending beyond 7 days',
+    action: 'Open Files',
+    tone: 'border-red-200 bg-red-50 text-red-700',
+  },
+  {
+    id: 'alert-2',
+    title: 'Follow-up Gap',
+    text: '12 leads have no next activity',
+    action: 'Review Leads',
+    tone: 'border-amber-200 bg-amber-50 text-amber-700',
+  },
+  {
+    id: 'alert-3',
+    title: 'Eligibility Queue',
+    text: '41 leads ready for bureau checks',
+    action: 'Run Checks',
+    tone: 'border-blue-200 bg-blue-50 text-blue-700',
+  },
+];
 
+export default function DashboardAlerts() {
   return (
-    <div className="space-y-2 mb-5">
-      {alerts?.map((alert) => (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+      {alerts.map((alert) => (
         <div
-          key={alert?.id}
-          className={[
-            'flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg border text-sm font-medium',
-            alert?.type === 'danger'
-              ? 'bg-danger-bg border-danger/20 text-danger'
-              : 'bg-warning-bg border-warning/20 text-warning',
-          ]?.join(' ')}
+          key={alert.id}
+          className={`rounded-lg border ${alert.tone} px-4 py-3 flex items-center justify-between gap-3 shadow-sm`}
         >
-          <div className="flex items-center gap-2">
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <span>{alert?.text}</span>
+          <div className="min-w-0">
+            <p className="text-xs font-900 text-foreground">{alert.title}</p>
+            <p className="text-xs font-600 opacity-80 mt-0.5 truncate">{alert.text}</p>
           </div>
-          <button
-            className={[
-              'shrink-0 text-xs font-700 underline underline-offset-2',
-              alert?.type === 'danger' ? 'text-danger' : 'text-warning',
-            ]?.join(' ')}
-          >
-            {alert?.action}
+          <button className="h-7 shrink-0 rounded-sm bg-white/80 px-2.5 text-[10px] font-900 shadow-sm hover:bg-white transition-colors">
+            {alert.action}
           </button>
         </div>
       ))}

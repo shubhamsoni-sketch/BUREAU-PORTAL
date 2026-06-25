@@ -60,10 +60,17 @@ export default function DashboardActivityFeed() {
   ];
 
   return (
-    <div className="bg-card rounded-lg border border-border shadow-card h-full">
-      <div className="px-4 py-3.5 border-b border-border">
-        <h3 className="text-sm font-700 text-foreground">Recent Activity</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">Live updates across all agents</p>
+    <div className="bg-card rounded-lg border border-border shadow-card h-full overflow-hidden">
+      <div className="px-4 py-3.5 border-b border-border bg-[linear-gradient(135deg,rgba(16,185,129,0.08),rgba(37,99,235,0.06))]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-800 text-foreground">Live Activity</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Updates across agents and files</p>
+          </div>
+          <span className="rounded-full bg-success/10 px-2 py-1 text-[10px] font-800 text-success">
+            Live
+          </span>
+        </div>
       </div>
       <div
         className="divide-y divide-border overflow-y-auto scrollbar-thin"
@@ -72,9 +79,9 @@ export default function DashboardActivityFeed() {
         {activities?.map((act) => (
           <div
             key={act?.id}
-            className="flex items-start gap-3 px-4 py-3 hover:bg-muted/20 transition-colors"
-          >
-            <div className={['w-1.5 h-1.5 rounded-full mt-1.5 shrink-0', act?.color]?.join(' ')} />
+          className="flex items-start gap-3 px-4 py-3 hover:bg-muted/20 transition-colors"
+        >
+            <div className={['w-2 h-2 rounded-full mt-1.5 shrink-0', act?.color]?.join(' ')} />
             <div className="min-w-0 flex-1">
               <p className="text-xs text-foreground leading-relaxed">{act?.text}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">{act?.time}</p>
