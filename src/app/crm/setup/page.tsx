@@ -35,6 +35,15 @@ type CreditStore = {
   reports: unknown[];
 };
 
+type OnboardingTab = 'profile' | 'wallet' | 'invoice' | 'agreement';
+
+const onboardingTabs: { id: OnboardingTab; label: string }[] = [
+  { id: 'profile', label: 'DSA Profile' },
+  { id: 'wallet', label: 'Wallet Management' },
+  { id: 'invoice', label: 'Invoice & Accounting' },
+  { id: 'agreement', label: 'Agreement' },
+];
+
 const formatDate = (value?: string) =>
   value
     ? new Date(value).toLocaleDateString('en-IN', {
@@ -45,6 +54,7 @@ const formatDate = (value?: string) =>
     : '-';
 
 export default function CrmSetupPage() {
+  const [activeTab, setActiveTab] = useState<OnboardingTab>('profile');
   const [store, setStore] = useState<CreditStore | null>(null);
   const [credits, setCredits] = useState('100');
   const [note, setNote] = useState('');
@@ -100,7 +110,7 @@ export default function CrmSetupPage() {
           <div>
             <h1 className="text-2xl font-700 text-foreground">Setup</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Control center for partner onboarding, access, credits, accounting, and bureau setup.
+              Manage onboarding setup for this DSA workspace.
             </p>
           </div>
           <button
@@ -111,176 +121,176 @@ export default function CrmSetupPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-          {[
-            ['Available Credits', loading ? '-' : (wallet?.balance ?? 0), 'text-success'],
-            ['Total Added', loading ? '-' : (wallet?.total_added ?? 0), 'text-primary'],
-            ['Total Used', loading ? '-' : (wallet?.total_used ?? 0), 'text-warning'],
-            ['Pending Invoice', latestInvoice?.invoice_number || '-', 'text-foreground'],
-          ].map(([label, value, color]) => (
-            <div
-              key={String(label)}
-              className="bg-card rounded-lg border border-border shadow-card px-4 py-3"
-            >
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className={`text-xl font-800 mt-1 ${color}`}>{value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="space-y-5">
-          <section className="bg-card rounded-lg border border-border shadow-card p-5">
-            <div className="flex items-start justify-between gap-3">
+        <section className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-800 text-foreground">DSA Profile</h2>
+                <h2 className="text-base font-800 text-foreground">Onboarding Setup</h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Created from the approved CreditTrust partner onboarding record.
+                  DSA profile, wallet, invoices, accounting, and agreement in one place.
                 </p>
               </div>
-              <span className="rounded-full bg-warning/10 px-2 py-1 text-[10px] font-800 text-warning">
-                Admin Linked
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mt-5">
-              {[
-                ['Company Name', 'From partners.company_name'],
-                ['Authorised Person', 'From partners.name'],
-                ['Partner Code', 'From partners.partner_code'],
-                ['Partner Status', 'Approved / Disabled from admin'],
-                ['Pricing Plan', 'From partner commercials'],
-                ['Workspace Scope', 'Leads, team, files, reports'],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-sm border border-border bg-muted/20 p-3">
-                  <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
-                    {label}
-                  </p>
-                  <p className="mt-1 text-sm font-700 text-foreground">{value}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-            <div className="lg:col-span-2 bg-card rounded-lg border border-border shadow-card p-5">
-              <h2 className="text-base font-800 text-foreground">Wallet Management</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                Credits are deducted after successful eligibility checks.
-              </p>
-              <div className="mt-5 space-y-3">
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-600 text-foreground">Credits</label>
-                  <input
-                    type="number"
-                    value={credits}
-                    onChange={(event) => setCredits(event.target.value)}
-                    className="w-full h-10 px-3 rounded-sm border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-600 text-foreground">Note</label>
-                  <input
-                    value={note}
-                    onChange={(event) => setNote(event.target.value)}
-                    placeholder="Payment reference or internal note"
-                    className="w-full h-10 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                  />
-                </div>
-                <button
-                  onClick={addCredits}
-                  disabled={saving}
-                  className="w-full h-10 rounded-sm bg-primary text-primary-foreground text-sm font-700 hover:bg-primary/90 active:scale-95 transition-all duration-150 disabled:opacity-60"
-                >
-                  {saving ? 'Adding...' : 'Add Credits & Generate Invoice'}
-                </button>
+              <div className="flex flex-wrap gap-1.5">
+                {onboardingTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={[
+                      'h-8 rounded-sm border px-3 text-xs font-700 transition-colors',
+                      activeTab === tab.id
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground',
+                    ].join(' ')}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
             </div>
+          </div>
 
-            <div className="lg:col-span-3 bg-card rounded-lg border border-border shadow-card overflow-hidden">
-              <div className="px-5 py-4 border-b border-border">
-                <h2 className="text-base font-800 text-foreground">Wallet Ledger</h2>
-              </div>
-              <LedgerTable transactions={transactions} />
-            </div>
-          </section>
-
-          <section className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
-            <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+          <div className="p-5">
+            {activeTab === 'profile' && (
               <div>
-                <h2 className="text-base font-800 text-foreground">Invoice & Accounting</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Invoices generated for eligibility credits and wallet recharges.
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
-                  Latest Invoice
-                </p>
-                <p className="text-xs font-800 text-foreground">
-                  {latestInvoice?.invoice_number || '-'}
-                </p>
-              </div>
-            </div>
-            <InvoiceTable invoices={invoices} />
-          </section>
-
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <div className="bg-card rounded-lg border border-border shadow-card p-5">
-              <h2 className="text-base font-800 text-foreground">Agreement</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                Agreement assignment and signature are controlled from CreditTrust admin.
-              </p>
-              <div className="mt-4 space-y-2">
-                {[
-                  ['Agreement Assigned', 'Admin Agreements'],
-                  ['Signature Status', 'Pending / Signed'],
-                  ['Portal Access', 'Blocked until signed when enforced'],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-sm border border-border bg-muted/20 p-3">
-                    <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
-                      {label}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-800 text-foreground">DSA Profile</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Created from the approved CreditTrust partner onboarding record.
                     </p>
-                    <p className="mt-1 text-sm font-700 text-foreground">{value}</p>
                   </div>
-                ))}
+                  <span className="rounded-full bg-warning/10 px-2 py-1 text-[10px] font-800 text-warning">
+                    Admin Linked
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mt-5">
+                  {[
+                    ['Company Name', 'From partners.company_name'],
+                    ['Authorised Person', 'From partners.name'],
+                    ['Partner Code', 'From partners.partner_code'],
+                    ['Partner Status', 'Approved / Disabled from admin'],
+                    ['Pricing Plan', 'From partner commercials'],
+                    ['Workspace Scope', 'Leads, team, files, reports'],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-sm border border-border bg-muted/20 p-3">
+                      <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
+                        {label}
+                      </p>
+                      <p className="mt-1 text-sm font-700 text-foreground">{value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="bg-card rounded-lg border border-border shadow-card p-5">
-              <h2 className="text-base font-800 text-foreground">Access Control</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                Team users, role permissions, and active/inactive access are managed here.
-              </p>
-              <a
-                href="/crm/team-management"
-                className="inline-flex mt-4 h-9 items-center rounded-sm bg-primary px-4 text-sm font-700 text-primary-foreground hover:bg-primary/90"
-              >
-                Open Team Management
-              </a>
-            </div>
+            {activeTab === 'wallet' && (
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {[
+                    ['Available Credits', loading ? '-' : (wallet?.balance ?? 0), 'text-success'],
+                    ['Total Added', loading ? '-' : (wallet?.total_added ?? 0), 'text-primary'],
+                    ['Total Used', loading ? '-' : (wallet?.total_used ?? 0), 'text-warning'],
+                    ['Per Check Cost', loading ? '-' : (wallet?.per_check_cost ?? 1), 'text-foreground'],
+                  ].map(([label, value, color]) => (
+                    <div key={String(label)} className="rounded-sm border border-border bg-muted/20 p-3">
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                      <p className={`text-xl font-800 mt-1 ${color}`}>{value}</p>
+                    </div>
+                  ))}
+                </div>
 
-            <div className="bg-card rounded-lg border border-border shadow-card p-5">
-              <h2 className="text-base font-800 text-foreground">Bureau Setup</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                Eligibility engine, lender policy, and bureau consumption settings.
-              </p>
-              <div className="mt-4 space-y-2">
-                {[
-                  ['Eligibility Engine', 'Active'],
-                  ['Lender Policy', 'Configured from Lender Management'],
-                  ['Report Usage', `${store?.reports?.length || 0} checks`],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-sm border border-border bg-muted/20 p-3">
-                    <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
-                      {label}
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+                  <div className="lg:col-span-2 rounded-lg border border-border bg-background p-5">
+                    <h3 className="text-sm font-800 text-foreground">Add Eligibility Credits</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Credits are deducted after successful eligibility checks.
                     </p>
-                    <p className="mt-1 text-sm font-800 text-foreground">{value}</p>
+                    <div className="mt-5 space-y-3">
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-600 text-foreground">Credits</label>
+                        <input
+                          type="number"
+                          value={credits}
+                          onChange={(event) => setCredits(event.target.value)}
+                          className="w-full h-10 px-3 rounded-sm border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-600 text-foreground">Note</label>
+                        <input
+                          value={note}
+                          onChange={(event) => setNote(event.target.value)}
+                          placeholder="Payment reference or internal note"
+                          className="w-full h-10 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                        />
+                      </div>
+                      <button
+                        onClick={addCredits}
+                        disabled={saving}
+                        className="w-full h-10 rounded-sm bg-primary text-primary-foreground text-sm font-700 hover:bg-primary/90 active:scale-95 transition-all duration-150 disabled:opacity-60"
+                      >
+                        {saving ? 'Adding...' : 'Add Credits & Generate Invoice'}
+                      </button>
+                    </div>
                   </div>
-                ))}
+
+                  <div className="lg:col-span-3 rounded-lg border border-border bg-background overflow-hidden">
+                    <div className="px-5 py-4 border-b border-border">
+                      <h3 className="text-sm font-800 text-foreground">Wallet Ledger</h3>
+                    </div>
+                    <LedgerTable transactions={transactions} />
+                  </div>
+                </div>
               </div>
-            </div>
-          </section>
-        </div>
+            )}
+
+            {activeTab === 'invoice' && (
+              <div className="rounded-lg border border-border bg-background overflow-hidden">
+                <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-800 text-foreground">Invoice & Accounting</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Invoices generated for eligibility credits and wallet recharges.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
+                      Latest Invoice
+                    </p>
+                    <p className="text-xs font-800 text-foreground">
+                      {latestInvoice?.invoice_number || '-'}
+                    </p>
+                  </div>
+                </div>
+                <InvoiceTable invoices={invoices} />
+              </div>
+            )}
+
+            {activeTab === 'agreement' && (
+              <div>
+                <h3 className="text-sm font-800 text-foreground">Agreement</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Agreement assignment and signature are controlled from CreditTrust admin.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5">
+                  {[
+                    ['Agreement Assigned', 'Admin Agreements'],
+                    ['Signature Status', 'Pending / Signed'],
+                    ['Portal Access', 'Blocked until signed when enforced'],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-sm border border-border bg-muted/20 p-3">
+                      <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
+                        {label}
+                      </p>
+                      <p className="mt-1 text-sm font-700 text-foreground">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </AppLayout>
   );
