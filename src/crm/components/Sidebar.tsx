@@ -347,11 +347,16 @@ export default function Sidebar({
         ].join(' ')}
       >
         <div className="flex items-center gap-2">
-          <AppLogo size={32} />
+          <AppLogo size={34} />
           {!collapsed && (
-            <span className="font-extrabold text-base text-foreground tracking-tight whitespace-nowrap">
-              DSA<span className="text-primary">CRM</span>
-            </span>
+            <div className="leading-tight">
+              <p className="font-extrabold text-base text-foreground tracking-tight whitespace-nowrap">
+                Credit<span className="text-primary">Trust</span>
+              </p>
+              <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
+                CRM
+              </p>
+            </div>
           )}
         </div>
         {!collapsed && (

@@ -15,13 +15,13 @@ export default function DashboardPage() {
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-800 uppercase tracking-wide text-primary mb-3">
-                    DSA CRM Command Center
+                    CreditTrust CRM Command Center
                   </div>
                   <h1 className="text-2xl lg:text-3xl font-800 text-foreground">
                     Good Morning, Amit Kumar
                   </h1>
                   <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-                    Track leads, eligibility checks, lender files, and team priorities from one clean workspace.
+                    Track leads, eligibility checks, lender files, and team priorities from one CreditTrust workspace.
                   </p>
                 </div>
                 <div className="rounded-lg border border-border bg-card/80 px-3 py-2 shadow-sm">
@@ -89,7 +89,7 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-lg font-800 text-foreground">Business Snapshot</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Live operational pulse across your DSA workspace
+              Live operational pulse across your CreditTrust workspace
             </p>
           </div>
           <div className="flex items-center gap-2">

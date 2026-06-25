@@ -16,9 +16,9 @@ type SignUpForm = {
 };
 
 const demoCredentials = [
-  { role: 'Admin', name: 'Rajesh Kumar', avatar: 'RK', email: 'admin@dsacrm.in', password: 'Admin@2026' },
-  { role: 'Manager', name: 'Sunita Rao', avatar: 'SR', email: 'manager@dsacrm.in', password: 'Manager@2026' },
-  { role: 'DSA Agent', name: 'Priya Sharma', avatar: 'PS', email: 'agent@dsacrm.in', password: 'Agent@2026' },
+  { role: 'Admin', name: 'Rajesh Kumar', avatar: 'RK', email: 'admin@credittrust.in', password: 'Admin@2026' },
+  { role: 'Manager', name: 'Sunita Rao', avatar: 'SR', email: 'manager@credittrust.in', password: 'Manager@2026' },
+  { role: 'DSA Agent', name: 'Priya Sharma', avatar: 'PS', email: 'agent@credittrust.in', password: 'Agent@2026' },
 ];
 
 export default function SignUpLoginContent() {
@@ -101,17 +101,17 @@ export default function SignUpLoginContent() {
           <div className="flex items-center gap-3 mb-12">
             <AppLogo size={40} />
             <span className="text-2xl font-extrabold text-white tracking-tight">
-              DSA<span className="opacity-80">CRM</span>
+              Credit<span className="opacity-80">Trust</span>
             </span>
           </div>
           <h1 className="text-3xl xl:text-4xl font-800 text-white leading-tight mb-4">
-            India's most trusted
+            India&apos;s trusted
             <br />
-            Loan DSA platform
+            lending CRM platform
           </h1>
           <p className="text-white/70 text-base leading-relaxed max-w-sm">
-            Manage leads, track loan applications, connect with 50+ lenders, and grow your DSA
-            business — all from one powerful dashboard.
+            Manage leads, eligibility checks, lender files, and team workflows from one CreditTrust
+            workspace.
           </p>
         </div>
 
@@ -138,7 +138,7 @@ export default function SignUpLoginContent() {
           <div className="lg:hidden flex items-center gap-2 mb-8">
             <AppLogo size={32} />
             <span className="text-xl font-extrabold text-foreground tracking-tight">
-              DSA<span className="text-primary">CRM</span>
+              Credit<span className="text-primary">Trust</span>
             </span>
           </div>
 
@@ -164,7 +164,7 @@ export default function SignUpLoginContent() {
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <p className="text-2xl font-800 text-foreground mb-1">Welcome back</p>
-                <p className="text-sm text-muted-foreground">Sign in to your DSA CRM account</p>
+                <p className="text-sm text-muted-foreground">Sign in to your CreditTrust CRM account</p>
               </div>
 
               <div className="space-y-1">
@@ -175,7 +175,7 @@ export default function SignUpLoginContent() {
                   id="login-email"
                   type="email"
                   autoComplete="email"
-                  placeholder="you@dsacrm.in"
+                  placeholder="you@credittrust.in"
                   className="w-full h-10 px-3 rounded-sm border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 transition-all"
                   {...loginForm.register('email', {
                     required: 'Email is required',

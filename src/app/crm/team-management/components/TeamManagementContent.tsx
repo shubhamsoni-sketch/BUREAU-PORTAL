@@ -575,7 +575,7 @@ export default function TeamManagementContent() {
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                placeholder="priya@dsacrm.in"
+                placeholder="priya@credittrust.in"
                 className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
               />
               {errors.email && <p className="text-xs text-danger">{errors.email}</p>}
