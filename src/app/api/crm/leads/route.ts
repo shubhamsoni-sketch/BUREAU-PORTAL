@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveCrmScope } from '@/lib/crm/scope';
+import { requireCrmPermission } from '@/lib/crm/access';
 import {
   CrmLead,
   defaultCrmLeads,
@@ -127,6 +128,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const queue = searchParams.get('queue');
     const { store, scope } = await getStore(request);
+    const access = requireCrmPermission(scope, store, 'lead_management');
+    if (!access.ok) return jsonError(access.error, access.status);
     const leads = normalizeLeads(store.leads);
     const data =
       queue === 'eligibility'
@@ -150,6 +153,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     if (!isObject(body)) return jsonError('Request body must be JSON');
     const { supabase, rowId, store, scope } = await getStore(request);
+    const access = requireCrmPermission(scope, store, 'lead_management');
+    if (!access.ok) return jsonError(access.error, access.status);
     const leads = normalizeLeads(store.leads);
     const existing = leads.find((lead) => lead.id === body.id);
     const lead = normalizeIncomingLead(body, existing);

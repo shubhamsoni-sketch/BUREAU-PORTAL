@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from './ui/AppLogo';
 import { CrmPermissionKey, rolePermissions } from '@/lib/crm/team';
+import { crmFetch } from '@/lib/crm/api';
 
 interface NavItem {
   label: string;
@@ -293,6 +294,28 @@ export default function Sidebar({
       }
     };
     loadCurrentUser();
+    const loadRealCrmUser = async () => {
+      try {
+        const response = await crmFetch('/api/crm/me', { cache: 'no-store' });
+        const json = await response.json();
+        if (!response.ok || !json.success || !json.data) return;
+        const role =
+          json.data.role && rolePermissions[json.data.role as keyof typeof rolePermissions]
+            ? (json.data.role as keyof typeof rolePermissions)
+            : 'Admin';
+        setCurrentUser({
+          name: json.data.name || 'CRM User',
+          role,
+          avatar: json.data.avatar || 'CU',
+          permissions: Array.isArray(json.data.permissions)
+            ? json.data.permissions
+            : rolePermissions[role],
+        });
+      } catch {
+        // Keep local preview fallback when CRM auth is not available.
+      }
+    };
+    loadRealCrmUser();
     window.addEventListener('crm-current-user-changed', loadCurrentUser);
     window.addEventListener('storage', loadCurrentUser);
     return () => {

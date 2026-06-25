@@ -16,6 +16,8 @@ function bearerToken(request: NextRequest) {
 export type CrmScope = {
   partnerId: string | null;
   userId: string | null;
+  userEmail: string | null;
+  isPartnerOwner: boolean;
   storeMobile: string;
   storeStatus: string;
   storeName: string;
@@ -28,22 +30,34 @@ export async function resolveCrmScope(
 ): Promise<CrmScope> {
   const token = bearerToken(request);
   let userId = cleanString(request.headers.get('x-crm-user-id') || request.nextUrl.searchParams.get('user_id'));
+  let userEmail = '';
+  let metadataPartnerId = '';
 
   if (token) {
     const { data } = await supabase.auth.getUser(token);
-    userId = data.user?.id || userId;
+    const user = data.user;
+    userId = user?.id || userId;
+    userEmail = user?.email || '';
+    metadataPartnerId = cleanString(
+      user?.app_metadata?.crm_partner_id ||
+        user?.app_metadata?.partner_id ||
+        user?.user_metadata?.crm_partner_id ||
+        user?.user_metadata?.partner_id
+    );
   }
 
   const requestedPartnerId = cleanString(
-    request.headers.get('x-crm-partner-id') || request.nextUrl.searchParams.get('partner_id')
+    request.headers.get('x-crm-partner-id') ||
+      request.nextUrl.searchParams.get('partner_id') ||
+      metadataPartnerId
   );
 
-  let partner: { id: string; partner_code?: string | null; company_name?: string | null; name?: string | null } | null = null;
+  let partner: { id: string; user_id?: string | null; partner_code?: string | null; company_name?: string | null; name?: string | null } | null = null;
 
   if (requestedPartnerId) {
     const { data, error } = await supabase
       .from('partners')
-      .select('id, partner_code, company_name, name')
+      .select('id, user_id, partner_code, company_name, name')
       .eq('id', requestedPartnerId)
       .maybeSingle();
     if (error) throw error;
@@ -51,7 +65,7 @@ export async function resolveCrmScope(
   } else if (userId) {
     const { data, error } = await supabase
       .from('partners')
-      .select('id, partner_code, company_name, name')
+      .select('id, user_id, partner_code, company_name, name')
       .eq('user_id', userId)
       .maybeSingle();
     if (error) throw error;
@@ -62,6 +76,8 @@ export async function resolveCrmScope(
     return {
       partnerId: null,
       userId: userId || null,
+      userEmail: userEmail || null,
+      isPartnerOwner: false,
       storeMobile: DEMO_STORE_MOBILE,
       storeStatus: DEMO_STORE_STATUS,
       storeName: 'DSA CRM Store',
@@ -72,6 +88,8 @@ export async function resolveCrmScope(
   return {
     partnerId: partner.id,
     userId: userId || null,
+    userEmail: userEmail || null,
+    isPartnerOwner: Boolean(userId && partner.user_id === userId),
     storeMobile: `crm:${partner.id}`,
     storeStatus: `${DEMO_STORE_STATUS}:${partner.id}`,
     storeName: `${partner.company_name || partner.name || partner.partner_code || 'Partner'} CRM Store`,

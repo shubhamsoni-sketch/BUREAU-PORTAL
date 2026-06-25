@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveCrmScope } from '@/lib/crm/scope';
+import { requireCrmPermission } from '@/lib/crm/access';
 import { defaultCrmLenders, normalizeLenders } from '@/lib/crm/lender-policy';
 import { defaultCrmLeads, normalizeApplications, normalizeLeads } from '@/lib/crm/leads';
 import {
@@ -28,6 +29,104 @@ function digits(value: unknown) {
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
+}
+
+function generatePassword() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$';
+  let password = '';
+  for (let i = 0; i < 12; i += 1) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
+async function findAuthUserByEmail(
+  supabase: ReturnType<typeof createAdminClient>,
+  email: string
+) {
+  const { data, error } = await supabase.auth.admin.listUsers();
+  if (error) throw error;
+  return data.users.find((user) => user.email?.toLowerCase() === email.toLowerCase()) || null;
+}
+
+async function provisionCrmAuthUser(
+  supabase: ReturnType<typeof createAdminClient>,
+  scope: Awaited<ReturnType<typeof resolveCrmScope>>,
+  member: CrmTeamMember,
+  existing?: CrmTeamMember,
+  forcePassword = false
+) {
+  if (scope.isDemo || !scope.partnerId) {
+    return { member, temporaryPassword: '' };
+  }
+
+  const temporaryPassword = forcePassword || !existing?.authUserId ? generatePassword() : '';
+  let authUserId = existing?.authUserId || '';
+
+  if (!authUserId) {
+    const existingAuth = await findAuthUserByEmail(supabase, member.email);
+    authUserId = existingAuth?.id || '';
+  }
+
+  const appMetadata = {
+    role: 'partner',
+    crm_role: member.role,
+    crm_partner_id: scope.partnerId,
+    crm_team_member_id: member.id,
+    crm_permissions: member.permissions,
+    is_temp_password: Boolean(temporaryPassword),
+  };
+  const userMetadata = {
+    full_name: member.name,
+    role: 'partner',
+    crm_role: member.role,
+    crm_partner_id: scope.partnerId,
+  };
+
+  if (authUserId) {
+    const updatePayload: any = {
+      email: member.email,
+      email_confirm: true,
+      app_metadata: appMetadata,
+      user_metadata: userMetadata,
+    };
+    if (temporaryPassword) updatePayload.password = temporaryPassword;
+    const { error } = await supabase.auth.admin.updateUserById(authUserId, updatePayload);
+    if (error) throw error;
+  } else {
+    const { data, error } = await supabase.auth.admin.createUser({
+      email: member.email,
+      password: temporaryPassword,
+      email_confirm: true,
+      app_metadata: appMetadata,
+      user_metadata: userMetadata,
+    });
+    if (error || !data.user) throw error || new Error('Unable to create CRM auth user');
+    authUserId = data.user.id;
+  }
+
+  await supabase.from('user_profiles').upsert(
+    {
+      id: authUserId,
+      email: member.email,
+      full_name: member.name,
+      role: 'partner',
+      is_temp_password: Boolean(temporaryPassword),
+    },
+    { onConflict: 'id', ignoreDuplicates: false }
+  );
+
+  return {
+    member: {
+      ...member,
+      authUserId,
+      loginEnabled: member.status === 'active',
+      credentialsGeneratedAt: temporaryPassword
+        ? new Date().toISOString()
+        : existing?.credentialsGeneratedAt,
+    },
+    temporaryPassword,
+  };
 }
 
 async function getStore(request: NextRequest) {
@@ -135,6 +234,8 @@ function normalizeIncomingMember(
 export async function GET(request: NextRequest) {
   try {
     const { store, scope } = await getStore(request);
+    const access = requireCrmPermission(scope, store, 'team_management');
+    if (!access.ok) return jsonError(access.error, access.status);
     return NextResponse.json({
       success: true,
       data: normalizeTeam(store.team),
@@ -153,6 +254,8 @@ export async function POST(request: NextRequest) {
     if (!isObject(body)) return jsonError('Request body must be JSON');
     const action = cleanString(body.action || 'save');
     const { supabase, rowId, store, scope } = await getStore(request);
+    const access = requireCrmPermission(scope, store, 'team_management');
+    if (!access.ok) return jsonError(access.error, access.status);
     const team = normalizeTeam(store.team);
 
     if (action === 'delete') {
@@ -166,12 +269,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, data: nextTeam, scope });
     }
 
+    if (action === 'reset_password') {
+      const id = cleanString(body.id);
+      if (!id) return jsonError('Member is required');
+      const target = team.find((member) => member.id === id);
+      if (!target) return jsonError('Member not found', 404);
+      const provisioned = await provisionCrmAuthUser(supabase, scope, target, target, true);
+      const nextTeam = team.map((member) =>
+        member.id === id ? provisioned.member : member
+      );
+      await saveStore(supabase, rowId, { ...store, team: nextTeam });
+      return NextResponse.json({
+        success: true,
+        data: nextTeam,
+        member: provisioned.member,
+        credentials: {
+          email: provisioned.member.email,
+          temporaryPassword: provisioned.temporaryPassword,
+        },
+        scope,
+      });
+    }
+
     if (action === 'toggle_status') {
       const id = cleanString(body.id);
       const status = cleanString(body.status) as CrmUserStatus;
       if (!id) return jsonError('Member is required');
       if (!['active', 'inactive'].includes(status)) return jsonError('Valid status is required');
-      const nextTeam = team.map((member) => (member.id === id ? { ...member, status } : member));
+      const nextTeam = team.map((member) =>
+        member.id === id ? { ...member, status, loginEnabled: status === 'active' } : member
+      );
       await saveStore(supabase, rowId, { ...store, team: nextTeam });
       return NextResponse.json({ success: true, data: nextTeam, scope });
     }
@@ -187,11 +314,20 @@ export async function POST(request: NextRequest) {
     );
     if (duplicate) return jsonError('A member with this email already exists');
 
+    const provisioned = await provisionCrmAuthUser(supabase, scope, member, existing);
     const nextTeam = existing
-      ? team.map((item) => (item.id === member.id ? member : item))
-      : [member, ...team];
+      ? team.map((item) => (item.id === provisioned.member.id ? provisioned.member : item))
+      : [provisioned.member, ...team];
     await saveStore(supabase, rowId, { ...store, team: nextTeam });
-    return NextResponse.json({ success: true, data: nextTeam, member, scope });
+    return NextResponse.json({
+      success: true,
+      data: nextTeam,
+      member: provisioned.member,
+      credentials: provisioned.temporaryPassword
+        ? { email: provisioned.member.email, temporaryPassword: provisioned.temporaryPassword }
+        : null,
+      scope,
+    });
   } catch (error) {
     console.error('[crm:team] POST failed:', error);
     return jsonError(error instanceof Error ? error.message : 'Unable to save team member', 500);

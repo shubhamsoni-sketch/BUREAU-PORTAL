@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveCrmScope } from '@/lib/crm/scope';
+import { requireCrmPermission } from '@/lib/crm/access';
 import { CrmLender, defaultCrmLenders, normalizeLenders } from '@/lib/crm/lender-policy';
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -24,7 +25,7 @@ async function getStore(request: NextRequest) {
 
   if (data?.id) {
     const raw = isObject(data.report_json) ? data.report_json : {};
-    const store = { ...raw, lenders: normalizeLenders(raw.lenders) };
+    const store = { ...raw, team: raw.team, lenders: normalizeLenders(raw.lenders) };
     return { supabase, rowId: data.id as string, store, scope };
   }
 
@@ -101,6 +102,8 @@ function normalizeIncomingLender(value: Record<string, unknown>, existing?: CrmL
 export async function GET(request: NextRequest) {
   try {
     const { store, scope } = await getStore(request);
+    const access = requireCrmPermission(scope, store, 'lender_management');
+    if (!access.ok) return jsonError(access.error, access.status);
     return NextResponse.json({ success: true, data: normalizeLenders(store.lenders), scope });
   } catch (error) {
     console.error('[crm:lenders] GET failed:', error);
@@ -113,6 +116,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     if (!isObject(body)) return jsonError('Request body must be JSON');
     const { supabase, rowId, store, scope } = await getStore(request);
+    const access = requireCrmPermission(scope, store, 'lender_management');
+    if (!access.ok) return jsonError(access.error, access.status);
     const lenders = normalizeLenders(store.lenders);
     const existing = lenders.find((item) => item.id === body.id);
     const lender = normalizeIncomingLender(body, existing);

@@ -35,6 +35,11 @@ const emptyForm = {
   permissions: rolePermissions['DSA Agent'],
 };
 
+type CredentialNotice = {
+  email: string;
+  temporaryPassword: string;
+};
+
 export default function TeamManagementContent() {
   const [team, setTeam] = useState<CrmTeamMember[]>(defaultCrmTeam);
   const [search, setSearch] = useState('');
@@ -47,6 +52,7 @@ export default function TeamManagementContent() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [credentialNotice, setCredentialNotice] = useState<CredentialNotice | null>(null);
 
   useEffect(() => {
     const loadTeam = async () => {
@@ -122,6 +128,9 @@ export default function TeamManagementContent() {
       const json = await response.json();
       if (!response.ok || !json.success) throw new Error(json.error || 'Unable to save member');
       setTeam(Array.isArray(json.data) ? json.data : team);
+      if (json.credentials?.temporaryPassword) {
+        setCredentialNotice(json.credentials);
+      }
       toast.success(editMember ? 'Team member updated' : 'Team member added');
       setModalOpen(false);
     } catch (error) {
@@ -165,6 +174,23 @@ export default function TeamManagementContent() {
     } catch (error) {
       setTeam(previousTeam);
       toast.error(error instanceof Error ? error.message : 'Unable to update status');
+    }
+  };
+
+  const resetPassword = async (member: CrmTeamMember) => {
+    try {
+      const response = await crmFetch('/api/crm/team', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'reset_password', id: member.id }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || 'Unable to reset password');
+      setTeam(Array.isArray(json.data) ? json.data : team);
+      if (json.credentials?.temporaryPassword) setCredentialNotice(json.credentials);
+      toast.success('Temporary password generated');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to reset password');
     }
   };
 
@@ -317,6 +343,7 @@ export default function TeamManagementContent() {
                   'Role',
                   'Zone',
                   'Access',
+                  'Login',
                   'Leads Assigned',
                   'Conversion',
                   'Joined',
@@ -335,7 +362,7 @@ export default function TeamManagementContent() {
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">
                     {loading ? 'Loading team...' : 'No team members found'}
                   </td>
                 </tr>
@@ -380,6 +407,25 @@ export default function TeamManagementContent() {
                             <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-700 text-primary">
                               +{(m.permissions || rolePermissions[m.role]).length - 3}
                             </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="space-y-0.5">
+                          <span
+                            className={[
+                              'inline-flex rounded-full px-2 py-0.5 text-[10px] font-700',
+                              m.authUserId
+                                ? 'bg-success/10 text-success'
+                                : 'bg-muted text-muted-foreground',
+                            ].join(' ')}
+                          >
+                            {m.authUserId ? 'Login Active' : 'Not Created'}
+                          </span>
+                          {m.credentialsGeneratedAt && (
+                            <p className="text-[9px] text-muted-foreground">
+                              {new Date(m.credentialsGeneratedAt).toLocaleDateString('en-IN')}
+                            </p>
                           )}
                         </div>
                       </td>
@@ -443,6 +489,25 @@ export default function TeamManagementContent() {
                             >
                               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => resetPassword(m)}
+                            className="w-7 h-7 flex items-center justify-center rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                            title="Reset login password"
+                          >
+                            <svg
+                              width="13"
+                              height="13"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78z" />
+                              <path d="M15.5 7.5l3 3L22 7l-3-3" />
                             </svg>
                           </button>
                           {m.role !== 'Admin' && (
@@ -660,6 +725,45 @@ export default function TeamManagementContent() {
               className="h-9 px-5 rounded-sm bg-danger text-white text-sm font-700 hover:bg-danger/90 active:scale-95 transition-all duration-150"
             >
               Remove
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!credentialNotice}
+        onClose={() => setCredentialNotice(null)}
+        title="CRM Login Credentials"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+            <div>
+              <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
+                Login Email
+              </p>
+              <p className="text-sm font-800 text-foreground break-all">
+                {credentialNotice?.email}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
+                Temporary Password
+              </p>
+              <p className="text-sm font-800 text-foreground font-mono break-all">
+                {credentialNotice?.temporaryPassword}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Share this with the CRM user. They should change password after first login.
+          </p>
+          <div className="flex justify-end">
+            <button
+              onClick={() => setCredentialNotice(null)}
+              className="h-9 px-4 rounded-sm bg-primary text-primary-foreground text-sm font-700 hover:bg-primary/90 transition-colors"
+            >
+              Done
             </button>
           </div>
         </div>

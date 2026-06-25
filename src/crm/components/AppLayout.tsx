@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import { CrmPermissionKey, rolePermissions } from '@/lib/crm/team';
+import { crmFetch } from '@/lib/crm/api';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -42,6 +43,26 @@ export default function AppLayout({ children }: AppLayoutProps) {
       }
     };
     loadCurrentUser();
+    const loadRealCrmUser = async () => {
+      try {
+        const response = await crmFetch('/api/crm/me', { cache: 'no-store' });
+        const json = await response.json();
+        if (!response.ok || !json.success || !json.data) return;
+        setCurrentUser({
+          name: json.data.name || 'CRM User',
+          role: rolePermissions[json.data.role as keyof typeof rolePermissions]
+            ? json.data.role
+            : 'Admin',
+          avatar: json.data.avatar || 'CU',
+          permissions: Array.isArray(json.data.permissions)
+            ? json.data.permissions
+            : rolePermissions.Admin,
+        });
+      } catch {
+        // Keep local preview fallback when CRM auth is not available.
+      }
+    };
+    loadRealCrmUser();
     window.addEventListener('crm-current-user-changed', loadCurrentUser);
     window.addEventListener('storage', loadCurrentUser);
     return () => {

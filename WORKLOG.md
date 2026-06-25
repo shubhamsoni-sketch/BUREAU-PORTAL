@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-26 - Developer - CRM User Login And Role Enforcement
+
+Summary:
+
+- Added CRM auth user provisioning from Team Management with temporary password generation.
+- Added CRM password reset flow for existing team members.
+- Added `/api/crm/me` so CRM layout/sidebar can load the logged-in user's real role and module permissions.
+- Added backend permission guards for team, leads, lenders, eligibility, credits, and file process actions.
+- Extended CRM scoping to resolve team users through auth metadata `crm_partner_id`.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+
 ## 2026-06-25 - Developer - Partner Scoped CRM Store
 
 Summary:

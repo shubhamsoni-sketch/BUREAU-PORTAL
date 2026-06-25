@@ -10,6 +10,7 @@ import { maskMobile, maskPan } from '@/lib/api-hub/keys';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getStateName } from '@/lib/bureau/state-codes';
 import { resolveCrmScope } from '@/lib/crm/scope';
+import { requireCrmPermission } from '@/lib/crm/access';
 import {
   CrmLender,
   defaultCrmLenders,
@@ -25,7 +26,7 @@ import {
   normalizeApplicationDocuments,
   normalizeLeads,
 } from '@/lib/crm/leads';
-import { CrmTeamMember, defaultCrmTeam, normalizeTeam } from '@/lib/crm/team';
+import { CrmPermissionKey, CrmTeamMember, defaultCrmTeam, normalizeTeam } from '@/lib/crm/team';
 
 type CrmEligibilityReport = {
   id: string;
@@ -107,6 +108,22 @@ function generateInvoiceNumber() {
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
+}
+
+function permissionForAction(action: string): CrmPermissionKey {
+  if (action === 'add_credits') return 'eligibility_credits';
+  if (
+    [
+      'send_to_lender',
+      'update_application_status',
+      'add_application_note',
+      'update_application_document',
+      'update_application_followup',
+    ].includes(action)
+  ) {
+    return 'file_process';
+  }
+  return 'eligibility_check';
 }
 
 function cleanString(value: unknown) {
@@ -478,6 +495,8 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createAdminClient();
     const { store, scope } = await getCrmStore(request, supabase);
+    const access = requireCrmPermission(scope, store, 'eligibility_check');
+    if (!access.ok) return jsonError(access.error, access.status);
     return NextResponse.json({ success: true, data: store, scope });
   } catch (error) {
     console.error('[crm:eligibility-wallet] GET failed:', error);
@@ -490,6 +509,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     if (!isObject(body)) return jsonError('Request body must be JSON', 400);
+    const action = cleanString(body.action);
+
+    {
+      const supabase = createAdminClient();
+      const { store, scope } = await getCrmStore(request, supabase);
+      const access = requireCrmPermission(scope, store, permissionForAction(action));
+      if (!access.ok) return jsonError(access.error, access.status);
+    }
 
     if (body.action === 'add_credits') {
       const credits = Math.max(1, Number(body.credits || 0));

@@ -14,6 +14,7 @@ export type CrmPermissionKey =
 
 export type CrmTeamMember = {
   id: string;
+  authUserId?: string;
   name: string;
   email: string;
   mobile: string;
@@ -25,6 +26,8 @@ export type CrmTeamMember = {
   status: CrmUserStatus;
   avatar: string;
   permissions: CrmPermissionKey[];
+  loginEnabled?: boolean;
+  credentialsGeneratedAt?: string;
 };
 
 export const crmPermissionLabels: Record<CrmPermissionKey, string> = {
@@ -198,6 +201,7 @@ export function normalizeTeam(value: unknown): CrmTeamMember[] {
       const name = text(member.name);
       return {
         id: text(member.id) || `usr-${Date.now()}`,
+        authUserId: text(member.authUserId) || undefined,
         name,
         email: text(member.email),
         mobile: text(member.mobile).replace(/\D/g, '').slice(-10),
@@ -209,6 +213,8 @@ export function normalizeTeam(value: unknown): CrmTeamMember[] {
         status: statuses.includes(status) ? status : 'active',
         avatar: text(member.avatar) || initials(name),
         permissions: normalizePermissions(member.permissions, role),
+        loginEnabled: member.loginEnabled !== false,
+        credentialsGeneratedAt: text(member.credentialsGeneratedAt) || undefined,
       };
     })
     .filter((member) => member.name && member.email);
