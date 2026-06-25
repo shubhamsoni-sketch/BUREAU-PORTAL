@@ -24,14 +24,6 @@ export default function DashboardPage() {
                     Track leads, eligibility checks, lender files, and team priorities from one CreditTrust workspace.
                   </p>
                 </div>
-                <div className="rounded-lg border border-border bg-card/80 px-3 py-2 shadow-sm">
-                  <p className="text-[10px] font-800 uppercase tracking-wide text-muted-foreground">
-                    Role Based Workspace
-                  </p>
-                  <p className="text-xs font-700 text-foreground mt-0.5">
-                    Data auto-filters by logged-in user
-                  </p>
-                </div>
               </div>
 
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
