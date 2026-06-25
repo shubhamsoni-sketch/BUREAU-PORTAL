@@ -8,6 +8,7 @@ import {
   normalizeLeads,
 } from '@/lib/crm/leads';
 import { defaultCrmLenders, normalizeLenders } from '@/lib/crm/lender-policy';
+import { defaultCrmTeam, normalizeTeam } from '@/lib/crm/team';
 
 const CRM_STORE_MOBILE = '0000000001';
 const CRM_STORE_STATUS = 'crm_store';
@@ -45,6 +46,7 @@ async function getStore() {
       leads: normalizeLeads(raw.leads),
       applications: normalizeApplications(raw.applications),
       lenders: normalizeLenders(raw.lenders),
+      team: normalizeTeam(raw.team),
     };
     return { supabase, rowId: data.id as string, store };
   }
@@ -57,6 +59,7 @@ async function getStore() {
     leads: defaultCrmLeads,
     applications: [],
     reports: [],
+    team: defaultCrmTeam,
   };
   const { data: inserted, error: insertError } = await supabase
     .from('b2c_report_requests')
@@ -125,7 +128,12 @@ export async function GET(request: NextRequest) {
       queue === 'eligibility'
         ? leads.filter((lead) => ['new', 'contacted', 'eligibility_pending'].includes(lead.stage))
         : leads;
-    return NextResponse.json({ success: true, data, applications: store.applications || [] });
+    return NextResponse.json({
+      success: true,
+      data,
+      applications: store.applications || [],
+      team: store.team || defaultCrmTeam,
+    });
   } catch (error) {
     console.error('[crm:leads] GET failed:', error);
     return jsonError(error instanceof Error ? error.message : 'Unable to load leads', 500);

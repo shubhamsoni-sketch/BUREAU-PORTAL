@@ -2,6 +2,21 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-06-25 - Developer - CRM Team Roles And Permissions
+
+Summary:
+
+- Added CRM team member model with Admin, Manager, DSA Agent, Ops Executive, and Accounts roles.
+- Added module permission matrix for dashboard, leads, eligibility, lender selection, file process, setup, reports, and team management.
+- Added `/api/crm/team` for team CRUD, status toggles, deletion guard, and CRM store persistence.
+- Updated Team Management UI to load/save real team data and manage module-level access.
+- Added role preview so the CRM sidebar/topbar can show navigation based on selected user permissions.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-25 - Developer - File Document Checklist
 
 Summary:

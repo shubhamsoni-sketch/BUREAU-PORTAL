@@ -1,6 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
+import { CrmPermissionKey, rolePermissions } from '@/lib/crm/team';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -9,6 +10,45 @@ interface AppLayoutProps {
 export default function AppLayout({ children }: AppLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState({
+    name: 'Rajesh Kumar',
+    role: 'Admin' as keyof typeof rolePermissions,
+    avatar: 'RK',
+    permissions: rolePermissions.Admin as CrmPermissionKey[],
+  });
+
+  useEffect(() => {
+    const loadCurrentUser = () => {
+      try {
+        const raw = window.localStorage.getItem('crm_current_user');
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as Partial<typeof currentUser>;
+        const role = parsed.role && rolePermissions[parsed.role] ? parsed.role : 'Admin';
+        setCurrentUser({
+          name: parsed.name || 'Rajesh Kumar',
+          role,
+          avatar: parsed.avatar || 'RK',
+          permissions: Array.isArray(parsed.permissions)
+            ? parsed.permissions
+            : rolePermissions[role],
+        });
+      } catch {
+        setCurrentUser({
+          name: 'Rajesh Kumar',
+          role: 'Admin',
+          avatar: 'RK',
+          permissions: rolePermissions.Admin,
+        });
+      }
+    };
+    loadCurrentUser();
+    window.addEventListener('crm-current-user-changed', loadCurrentUser);
+    window.addEventListener('storage', loadCurrentUser);
+    return () => {
+      window.removeEventListener('crm-current-user-changed', loadCurrentUser);
+      window.removeEventListener('storage', loadCurrentUser);
+    };
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -72,11 +112,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </button>
             <div className="flex items-center gap-2 pl-3 border-l border-border">
               <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-700">
-                RK
+                {currentUser.avatar}
               </div>
               <div className="hidden sm:block">
-                <p className="text-sm font-semibold text-foreground leading-none">Rajesh Kumar</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Admin</p>
+                <p className="text-sm font-semibold text-foreground leading-none">
+                  {currentUser.name}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">{currentUser.role}</p>
               </div>
             </div>
           </div>

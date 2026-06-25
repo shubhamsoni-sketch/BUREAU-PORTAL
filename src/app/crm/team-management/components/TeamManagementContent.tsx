@@ -1,158 +1,68 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import Modal from '@/crm/components/ui/Modal';
 import StatusBadge from '@/crm/components/ui/StatusBadge';
+import {
+  CrmPermissionKey,
+  CrmTeamMember,
+  CrmUserRole,
+  CrmUserStatus,
+  crmPermissionLabels,
+  defaultCrmTeam,
+  rolePermissions,
+} from '@/lib/crm/team';
 
-type UserRole = 'Admin' | 'Manager' | 'DSA Agent';
-type UserStatus = 'active' | 'inactive';
+const USER_ROLES = Object.keys(rolePermissions) as CrmUserRole[];
+const PERMISSION_KEYS = Object.keys(crmPermissionLabels) as CrmPermissionKey[];
 
-interface TeamMember {
-  id: string;
-  name: string;
-  email: string;
-  mobile: string;
-  role: UserRole;
-  zone: string;
-  leadsAssigned: number;
-  leadsConverted: number;
-  joinedDate: string;
-  status: UserStatus;
-  avatar: string;
-}
-
-const MOCK_TEAM: TeamMember[] = [
-  {
-    id: 'usr-001',
-    name: 'Rajesh Kumar',
-    email: 'rajesh.k@dsacrm.in',
-    mobile: '9876543210',
-    role: 'Admin',
-    zone: 'HQ — Mumbai',
-    leadsAssigned: 0,
-    leadsConverted: 0,
-    joinedDate: '01 Jan 2024',
-    status: 'active',
-    avatar: 'RK',
-  },
-  {
-    id: 'usr-002',
-    name: 'Sunita Rao',
-    email: 'sunita.r@dsacrm.in',
-    mobile: '9765432109',
-    role: 'Manager',
-    zone: 'Bangalore HSR',
-    leadsAssigned: 42,
-    leadsConverted: 31,
-    joinedDate: '15 Mar 2024',
-    status: 'active',
-    avatar: 'SR',
-  },
-  {
-    id: 'usr-003',
-    name: 'Priya Sharma',
-    email: 'priya.s@dsacrm.in',
-    mobile: '9654321098',
-    role: 'DSA Agent',
-    zone: 'Mumbai Central',
-    leadsAssigned: 38,
-    leadsConverted: 24,
-    joinedDate: '10 Apr 2024',
-    status: 'active',
-    avatar: 'PS',
-  },
-  {
-    id: 'usr-004',
-    name: 'Anil Mehta',
-    email: 'anil.m@dsacrm.in',
-    mobile: '9543210987',
-    role: 'DSA Agent',
-    zone: 'Pune West',
-    leadsAssigned: 29,
-    leadsConverted: 18,
-    joinedDate: '20 May 2024',
-    status: 'active',
-    avatar: 'AM',
-  },
-  {
-    id: 'usr-005',
-    name: 'Vikram Joshi',
-    email: 'vikram.j@dsacrm.in',
-    mobile: '9432109876',
-    role: 'DSA Agent',
-    zone: 'Delhi NCR',
-    leadsAssigned: 33,
-    leadsConverted: 21,
-    joinedDate: '05 Jun 2024',
-    status: 'active',
-    avatar: 'VJ',
-  },
-  {
-    id: 'usr-006',
-    name: 'Kavitha Nair',
-    email: 'kavitha.n@dsacrm.in',
-    mobile: '9321098765',
-    role: 'DSA Agent',
-    zone: 'Chennai Adyar',
-    leadsAssigned: 27,
-    leadsConverted: 15,
-    joinedDate: '12 Jul 2024',
-    status: 'active',
-    avatar: 'KN',
-  },
-  {
-    id: 'usr-007',
-    name: 'Deepak Verma',
-    email: 'deepak.v@dsacrm.in',
-    mobile: '9210987654',
-    role: 'Manager',
-    zone: 'Hyderabad',
-    leadsAssigned: 55,
-    leadsConverted: 40,
-    joinedDate: '01 Aug 2024',
-    status: 'inactive',
-    avatar: 'DV',
-  },
-  {
-    id: 'usr-008',
-    name: 'Meena Pillai',
-    email: 'meena.p@dsacrm.in',
-    mobile: '9109876543',
-    role: 'DSA Agent',
-    zone: 'Kochi',
-    leadsAssigned: 19,
-    leadsConverted: 11,
-    joinedDate: '15 Sep 2024',
-    status: 'active',
-    avatar: 'MP',
-  },
-];
-
-const ROLE_COLORS: Record<UserRole, string> = {
+const ROLE_COLORS: Record<CrmUserRole, string> = {
   Admin: 'bg-purple-100 text-purple-700',
   Manager: 'bg-blue-100 text-blue-700',
   'DSA Agent': 'bg-emerald-100 text-emerald-700',
+  'Ops Executive': 'bg-amber-100 text-amber-700',
+  Accounts: 'bg-slate-100 text-slate-700',
 };
 
 const emptyForm = {
   name: '',
   email: '',
   mobile: '',
-  role: 'DSA Agent' as UserRole,
+  role: 'DSA Agent' as CrmUserRole,
   zone: '',
-  status: 'active' as UserStatus,
+  status: 'active' as CrmUserStatus,
+  permissions: rolePermissions['DSA Agent'],
 };
 
 export default function TeamManagementContent() {
-  const [team, setTeam] = useState<TeamMember[]>(MOCK_TEAM);
+  const [team, setTeam] = useState<CrmTeamMember[]>(defaultCrmTeam);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
-  const [editMember, setEditMember] = useState<TeamMember | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<TeamMember | null>(null);
+  const [editMember, setEditMember] = useState<CrmTeamMember | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<CrmTeamMember | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const loadTeam = async () => {
+      try {
+        const response = await fetch('/api/crm/team', { cache: 'no-store' });
+        const json = await response.json();
+        if (!response.ok || !json.success) throw new Error(json.error || 'Unable to load team');
+        setTeam(Array.isArray(json.data) ? json.data : defaultCrmTeam);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Unable to load team');
+        setTeam(defaultCrmTeam);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTeam();
+  }, []);
 
   const filtered = team.filter((m) => {
     const matchSearch =
@@ -170,7 +80,7 @@ export default function TeamManagementContent() {
     setModalOpen(true);
   };
 
-  const openEdit = (m: TeamMember) => {
+  const openEdit = (m: CrmTeamMember) => {
     setEditMember(m);
     setForm({
       name: m.name,
@@ -179,6 +89,7 @@ export default function TeamManagementContent() {
       role: m.role,
       zone: m.zone,
       status: m.status,
+      permissions: m.permissions?.length ? m.permissions : rolePermissions[m.role],
     });
     setErrors({});
     setModalOpen(true);
@@ -201,46 +112,59 @@ export default function TeamManagementContent() {
       return;
     }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    if (editMember) {
-      setTeam((prev) => prev.map((m) => (m.id === editMember.id ? { ...m, ...form } : m)));
-    } else {
-      const initials = form.name
-        .split(' ')
-        .map((w) => w[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2);
-      const newMember: TeamMember = {
-        id: `usr-${Date.now()}`,
-        ...form,
-        leadsAssigned: 0,
-        leadsConverted: 0,
-        joinedDate: new Date().toLocaleDateString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        }),
-        avatar: initials,
-      };
-      setTeam((prev) => [newMember, ...prev]);
+    try {
+      const response = await fetch('/api/crm/team', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...form, id: editMember?.id }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || 'Unable to save member');
+      setTeam(Array.isArray(json.data) ? json.data : team);
+      toast.success(editMember ? 'Team member updated' : 'Team member added');
+      setModalOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save member');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    setModalOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteConfirm) return;
-    setTeam((prev) => prev.filter((m) => m.id !== deleteConfirm.id));
-    setDeleteConfirm(null);
+    try {
+      const response = await fetch('/api/crm/team', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: deleteConfirm.id }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || 'Unable to remove member');
+      setTeam(Array.isArray(json.data) ? json.data : team);
+      toast.success('Team member removed');
+      setDeleteConfirm(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to remove member');
+    }
   };
 
-  const toggleStatus = (id: string) => {
-    setTeam((prev) =>
-      prev.map((m) =>
-        m.id === id ? { ...m, status: m.status === 'active' ? 'inactive' : 'active' } : m
-      )
-    );
+  const toggleStatus = async (member: CrmTeamMember) => {
+    const nextStatus = member.status === 'active' ? 'inactive' : 'active';
+    const previousTeam = team;
+    setTeam((prev) => prev.map((m) => (m.id === member.id ? { ...m, status: nextStatus } : m)));
+    try {
+      const response = await fetch('/api/crm/team', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle_status', id: member.id, status: nextStatus }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || 'Unable to update status');
+      setTeam(Array.isArray(json.data) ? json.data : team);
+    } catch (error) {
+      setTeam(previousTeam);
+      toast.error(error instanceof Error ? error.message : 'Unable to update status');
+    }
   };
 
   const stats = {
@@ -249,6 +173,41 @@ export default function TeamManagementContent() {
     admins: team.filter((m) => m.role === 'Admin').length,
     managers: team.filter((m) => m.role === 'Manager').length,
     agents: team.filter((m) => m.role === 'DSA Agent').length,
+    ops: team.filter((m) => m.role === 'Ops Executive').length,
+  };
+
+  const setCurrentRolePreview = (member: CrmTeamMember) => {
+    window.localStorage.setItem(
+      'crm_current_user',
+      JSON.stringify({
+        name: member.name,
+        role: member.role,
+        avatar: member.avatar,
+        permissions: member.permissions,
+      })
+    );
+    window.dispatchEvent(new Event('crm-current-user-changed'));
+    toast.success(`Previewing CRM as ${member.role}`);
+  };
+
+  const updateRole = (role: CrmUserRole) => {
+    setForm((previous) => ({
+      ...previous,
+      role,
+      permissions: rolePermissions[role],
+    }));
+  };
+
+  const togglePermission = (permission: CrmPermissionKey) => {
+    setForm((previous) => {
+      const exists = previous.permissions.includes(permission);
+      return {
+        ...previous,
+        permissions: exists
+          ? previous.permissions.filter((item) => item !== permission)
+          : [...previous.permissions, permission],
+      };
+    });
   };
 
   return (
@@ -288,7 +247,7 @@ export default function TeamManagementContent() {
           { label: 'Total Members', value: stats.total, color: 'text-foreground' },
           { label: 'Active', value: stats.active, color: 'text-success' },
           { label: 'Managers', value: stats.managers, color: 'text-primary' },
-          { label: 'DSA Agents', value: stats.agents, color: 'text-accent' },
+          { label: 'Ops + Agents', value: stats.ops + stats.agents, color: 'text-accent' },
         ].map((s) => (
           <div
             key={s.label}
@@ -332,6 +291,8 @@ export default function TeamManagementContent() {
           <option value="Admin">Admin</option>
           <option value="Manager">Manager</option>
           <option value="DSA Agent">DSA Agent</option>
+          <option value="Ops Executive">Ops Executive</option>
+          <option value="Accounts">Accounts</option>
         </select>
         <select
           value={filterStatus}
@@ -354,6 +315,7 @@ export default function TeamManagementContent() {
                   'Member',
                   'Role',
                   'Zone',
+                  'Access',
                   'Leads Assigned',
                   'Conversion',
                   'Joined',
@@ -372,8 +334,8 @@ export default function TeamManagementContent() {
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                    No team members found
+                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                    {loading ? 'Loading team...' : 'No team members found'}
                   </td>
                 </tr>
               ) : (
@@ -403,6 +365,23 @@ export default function TeamManagementContent() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{m.zone}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1 max-w-[220px]">
+                          {(m.permissions || rolePermissions[m.role]).slice(0, 3).map((permission) => (
+                            <span
+                              key={`${m.id}-${permission}`}
+                              className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-700 text-muted-foreground"
+                            >
+                              {crmPermissionLabels[permission]}
+                            </span>
+                          ))}
+                          {(m.permissions || rolePermissions[m.role]).length > 3 && (
+                            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-700 text-primary">
+                              +{(m.permissions || rolePermissions[m.role]).length - 3}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-xs font-700 text-foreground tabular-nums">
                         {m.leadsAssigned}
                       </td>
@@ -421,12 +400,31 @@ export default function TeamManagementContent() {
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{m.joinedDate}</td>
                       <td className="px-4 py-3">
-                        <button onClick={() => toggleStatus(m.id)} className="cursor-pointer">
+                        <button onClick={() => toggleStatus(m)} className="cursor-pointer">
                           <StatusBadge variant={m.status} size="sm" />
                         </button>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => setCurrentRolePreview(m)}
+                            className="w-7 h-7 flex items-center justify-center rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                            title="Preview access"
+                          >
+                            <svg
+                              width="13"
+                              height="13"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                          </button>
                           <button
                             onClick={() => openEdit(m)}
                             className="w-7 h-7 flex items-center justify-center rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -534,12 +532,14 @@ export default function TeamManagementContent() {
               </label>
               <select
                 value={form.role}
-                onChange={(e) => setForm((p) => ({ ...p, role: e.target.value as UserRole }))}
+                onChange={(e) => updateRole(e.target.value as CrmUserRole)}
                 className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
               >
-                <option value="Admin">Admin</option>
-                <option value="Manager">Manager</option>
-                <option value="DSA Agent">DSA Agent</option>
+                {USER_ROLES.map((role) => (
+                  <option key={`role-${role}`} value={role}>
+                    {role}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="space-y-1">
@@ -559,12 +559,42 @@ export default function TeamManagementContent() {
               <label className="block text-sm font-600 text-foreground">Status</label>
               <select
                 value={form.status}
-                onChange={(e) => setForm((p) => ({ ...p, status: e.target.value as UserStatus }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, status: e.target.value as CrmUserStatus }))
+                }
                 className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <label className="block text-sm font-600 text-foreground">Module Access</label>
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, permissions: rolePermissions[p.role] }))}
+                className="text-xs font-700 text-primary hover:text-primary/80"
+              >
+                Reset to role default
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-border bg-muted/20 p-2">
+              {PERMISSION_KEYS.map((permission) => (
+                <label
+                  key={`permission-${permission}`}
+                  className="flex items-center gap-2 rounded-sm bg-card px-2.5 py-2 text-xs font-600 text-foreground"
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.permissions.includes(permission)}
+                    onChange={() => togglePermission(permission)}
+                    className="h-3.5 w-3.5 rounded accent-primary"
+                  />
+                  {crmPermissionLabels[permission]}
+                </label>
+              ))}
             </div>
           </div>
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">

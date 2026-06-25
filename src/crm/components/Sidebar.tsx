@@ -1,8 +1,9 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from './ui/AppLogo';
+import { CrmPermissionKey, rolePermissions } from '@/lib/crm/team';
 
 interface NavItem {
   label: string;
@@ -10,13 +11,22 @@ interface NavItem {
   icon: React.ReactNode;
   badge?: number;
   group?: string;
+  permission: CrmPermissionKey;
 }
+
+type CurrentCrmUser = {
+  name: string;
+  role: keyof typeof rolePermissions;
+  avatar: string;
+  permissions: CrmPermissionKey[];
+};
 
 const navItems: NavItem[] = [
   {
     label: 'Dashboard',
     href: '/',
     group: 'Main',
+    permission: 'dashboard',
     icon: (
       <svg
         width="18"
@@ -40,6 +50,7 @@ const navItems: NavItem[] = [
     href: '/lead-management',
     group: 'Pipeline',
     badge: 8,
+    permission: 'lead_management',
     icon: (
       <svg
         width="18"
@@ -63,6 +74,7 @@ const navItems: NavItem[] = [
     href: '/loan-application-tracking',
     group: 'Pipeline',
     badge: 5,
+    permission: 'file_process',
     icon: (
       <svg
         width="18"
@@ -86,6 +98,7 @@ const navItems: NavItem[] = [
     label: 'Lender Selection',
     href: '/lender-selection',
     group: 'Pipeline',
+    permission: 'lender_selection',
     icon: (
       <svg
         width="18"
@@ -108,6 +121,7 @@ const navItems: NavItem[] = [
     label: 'Lender Management',
     href: '/lender-management',
     group: 'Partners',
+    permission: 'lender_management',
     icon: (
       <svg
         width="18"
@@ -128,6 +142,7 @@ const navItems: NavItem[] = [
     label: 'Team Management',
     href: '/team-management',
     group: 'Partners',
+    permission: 'team_management',
     icon: (
       <svg
         width="18"
@@ -150,6 +165,7 @@ const navItems: NavItem[] = [
     label: 'Eligibility Checker',
     href: '/eligibility-check',
     group: 'Tools',
+    permission: 'eligibility_check',
     icon: (
       <svg
         width="18"
@@ -170,6 +186,7 @@ const navItems: NavItem[] = [
     label: 'EMI Calculator',
     href: '/emi-calculator',
     group: 'Tools',
+    permission: 'dashboard',
     icon: (
       <svg
         width="18"
@@ -189,6 +206,7 @@ const navItems: NavItem[] = [
     label: 'Reports & Analytics',
     href: '/reports-analytics-dashboard',
     group: 'Insights',
+    permission: 'reports',
     icon: (
       <svg
         width="18"
@@ -210,6 +228,7 @@ const navItems: NavItem[] = [
     label: 'Setup',
     href: '/setup',
     group: 'Settings',
+    permission: 'eligibility_credits',
     icon: (
       <svg
         width="18"
@@ -242,8 +261,50 @@ export default function Sidebar({
   onMobileClose,
 }: SidebarProps) {
   const pathname = usePathname();
+  const [currentUser, setCurrentUser] = useState<CurrentCrmUser>({
+    name: 'Rajesh Kumar',
+    role: 'Admin',
+    avatar: 'RK',
+    permissions: rolePermissions.Admin,
+  });
 
-  const groups = Array.from(new Set(navItems.map((i) => i.group)));
+  useEffect(() => {
+    const loadCurrentUser = () => {
+      try {
+        const raw = window.localStorage.getItem('crm_current_user');
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as Partial<CurrentCrmUser>;
+        const role = parsed.role && rolePermissions[parsed.role] ? parsed.role : 'Admin';
+        setCurrentUser({
+          name: parsed.name || 'Rajesh Kumar',
+          role,
+          avatar: parsed.avatar || 'RK',
+          permissions: Array.isArray(parsed.permissions)
+            ? parsed.permissions
+            : rolePermissions[role],
+        });
+      } catch {
+        setCurrentUser({
+          name: 'Rajesh Kumar',
+          role: 'Admin',
+          avatar: 'RK',
+          permissions: rolePermissions.Admin,
+        });
+      }
+    };
+    loadCurrentUser();
+    window.addEventListener('crm-current-user-changed', loadCurrentUser);
+    window.addEventListener('storage', loadCurrentUser);
+    return () => {
+      window.removeEventListener('crm-current-user-changed', loadCurrentUser);
+      window.removeEventListener('storage', loadCurrentUser);
+    };
+  }, []);
+
+  const visibleNavItems = navItems.filter((item) =>
+    currentUser.permissions.includes(item.permission)
+  );
+  const groups = Array.from(new Set(visibleNavItems.map((i) => i.group)));
   const crmHref = (href: string) => (href === '/' ? '/crm' : `/crm${href}`);
 
   return (
@@ -302,7 +363,7 @@ export default function Sidebar({
                 {group}
               </p>
             )}
-            {navItems
+            {visibleNavItems
               .filter((i) => i.group === group)
               .map((item) => {
                 const href = crmHref(item.href);
@@ -349,11 +410,11 @@ export default function Sidebar({
         {!collapsed && (
           <div className="flex items-center gap-2 px-2 py-2 mb-1 rounded-sm bg-muted/50">
             <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-700 shrink-0">
-              RK
+              {currentUser.avatar}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-foreground truncate">Rajesh Kumar</p>
-              <p className="text-[10px] text-muted-foreground">Admin</p>
+              <p className="text-xs font-semibold text-foreground truncate">{currentUser.name}</p>
+              <p className="text-[10px] text-muted-foreground">{currentUser.role}</p>
             </div>
           </div>
         )}

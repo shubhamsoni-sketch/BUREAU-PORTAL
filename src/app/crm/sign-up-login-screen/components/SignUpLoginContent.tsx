@@ -16,9 +16,9 @@ type SignUpForm = {
 };
 
 const demoCredentials = [
-  { role: 'Admin', email: 'admin@dsacrm.in', password: 'Admin@2026' },
-  { role: 'Manager', email: 'manager@dsacrm.in', password: 'Manager@2026' },
-  { role: 'DSA Agent', email: 'agent@dsacrm.in', password: 'Agent@2026' },
+  { role: 'Admin', name: 'Rajesh Kumar', avatar: 'RK', email: 'admin@dsacrm.in', password: 'Admin@2026' },
+  { role: 'Manager', name: 'Sunita Rao', avatar: 'SR', email: 'manager@dsacrm.in', password: 'Manager@2026' },
+  { role: 'DSA Agent', name: 'Priya Sharma', avatar: 'PS', email: 'agent@dsacrm.in', password: 'Agent@2026' },
 ];
 
 export default function SignUpLoginContent() {
@@ -56,8 +56,16 @@ export default function SignUpLoginContent() {
     // BACKEND: POST /api/auth/login with { email, password }
     await new Promise((r) => setTimeout(r, 1200));
     setIsLoading(false);
+    window.localStorage.setItem(
+      'crm_current_user',
+      JSON.stringify({
+        name: valid.name,
+        role: valid.role,
+        avatar: valid.avatar,
+      })
+    );
     toast.success(`Welcome back! Signed in as ${valid.role}`);
-    window.location.href = '/';
+    window.location.href = '/crm';
   });
 
   const handleSignUp = signupForm.handleSubmit(async (data) => {

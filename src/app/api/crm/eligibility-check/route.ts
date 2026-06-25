@@ -24,6 +24,7 @@ import {
   normalizeApplicationDocuments,
   normalizeLeads,
 } from '@/lib/crm/leads';
+import { CrmTeamMember, defaultCrmTeam, normalizeTeam } from '@/lib/crm/team';
 
 const CRM_STORE_MOBILE = '0000000001';
 const CRM_STORE_STATUS = 'crm_store';
@@ -80,6 +81,7 @@ type CrmStore = {
   lenders: CrmLender[];
   leads: CrmLead[];
   applications: CrmApplication[];
+  team: CrmTeamMember[];
   reports: CrmEligibilityReport[];
 };
 
@@ -95,6 +97,7 @@ const defaultCrmStore: CrmStore = {
   lenders: defaultCrmLenders,
   leads: defaultCrmLeads,
   applications: [],
+  team: defaultCrmTeam,
   reports: [],
 };
 
@@ -420,6 +423,7 @@ async function getCrmStore(supabase: ReturnType<typeof createAdminClient>) {
         lenders: normalizeLenders(raw.lenders),
         leads: normalizeLeads(raw.leads),
         applications: normalizeApplications(raw.applications),
+        team: normalizeTeam(raw.team),
         reports: Array.isArray(raw.reports)
           ? (raw.reports.slice(0, 200) as CrmEligibilityReport[])
           : [],
