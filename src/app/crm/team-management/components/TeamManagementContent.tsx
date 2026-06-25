@@ -335,24 +335,21 @@ export default function TeamManagementContent() {
       {/* Table */}
       <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
         <div className="overflow-x-auto scrollbar-thin">
-          <table className="w-full text-sm min-w-[800px]">
+          <table className="w-full text-sm min-w-[760px]">
             <thead>
               <tr className="bg-muted/40 border-b border-border">
                 {[
                   'Member',
-                  'Role',
-                  'Zone',
-                  'Access',
+                  'Role & Zone',
                   'Login',
-                  'Leads Assigned',
-                  'Conversion',
-                  'Joined',
+                  'Access',
+                  'Performance',
                   'Status',
                   'Actions',
                 ].map((col) => (
                   <th
                     key={col}
-                    className="px-4 py-3 text-left text-[11px] font-600 uppercase tracking-wide text-muted-foreground whitespace-nowrap"
+                    className="px-3 py-2.5 text-left text-[10px] font-700 uppercase tracking-wide text-muted-foreground whitespace-nowrap"
                   >
                     {col}
                   </th>
@@ -362,7 +359,7 @@ export default function TeamManagementContent() {
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground">
                     {loading ? 'Loading team...' : 'No team members found'}
                   </td>
                 </tr>
@@ -374,85 +371,89 @@ export default function TeamManagementContent() {
                       : 0;
                   return (
                     <tr key={m.id} className="hover:bg-muted/30 transition-colors group">
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2.5">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-700 shrink-0">
+                          <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[11px] font-700 shrink-0">
                             {m.avatar}
                           </div>
-                          <div>
-                            <p className="text-xs font-700 text-foreground">{m.name}</p>
-                            <p className="text-[10px] text-muted-foreground">{m.email}</p>
+                          <div className="min-w-0">
+                            <p className="text-xs font-800 text-foreground truncate max-w-[190px]">{m.name}</p>
+                            <p className="text-[10px] text-muted-foreground truncate max-w-[190px]">{m.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-700 ${ROLE_COLORS[m.role]}`}
-                        >
-                          {m.role}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{m.zone}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1 max-w-[220px]">
-                          {(m.permissions || rolePermissions[m.role]).slice(0, 3).map((permission) => (
-                            <span
-                              key={`${m.id}-${permission}`}
-                              className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-700 text-muted-foreground"
-                            >
-                              {crmPermissionLabels[permission]}
-                            </span>
-                          ))}
-                          {(m.permissions || rolePermissions[m.role]).length > 3 && (
-                            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-700 text-primary">
-                              +{(m.permissions || rolePermissions[m.role]).length - 3}
-                            </span>
-                          )}
+                      <td className="px-3 py-2.5">
+                        <div className="space-y-1">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-700 ${ROLE_COLORS[m.role]}`}
+                          >
+                            {m.role}
+                          </span>
+                          <p className="text-[10px] text-muted-foreground truncate max-w-[130px]">{m.zone}</p>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2.5">
                         <div className="space-y-0.5">
                           <span
                             className={[
-                              'inline-flex rounded-full px-2 py-0.5 text-[10px] font-700',
+                              'inline-flex rounded-full px-2 py-0.5 text-[10px] font-700 whitespace-nowrap',
                               m.authUserId
                                 ? 'bg-success/10 text-success'
                                 : 'bg-muted text-muted-foreground',
                             ].join(' ')}
                           >
-                            {m.authUserId ? 'Login Active' : 'Not Created'}
+                            {m.authUserId ? 'Active' : 'Not Created'}
                           </span>
-                          {m.credentialsGeneratedAt && (
-                            <p className="text-[9px] text-muted-foreground">
-                              {new Date(m.credentialsGeneratedAt).toLocaleDateString('en-IN')}
-                            </p>
+                          <p className="text-[9px] text-muted-foreground whitespace-nowrap">
+                            {m.credentialsGeneratedAt
+                              ? new Date(m.credentialsGeneratedAt).toLocaleDateString('en-IN')
+                              : m.joinedDate}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex flex-wrap gap-1 max-w-[170px]">
+                          {(m.permissions || rolePermissions[m.role]).slice(0, 2).map((permission) => (
+                            <span
+                              key={`${m.id}-${permission}`}
+                              className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-700 text-muted-foreground whitespace-nowrap"
+                            >
+                              {crmPermissionLabels[permission]}
+                            </span>
+                          ))}
+                          {(m.permissions || rolePermissions[m.role]).length > 2 && (
+                            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-700 text-primary whitespace-nowrap">
+                              +{(m.permissions || rolePermissions[m.role]).length - 2}
+                            </span>
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs font-700 text-foreground tabular-nums">
-                        {m.leadsAssigned}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <div className="flex-1 h-1 rounded-full bg-border overflow-hidden min-w-[40px]">
-                            <div
-                              className={`h-full rounded-full ${convRate >= 60 ? 'bg-success' : convRate >= 40 ? 'bg-warning' : 'bg-danger'}`}
-                              style={{ width: `${convRate}%` }}
-                            />
+                      <td className="px-3 py-2.5">
+                        <div className="w-[120px] space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] text-muted-foreground">Leads</span>
+                            <span className="text-xs font-800 text-foreground tabular-nums">{m.leadsAssigned}</span>
                           </div>
-                          <span className="text-xs font-700 tabular-nums text-foreground">
-                            {convRate}%
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex-1 h-1 rounded-full bg-border overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${convRate >= 60 ? 'bg-success' : convRate >= 40 ? 'bg-warning' : 'bg-danger'}`}
+                                style={{ width: `${convRate}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] font-800 tabular-nums text-foreground">
+                              {convRate}%
+                            </span>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{m.joinedDate}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2.5">
                         <button onClick={() => toggleStatus(m)} className="cursor-pointer">
                           <StatusBadge variant={m.status} size="sm" />
                         </button>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-0.5">
                           <button
                             onClick={() => setCurrentRolePreview(m)}
                             className="w-7 h-7 flex items-center justify-center rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
