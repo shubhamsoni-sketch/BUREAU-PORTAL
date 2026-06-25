@@ -24,13 +24,13 @@ export default function DashboardPage() {
                     Track leads, eligibility checks, lender files, and team priorities from one clean workspace.
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button className="h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-700 hover:bg-primary/90 transition-colors">
-                    Admin View
-                  </button>
-                  <button className="h-8 px-3 rounded-sm border border-border bg-card/80 text-xs font-700 text-muted-foreground hover:text-foreground hover:bg-card transition-colors">
-                    Agent View
-                  </button>
+                <div className="rounded-lg border border-border bg-card/80 px-3 py-2 shadow-sm">
+                  <p className="text-[10px] font-800 uppercase tracking-wide text-muted-foreground">
+                    Role Based Workspace
+                  </p>
+                  <p className="text-xs font-700 text-foreground mt-0.5">
+                    Data auto-filters by logged-in user
+                  </p>
                 </div>
               </div>
 
