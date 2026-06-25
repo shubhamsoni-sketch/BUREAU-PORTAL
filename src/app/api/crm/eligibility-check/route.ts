@@ -683,7 +683,25 @@ export async function POST(request: NextRequest) {
         product: lead.product,
         loanAmount: lead.loanAmount,
         status: 'case_sent_to_lender',
+        statusHistory: [
+          {
+            status: 'case_sent_to_lender',
+            note: `Case sent to ${lenderName}`,
+            changedAt: now,
+            changedBy: 'System',
+          },
+        ],
+        notes: [],
+        lenderHistory: [
+          {
+            lenderName,
+            status: 'sent',
+            changedAt: now,
+            note: `File process created with ${lenderName}`,
+          },
+        ],
         createdAt: now,
+        updatedAt: now,
       };
 
       store.applications = existingApplication
@@ -706,6 +724,8 @@ export async function POST(request: NextRequest) {
     if (body.action === 'update_application_status') {
       const applicationId = cleanString(body.applicationId);
       const status = cleanString(body.status);
+      const note = cleanString(body.note);
+      const rejectionReason = cleanString(body.rejectionReason);
       const allowedStatuses = new Set([
         'case_sent_to_lender',
         'login_pending',
@@ -732,7 +752,100 @@ export async function POST(request: NextRequest) {
 
       store.applications = (store.applications || []).map((application) =>
         application.id === applicationId
-          ? { ...application, status: status as CrmApplication['status'] }
+          ? {
+              ...application,
+              status: status as CrmApplication['status'],
+              rejectionReason:
+                status === 'rejected'
+                  ? rejectionReason || application.rejectionReason || note || 'Rejected'
+                  : application.rejectionReason,
+              statusHistory: [
+                {
+                  status: status as CrmApplication['status'],
+                  note:
+                    note ||
+                    (status === 'rejected' && rejectionReason
+                      ? rejectionReason
+                      : `Status changed to ${status.replace(/_/g, ' ')}`),
+                  changedAt: new Date().toISOString(),
+                  changedBy: 'Admin',
+                },
+                ...(application.statusHistory || []),
+              ].slice(0, 100),
+              updatedAt: new Date().toISOString(),
+            }
+          : application
+      );
+      await saveCrmStore(supabase, rowId, store);
+      return NextResponse.json({ success: true, data: { applications: store.applications } });
+    }
+
+    if (body.action === 'add_application_note') {
+      const applicationId = cleanString(body.applicationId);
+      const note = cleanString(body.note);
+      if (!applicationId) return jsonError('Application is required', 400);
+      if (!note) return jsonError('Note is required', 400);
+
+      const supabase = createAdminClient();
+      const { rowId, store } = await getCrmStore(supabase);
+      const existingApplication = (store.applications || []).find(
+        (application) => application.id === applicationId
+      );
+      if (!existingApplication) return jsonError('Application not found', 404);
+
+      const now = new Date().toISOString();
+      store.applications = (store.applications || []).map((application) =>
+        application.id === applicationId
+          ? {
+              ...application,
+              notes: [
+                {
+                  id: crypto.randomUUID(),
+                  note,
+                  createdAt: now,
+                  createdBy: 'Admin',
+                },
+                ...(application.notes || []),
+              ].slice(0, 100),
+              updatedAt: now,
+            }
+          : application
+      );
+      await saveCrmStore(supabase, rowId, store);
+      return NextResponse.json({ success: true, data: { applications: store.applications } });
+    }
+
+    if (body.action === 'update_application_followup') {
+      const applicationId = cleanString(body.applicationId);
+      const followUpDate = cleanString(body.followUpDate);
+      if (!applicationId) return jsonError('Application is required', 400);
+
+      const supabase = createAdminClient();
+      const { rowId, store } = await getCrmStore(supabase);
+      const existingApplication = (store.applications || []).find(
+        (application) => application.id === applicationId
+      );
+      if (!existingApplication) return jsonError('Application not found', 404);
+
+      const now = new Date().toISOString();
+      store.applications = (store.applications || []).map((application) =>
+        application.id === applicationId
+          ? {
+              ...application,
+              followUpDate: followUpDate || undefined,
+              notes: followUpDate
+                ? [
+                    {
+                      id: crypto.randomUUID(),
+                      note: `Follow-up scheduled for ${followUpDate}`,
+                      createdAt: now,
+                      createdBy: 'System',
+                    },
+                    ...(application.notes || []),
+                  ].slice(0, 100)
+                : application.notes,
+              updatedAt: now,
+            }
           : application
       );
       await saveCrmStore(supabase, rowId, store);

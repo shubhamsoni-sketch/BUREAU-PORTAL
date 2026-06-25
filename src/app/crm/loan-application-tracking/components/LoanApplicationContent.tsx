@@ -46,6 +46,26 @@ interface LoanApplication {
   processingFee: number;
   roi: number;
   tenure: number;
+  followUpDate?: string;
+  rejectionReason?: string;
+  statusHistory?: {
+    status: AppStage;
+    note: string;
+    changedAt: string;
+    changedBy: string;
+  }[];
+  notes?: {
+    id: string;
+    note: string;
+    createdAt: string;
+    createdBy: string;
+  }[];
+  lenderHistory?: {
+    lenderName: string;
+    status: string;
+    changedAt: string;
+    note: string;
+  }[];
 }
 
 const MOCK_APPS: LoanApplication[] = [
@@ -276,6 +296,11 @@ export default function LoanApplicationContent() {
             loanAmount: number;
             status: AppStage;
             createdAt: string;
+            followUpDate?: string;
+            rejectionReason?: string;
+            statusHistory?: LoanApplication['statusHistory'];
+            notes?: LoanApplication['notes'];
+            lenderHistory?: LoanApplication['lenderHistory'];
           }) => {
             const lead = leads.find((item: { id: string }) => item.id === application.leadId);
             const created = application.createdAt ? new Date(application.createdAt) : new Date();
@@ -305,6 +330,15 @@ export default function LoanApplicationContent() {
               processingFee: 0,
               roi: 0,
               tenure: 0,
+              followUpDate: application.followUpDate,
+              rejectionReason: application.rejectionReason,
+              statusHistory: Array.isArray(application.statusHistory)
+                ? application.statusHistory
+                : [],
+              notes: Array.isArray(application.notes) ? application.notes : [],
+              lenderHistory: Array.isArray(application.lenderHistory)
+                ? application.lenderHistory
+                : [],
             };
           }
         );
@@ -395,10 +429,33 @@ export default function LoanApplicationContent() {
     },
   ];
 
-  const updateApplicationStatus = async (applicationId: string, status: AppStage) => {
+  const updateApplicationStatus = async (
+    applicationId: string,
+    status: AppStage,
+    options: { note?: string; rejectionReason?: string } = {}
+  ) => {
     const previousApps = apps;
+    const now = new Date().toISOString();
     const nextApps = apps.map((app) =>
-      app.id === applicationId ? { ...app, stage: status } : app
+      app.id === applicationId
+        ? {
+            ...app,
+            stage: status,
+            rejectionReason:
+              status === 'rejected'
+                ? options.rejectionReason || app.rejectionReason || options.note
+                : app.rejectionReason,
+            statusHistory: [
+              {
+                status,
+                note: options.note || `Status changed to ${status.replace(/_/g, ' ')}`,
+                changedAt: now,
+                changedBy: 'Admin',
+              },
+              ...(app.statusHistory || []),
+            ],
+          }
+        : app
     );
     setApps(nextApps);
     setSelectedApp((current) =>
@@ -412,6 +469,8 @@ export default function LoanApplicationContent() {
           action: 'update_application_status',
           applicationId,
           status,
+          note: options.note,
+          rejectionReason: options.rejectionReason,
         }),
       });
       const json = await response.json();
@@ -421,6 +480,68 @@ export default function LoanApplicationContent() {
       setApps(previousApps);
       setSelectedApp(previousApps.find((app) => app.id === applicationId) || null);
       toast.error(statusError instanceof Error ? statusError.message : 'Unable to update status');
+    }
+  };
+
+  const addApplicationNote = async (applicationId: string, note: string) => {
+    const cleanNote = note.trim();
+    if (!cleanNote) return;
+    const previousApps = apps;
+    const now = new Date().toISOString();
+    const nextApps = apps.map((app) =>
+      app.id === applicationId
+        ? {
+            ...app,
+            notes: [
+              { id: `local-${Date.now()}`, note: cleanNote, createdAt: now, createdBy: 'Admin' },
+              ...(app.notes || []),
+            ],
+          }
+        : app
+    );
+    setApps(nextApps);
+    setSelectedApp(nextApps.find((app) => app.id === applicationId) || null);
+    try {
+      const response = await fetch('/api/crm/eligibility-check', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'add_application_note', applicationId, note: cleanNote }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || 'Unable to add note');
+      toast.success('Note added');
+    } catch (noteError) {
+      setApps(previousApps);
+      setSelectedApp(previousApps.find((app) => app.id === applicationId) || null);
+      toast.error(noteError instanceof Error ? noteError.message : 'Unable to add note');
+    }
+  };
+
+  const updateApplicationFollowUp = async (applicationId: string, followUpDate: string) => {
+    const previousApps = apps;
+    const nextApps = apps.map((app) => (app.id === applicationId ? { ...app, followUpDate } : app));
+    setApps(nextApps);
+    setSelectedApp(nextApps.find((app) => app.id === applicationId) || null);
+    try {
+      const response = await fetch('/api/crm/eligibility-check', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_application_followup',
+          applicationId,
+          followUpDate,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success)
+        throw new Error(json.error || 'Unable to update follow-up');
+      toast.success('Follow-up updated');
+    } catch (followUpError) {
+      setApps(previousApps);
+      setSelectedApp(previousApps.find((app) => app.id === applicationId) || null);
+      toast.error(
+        followUpError instanceof Error ? followUpError.message : 'Unable to update follow-up'
+      );
     }
   };
 
@@ -566,6 +687,7 @@ export default function LoanApplicationContent() {
                     'Score',
                     'EMI/mo',
                     'Agent',
+                    'Follow-up',
                     'Days Pending',
                     'Change Lender',
                     '',
@@ -622,9 +744,17 @@ export default function LoanApplicationContent() {
                       <select
                         value={app.stage}
                         onClick={(event) => event.stopPropagation()}
-                        onChange={(event) =>
-                          updateApplicationStatus(app.id, event.target.value as AppStage)
-                        }
+                        onChange={(event) => {
+                          const nextStatus = event.target.value as AppStage;
+                          const rejectionReason =
+                            nextStatus === 'rejected'
+                              ? window.prompt('Rejection reason?') || ''
+                              : '';
+                          updateApplicationStatus(app.id, nextStatus, {
+                            rejectionReason,
+                            note: rejectionReason,
+                          });
+                        }}
                         className="h-7 rounded-full border border-border bg-background px-2 text-[10px] font-700 text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
                       >
                         {stageOptions.map((stage) => (
@@ -642,6 +772,9 @@ export default function LoanApplicationContent() {
                     </td>
                     <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
                       {app.assignedAgent.split(' ')[0]}
+                    </td>
+                    <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                      {app.followUpDate || '-'}
                     </td>
                     <td className="px-3 py-3">
                       <span
@@ -740,7 +873,13 @@ export default function LoanApplicationContent() {
         {/* Detail panel */}
         {selectedApp && (
           <div className="w-80 shrink-0">
-            <ApplicationDetailPanel app={selectedApp} onClose={() => setSelectedApp(null)} />
+            <ApplicationDetailPanel
+              app={selectedApp}
+              onClose={() => setSelectedApp(null)}
+              onAddNote={addApplicationNote}
+              onUpdateFollowUp={updateApplicationFollowUp}
+              onUpdateStatus={updateApplicationStatus}
+            />
           </div>
         )}
       </div>

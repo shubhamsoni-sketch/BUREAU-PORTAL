@@ -599,6 +599,21 @@ Verification:
 
 - Migration file added. Existing DB already has the demo account; apply migration only where demo seed is needed.
 
+## 2026-06-25 - Developer - Harden File Process Workflow
+
+Summary:
+
+- Added persisted file status history, notes, follow-up date, rejection reason, and lender trail fields.
+- Added CRM backend actions for adding file notes, updating follow-up dates, and saving status movements with history.
+- Added File Process table follow-up visibility.
+- Added File Process detail activity tab with status history, notes, and lender trail.
+- Added detail-panel controls for follow-up date, quick notes, mark submitted, and reject with reason.
+
+Verification:
+
+- `npm run type-check -- --pretty false` passed.
+- `NEXT_PUBLIC_SUPABASE_URL="https://placeholder.supabase.co" NEXT_PUBLIC_SUPABASE_ANON_KEY="placeholder" SUPABASE_SERVICE_ROLE_KEY="placeholder" NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+
 ## 2026-06-24 - Developer - Open Lender Details From Button
 
 Summary:

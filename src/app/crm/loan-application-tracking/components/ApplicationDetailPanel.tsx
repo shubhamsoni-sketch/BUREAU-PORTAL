@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import StatusBadge from '@/crm/components/ui/StatusBadge';
 
@@ -20,11 +20,38 @@ interface LoanApplication {
   processingFee: number;
   roi: number;
   tenure: number;
+  followUpDate?: string;
+  rejectionReason?: string;
+  statusHistory?: {
+    status: string;
+    note: string;
+    changedAt: string;
+    changedBy: string;
+  }[];
+  notes?: {
+    id: string;
+    note: string;
+    createdAt: string;
+    createdBy: string;
+  }[];
+  lenderHistory?: {
+    lenderName: string;
+    status: string;
+    changedAt: string;
+    note: string;
+  }[];
 }
 
 interface Props {
   app: LoanApplication;
   onClose: () => void;
+  onAddNote: (applicationId: string, note: string) => Promise<void>;
+  onUpdateFollowUp: (applicationId: string, followUpDate: string) => Promise<void>;
+  onUpdateStatus: (
+    applicationId: string,
+    status: any,
+    options?: { note?: string; rejectionReason?: string }
+  ) => Promise<void>;
 }
 
 const formatINR = (n: number) => {
@@ -69,9 +96,24 @@ const LENDER_OFFERS = [
   },
 ];
 
-export default function ApplicationDetailPanel({ app, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'documents' | 'offers'>('overview');
+export default function ApplicationDetailPanel({
+  app,
+  onClose,
+  onAddNote,
+  onUpdateFollowUp,
+  onUpdateStatus,
+}: Props) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'documents' | 'offers'>(
+    'overview'
+  );
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const [followUpDate, setFollowUpDate] = useState(app.followUpDate || '');
+
+  useEffect(() => {
+    setFollowUpDate(app.followUpDate || '');
+    setNote('');
+  }, [app.id, app.followUpDate]);
 
   const handleUpload = async (docId: string) => {
     setUploadingDoc(docId);
@@ -79,6 +121,13 @@ export default function ApplicationDetailPanel({ app, onClose }: Props) {
     await new Promise((r) => setTimeout(r, 1200));
     setUploadingDoc(null);
     toast.success('Document uploaded — pending verification');
+  };
+
+  const submitNote = async () => {
+    const cleanNote = note.trim();
+    if (!cleanNote) return;
+    await onAddNote(app.id, cleanNote);
+    setNote('');
   };
 
   return (
@@ -109,7 +158,7 @@ export default function ApplicationDetailPanel({ app, onClose }: Props) {
 
       {/* Tabs */}
       <div className="flex border-b border-border shrink-0">
-        {(['overview', 'documents', 'offers'] as const).map((tab) => (
+        {(['overview', 'activity', 'documents', 'offers'] as const).map((tab) => (
           <button
             key={`dtab-${tab}`}
             onClick={() => setActiveTab(tab)}
@@ -140,6 +189,7 @@ export default function ApplicationDetailPanel({ app, onClose }: Props) {
               {[
                 { label: 'Loan Amount', value: formatINR(app.loanAmount) },
                 { label: 'Lender', value: app.lender },
+                { label: 'Follow-up', value: app.followUpDate || 'Not set' },
                 { label: 'ROI', value: app.roi > 0 ? `${app.roi}% p.a.` : '—' },
                 { label: 'Tenure', value: app.tenure > 0 ? `${app.tenure} months` : '—' },
                 {
@@ -160,6 +210,17 @@ export default function ApplicationDetailPanel({ app, onClose }: Props) {
                 </div>
               ))}
             </div>
+
+            {app.stage === 'rejected' && (
+              <div className="rounded-sm border border-danger/20 bg-danger/5 p-2.5">
+                <p className="text-[10px] font-600 uppercase tracking-wide text-danger mb-1">
+                  Rejection Reason
+                </p>
+                <p className="text-xs font-700 text-foreground">
+                  {app.rejectionReason || 'Reason not captured'}
+                </p>
+              </div>
+            )}
 
             <div className="bg-muted/30 rounded-sm p-2.5">
               <p className="text-[10px] font-600 uppercase tracking-wide text-muted-foreground mb-1">
@@ -227,13 +288,144 @@ export default function ApplicationDetailPanel({ app, onClose }: Props) {
               </div>
             </div>
 
-            <div className="flex gap-2 pt-1">
-              <button className="flex-1 h-8 rounded-sm bg-primary text-primary-foreground text-xs font-600 hover:bg-primary/90 active:scale-95 transition-all duration-150">
-                Update Stage
-              </button>
-              <button className="flex-1 h-8 rounded-sm border border-border text-xs font-600 text-foreground hover:bg-muted active:scale-95 transition-all duration-150">
+            <div className="space-y-2">
+              <p className="text-[10px] font-600 uppercase tracking-wide text-muted-foreground">
+                Follow-up Date
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={followUpDate}
+                  onChange={(event) => setFollowUpDate(event.target.value)}
+                  className="h-8 min-w-0 flex-1 rounded-sm border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+                <button
+                  onClick={() => onUpdateFollowUp(app.id, followUpDate)}
+                  className="h-8 rounded-sm bg-primary px-3 text-xs font-700 text-primary-foreground hover:bg-primary/90"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-[10px] font-600 uppercase tracking-wide text-muted-foreground">
+                Quick Note
+              </p>
+              <textarea
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                rows={3}
+                placeholder="Add file remark..."
+                className="w-full resize-none rounded-sm border border-input bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+              <button
+                onClick={submitNote}
+                className="h-8 w-full rounded-sm border border-border text-xs font-600 text-foreground hover:bg-muted active:scale-95 transition-all duration-150"
+              >
                 Add Note
               </button>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => onUpdateStatus(app.id, 'submitted', { note: 'File submitted' })}
+                className="flex-1 h-8 rounded-sm bg-primary text-primary-foreground text-xs font-600 hover:bg-primary/90 active:scale-95 transition-all duration-150"
+              >
+                Mark Submitted
+              </button>
+              <button
+                onClick={() => {
+                  const reason = window.prompt('Rejection reason?') || '';
+                  onUpdateStatus(app.id, 'rejected', { note: reason, rejectionReason: reason });
+                }}
+                className="flex-1 h-8 rounded-sm border border-danger/20 text-xs font-600 text-danger hover:bg-danger/5 active:scale-95 transition-all duration-150"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'activity' && (
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-700 text-foreground mb-2">Status History</p>
+              <div className="space-y-2">
+                {(app.statusHistory || []).length ? (
+                  (app.statusHistory || []).map((item, index) => (
+                    <div
+                      key={`${item.changedAt}-${index}`}
+                      className="rounded-sm border border-border bg-muted/30 p-2.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <StatusBadge
+                          variant={item.status as Parameters<typeof StatusBadge>[0]['variant']}
+                          size="sm"
+                        />
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(item.changedAt).toLocaleDateString('en-IN')}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-foreground">{item.note || '-'}</p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">{item.changedBy}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-sm border border-border bg-muted/30 p-2.5 text-xs text-muted-foreground">
+                    No status movement captured yet.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-700 text-foreground mb-2">Notes</p>
+              <div className="space-y-2">
+                {(app.notes || []).length ? (
+                  (app.notes || []).map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-sm border border-border bg-background p-2.5"
+                    >
+                      <p className="text-xs text-foreground">{item.note}</p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        {item.createdBy} · {new Date(item.createdAt).toLocaleDateString('en-IN')}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-sm border border-border bg-muted/30 p-2.5 text-xs text-muted-foreground">
+                    No notes added yet.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-700 text-foreground mb-2">Lender Trail</p>
+              <div className="space-y-2">
+                {(app.lenderHistory || []).length ? (
+                  (app.lenderHistory || []).map((item, index) => (
+                    <div
+                      key={`${item.lenderName}-${index}`}
+                      className="rounded-sm border border-border bg-muted/30 p-2.5"
+                    >
+                      <p className="text-xs font-700 text-foreground">{item.lenderName}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {item.note || item.status}
+                      </p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        {new Date(item.changedAt).toLocaleDateString('en-IN')}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-sm border border-border bg-muted/30 p-2.5 text-xs text-muted-foreground">
+                    No lender movement captured yet.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

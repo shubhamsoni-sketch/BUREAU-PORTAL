@@ -51,7 +51,28 @@ export type CrmApplication = {
     | 'sanctioned'
     | 'rejected'
     | 'disbursed';
+  statusHistory?: {
+    status: CrmApplication['status'];
+    note: string;
+    changedAt: string;
+    changedBy: string;
+  }[];
+  notes?: {
+    id: string;
+    note: string;
+    createdAt: string;
+    createdBy: string;
+  }[];
+  lenderHistory?: {
+    lenderName: string;
+    status: string;
+    changedAt: string;
+    note: string;
+  }[];
+  followUpDate?: string;
+  rejectionReason?: string;
   createdAt: string;
+  updatedAt?: string;
 };
 
 export const defaultCrmLeads: CrmLead[] = [
@@ -147,7 +168,76 @@ export function normalizeLeads(value: unknown): CrmLead[] {
 
 export function normalizeApplications(value: unknown): CrmApplication[] {
   if (!Array.isArray(value)) return [];
-  return value.filter((item): item is CrmApplication => Boolean(item && typeof item === 'object'));
+  return value
+    .filter((item): item is Partial<CrmApplication> => Boolean(item && typeof item === 'object'))
+    .map((application): CrmApplication => {
+      const now = new Date().toISOString();
+      const status = normalizeApplicationStatus(application.status);
+      return {
+        id: text(application.id) || `app-${Date.now()}`,
+        leadId: text(application.leadId),
+        customerName: text(application.customerName),
+        mobile: text(application.mobile),
+        lenderName: text(application.lenderName),
+        product: text(application.product || 'personal_loan'),
+        loanAmount: Number(application.loanAmount || 0),
+        status,
+        statusHistory: Array.isArray(application.statusHistory)
+          ? application.statusHistory.map((item) => ({
+              status: normalizeApplicationStatus(item?.status),
+              note: text(item?.note),
+              changedAt: text(item?.changedAt) || now,
+              changedBy: text(item?.changedBy || 'System'),
+            }))
+          : [],
+        notes: Array.isArray(application.notes)
+          ? application.notes.map((item) => ({
+              id: text(item?.id) || `note-${Date.now()}`,
+              note: text(item?.note),
+              createdAt: text(item?.createdAt) || now,
+              createdBy: text(item?.createdBy || 'System'),
+            }))
+          : [],
+        lenderHistory: Array.isArray(application.lenderHistory)
+          ? application.lenderHistory.map((item) => ({
+              lenderName: text(item?.lenderName),
+              status: text(item?.status),
+              changedAt: text(item?.changedAt) || now,
+              note: text(item?.note),
+            }))
+          : [],
+        followUpDate: text(application.followUpDate) || undefined,
+        rejectionReason: text(application.rejectionReason) || undefined,
+        createdAt: text(application.createdAt) || now,
+        updatedAt: text(application.updatedAt) || text(application.createdAt) || now,
+      };
+    })
+    .filter((application) => application.id && application.leadId && application.customerName);
+}
+
+export function normalizeApplicationStatus(value: unknown): CrmApplication['status'] {
+  const status = text(value);
+  if (
+    [
+      'case_sent_to_lender',
+      'login_pending',
+      'draft',
+      'submitted',
+      'under_review',
+      'credit_check',
+      'conditional_approval',
+      'final_approval',
+      'disbursal_initiated',
+      'sanctioned',
+      'rejected',
+      'disbursed',
+    ].includes(status)
+  ) {
+    return status as CrmApplication['status'];
+  }
+  if (status === 'logged_in') return 'submitted';
+  if (status === 'approved') return 'sanctioned';
+  return 'case_sent_to_lender';
 }
 
 export function normalizeLeadStage(value: unknown): CrmLeadStage {
