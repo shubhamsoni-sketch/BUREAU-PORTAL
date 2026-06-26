@@ -47,3 +47,4 @@ turbo/
 
 .vercel
 .env*
+supabase/.temp/
