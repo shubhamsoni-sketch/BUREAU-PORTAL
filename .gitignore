@@ -46,3 +46,4 @@ artifacts/
 turbo/
 
 .vercel
+.env*
