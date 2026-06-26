@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveCrmScope } from '@/lib/crm/scope';
 import { requireCrmPermission } from '@/lib/crm/access';
 import { CrmLender, defaultCrmLenders, normalizeLenders } from '@/lib/crm/lender-policy';
+import { getCrmTableData, upsertCrmLender } from '@/lib/crm/db';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -101,10 +102,12 @@ function normalizeIncomingLender(value: Record<string, unknown>, existing?: CrmL
 
 export async function GET(request: NextRequest) {
   try {
-    const { store, scope } = await getStore(request);
-    const access = requireCrmPermission(scope, store, 'lender_management');
+    const { supabase, store, scope } = await getStore(request);
+    const tableData = await getCrmTableData(supabase, scope);
+    const effectiveStore = tableData ? { ...store, ...tableData } : store;
+    const access = requireCrmPermission(scope, effectiveStore, 'lender_management');
     if (!access.ok) return jsonError(access.error, access.status);
-    return NextResponse.json({ success: true, data: normalizeLenders(store.lenders), scope });
+    return NextResponse.json({ success: true, data: normalizeLenders(effectiveStore.lenders), scope });
   } catch (error) {
     console.error('[crm:lenders] GET failed:', error);
     return jsonError(error instanceof Error ? error.message : 'Unable to load lenders', 500);
@@ -116,9 +119,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     if (!isObject(body)) return jsonError('Request body must be JSON');
     const { supabase, rowId, store, scope } = await getStore(request);
-    const access = requireCrmPermission(scope, store, 'lender_management');
+    const tableData = await getCrmTableData(supabase, scope);
+    const effectiveStore = tableData ? { ...store, ...tableData } : store;
+    const access = requireCrmPermission(scope, effectiveStore, 'lender_management');
     if (!access.ok) return jsonError(access.error, access.status);
-    const lenders = normalizeLenders(store.lenders);
+    const lenders = normalizeLenders(effectiveStore.lenders);
     const existing = lenders.find((item) => item.id === body.id);
     const lender = normalizeIncomingLender(body, existing);
 
@@ -132,6 +137,7 @@ export async function POST(request: NextRequest) {
       : [lender, ...lenders];
     const nextStore = { ...store, lenders: nextLenders };
     await saveStore(supabase, rowId, nextStore);
+    await upsertCrmLender(supabase, scope, lender);
     return NextResponse.json({ success: true, data: nextLenders, scope });
   } catch (error) {
     console.error('[crm:lenders] POST failed:', error);

@@ -14,6 +14,11 @@ import {
   normalizeTeam,
   rolePermissions,
 } from '@/lib/crm/team';
+import {
+  deleteCrmTeamMember,
+  getCrmTableData,
+  upsertCrmTeamMember,
+} from '@/lib/crm/db';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -233,12 +238,14 @@ function normalizeIncomingMember(
 
 export async function GET(request: NextRequest) {
   try {
-    const { store, scope } = await getStore(request);
-    const access = requireCrmPermission(scope, store, 'team_management');
+    const { supabase, store, scope } = await getStore(request);
+    const tableData = await getCrmTableData(supabase, scope);
+    const effectiveStore = tableData ? { ...store, ...tableData } : store;
+    const access = requireCrmPermission(scope, effectiveStore, 'team_management');
     if (!access.ok) return jsonError(access.error, access.status);
     return NextResponse.json({
       success: true,
-      data: normalizeTeam(store.team),
+      data: normalizeTeam(effectiveStore.team),
       rolePermissions,
       scope,
     });
@@ -254,9 +261,11 @@ export async function POST(request: NextRequest) {
     if (!isObject(body)) return jsonError('Request body must be JSON');
     const action = cleanString(body.action || 'save');
     const { supabase, rowId, store, scope } = await getStore(request);
-    const access = requireCrmPermission(scope, store, 'team_management');
+    const tableData = await getCrmTableData(supabase, scope);
+    const effectiveStore = tableData ? { ...store, ...tableData } : store;
+    const access = requireCrmPermission(scope, effectiveStore, 'team_management');
     if (!access.ok) return jsonError(access.error, access.status);
-    const team = normalizeTeam(store.team);
+    const team = normalizeTeam(effectiveStore.team);
 
     if (action === 'delete') {
       const id = cleanString(body.id);
@@ -266,6 +275,7 @@ export async function POST(request: NextRequest) {
       if (target.role === 'Admin') return jsonError('Admin member cannot be removed', 400);
       const nextTeam = team.filter((member) => member.id !== id);
       await saveStore(supabase, rowId, { ...store, team: nextTeam });
+      await deleteCrmTeamMember(supabase, scope, id);
       return NextResponse.json({ success: true, data: nextTeam, scope });
     }
 
@@ -279,6 +289,7 @@ export async function POST(request: NextRequest) {
         member.id === id ? provisioned.member : member
       );
       await saveStore(supabase, rowId, { ...store, team: nextTeam });
+      await upsertCrmTeamMember(supabase, scope, provisioned.member);
       return NextResponse.json({
         success: true,
         data: nextTeam,
@@ -300,6 +311,8 @@ export async function POST(request: NextRequest) {
         member.id === id ? { ...member, status, loginEnabled: status === 'active' } : member
       );
       await saveStore(supabase, rowId, { ...store, team: nextTeam });
+      const changed = nextTeam.find((member) => member.id === id);
+      if (changed) await upsertCrmTeamMember(supabase, scope, changed);
       return NextResponse.json({ success: true, data: nextTeam, scope });
     }
 
@@ -319,6 +332,7 @@ export async function POST(request: NextRequest) {
       ? team.map((item) => (item.id === provisioned.member.id ? provisioned.member : item))
       : [provisioned.member, ...team];
     await saveStore(supabase, rowId, { ...store, team: nextTeam });
+    await upsertCrmTeamMember(supabase, scope, provisioned.member);
     return NextResponse.json({
       success: true,
       data: nextTeam,

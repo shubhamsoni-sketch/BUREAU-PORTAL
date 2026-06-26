@@ -27,6 +27,15 @@ import {
   normalizeLeads,
 } from '@/lib/crm/leads';
 import { CrmPermissionKey, CrmTeamMember, defaultCrmTeam, normalizeTeam } from '@/lib/crm/team';
+import {
+  getCrmTableData,
+  insertCrmEligibilityReport,
+  logCrmAudit,
+  saveCrmApplicationDocuments,
+  upsertCrmApplication,
+  upsertCrmLead,
+  upsertCrmReminder,
+} from '@/lib/crm/db';
 
 type CrmEligibilityReport = {
   id: string;
@@ -495,9 +504,11 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createAdminClient();
     const { store, scope } = await getCrmStore(request, supabase);
-    const access = requireCrmPermission(scope, store, 'eligibility_check');
+    const tableData = await getCrmTableData(supabase, scope);
+    const effectiveStore = tableData ? { ...store, ...tableData } : store;
+    const access = requireCrmPermission(scope, effectiveStore, 'eligibility_check');
     if (!access.ok) return jsonError(access.error, access.status);
-    return NextResponse.json({ success: true, data: store, scope });
+    return NextResponse.json({ success: true, data: effectiveStore, scope });
   } catch (error) {
     console.error('[crm:eligibility-wallet] GET failed:', error);
     return jsonError(error instanceof Error ? error.message : 'Unable to load CRM wallet', 500);
@@ -514,7 +525,9 @@ export async function POST(request: NextRequest) {
     {
       const supabase = createAdminClient();
       const { store, scope } = await getCrmStore(request, supabase);
-      const access = requireCrmPermission(scope, store, permissionForAction(action));
+      const tableData = await getCrmTableData(supabase, scope);
+      const effectiveStore = tableData ? { ...store, ...tableData } : store;
+      const access = requireCrmPermission(scope, effectiveStore, permissionForAction(action));
       if (!access.ok) return jsonError(access.error, access.status);
     }
 
@@ -703,6 +716,12 @@ export async function POST(request: NextRequest) {
         (application) => !demoLeadIds.has(application.leadId)
       );
       await saveCrmStore(supabase, rowId, store);
+      await Promise.all([
+        ...demoLeads.map((lead) => upsertCrmLead(supabase, scope, lead)),
+        ...demoReports.map((report) =>
+          insertCrmEligibilityReport(supabase, scope, report, report.id.replace('rpt-', 'lead-'))
+        ),
+      ]);
       return NextResponse.json({ success: true, data: { leads: demoLeads, reports: demoReports } });
     }
 
@@ -713,7 +732,12 @@ export async function POST(request: NextRequest) {
       if (!lenderName) return jsonError('Lender is required', 400);
 
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(request, supabase);
+      const { rowId, store, scope } = await getCrmStore(request, supabase);
+      const tableData = await getCrmTableData(supabase, scope);
+      if (tableData) {
+        store.leads = tableData.leads;
+        store.applications = tableData.applications;
+      }
       const lead = store.leads.find((item) => item.id === leadId);
       if (!lead) return jsonError('Lead not found', 404);
 
@@ -766,6 +790,9 @@ export async function POST(request: NextRequest) {
           : item
       );
       await saveCrmStore(supabase, rowId, store);
+      await upsertCrmApplication(supabase, scope, application);
+      const changedLead = store.leads.find((item) => item.id === leadId);
+      if (changedLead) await upsertCrmLead(supabase, scope, changedLead);
       return NextResponse.json({ success: true, data: { application, leads: store.leads } });
     }
 
@@ -792,7 +819,9 @@ export async function POST(request: NextRequest) {
       if (!allowedStatuses.has(status)) return jsonError('Valid status is required', 400);
 
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(request, supabase);
+      const { rowId, store, scope } = await getCrmStore(request, supabase);
+      const tableData = await getCrmTableData(supabase, scope);
+      if (tableData) store.applications = tableData.applications;
       const existingApplication = (store.applications || []).find(
         (application) => application.id === applicationId
       );
@@ -825,6 +854,10 @@ export async function POST(request: NextRequest) {
           : application
       );
       await saveCrmStore(supabase, rowId, store);
+      const changedApplication = (store.applications || []).find(
+        (application) => application.id === applicationId
+      );
+      if (changedApplication) await upsertCrmApplication(supabase, scope, changedApplication);
       return NextResponse.json({ success: true, data: { applications: store.applications } });
     }
 
@@ -835,7 +868,9 @@ export async function POST(request: NextRequest) {
       if (!note) return jsonError('Note is required', 400);
 
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(request, supabase);
+      const { rowId, store, scope } = await getCrmStore(request, supabase);
+      const tableData = await getCrmTableData(supabase, scope);
+      if (tableData) store.applications = tableData.applications;
       const existingApplication = (store.applications || []).find(
         (application) => application.id === applicationId
       );
@@ -860,6 +895,10 @@ export async function POST(request: NextRequest) {
           : application
       );
       await saveCrmStore(supabase, rowId, store);
+      const changedApplication = (store.applications || []).find(
+        (application) => application.id === applicationId
+      );
+      if (changedApplication) await upsertCrmApplication(supabase, scope, changedApplication);
       return NextResponse.json({ success: true, data: { applications: store.applications } });
     }
 
@@ -875,7 +914,9 @@ export async function POST(request: NextRequest) {
       if (!allowedStatuses.has(status)) return jsonError('Valid document status is required', 400);
 
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(request, supabase);
+      const { rowId, store, scope } = await getCrmStore(request, supabase);
+      const tableData = await getCrmTableData(supabase, scope);
+      if (tableData) store.applications = tableData.applications;
       const existingApplication = (store.applications || []).find(
         (application) => application.id === applicationId
       );
@@ -916,6 +957,13 @@ export async function POST(request: NextRequest) {
         };
       });
       await saveCrmStore(supabase, rowId, store);
+      const changedApplication = (store.applications || []).find(
+        (application) => application.id === applicationId
+      );
+      if (changedApplication) {
+        await upsertCrmApplication(supabase, scope, changedApplication);
+        await saveCrmApplicationDocuments(supabase, scope, changedApplication);
+      }
       return NextResponse.json({ success: true, data: { applications: store.applications } });
     }
 
@@ -925,7 +973,9 @@ export async function POST(request: NextRequest) {
       if (!applicationId) return jsonError('Application is required', 400);
 
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(request, supabase);
+      const { rowId, store, scope } = await getCrmStore(request, supabase);
+      const tableData = await getCrmTableData(supabase, scope);
+      if (tableData) store.applications = tableData.applications;
       const existingApplication = (store.applications || []).find(
         (application) => application.id === applicationId
       );
@@ -953,6 +1003,19 @@ export async function POST(request: NextRequest) {
           : application
       );
       await saveCrmStore(supabase, rowId, store);
+      const changedApplication = (store.applications || []).find(
+        (application) => application.id === applicationId
+      );
+      if (changedApplication) {
+        await upsertCrmApplication(supabase, scope, changedApplication);
+        if (followUpDate) {
+          await upsertCrmReminder(supabase, scope, {
+            applicationId,
+            title: `Follow-up: ${changedApplication.customerName}`,
+            dueAt: followUpDate,
+          });
+        }
+      }
       return NextResponse.json({ success: true, data: { applications: store.applications } });
     }
 
@@ -977,7 +1040,15 @@ export async function POST(request: NextRequest) {
     if (!/^\d{10}$/.test(mobile)) return jsonError('Valid mobile is required', 400);
 
     const supabase = createAdminClient();
-    const { rowId: crmRowId, store: crmStore } = await getCrmStore(request, supabase);
+    const { rowId: crmRowId, store: crmStore, scope } = await getCrmStore(request, supabase);
+    const tableData = await getCrmTableData(supabase, scope);
+    if (tableData) {
+      crmStore.leads = tableData.leads;
+      crmStore.applications = tableData.applications;
+      crmStore.lenders = tableData.lenders;
+      crmStore.team = tableData.team;
+      crmStore.reports = tableData.reports as CrmEligibilityReport[];
+    }
     const creditCost = Math.max(1, Number(crmStore.eligibility_credits.per_check_cost || 1));
     if (crmStore.eligibility_credits.balance < creditCost)
       return jsonError('Insufficient eligibility credits', 402);
@@ -1148,6 +1219,19 @@ export async function POST(request: NextRequest) {
     crmStore.reports = [report, ...crmStore.reports].slice(0, 200);
     await saveCrmStore(supabase, crmRowId, crmStore);
     await saveApiHubStore(supabase, apiHubRowId, apiHubStore);
+    await insertCrmEligibilityReport(supabase, scope, report, leadId || undefined);
+    if (leadId) {
+      const changedLead = crmStore.leads.find((lead) => lead.id === leadId);
+      if (changedLead) await upsertCrmLead(supabase, scope, changedLead);
+    }
+    await logCrmAudit(supabase, scope, {
+      module: 'eligibility_check',
+      action: mode === 'mobile_advanced' ? 'mobile_eligibility_check' : 'full_eligibility_check',
+      entityType: 'eligibility_report',
+      entityId: report.id,
+      summary: `Eligibility check completed for ${borrowerName}`,
+      metadata: { requestId, score, status, leadId },
+    });
 
     return NextResponse.json({
       success: true,

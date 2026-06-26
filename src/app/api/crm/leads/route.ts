@@ -11,6 +11,7 @@ import {
 } from '@/lib/crm/leads';
 import { defaultCrmLenders, normalizeLenders } from '@/lib/crm/lender-policy';
 import { defaultCrmTeam, normalizeTeam } from '@/lib/crm/team';
+import { getCrmTableData, upsertCrmLead } from '@/lib/crm/db';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -127,10 +128,12 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const queue = searchParams.get('queue');
-    const { store, scope } = await getStore(request);
-    const access = requireCrmPermission(scope, store, 'lead_management');
+    const { supabase, store, scope } = await getStore(request);
+    const tableData = await getCrmTableData(supabase, scope);
+    const effectiveStore = tableData ? { ...store, ...tableData } : store;
+    const access = requireCrmPermission(scope, effectiveStore, 'lead_management');
     if (!access.ok) return jsonError(access.error, access.status);
-    const leads = normalizeLeads(store.leads);
+    const leads = normalizeLeads(effectiveStore.leads);
     const data =
       queue === 'eligibility'
         ? leads.filter((lead) => ['new', 'contacted', 'eligibility_pending'].includes(lead.stage))
@@ -138,8 +141,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data,
-      applications: store.applications || [],
-      team: store.team || defaultCrmTeam,
+      applications: effectiveStore.applications || [],
+      team: effectiveStore.team || defaultCrmTeam,
       scope,
     });
   } catch (error) {
@@ -168,6 +171,7 @@ export async function POST(request: NextRequest) {
       : [lead, ...leads];
     const nextStore = { ...store, leads: nextLeads };
     await saveStore(supabase, rowId, nextStore);
+    await upsertCrmLead(supabase, scope, lead);
     return NextResponse.json({ success: true, data: nextLeads, lead, scope });
   } catch (error) {
     console.error('[crm:leads] POST failed:', error);

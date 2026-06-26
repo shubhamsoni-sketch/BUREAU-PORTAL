@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import AppLogo from '@/crm/components/ui/AppLogo';
+import { createClient } from '@/lib/supabase/client';
 
 type LoginForm = { email: string; password: string; remember: boolean };
 type SignUpForm = {
@@ -14,12 +15,6 @@ type SignUpForm = {
   role: string;
   agreeTerms: boolean;
 };
-
-const demoCredentials = [
-  { role: 'Admin', name: 'Rajesh Kumar', avatar: 'RK', email: 'admin@credittrust.in', password: 'Admin@2026' },
-  { role: 'Manager', name: 'Sunita Rao', avatar: 'SR', email: 'manager@credittrust.in', password: 'Manager@2026' },
-  { role: 'DSA Agent', name: 'Priya Sharma', avatar: 'PS', email: 'agent@credittrust.in', password: 'Agent@2026' },
-];
 
 export default function SignUpLoginContent() {
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
@@ -43,28 +38,38 @@ export default function SignUpLoginContent() {
   });
 
   const handleLogin = loginForm.handleSubmit(async (data) => {
-    const valid = demoCredentials.find(
-      (c) => c.email === data.email && c.password === data.password
-    );
-    if (!valid) {
+    setIsLoading(true);
+    const supabase = createClient();
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password,
+    });
+    setIsLoading(false);
+
+    if (error || !authData.user) {
       loginForm.setError('email', {
-        message: 'Invalid credentials — use the demo accounts below to sign in',
+        message: error?.message || 'Invalid email or password',
       });
       return;
     }
-    setIsLoading(true);
-    // BACKEND: POST /api/auth/login with { email, password }
-    await new Promise((r) => setTimeout(r, 1200));
-    setIsLoading(false);
+
+    const role = String(authData.user.app_metadata?.crm_role || authData.user.user_metadata?.crm_role || 'DSA Agent');
+    const name = String(authData.user.user_metadata?.full_name || authData.user.email || 'CreditTrust User');
     window.localStorage.setItem(
       'crm_current_user',
       JSON.stringify({
-        name: valid.name,
-        role: valid.role,
-        avatar: valid.avatar,
+        name,
+        role,
+        avatar: name
+          .split(' ')
+          .filter(Boolean)
+          .map((word) => word[0])
+          .join('')
+          .toUpperCase()
+          .slice(0, 2),
       })
     );
-    toast.success(`Welcome back! Signed in as ${valid.role}`);
+    toast.success(`Welcome back! Signed in as ${role}`);
     window.location.href = '/crm';
   });
 
@@ -80,12 +85,6 @@ export default function SignUpLoginContent() {
     toast.success('Account created! Please wait for admin approval.');
     setActiveTab('login');
   });
-
-  const autofillCredentials = (email: string, password: string) => {
-    loginForm.setValue('email', email);
-    loginForm.setValue('password', password);
-    setActiveTab('login');
-  };
 
   return (
     <div className="min-h-screen flex">
@@ -288,32 +287,6 @@ export default function SignUpLoginContent() {
                 )}
               </button>
 
-              {/* Demo credentials */}
-              <div className="mt-4 rounded-lg border border-border bg-muted/50 overflow-hidden">
-                <div className="px-3 py-2 border-b border-border bg-muted">
-                  <p className="text-xs font-600 text-muted-foreground uppercase tracking-wide">
-                    Demo Accounts — click to autofill
-                  </p>
-                </div>
-                <div className="divide-y divide-border">
-                  {demoCredentials.map((cred) => (
-                    <button
-                      key={`cred-${cred.role}`}
-                      type="button"
-                      onClick={() => autofillCredentials(cred.email, cred.password)}
-                      className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-muted transition-colors text-left group"
-                    >
-                      <div>
-                        <p className="text-xs font-700 text-foreground">{cred.role}</p>
-                        <p className="text-[11px] text-muted-foreground font-mono">{cred.email}</p>
-                      </div>
-                      <span className="text-[10px] text-primary font-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                        Use →
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </form>
           ) : (
             <form onSubmit={handleSignUp} className="space-y-4">
