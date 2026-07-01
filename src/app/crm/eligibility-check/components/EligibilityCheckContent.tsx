@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import EligibilityReportContent from '../../eligibility-report/components/EligibilityReportContent';
 import { crmFetch } from '@/lib/crm/api';
 
-type MainTab = 'queue' | 'reports';
+type MainTab = 'queue' | 'mobile' | 'full' | 'reports';
 type EligibilityMode = 'mobile_advanced' | 'full_details';
 type QueueTab = 'pending' | 'checked';
 type LoanType = 'home_loan' | 'personal_loan' | 'business_loan' | 'lap' | 'car_loan';
@@ -174,6 +174,7 @@ export default function EligibilityCheckContent() {
 
   const selectMode = (nextMode: EligibilityMode) => {
     setMode(nextMode);
+    setMainTab(nextMode === 'mobile_advanced' ? 'mobile' : 'full');
     setSelectedLead(null);
     setErrors({});
     setServerError('');
@@ -306,14 +307,20 @@ export default function EligibilityCheckContent() {
             Run customer eligibility checks and save bureau reports
           </p>
         </div>
-        <div className="flex items-center rounded-sm border border-border bg-muted p-0.5">
+        <div className="flex flex-wrap items-center rounded-sm border border-border bg-muted p-0.5">
           {[
             ['queue', 'Lead Queue'],
+            ['mobile', 'Mobile Check'],
+            ['full', 'Full Details Check'],
             ['reports', 'Eligibility Reports'],
           ].map(([tab, label]) => (
             <button
               key={tab}
-              onClick={() => setMainTab(tab as MainTab)}
+              onClick={() => {
+                setMainTab(tab as MainTab);
+                if (tab === 'mobile') selectMode('mobile_advanced');
+                if (tab === 'full') selectMode('full_details');
+              }}
               className={[
                 'h-8 px-3 rounded-sm text-xs font-700 transition-colors',
                 mainTab === tab
@@ -331,6 +338,7 @@ export default function EligibilityCheckContent() {
         <EligibilityReportContent embedded />
       ) : (
         <div className="space-y-5">
+          {mainTab === 'queue' && (
           <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 border-b border-border">
               <div>
@@ -510,53 +518,34 @@ export default function EligibilityCheckContent() {
               </div>
             </div>
           </div>
+          )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {[
-              {
-                id: 'mobile_advanced' as const,
-                title: 'Check Eligibility by Mobile',
-                desc: 'Enter mobile number and run a quick consent-based eligibility check.',
-              },
-              {
-                id: 'full_details' as const,
-                title: 'Check Eligibility with Full Details',
-                desc: 'Enter customer, income, and loan details for lender matching.',
-              },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => selectMode(item.id)}
-                className={[
-                  'text-left rounded-lg border p-4 transition-all shadow-card bg-card',
-                  mode === item.id
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-primary/40 hover:bg-muted/30',
-                ].join(' ')}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-sm font-700 text-foreground">{item.title}</h2>
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      {item.desc}
-                    </p>
-                  </div>
-                  <span
-                    className={[
-                      'w-4 h-4 rounded-full border shrink-0 mt-0.5',
-                      mode === item.id ? 'border-primary bg-primary' : 'border-border',
-                    ].join(' ')}
-                  />
-                </div>
-              </button>
-            ))}
-          </div>
-
+          {(mainTab === 'mobile' || mainTab === 'full') && (
           <div className="bg-card rounded-lg border border-border shadow-card p-5 space-y-5">
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-border">
+              <div>
+                <h2 className="text-base font-800 text-foreground">
+                  {mode === 'mobile_advanced'
+                    ? 'Check Eligibility by Mobile No.'
+                    : 'Check Eligibility with Full Details'}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {mode === 'mobile_advanced'
+                    ? 'Use this when the DSA has only customer mobile number and consent.'
+                    : 'Use this when full customer and loan details are available.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setMainTab('queue')}
+                className="h-8 px-3 rounded-sm border border-border bg-background text-xs font-700 text-foreground hover:bg-muted"
+              >
+                Back to Queue
+              </button>
+            </div>
             {mode === 'mobile_advanced' ? (
               <div>
                 <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
-                  Quick Eligibility Check
+                  Mobile Check
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -738,7 +727,7 @@ export default function EligibilityCheckContent() {
                   Selected lead: {selectedLead.name} · {selectedLead.mobile}
                 </div>
               )}
-              {serverError && (
+                {serverError && (
                 <div className="bg-danger/5 border border-danger/20 rounded-sm p-3 mb-4 text-xs font-600 text-danger">
                   {serverError}
                 </div>
@@ -771,6 +760,7 @@ export default function EligibilityCheckContent() {
               </button>
             </div>
           </div>
+          )}
           {result && (
             <ResultPanel
               result={result}
