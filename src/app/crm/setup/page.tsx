@@ -67,6 +67,11 @@ type Commercials = {
 
 type CrmContext = {
   partner: Partner;
+  scope?: {
+    partnerId: string | null;
+    userId: string | null;
+    isDemo: boolean;
+  };
   wallet: {
     balance: number;
     adminBalance: number;
@@ -111,6 +116,11 @@ export default function CrmSetupPage() {
   const [context, setContext] = useState<CrmContext | null>(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditNote, setCreditNote] = useState('');
+  const [creditError, setCreditError] = useState('');
+  const [creditSubmitting, setCreditSubmitting] = useState(false);
+  const [creditSuccess, setCreditSuccess] = useState(false);
 
   const loadContext = async () => {
     setLoading(true);
@@ -132,6 +142,9 @@ export default function CrmSetupPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'wallet') {
+      setActiveTab('wallet');
+    }
     loadContext();
   }, []);
 
@@ -147,6 +160,47 @@ export default function CrmSetupPage() {
     commercials?.credit_rate ??
     commercials?.commercial_credit_rate ??
     null;
+
+  const submitCreditRequest = async () => {
+    setCreditError('');
+    const amount = Number(creditAmount);
+    if (!creditAmount || Number.isNaN(amount) || amount < 10000) {
+      setCreditError('Minimum credit request amount is ₹10,000');
+      return;
+    }
+    if (!context?.scope?.userId && !context?.scope?.partnerId) {
+      setCreditError('Partner account is not linked yet');
+      return;
+    }
+
+    setCreditSubmitting(true);
+    try {
+      const response = await crmFetch('/api/request-credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: context.scope?.userId,
+          partner_id: context.scope?.partnerId || partner?.id,
+          amount,
+          note: creditNote,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        setCreditError(json.error || 'Failed to submit request');
+        return;
+      }
+      setCreditSuccess(true);
+      setCreditAmount('');
+      setCreditNote('');
+      setTimeout(() => setCreditSuccess(false), 5000);
+      await loadContext();
+    } catch {
+      setCreditError('Network error. Please try again.');
+    } finally {
+      setCreditSubmitting(false);
+    }
+  };
 
   return (
     <AppLayout>
@@ -264,6 +318,72 @@ export default function CrmSetupPage() {
                       <p className={`text-xl font-800 mt-1 ${color}`}>{value}</p>
                     </div>
                   ))}
+                </div>
+
+                <div className="rounded-lg border border-border bg-background overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border flex flex-col lg:flex-row lg:items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-sm font-800 text-foreground">Request Eligibility Credits</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Request goes to CreditTrust admin. Admin approves, raises invoice, marks payment, then credits are added.
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-success/10 px-2 py-1 text-[10px] font-800 text-success">
+                      Existing Admin Flow
+                    </span>
+                  </div>
+                  <div className="p-5">
+                    {creditSuccess ? (
+                      <div className="rounded-sm border border-success/30 bg-success/10 px-4 py-3 text-sm font-700 text-success">
+                        Credit request submitted. Admin will process approval and invoice.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)_auto] gap-3 items-start">
+                        <div>
+                          <label className="block text-[10px] font-700 uppercase tracking-wide text-muted-foreground mb-1.5">
+                            Amount
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-800 text-muted-foreground">
+                              ₹
+                            </span>
+                            <input
+                              type="number"
+                              min={10000}
+                              step={1000}
+                              value={creditAmount}
+                              onChange={(event) => {
+                                setCreditAmount(event.target.value);
+                                setCreditError('');
+                              }}
+                              placeholder="10000"
+                              className="h-10 w-full rounded-sm border border-border bg-card pl-7 pr-3 text-sm font-700 text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                            />
+                          </div>
+                          <p className="mt-1 text-[10px] font-600 text-muted-foreground">Minimum ₹10,000</p>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-700 uppercase tracking-wide text-muted-foreground mb-1.5">
+                            Note
+                          </label>
+                          <input
+                            value={creditNote}
+                            onChange={(event) => setCreditNote(event.target.value)}
+                            placeholder="Optional note for admin"
+                            className="h-10 w-full rounded-sm border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          />
+                          {creditError && <p className="mt-1 text-[10px] font-700 text-danger">{creditError}</p>}
+                        </div>
+                        <button
+                          onClick={submitCreditRequest}
+                          disabled={creditSubmitting}
+                          className="h-10 rounded-sm bg-primary px-4 text-xs font-800 text-primary-foreground hover:bg-primary/90 disabled:opacity-60 lg:mt-5"
+                        >
+                          {creditSubmitting ? 'Submitting...' : 'Submit Request'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="rounded-lg border border-border bg-background overflow-hidden">
