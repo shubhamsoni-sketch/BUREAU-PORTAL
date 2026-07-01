@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AUTH_STORAGE_KEY, createClient, resetClient } from '@/lib/supabase/client';
+import { getPartnerLandingPath, normalizePartnerProductAccess, type PartnerProductAccess } from '@/lib/partner-access';
 import type { User } from '@supabase/supabase-js';
 
 export type UserRole = 'admin' | 'partner';
@@ -13,6 +14,7 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   partnerCode?: string;
+  productAccess?: PartnerProductAccess;
   isTempPassword?: boolean;
 }
 
@@ -71,14 +73,16 @@ async function resolveAuthUser(supabaseUser: User): Promise<AuthUser | null> {
     }
 
     let partnerCode: string | undefined;
+    let productAccess: PartnerProductAccess | undefined;
     if (role === 'partner') {
       const { data: partner, error: partnerError } = await supabase
         .from('partners')
-        .select('partner_code')
+        .select('partner_code, product_access')
         .eq('user_id', supabaseUser.id)
         .maybeSingle();
       console.log('[AuthContext] partners fetch:', { partner, error: partnerError });
       partnerCode = partner?.partner_code ?? undefined;
+      productAccess = normalizePartnerProductAccess(partner?.product_access);
     }
 
     const resolved: AuthUser = {
@@ -87,6 +91,7 @@ async function resolveAuthUser(supabaseUser: User): Promise<AuthUser | null> {
       email,
       role,
       partnerCode,
+      productAccess,
       isTempPassword: profile?.is_temp_password ??
         ((supabaseUser.app_metadata?.is_temp_password === true) || false),
     };
@@ -96,6 +101,10 @@ async function resolveAuthUser(supabaseUser: User): Promise<AuthUser | null> {
     console.error('[AuthContext] resolveAuthUser threw:', err);
     return null;
   }
+}
+
+export function getPartnerRedirectPath(user: AuthUser | null): string {
+  return user?.role === 'partner' ? getPartnerLandingPath(user.productAccess) : '/partner-login';
 }
 
 function withAuthTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {

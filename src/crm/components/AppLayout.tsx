@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import { CrmPermissionKey, rolePermissions } from '@/lib/crm/team';
 import { crmFetch } from '@/lib/crm/api';
+import PartnerProductGuard from '@/components/PartnerProductGuard';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -73,6 +74,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <PartnerProductGuard expected="dsa_crm" />
       {/* Mobile overlay */}
       {mobileSidebarOpen && (
         <div

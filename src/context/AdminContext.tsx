@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { normalizePartnerProductAccess, type PartnerProductAccess } from '@/lib/partner-access';
 
 export type PartnerStatus = 'Active' | 'Pending' | 'Suspended' | 'Terminated';
 
@@ -20,6 +21,7 @@ export interface Partner {
   joinedDate: string;
   lastActive: string;
   pricingPlan: string;
+  productAccess: PartnerProductAccess;
   generatedPassword?: string;
 }
 
@@ -93,6 +95,7 @@ interface AdminContextType {
   refreshPartners: () => Promise<void>;
   updatePartnerStatus: (id: string, status: PartnerStatus) => void;
   updatePartnerPricing: (id: string, plan: string) => void;
+  updatePartnerProductAccess: (id: string, access: PartnerProductAccess) => void;
   adjustWallet: (partnerId: string, amount: number, type: 'Credit' | 'Debit', description: string) => Promise<void>;
   walletTransactions: WalletTransaction[];
   payments: PaymentRecord[];
@@ -202,6 +205,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             : '—',
           lastActive: '—',
           pricingPlan: row.pricing_plan ?? 'Basic',
+          productAccess: normalizePartnerProductAccess(row.product_access),
         }));
         setPartners(mapped);
       } else {
@@ -239,6 +243,18 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ partner_id: id, pricing_plan: plan }),
     }).catch((err) => console.error('[AdminContext] updatePartnerPricing persist error:', err));
   }, []);
+
+  const updatePartnerProductAccess = useCallback((id: string, access: PartnerProductAccess) => {
+    setPartners((prev) => prev.map((p) => p.id === id ? { ...p, productAccess: access } : p));
+    fetch('/api/update-partner-product-access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ partner_id: id, product_access: access }),
+    }).catch((err) => {
+      console.error('[AdminContext] updatePartnerProductAccess persist error:', err);
+      loadPartners();
+    });
+  }, [loadPartners]);
 
   const adjustWallet = useCallback(async (partnerId: string, amount: number, type: 'Credit' | 'Debit', description: string) => {
     const supabase = createClient();
@@ -319,7 +335,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   return (
     <AdminContext.Provider value={{
       partners, partnersLoading, refreshPartners: loadPartners,
-      updatePartnerStatus, updatePartnerPricing,
+      updatePartnerStatus, updatePartnerPricing, updatePartnerProductAccess,
       adjustWallet, walletTransactions, payments,
       agreements, addAgreement, updateAgreementStatus,
       auditLogs, addAuditLog,

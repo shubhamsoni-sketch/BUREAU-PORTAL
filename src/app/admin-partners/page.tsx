@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { useAdmin, Partner, PartnerStatus } from '@/context/AdminContext';
 import { createClient } from '@/lib/supabase/client';
+import { PARTNER_PRODUCT_ACCESS_LABELS, type PartnerProductAccess } from '@/lib/partner-access';
 
 import { Search, CheckCircle, XCircle, Ban, RotateCcw, ChevronDown, X, Edit2, Wallet, UserPlus, Mail, Copy, Eye, EyeOff, Phone, Settings2 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -45,7 +46,7 @@ interface PartnerRequest {
 }
 
 export default function AdminPartnersPage() {
-  const { partners, updatePartnerStatus, updatePartnerPricing, addPartner } = useAdmin();
+  const { partners, updatePartnerStatus, updatePartnerPricing, updatePartnerProductAccess, addPartner } = useAdmin();
   const supabase = createClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<PartnerStatus | 'All'>('All');
@@ -76,6 +77,7 @@ export default function AdminPartnersPage() {
     businessType: '',
     serviceType: '',
     pricingPlan: 'Basic',
+    productAccess: 'bureau_portal' as PartnerProductAccess,
   });
   const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
   const [addFormSubmitting, setAddFormSubmitting] = useState(false);
@@ -129,6 +131,14 @@ export default function AdminPartnersPage() {
     setPricingEdit(null);
   };
 
+  const handleProductAccessChange = (partner: Partner, access: PartnerProductAccess) => {
+    updatePartnerProductAccess(partner.id, access);
+    showToast(`${partner.fullName} access set to ${PARTNER_PRODUCT_ACCESS_LABELS[access]}`);
+    if (selectedPartner?.id === partner.id) {
+      setSelectedPartner({ ...partner, productAccess: access });
+    }
+  };
+
   const handleApproveRequest = async (req: PartnerRequest) => {
     try {
       // Use internal admin secret header — avoids cookie/session issues in iframe environments
@@ -166,6 +176,7 @@ export default function AdminPartnersPage() {
           joinedDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
           lastActive: '—',
           pricingPlan: 'Basic',
+          productAccess: 'bureau_portal',
         });
         showToast(`${req.name} approved successfully`);
       } else if (res.status === 409) {
@@ -238,7 +249,7 @@ export default function AdminPartnersPage() {
       if (res.ok && result.success && result.partnerCode && result.email && result.password && result.name) {
         setAddPartnerResult({ name: result.name, email: result.email, partnerCode: result.partnerCode, password: result.password });
         setShowAddPartnerModal(false);
-        setAddForm({ companyName: '', authorisedPersonName: '', contactNumber: '', email: '', address: '', state: '', pinCode: '', gst: '', businessType: '', serviceType: '', pricingPlan: 'Basic' });
+        setAddForm({ companyName: '', authorisedPersonName: '', contactNumber: '', email: '', address: '', state: '', pinCode: '', gst: '', businessType: '', serviceType: '', pricingPlan: 'Basic', productAccess: 'bureau_portal' });
         // Add the manually added partner to the All Partners list immediately
         addPartner({
           id: `partner-${Date.now()}`,
@@ -255,6 +266,7 @@ export default function AdminPartnersPage() {
           joinedDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
           lastActive: '—',
           pricingPlan: addForm.pricingPlan || 'Basic',
+          productAccess: addForm.productAccess,
         });
       } else {
         showToast(result.error || 'Failed to create partner');
@@ -367,6 +379,7 @@ export default function AdminPartnersPage() {
                         <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                         <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Wallet</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Pricing</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Product Access</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Joined</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
                       </tr>
@@ -411,6 +424,16 @@ export default function AdminPartnersPage() {
                                 </button>
                               </div>
                             )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={partner.productAccess}
+                              onChange={(e) => handleProductAccessChange(partner, e.target.value as PartnerProductAccess)}
+                              className="min-w-[148px] text-xs font-medium border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            >
+                              <option value="bureau_portal">Bureau Portal</option>
+                              <option value="dsa_crm">DSA CRM</option>
+                            </select>
                           </td>
                           <td className="px-4 py-3 text-xs text-slate-500">{partner.joinedDate}</td>
                           <td className="px-4 py-3">
@@ -837,6 +860,19 @@ export default function AdminPartnersPage() {
                     >
                       {PRICING_PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
                     </select>
+                  </div>
+                  {/* Product Access */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Product Access</label>
+                    <select
+                      value={addForm.productAccess}
+                      onChange={(e) => setAddForm((p) => ({ ...p, productAccess: e.target.value as PartnerProductAccess }))}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                    >
+                      <option value="bureau_portal">Bureau Portal</option>
+                      <option value="dsa_crm">DSA CRM</option>
+                    </select>
+                    <p className="mt-1 text-xs text-slate-400">Partner login will open this product directly.</p>
                   </div>
                 </div>
                 {/* Address - full width */}

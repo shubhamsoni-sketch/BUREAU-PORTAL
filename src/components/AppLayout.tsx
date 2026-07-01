@@ -1,5 +1,6 @@
 import React from 'react';
 import Sidebar from './Sidebar';
+import PartnerProductGuard from './PartnerProductGuard';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -9,6 +10,7 @@ type AppLayoutProps = {
 export default function AppLayout({ children, role }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
+      {role === 'partner' ? <PartnerProductGuard expected="bureau_portal" /> : null}
       <Sidebar role={role} />
       {/* Main content — offset by sidebar width on desktop */}
       <main

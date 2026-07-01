@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { normalizePartnerProductAccess } from '@/lib/partner-access';
 
 function generatePassword(): string {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$';
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
       businessType,
       serviceType,
       pricingPlan,
+      productAccess,
       // Legacy fields (kept for backward compatibility)
       fullName: legacyFullName,
       email,
@@ -161,6 +163,7 @@ export async function POST(request: NextRequest) {
       partner_code: partnerCode,
       status: 'approved',
       pricing_plan: pricingPlan || 'Basic',
+      product_access: normalizePartnerProductAccess(productAccess),
       wallet_balance: 0,
       reports_pulled: 0,
     });

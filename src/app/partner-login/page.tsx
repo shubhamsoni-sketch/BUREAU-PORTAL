@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
+import { getPartnerRedirectPath, useAuth } from '@/context/AuthContext';
 import AppLogo from '@/components/ui/AppLogo';
 import { Eye, EyeOff, LogIn, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
@@ -21,7 +21,7 @@ export default function PartnerLoginPage() {
     if (isLoading) return;
     if (!user) return;
     if (user.role === 'partner') {
-      router.replace('/partner-dashboard');
+      router.replace(getPartnerRedirectPath(user));
       return;
     }
 
@@ -63,7 +63,7 @@ export default function PartnerLoginPage() {
         return;
       }
       setSubmitting(false);
-      router.replace('/partner-dashboard');
+      router.replace(getPartnerRedirectPath(result.user ?? null));
       router.refresh();
     } catch {
       setError('Login failed. Please try again.');

@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
       .from('partners')
-      .select('id, partner_code, name, email, mobile, city, status, wallet_balance, reports_pulled, pricing_plan')
+      .select('id, partner_code, name, email, mobile, city, status, wallet_balance, reports_pulled, pricing_plan, product_access, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
