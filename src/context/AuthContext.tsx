@@ -82,7 +82,9 @@ async function resolveAuthUser(supabaseUser: User): Promise<AuthUser | null> {
         .maybeSingle();
       console.log('[AuthContext] partners fetch:', { partner, error: partnerError });
       partnerCode = partner?.partner_code ?? undefined;
-      productAccess = normalizePartnerProductAccess(partner?.product_access);
+      productAccess = partner?.product_access
+        ? normalizePartnerProductAccess(partner.product_access)
+        : undefined;
     }
 
     const resolved: AuthUser = {
