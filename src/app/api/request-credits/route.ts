@@ -10,10 +10,10 @@ const supabaseAdmin = createClient(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { user_id, amount, note } = body;
+    const { user_id, partner_id, amount, note } = body;
 
-    if (!user_id) {
-      return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
+    if (!user_id && !partner_id) {
+      return NextResponse.json({ error: 'user_id or partner_id is required' }, { status: 400 });
     }
 
     const requestedAmount = Number(amount);
@@ -21,12 +21,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Minimum credit request amount is ₹10,000' }, { status: 400 });
     }
 
-    // Get partner by user_id
-    const { data: partner, error: partnerError } = await supabaseAdmin
+    // Get partner by partner_id for CRM/team users, or by user_id for legacy partner portal users.
+    let partnerQuery = supabaseAdmin
       .from('partners')
-      .select('id, name, email')
-      .eq('user_id', user_id)
-      .maybeSingle();
+      .select('id, name, email, user_id');
+
+    partnerQuery = partner_id ? partnerQuery.eq('id', partner_id) : partnerQuery.eq('user_id', user_id);
+
+    const { data: partner, error: partnerError } = await partnerQuery.maybeSingle();
 
     if (partnerError || !partner) {
       return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
       .from('credit_requests')
       .insert({
         partner_id: partner.id,
-        user_id,
+        user_id: user_id || partner.user_id,
         amount: requestedAmount,
         note: note || '',
         status: 'pending',
