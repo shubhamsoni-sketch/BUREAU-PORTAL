@@ -277,10 +277,14 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
 
 function ClientsTable({
   clients,
+  selectedClientId,
+  onSelect,
   onManage,
   onCreateKey,
 }: {
   clients: Client[];
+  selectedClientId?: string;
+  onSelect?: (clientId: string) => void;
   onManage: (clientId: string) => void;
   onCreateKey: (clientId: string) => void;
 }) {
@@ -298,7 +302,11 @@ function ClientsTable({
         </thead>
         <tbody className="divide-y divide-border">
           {clients.map((client) => (
-            <tr key={client.id} className="bg-white">
+            <tr
+              key={client.id}
+              onClick={() => onSelect?.(client.id)}
+              className={classNames('cursor-pointer bg-white transition hover:bg-slate-50', selectedClientId === client.id && 'bg-blue-50/60')}
+            >
               <td className="px-4 py-4">
                 <p className="text-sm font-900 text-foreground">{client.name}</p>
                 <p className="text-xs font-600 text-muted-foreground">{client.country} - {client.contactEmail}</p>
@@ -328,9 +336,20 @@ function ClientsTable({
               <td className="px-4 py-4 text-sm font-900 text-foreground">{client.successRate}</td>
               <td className="px-4 py-4">
                 <div className="flex gap-2">
-                  <button onClick={() => onManage(client.id)} className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-900 text-foreground">Manage</button>
                   <button
-                    onClick={() => onCreateKey(client.id)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onManage(client.id);
+                    }}
+                    className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-900 text-foreground"
+                  >
+                    Manage
+                  </button>
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onCreateKey(client.id);
+                    }}
                     aria-label={`Generate key for ${client.name}`}
                     className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-900 text-white"
                   >
@@ -407,6 +426,134 @@ function ApiKeysPanel({ keys, clients }: { keys: ApiKeyRecord[]; clients: Client
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function ProductCatalog() {
+  const products = [
+    ['Bureau Standard', 'Full-detail payload', 'Client sends customer details and receives normalized bureau response.', 'Live-ready'],
+    ['Bureau Advanced', 'Mobile-first bureau', 'Client sends mobile and consent; prefill and bureau run behind CreditTrust.', 'Priority'],
+    ['Mobile Prefill', 'Profile enrichment', 'Independent mobile prefill product for profile and onboarding utility.', 'UAT'],
+  ];
+  return (
+    <Panel title="API Product Catalog" subtitle="Products can be enabled client-wise before issuing keys.">
+      <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-3">
+        {products.map(([name, label, text, status]) => (
+          <div key={name} className="rounded-lg border border-border bg-slate-50 p-4">
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-900 text-foreground">{name}</p>
+                <p className="text-xs font-800 text-muted-foreground">{label}</p>
+              </div>
+              <StatusPill tone={status === 'Priority' ? 'green' : status === 'UAT' ? 'blue' : 'slate'}>{status}</StatusPill>
+            </div>
+            <p className="text-xs font-700 leading-5 text-muted-foreground">{text}</p>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function ClientDetailPanel({
+  client,
+  keys,
+  logs,
+  onManage,
+  onCreateKey,
+}: {
+  client?: Client;
+  keys: ApiKeyRecord[];
+  logs: UsageLog[];
+  onManage: (clientId: string) => void;
+  onCreateKey: (clientId: string) => void;
+}) {
+  if (!client) {
+    return (
+      <div className="rounded-lg border border-dashed border-border bg-card p-6 text-center shadow-sm">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+          <Globe2 size={20} />
+        </div>
+        <p className="text-sm font-900 text-foreground">Select a client</p>
+        <p className="mt-1 text-xs font-700 text-muted-foreground">Client setup, keys, credits, and IP policy will appear here.</p>
+      </div>
+    );
+  }
+
+  const clientKeys = keys.filter((key) => key.clientId === client.id);
+  const clientLogs = logs.filter((log) => log.clientId === client.id);
+  const readiness = [
+    ['Profile', Boolean(client.name && client.contactEmail)],
+    ['API access', client.apis.length > 0],
+    ['UAT key', clientKeys.some((key) => key.environment === 'UAT')],
+    ['Production key', client.status !== 'Production' || clientKeys.some((key) => key.environment === 'Production')],
+    ['IP policy', !client.ipWhitelistingRequired || client.ips.length > 0],
+    ['Credits', client.uatCredits + client.liveCredits > 0],
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-lg font-900 text-foreground">{client.name}</p>
+            <p className="text-xs font-700 text-muted-foreground">{client.country} - {client.contactEmail}</p>
+          </div>
+          <StatusPill tone={client.status === 'Production' ? 'green' : client.status === 'UAT' ? 'blue' : client.status === 'Suspended' ? 'red' : 'amber'}>{client.status}</StatusPill>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="rounded-lg border border-border bg-slate-50 p-3">
+            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">UAT Credits</p>
+            <p className="mt-1 text-xl font-900 text-foreground">{client.uatCredits}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50 p-3">
+            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Live Credits</p>
+            <p className="mt-1 text-xl font-900 text-foreground">{client.liveCredits}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {client.apis.map((api) => <StatusPill key={api} tone="slate">{api}</StatusPill>)}
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button onClick={() => onManage(client.id)} className="h-9 rounded-lg border border-border bg-white text-xs font-900 text-foreground">Manage Setup</button>
+          <button onClick={() => onCreateKey(client.id)} className="h-9 rounded-lg bg-blue-600 text-xs font-900 text-white">Generate Key</button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <h3 className="text-sm font-900 text-foreground">Onboarding Readiness</h3>
+        <div className="mt-3 space-y-2">
+          {readiness.map(([label, ok]) => (
+            <div key={String(label)} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+              <span className="text-xs font-800 text-foreground">{label}</span>
+              <StatusPill tone={ok ? 'green' : 'amber'}>{ok ? 'Done' : 'Pending'}</StatusPill>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <h3 className="text-sm font-900 text-foreground">Security & Activity</h3>
+        <div className="mt-3 space-y-3">
+          <div>
+            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">IP Whitelist</p>
+            <p className="mt-1 text-xs font-800 text-foreground">{client.ipWhitelistingRequired ? 'Required' : 'Optional'}</p>
+            <p className="mt-1 text-xs font-700 text-muted-foreground">{client.ips.length ? client.ips.join(', ') : 'No IPs added'}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Keys</p>
+            <p className="mt-1 text-xs font-800 text-foreground">{clientKeys.length} active/demo keys</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Recent Requests</p>
+            <p className="mt-1 text-xs font-800 text-foreground">{clientLogs.length} tracked requests</p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -716,19 +863,24 @@ function OverviewSection({
   clients,
   keys,
   logs,
+  selectedClientId,
   onNewClient,
   onCreateKey,
   onManage,
+  onSelectClient,
 }: {
   clients: Client[];
   keys: ApiKeyRecord[];
   logs: UsageLog[];
+  selectedClientId?: string;
   onNewClient: () => void;
   onCreateKey: (clientId?: string) => void;
   onManage: (clientId: string) => void;
+  onSelectClient: (clientId: string) => void;
 }) {
   const activeClients = clients.filter((client) => client.status !== 'Review' && client.status !== 'Suspended').length;
   const liveCredits = clients.reduce((sum, client) => sum + client.liveCredits, 0);
+  const selectedClient = clients.find((client) => client.id === selectedClientId) || clients[0];
   return (
     <>
       <section className="mb-5 rounded-lg border border-border bg-card shadow-sm">
@@ -768,14 +920,18 @@ function OverviewSection({
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.75fr]">
+      <div className="mb-5">
+        <ProductCatalog />
+      </div>
+
+      <section className="grid grid-cols-1 gap-5 2xl:grid-cols-[1.35fr_420px]">
         <div className="space-y-5">
           <Panel
             title="Enterprise Clients"
             subtitle="Each client has separate keys, credits, API access, and IP policy."
             action={<button onClick={onNewClient} className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-900 text-white"><Plus size={15} />New Client</button>}
           >
-            <ClientsTable clients={clients} onManage={onManage} onCreateKey={onCreateKey} />
+            <ClientsTable clients={clients} selectedClientId={selectedClient?.id} onSelect={onSelectClient} onManage={onManage} onCreateKey={onCreateKey} />
           </Panel>
 
           <Panel title="Request Logs" subtitle="Every hit stores environment, IP, credit, vendor request id, and response timing.">
@@ -784,7 +940,7 @@ function OverviewSection({
         </div>
 
         <div className="space-y-5">
-          <ApiKeysPanel keys={keys} clients={clients} />
+          <ClientDetailPanel client={selectedClient} keys={keys} logs={logs} onManage={onManage} onCreateKey={onCreateKey} />
           <NormalizedResponsePanel />
         </div>
       </section>
@@ -797,9 +953,11 @@ function ActiveSection({
   clients,
   keys,
   logs,
+  selectedClientId,
   onNewClient,
   onCreateKey,
   onManage,
+  onSelectClient,
   onRemoveIp,
   onAddIp,
   onUpdateClient,
@@ -809,25 +967,44 @@ function ActiveSection({
   clients: Client[];
   keys: ApiKeyRecord[];
   logs: UsageLog[];
+  selectedClientId?: string;
   onNewClient: () => void;
   onCreateKey: (clientId?: string) => void;
   onManage: (clientId: string) => void;
+  onSelectClient: (clientId: string) => void;
   onRemoveIp: (clientId: string, ip: string) => void;
   onAddIp: (clientId: string, ip: string) => void;
   onUpdateClient: (client: Client) => void;
   onAddCredits: (clientId: string, environment: Environment, credits: number) => void;
 }) {
-  if (activeNav === 'Overview') return <OverviewSection clients={clients} keys={keys} logs={logs} onNewClient={onNewClient} onCreateKey={onCreateKey} onManage={onManage} />;
+  if (activeNav === 'Overview') {
+    return (
+      <OverviewSection
+        clients={clients}
+        keys={keys}
+        logs={logs}
+        selectedClientId={selectedClientId}
+        onNewClient={onNewClient}
+        onCreateKey={onCreateKey}
+        onManage={onManage}
+        onSelectClient={onSelectClient}
+      />
+    );
+  }
 
   if (activeNav === 'Clients') {
+    const selectedClient = clients.find((client) => client.id === selectedClientId) || clients[0];
     return (
-      <Panel
-        title="Client Management"
-        subtitle="Create enterprise clients, assign API access, configure IP policy, and manage per-client keys."
-        action={<button onClick={onNewClient} className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-900 text-white"><Plus size={15} />New Client</button>}
-      >
-        <ClientsTable clients={clients} onManage={onManage} onCreateKey={onCreateKey} />
-      </Panel>
+      <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[1fr_420px]">
+        <Panel
+          title="Client Management"
+          subtitle="Create enterprise clients, assign API access, configure IP policy, and manage per-client keys."
+          action={<button onClick={onNewClient} className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-900 text-white"><Plus size={15} />New Client</button>}
+        >
+          <ClientsTable clients={clients} selectedClientId={selectedClient?.id} onSelect={onSelectClient} onManage={onManage} onCreateKey={onCreateKey} />
+        </Panel>
+        <ClientDetailPanel client={selectedClient} keys={keys} logs={logs} onManage={onManage} onCreateKey={onCreateKey} />
+      </div>
     );
   }
 
@@ -963,23 +1140,26 @@ function ActiveSection({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-      <Panel title="API Documentation" subtitle="Client-facing docs expose CreditTrust endpoints, headers, payload, and normalized response only.">
-        <div className="divide-y divide-border">
-          {[
-            ['Bureau API Standard', 'POST /api/v1/bureau', 'Full customer details to bureau response.'],
-            ['Bureau API Advanced', 'POST /api/v1/bureau-advanced', 'Mobile number and consent to bureau response.'],
-            ['Mobile Prefill API', 'POST /api/v1/mobile-prefill', 'Mobile number to normalized profile data.'],
-          ].map(([title, endpoint, text]) => (
-            <div key={title} className="p-4">
-              <p className="text-sm font-900 text-foreground">{title}</p>
-              <p className="mt-1 rounded-lg bg-slate-950 px-3 py-2 text-xs font-800 text-white">{endpoint}</p>
-              <p className="mt-2 text-xs font-700 text-muted-foreground">{text}</p>
-            </div>
-          ))}
-        </div>
-      </Panel>
-      <NormalizedResponsePanel />
+    <div className="space-y-5">
+      <ProductCatalog />
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+        <Panel title="API Documentation" subtitle="Client-facing docs expose CreditTrust endpoints, headers, payload, and normalized response only.">
+          <div className="divide-y divide-border">
+            {[
+              ['Bureau API Standard', 'POST /api/v1/bureau', 'Full customer details to bureau response.'],
+              ['Bureau API Advanced', 'POST /api/v1/bureau-advanced', 'Mobile number and consent to bureau response.'],
+              ['Mobile Prefill API', 'POST /api/v1/mobile-prefill', 'Mobile number to normalized profile data.'],
+            ].map(([title, endpoint, text]) => (
+              <div key={title} className="p-4">
+                <p className="text-sm font-900 text-foreground">{title}</p>
+                <p className="mt-1 rounded-lg bg-slate-950 px-3 py-2 text-xs font-800 text-white">{endpoint}</p>
+                <p className="mt-2 text-xs font-700 text-muted-foreground">{text}</p>
+              </div>
+            ))}
+          </div>
+        </Panel>
+        <NormalizedResponsePanel />
+      </div>
     </div>
   );
 }
@@ -992,12 +1172,14 @@ export default function ApiConsolePage() {
   const [clientModalOpen, setClientModalOpen] = useState(false);
   const [keyModalClientId, setKeyModalClientId] = useState<string | undefined>();
   const [managedClientId, setManagedClientId] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState(initialClients[0]?.id);
   const [latestSecret, setLatestSecret] = useState('');
 
   const managedClient = clients.find((client) => client.id === managedClientId) || null;
 
   const addClient = (client: Client) => {
     setClients((prev) => [client, ...prev]);
+    setSelectedClientId(client.id);
     setClientModalOpen(false);
     setActiveNav('Clients');
   };
@@ -1115,9 +1297,14 @@ export default function ApiConsolePage() {
             clients={clients}
             keys={keys}
             logs={logs}
+            selectedClientId={selectedClientId}
             onNewClient={() => setClientModalOpen(true)}
             onCreateKey={(clientId) => setKeyModalClientId(clientId || '')}
-            onManage={setManagedClientId}
+            onManage={(clientId) => {
+              setSelectedClientId(clientId);
+              setManagedClientId(clientId);
+            }}
+            onSelectClient={setSelectedClientId}
             onRemoveIp={removeIp}
             onAddIp={addIp}
             onUpdateClient={updateClient}
