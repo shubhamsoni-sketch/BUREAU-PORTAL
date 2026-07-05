@@ -2,12 +2,11 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  Activity,
   ArrowRight,
   BarChart3,
-  BookOpen,
   CheckCircle2,
   Copy,
+  Download,
   Globe2,
   KeyRound,
   Plus,
@@ -16,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 
-type NavItem = 'Overview' | 'Clients' | 'Environments' | 'API Keys' | 'IP Whitelist' | 'Credits' | 'Logs' | 'Docs';
+type NavItem = 'Overview' | 'Clients' | 'Environments' | 'API Keys' | 'IP Whitelist' | 'Credits' | 'Docs';
 type Environment = 'UAT' | 'Production';
 type ClientStatus = 'Production' | 'UAT' | 'Review' | 'Suspended';
 type ApiProduct = 'Bureau Standard' | 'Bureau Advanced' | 'Mobile Prefill';
@@ -42,6 +41,7 @@ type ApiKeyRecord = {
   api: ApiProduct;
   label: string;
   prefix: string;
+  secret?: string;
   status: 'Active' | 'Revoked';
   createdAt: string;
 };
@@ -57,7 +57,7 @@ type UsageLog = {
   ip: string;
 };
 
-const navItems: NavItem[] = ['Overview', 'Clients', 'Environments', 'API Keys', 'IP Whitelist', 'Credits', 'Logs', 'Docs'];
+const navItems: NavItem[] = ['Overview', 'Clients', 'Environments', 'API Keys', 'IP Whitelist', 'Credits', 'Docs'];
 const apiProducts: ApiProduct[] = ['Bureau Standard', 'Bureau Advanced', 'Mobile Prefill'];
 const environments: Environment[] = ['UAT', 'Production'];
 
@@ -111,6 +111,7 @@ const initialKeys: ApiKeyRecord[] = [
     api: 'Bureau Advanced',
     label: 'Ketav UAT advanced',
     prefix: 'ctuat_x9f4a8d1',
+    secret: 'ctuat_x9f4a8d1_demo_key_7f42b91c',
     status: 'Active',
     createdAt: '04 Jul 2026',
   },
@@ -121,6 +122,7 @@ const initialKeys: ApiKeyRecord[] = [
     api: 'Bureau Advanced',
     label: 'Ketav live advanced',
     prefix: 'ctlive_81aa9c42',
+    secret: 'ctlive_81aa9c42_demo_key_51ca7d22',
     status: 'Active',
     createdAt: '04 Jul 2026',
   },
@@ -131,6 +133,7 @@ const initialKeys: ApiKeyRecord[] = [
     api: 'Bureau Advanced',
     label: 'Northstar sandbox',
     prefix: 'ctuat_771e09bd',
+    secret: 'ctuat_771e09bd_demo_key_a9f4d017',
     status: 'Active',
     createdAt: '04 Jul 2026',
   },
@@ -171,6 +174,71 @@ function keyPrefix(environment: Environment) {
 
 function todayLabel() {
   return new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function keyValue(key: ApiKeyRecord) {
+  return key.secret || `${key.prefix}_full_key`;
+}
+
+function endpointFor(api: ApiProduct, environment: Environment) {
+  const envQuery = environment === 'UAT' ? '?env=uat' : '';
+  if (api === 'Bureau Standard') return `POST https://api.credittrust.in/api/v1/bureau${envQuery}`;
+  if (api === 'Bureau Advanced') return `POST https://api.credittrust.in/api/v1/bureau-advanced${envQuery}`;
+  return `POST https://api.credittrust.in/api/v1/mobile-prefill${envQuery}`;
+}
+
+function payloadFor(api: ApiProduct) {
+  if (api === 'Bureau Standard') {
+    return `{
+  "firstName": "",
+  "lastName": "",
+  "dob": "YYYY-MM-DD",
+  "gender": "male",
+  "pan": "",
+  "mobile": "",
+  "address": "",
+  "state": "MADHYA PRADESH",
+  "pincode": "",
+  "consent": true
+}`;
+  }
+  if (api === 'Bureau Advanced') {
+    return `{
+  "mobile": "",
+  "consent": true
+}`;
+  }
+  return `{
+  "mobile_number": ""
+}`;
+}
+
+function buildApiDoc(client: Client, key: ApiKeyRecord) {
+  return `CreditTrust API Documentation
+
+Client: ${client.name}
+Environment: ${key.environment}
+API: ${key.api}
+Endpoint: ${endpointFor(key.api, key.environment)}
+
+Headers:
+content-type: application/json
+accept: application/json
+x-api-key: ${keyValue(key)}
+
+Payload:
+${payloadFor(key.api)}
+`;
+}
+
+function downloadTextFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function MetricCard({ label, value, helper, icon: Icon, tone }: { label: string; value: string; helper: string; icon: React.ElementType; tone: string }) {
@@ -260,10 +328,10 @@ function ClientsTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[980px]">
+      <table className="w-full min-w-[860px]">
         <thead className="bg-slate-50">
           <tr>
-            {['Client', 'Status', 'APIs', 'Credits', 'IP Policy', 'Whitelisted IPs', 'Success', 'Action'].map((head) => (
+            {['Client', 'Status', 'APIs', 'Credits', 'IP Policy', 'Whitelisted IPs', 'Action'].map((head) => (
               <th key={head} className="px-4 py-3 text-left text-[11px] font-900 uppercase tracking-wide text-slate-500">
                 {head}
               </th>
@@ -303,7 +371,6 @@ function ClientsTable({
               <td className="px-4 py-4 text-xs font-700 text-muted-foreground">
                 {client.ips.length ? client.ips.join(', ') : 'No IPs added'}
               </td>
-              <td className="px-4 py-4 text-sm font-900 text-foreground">{client.successRate}</td>
               <td className="px-4 py-4">
                 <div className="flex gap-2">
                   <button
@@ -429,13 +496,11 @@ function ProductCatalog() {
 function ClientDetailPanel({
   client,
   keys,
-  logs,
   onManage,
   onCreateKey,
 }: {
   client?: Client;
   keys: ApiKeyRecord[];
-  logs: UsageLog[];
   onManage: (clientId: string) => void;
   onCreateKey: (clientId: string) => void;
 }) {
@@ -451,7 +516,6 @@ function ClientDetailPanel({
   }
 
   const clientKeys = keys.filter((key) => key.clientId === client.id);
-  const clientLogs = logs.filter((log) => log.clientId === client.id);
 
   return (
     <div className="space-y-4">
@@ -499,10 +563,6 @@ function ClientDetailPanel({
           <div className="rounded-lg bg-slate-50 p-3">
             <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Keys</p>
             <p className="mt-1 text-sm font-900 text-foreground">{clientKeys.length}</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-3">
-            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Requests</p>
-            <p className="mt-1 text-sm font-900 text-foreground">{clientLogs.length}</p>
           </div>
         </div>
       </div>
@@ -809,7 +869,6 @@ function ManageClientModal({
 function OverviewSection({
   clients,
   keys,
-  logs,
   selectedClientId,
   onNewClient,
   onCreateKey,
@@ -818,7 +877,6 @@ function OverviewSection({
 }: {
   clients: Client[];
   keys: ApiKeyRecord[];
-  logs: UsageLog[];
   selectedClientId?: string;
   onNewClient: () => void;
   onCreateKey: (clientId?: string) => void;
@@ -826,6 +884,7 @@ function OverviewSection({
   onSelectClient: (clientId: string) => void;
 }) {
   const activeClients = clients.filter((client) => client.status !== 'Review' && client.status !== 'Suspended').length;
+  const uatCredits = clients.reduce((sum, client) => sum + client.uatCredits, 0);
   const liveCredits = clients.reduce((sum, client) => sum + client.liveCredits, 0);
   const selectedClient = clients.find((client) => client.id === selectedClientId) || clients[0];
   return (
@@ -836,12 +895,12 @@ function OverviewSection({
             <ShieldCheck size={13} />
             Control Panel
           </div>
-          <h2 className="text-2xl font-900 tracking-normal text-foreground">Clients, API keys, credits and logs</h2>
+          <h2 className="text-2xl font-900 tracking-normal text-foreground">Client setup and API access</h2>
           <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <MetricCard label="Clients" value={`${activeClients}`} helper={`${clients.length} total`} icon={Globe2} tone="bg-blue-50 text-blue-700" />
+            <MetricCard label="UAT Credits" value={uatCredits.toLocaleString('en-IN')} helper="available" icon={WalletCards} tone="bg-blue-50 text-blue-700" />
             <MetricCard label="Live Credits" value={liveCredits.toLocaleString('en-IN')} helper="available" icon={WalletCards} tone="bg-emerald-50 text-emerald-700" />
             <MetricCard label="API Keys" value={keys.length.toString()} helper="issued" icon={KeyRound} tone="bg-violet-50 text-violet-700" />
-            <MetricCard label="Requests" value={logs.length.toString()} helper="today" icon={Activity} tone="bg-amber-50 text-amber-700" />
           </div>
         </div>
       </section>
@@ -854,10 +913,95 @@ function OverviewSection({
           <ClientsTable clients={clients} selectedClientId={selectedClient?.id} onSelect={onSelectClient} onManage={onManage} onCreateKey={onCreateKey} />
         </Panel>
         <div className="space-y-5">
-          <ClientDetailPanel client={selectedClient} keys={keys} logs={logs} onManage={onManage} onCreateKey={onCreateKey} />
+          <ClientDetailPanel client={selectedClient} keys={keys} onManage={onManage} onCreateKey={onCreateKey} />
         </div>
       </section>
     </>
+  );
+}
+
+function DocsPanel({ clients, keys }: { clients: Client[]; keys: ApiKeyRecord[] }) {
+  const clientById = new Map(clients.map((client) => [client.id, client]));
+  const downloadableKeys = keys.filter((key) => clientById.has(key.clientId));
+
+  const downloadAllDocs = () => {
+    const content = downloadableKeys
+      .map((key) => buildApiDoc(clientById.get(key.clientId)!, key))
+      .join('\n\n----------------------------------------\n\n');
+    downloadTextFile('credittrust-api-docs-all-clients.txt', content || 'No API keys created yet.');
+  };
+
+  return (
+    <div className="space-y-5">
+      <Panel
+        title="API Docs"
+        action={<button onClick={downloadAllDocs} className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-900 text-white"><Download size={15} />Download All</button>}
+      >
+        <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-3">
+          {apiProducts.map((api) => (
+            <div key={api} className="rounded-lg border border-border bg-slate-50 p-4">
+              <p className="text-sm font-900 text-foreground">{api}</p>
+              <div className="mt-3 space-y-2">
+                {environments.map((environment) => (
+                  <div key={environment} className="rounded-lg bg-white px-3 py-2">
+                    <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">{environment}</p>
+                    <p className="mt-1 break-all text-xs font-900 text-foreground">{endpointFor(api, environment)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Client Keys">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px]">
+            <thead className="bg-slate-50">
+              <tr>
+                {['Client', 'Environment', 'API', 'Key', 'Doc'].map((head) => (
+                  <th key={head} className="px-4 py-3 text-left text-[11px] font-900 uppercase tracking-wide text-slate-500">{head}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {downloadableKeys.map((key) => {
+                const client = clientById.get(key.clientId)!;
+                return (
+                  <tr key={key.id} className="bg-white">
+                    <td className="px-4 py-4">
+                      <p className="text-sm font-900 text-foreground">{client.name}</p>
+                      <p className="text-xs font-700 text-muted-foreground">{client.contactEmail}</p>
+                    </td>
+                    <td className="px-4 py-4"><StatusPill tone={key.environment === 'Production' ? 'green' : 'blue'}>{key.environment}</StatusPill></td>
+                    <td className="px-4 py-4"><StatusPill tone="slate">{key.api}</StatusPill></td>
+                    <td className="px-4 py-4">
+                      <div className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-800 text-white">
+                        {keyValue(key)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <button
+                        onClick={() => downloadTextFile(`${client.name.replace(/\s+/g, '-').toLowerCase()}-${key.environment.toLowerCase()}-${key.api.replace(/\s+/g, '-').toLowerCase()}-api-doc.txt`, buildApiDoc(client, key))}
+                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-white px-3 text-xs font-900 text-foreground"
+                      >
+                        <Download size={14} />
+                        Download
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!downloadableKeys.length ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-6 text-sm font-800 text-muted-foreground">No keys created yet.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
   );
 }
 
@@ -865,7 +1009,6 @@ function ActiveSection({
   activeNav,
   clients,
   keys,
-  logs,
   selectedClientId,
   onNewClient,
   onCreateKey,
@@ -879,7 +1022,6 @@ function ActiveSection({
   activeNav: NavItem;
   clients: Client[];
   keys: ApiKeyRecord[];
-  logs: UsageLog[];
   selectedClientId?: string;
   onNewClient: () => void;
   onCreateKey: (clientId?: string) => void;
@@ -895,7 +1037,6 @@ function ActiveSection({
       <OverviewSection
         clients={clients}
         keys={keys}
-        logs={logs}
         selectedClientId={selectedClientId}
         onNewClient={onNewClient}
         onCreateKey={onCreateKey}
@@ -915,7 +1056,7 @@ function ActiveSection({
         >
           <ClientsTable clients={clients} selectedClientId={selectedClient?.id} onSelect={onSelectClient} onManage={onManage} onCreateKey={onCreateKey} />
         </Panel>
-        <ClientDetailPanel client={selectedClient} keys={keys} logs={logs} onManage={onManage} onCreateKey={onCreateKey} />
+        <ClientDetailPanel client={selectedClient} keys={keys} onManage={onManage} onCreateKey={onCreateKey} />
       </div>
     );
   }
@@ -1097,8 +1238,6 @@ function ActiveSection({
         <div className="grid grid-cols-2 gap-3">
           <MetricCard label="UAT Credits" value={uatCredits.toLocaleString('en-IN')} helper="across clients" icon={WalletCards} tone="bg-blue-50 text-blue-700" />
           <MetricCard label="Live Credits" value={liveCredits.toLocaleString('en-IN')} helper="production balance" icon={WalletCards} tone="bg-emerald-50 text-emerald-700" />
-          <MetricCard label="Used Today" value={logs.filter((log) => log.status === 'Success').length.toString()} helper="successful calls" icon={Activity} tone="bg-violet-50 text-violet-700" />
-          <MetricCard label="Failed Charges" value="0" helper="no failed deductions" icon={ShieldCheck} tone="bg-amber-50 text-amber-700" />
         </div>
         <Panel title="Client Credit Control">
           <div className="divide-y divide-border">
@@ -1117,37 +1256,11 @@ function ActiveSection({
     );
   }
 
-  if (activeNav === 'Logs') {
-    return (
-      <Panel title="Request Logs">
-        <LogsTable logs={logs} clients={clients} />
-      </Panel>
-    );
+  if (activeNav === 'Docs') {
+    return <DocsPanel clients={clients} keys={keys} />;
   }
 
-  return (
-    <div className="space-y-5">
-      <ProductCatalog />
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-        <Panel title="API Documentation">
-          <div className="divide-y divide-border">
-            {[
-              ['Bureau API Standard', 'POST /api/v1/bureau', 'Full customer details to bureau response.'],
-              ['Bureau API Advanced', 'POST /api/v1/bureau-advanced', 'Mobile number and consent to bureau response.'],
-              ['Mobile Prefill API', 'POST /api/v1/mobile-prefill', 'Mobile number to normalized profile data.'],
-            ].map(([title, endpoint, text]) => (
-              <div key={title} className="p-4">
-                <p className="text-sm font-900 text-foreground">{title}</p>
-                <p className="mt-1 rounded-lg bg-slate-950 px-3 py-2 text-xs font-800 text-white">{endpoint}</p>
-                <p className="mt-2 text-xs font-700 text-muted-foreground">{text}</p>
-              </div>
-            ))}
-          </div>
-        </Panel>
-        <NormalizedResponsePanel />
-      </div>
-    </div>
-  );
+  return null;
 }
 
 export default function ApiConsolePage() {
@@ -1208,8 +1321,9 @@ export default function ApiConsolePage() {
   };
 
   const createKey = (key: ApiKeyRecord) => {
-    setKeys((prev) => [key, ...prev]);
-    setLatestSecret(`${key.prefix}_${Math.random().toString(36).slice(2, 18)}`);
+    const secret = `${key.prefix}_${Math.random().toString(36).slice(2, 18)}`;
+    setKeys((prev) => [{ ...key, secret }, ...prev]);
+    setLatestSecret(secret);
     setKeyModalClientId(undefined);
     setActiveNav('API Keys');
   };
@@ -1260,10 +1374,6 @@ export default function ApiConsolePage() {
               <h1 className="text-2xl font-900 tracking-normal text-foreground">API Console</h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button onClick={() => setActiveNav('Docs')} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-800 text-foreground shadow-sm">
-                <BookOpen size={16} />
-                API Docs
-              </button>
               <button onClick={() => setClientModalOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-3 text-sm font-800 text-white shadow-sm">
                 <KeyRound size={16} />
                 Create Client
@@ -1282,7 +1392,6 @@ export default function ApiConsolePage() {
             activeNav={activeNav}
             clients={clients}
             keys={keys}
-            logs={logs}
             selectedClientId={selectedClientId}
             onNewClient={() => setClientModalOpen(true)}
             onCreateKey={(clientId) => setKeyModalClientId(clientId || '')}
