@@ -8,14 +8,9 @@ import {
   BookOpen,
   CheckCircle2,
   Copy,
-  Database,
   Globe2,
   KeyRound,
-  LockKeyhole,
-  Network,
-  PlugZap,
   Plus,
-  Server,
   ShieldCheck,
   WalletCards,
   X,
@@ -148,40 +143,15 @@ const initialLogs: UsageLog[] = [
   { id: 'ct_req_20260704_9114', clientId: 'client-ketav', environment: 'Production', api: 'Mobile Prefill', status: 'Success', latency: '390 ms', charge: '1 credit', ip: '103.82.44.18' },
 ];
 
-const pipelineSteps: Array<[string, string, React.ElementType]> = [
-  ['Auth', 'API key, environment, and client status checked', LockKeyhole],
-  ['Network', 'Client IP whitelist policy verified when enabled', Network],
-  ['Credits', 'Per-hit credit balance reserved before vendor call', WalletCards],
-  ['Normalize', 'Raw Jaadugar/CIBIL JSON converted to CreditTrust format', Database],
-];
-
 const normalizedResponse = `{
   "success": true,
   "request_id": "ct_req_20260704_9121",
-  "environment": "production",
   "data": {
     "score": 742,
     "status": "hit",
-    "customer": {
-      "name": "SHUBHAM SONI",
-      "pan": "EID****4M",
-      "mobile": "******6989"
-    },
     "bureau": {
       "provider": "CIBIL",
-      "report_id": "ct_rpt_81f4",
-      "pulled_at": "2026-07-04T10:30:00Z"
-    },
-    "summary": {
-      "active_accounts": 4,
-      "closed_accounts": 8,
-      "total_outstanding": 125000,
-      "overdue_amount": 0,
-      "enquiries_30_days": 2
-    },
-    "risk": {
-      "band": "low",
-      "remarks": "Good repayment behavior"
+      "report_id": "ct_rpt_81f4"
     }
   }
 }`;
@@ -433,23 +403,22 @@ function ApiKeysPanel({ keys, clients }: { keys: ApiKeyRecord[]; clients: Client
 
 function ProductCatalog() {
   const products = [
-    ['Bureau Standard', 'Full-detail payload', 'Client sends customer details and receives normalized bureau response.', 'Live-ready'],
-    ['Bureau Advanced', 'Mobile-first bureau', 'Client sends mobile and consent; prefill and bureau run behind CreditTrust.', 'Priority'],
-    ['Mobile Prefill', 'Profile enrichment', 'Independent mobile prefill product for profile and onboarding utility.', 'UAT'],
+    ['Bureau Standard', 'POST /api/v1/bureau', 'Live-ready'],
+    ['Bureau Advanced', 'POST /api/v1/bureau-advanced', 'Priority'],
+    ['Mobile Prefill', 'POST /api/v1/mobile-prefill', 'UAT'],
   ];
   return (
-    <Panel title="API Product Catalog" subtitle="Products can be enabled client-wise before issuing keys.">
+    <Panel title="API Products">
       <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-3">
-        {products.map(([name, label, text, status]) => (
+        {products.map(([name, endpoint, status]) => (
           <div key={name} className="rounded-lg border border-border bg-slate-50 p-4">
-            <div className="mb-3 flex items-start justify-between gap-2">
+            <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="text-sm font-900 text-foreground">{name}</p>
-                <p className="text-xs font-800 text-muted-foreground">{label}</p>
+                <p className="mt-1 text-xs font-800 text-muted-foreground">{endpoint}</p>
               </div>
               <StatusPill tone={status === 'Priority' ? 'green' : status === 'UAT' ? 'blue' : 'slate'}>{status}</StatusPill>
             </div>
-            <p className="text-xs font-700 leading-5 text-muted-foreground">{text}</p>
           </div>
         ))}
       </div>
@@ -477,21 +446,12 @@ function ClientDetailPanel({
           <Globe2 size={20} />
         </div>
         <p className="text-sm font-900 text-foreground">Select a client</p>
-        <p className="mt-1 text-xs font-700 text-muted-foreground">Client setup, keys, credits, and IP policy will appear here.</p>
       </div>
     );
   }
 
   const clientKeys = keys.filter((key) => key.clientId === client.id);
   const clientLogs = logs.filter((log) => log.clientId === client.id);
-  const readiness = [
-    ['Profile', Boolean(client.name && client.contactEmail)],
-    ['API access', client.apis.length > 0],
-    ['UAT key', clientKeys.some((key) => key.environment === 'UAT')],
-    ['Production key', client.status !== 'Production' || clientKeys.some((key) => key.environment === 'Production')],
-    ['IP policy', !client.ipWhitelistingRequired || client.ips.length > 0],
-    ['Credits', client.uatCredits + client.liveCredits > 0],
-  ];
 
   return (
     <div className="space-y-4">
@@ -526,32 +486,23 @@ function ClientDetailPanel({
       </div>
 
       <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <h3 className="text-sm font-900 text-foreground">Onboarding Readiness</h3>
-        <div className="mt-3 space-y-2">
-          {readiness.map(([label, ok]) => (
-            <div key={String(label)} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-              <span className="text-xs font-800 text-foreground">{label}</span>
-              <StatusPill tone={ok ? 'green' : 'amber'}>{ok ? 'Done' : 'Pending'}</StatusPill>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <h3 className="text-sm font-900 text-foreground">Security & Activity</h3>
-        <div className="mt-3 space-y-3">
-          <div>
-            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">IP Whitelist</p>
-            <p className="mt-1 text-xs font-800 text-foreground">{client.ipWhitelistingRequired ? 'Required' : 'Optional'}</p>
-            <p className="mt-1 text-xs font-700 text-muted-foreground">{client.ips.length ? client.ips.join(', ') : 'No IPs added'}</p>
+        <h3 className="text-sm font-900 text-foreground">Client Summary</h3>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">IP Policy</p>
+            <p className="mt-1 text-sm font-900 text-foreground">{client.ipWhitelistingRequired ? 'Required' : 'Optional'}</p>
           </div>
-          <div>
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">IPs</p>
+            <p className="mt-1 text-sm font-900 text-foreground">{client.ips.length}</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-3">
             <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Keys</p>
-            <p className="mt-1 text-xs font-800 text-foreground">{clientKeys.length} active/demo keys</p>
+            <p className="mt-1 text-sm font-900 text-foreground">{clientKeys.length}</p>
           </div>
-          <div>
-            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Recent Requests</p>
-            <p className="mt-1 text-xs font-800 text-foreground">{clientLogs.length} tracked requests</p>
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Requests</p>
+            <p className="mt-1 text-sm font-900 text-foreground">{clientLogs.length}</p>
           </div>
         </div>
       </div>
@@ -563,13 +514,10 @@ function NormalizedResponsePanel() {
   return (
     <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-2">
-        <Server className="text-emerald-700" size={18} />
-        <h3 className="text-base font-900 text-foreground">Normalized Response</h3>
+        <ShieldCheck className="text-emerald-700" size={18} />
+        <h3 className="text-base font-900 text-foreground">Response Format</h3>
       </div>
-      <p className="mb-3 text-xs font-600 text-muted-foreground">
-        Raw vendor JSON remains internal. Clients receive CreditTrust stable schema.
-      </p>
-      <pre className="max-h-[420px] overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 text-slate-100 scrollbar-thin">
+      <pre className="max-h-[260px] overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 text-slate-100 scrollbar-thin">
         {normalizedResponse}
       </pre>
     </div>
@@ -653,7 +601,6 @@ function ClientForm({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-900 text-foreground">IP whitelisting required</p>
-            <p className="text-xs font-700 text-muted-foreground">Disable only for UAT/demo clients or approved internal testing.</p>
           </div>
           <button
             type="button"
@@ -884,64 +831,30 @@ function OverviewSection({
   return (
     <>
       <section className="mb-5 rounded-lg border border-border bg-card shadow-sm">
-        <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="border-b border-border p-5 xl:border-b-0 xl:border-r">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-900 uppercase tracking-wide text-blue-700">
-              <ShieldCheck size={13} />
-              UAT + Production Gateway
-            </div>
-            <h2 className="max-w-3xl text-2xl font-900 tracking-normal text-foreground">
-              Manage international API clients with optional IP whitelist policy, credits, keys, audit logs, and normalized response.
-            </h2>
-            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <MetricCard label="Clients" value={`${activeClients}`} helper={`${clients.length} total onboarded`} icon={Globe2} tone="bg-blue-50 text-blue-700" />
-              <MetricCard label="Live Credits" value={liveCredits.toLocaleString('en-IN')} helper="available balance" icon={WalletCards} tone="bg-emerald-50 text-emerald-700" />
-              <MetricCard label="API Keys" value={keys.length.toString()} helper="issued keys" icon={KeyRound} tone="bg-violet-50 text-violet-700" />
-              <MetricCard label="Requests Today" value={logs.length.toString()} helper="demo activity" icon={Activity} tone="bg-amber-50 text-amber-700" />
-            </div>
+        <div className="p-5">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-900 uppercase tracking-wide text-blue-700">
+            <ShieldCheck size={13} />
+            Control Panel
           </div>
-
-          <div className="p-5">
-            <h3 className="text-sm font-900 text-foreground">Request Pipeline</h3>
-            <div className="mt-4 space-y-3">
-              {pipelineSteps.map(([title, text, Icon]) => (
-                <div key={String(title)} className="flex gap-3 rounded-lg border border-border bg-slate-50 p-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-blue-700 shadow-sm">
-                    {React.createElement(Icon, { size: 17 })}
-                  </span>
-                  <div>
-                    <p className="text-sm font-900 text-foreground">{title}</p>
-                    <p className="text-xs font-600 text-muted-foreground">{text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <h2 className="text-2xl font-900 tracking-normal text-foreground">Clients, API keys, credits and logs</h2>
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <MetricCard label="Clients" value={`${activeClients}`} helper={`${clients.length} total`} icon={Globe2} tone="bg-blue-50 text-blue-700" />
+            <MetricCard label="Live Credits" value={liveCredits.toLocaleString('en-IN')} helper="available" icon={WalletCards} tone="bg-emerald-50 text-emerald-700" />
+            <MetricCard label="API Keys" value={keys.length.toString()} helper="issued" icon={KeyRound} tone="bg-violet-50 text-violet-700" />
+            <MetricCard label="Requests" value={logs.length.toString()} helper="today" icon={Activity} tone="bg-amber-50 text-amber-700" />
           </div>
         </div>
       </section>
 
-      <div className="mb-5">
-        <ProductCatalog />
-      </div>
-
-      <section className="grid grid-cols-1 gap-5 2xl:grid-cols-[1.35fr_420px]">
-        <div className="space-y-5">
-          <Panel
-            title="Enterprise Clients"
-            subtitle="Each client has separate keys, credits, API access, and IP policy."
-            action={<button onClick={onNewClient} className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-900 text-white"><Plus size={15} />New Client</button>}
-          >
-            <ClientsTable clients={clients} selectedClientId={selectedClient?.id} onSelect={onSelectClient} onManage={onManage} onCreateKey={onCreateKey} />
-          </Panel>
-
-          <Panel title="Request Logs" subtitle="Every hit stores environment, IP, credit, vendor request id, and response timing.">
-            <LogsTable logs={logs} clients={clients} />
-          </Panel>
-        </div>
-
+      <section className="grid grid-cols-1 gap-5 2xl:grid-cols-[1fr_380px]">
+        <Panel
+          title="Clients"
+          action={<button onClick={onNewClient} className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-900 text-white"><Plus size={15} />New Client</button>}
+        >
+          <ClientsTable clients={clients} selectedClientId={selectedClient?.id} onSelect={onSelectClient} onManage={onManage} onCreateKey={onCreateKey} />
+        </Panel>
         <div className="space-y-5">
           <ClientDetailPanel client={selectedClient} keys={keys} logs={logs} onManage={onManage} onCreateKey={onCreateKey} />
-          <NormalizedResponsePanel />
         </div>
       </section>
     </>
@@ -998,7 +911,6 @@ function ActiveSection({
       <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[1fr_420px]">
         <Panel
           title="Client Management"
-          subtitle="Create enterprise clients, assign API access, configure IP policy, and manage per-client keys."
           action={<button onClick={onNewClient} className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-900 text-white"><Plus size={15} />New Client</button>}
         >
           <ClientsTable clients={clients} selectedClientId={selectedClient?.id} onSelect={onSelectClient} onManage={onManage} onCreateKey={onCreateKey} />
@@ -1013,21 +925,96 @@ function ActiveSection({
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         {environments.map((environment) => {
           const totalCredits = clients.reduce((sum, client) => sum + (environment === 'Production' ? client.liveCredits : client.uatCredits), 0);
-          const keyCount = keys.filter((key) => key.environment === environment).length;
+          const environmentKeys = keys.filter((key) => key.environment === environment);
+          const environmentClients = clients.filter((client) =>
+            environment === 'Production'
+              ? client.status === 'Production'
+              : client.status === 'UAT' || client.status === 'Review' || client.uatCredits > 0,
+          );
+          const docs = environment === 'Production'
+            ? [
+              ['Base URL', 'https://api.credittrust.in'],
+              ['Standard', 'POST /api/v1/bureau'],
+              ['Advanced', 'POST /api/v1/bureau-advanced'],
+            ]
+            : [
+              ['Base URL', 'https://api.credittrust.in'],
+              ['Standard UAT', 'POST /api/v1/bureau?env=uat'],
+              ['Advanced UAT', 'POST /api/v1/bureau-advanced?env=uat'],
+            ];
           return (
             <div key={environment} className="rounded-lg border border-border bg-card p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-900 text-foreground">{environment} Environment</h3>
-                  <p className="mt-1 text-sm font-600 text-muted-foreground">
-                    {environment === 'Production' ? 'Live billing, strict controls, real vendor hits.' : 'Sandbox testing, sample credits, technical validation.'}
-                  </p>
                 </div>
                 <StatusPill tone={environment === 'Production' ? 'green' : 'blue'}>Active</StatusPill>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <MetricCard label="Credits" value={totalCredits.toLocaleString('en-IN')} helper="available" icon={WalletCards} tone={environment === 'Production' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'} />
-                <MetricCard label="Keys" value={keyCount.toString()} helper="issued keys" icon={KeyRound} tone="bg-violet-50 text-violet-700" />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-border bg-slate-50 p-3">
+                  <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Credits</p>
+                  <p className="mt-2 text-2xl font-900 text-foreground">{totalCredits.toLocaleString('en-IN')}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-slate-50 p-3">
+                  <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Keys</p>
+                  <p className="mt-2 text-2xl font-900 text-foreground">{environmentKeys.length}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-border bg-slate-50 p-3">
+                <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">{environment} Docs</p>
+                <div className="mt-3 space-y-2">
+                  {docs.map(([label, value]) => (
+                    <div key={label} className="flex flex-col gap-1 rounded-lg bg-white px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-xs font-900 text-muted-foreground">{label}</span>
+                      <span className="break-all text-xs font-900 text-foreground">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-border bg-white">
+                <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                  <p className="text-xs font-900 uppercase tracking-wide text-muted-foreground">Clients</p>
+                  <StatusPill tone="slate">{environmentClients.length}</StatusPill>
+                </div>
+                <div className="divide-y divide-border">
+                  {environmentClients.length ? environmentClients.map((client) => (
+                    <div key={client.id} className="flex items-center justify-between gap-3 px-3 py-3">
+                      <div>
+                        <p className="text-sm font-900 text-foreground">{client.name}</p>
+                        <p className="text-xs font-700 text-muted-foreground">{client.country}</p>
+                      </div>
+                      <StatusPill tone={client.status === 'Production' ? 'green' : client.status === 'UAT' ? 'blue' : 'amber'}>{client.status}</StatusPill>
+                    </div>
+                  )) : (
+                    <div className="px-3 py-4 text-sm font-800 text-muted-foreground">No clients</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-border bg-white">
+                <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                  <p className="text-xs font-900 uppercase tracking-wide text-muted-foreground">Keys</p>
+                  <StatusPill tone="slate">{environmentKeys.length}</StatusPill>
+                </div>
+                <div className="divide-y divide-border">
+                  {environmentKeys.length ? environmentKeys.map((key) => {
+                    const client = clients.find((item) => item.id === key.clientId);
+                    return (
+                      <div key={key.id} className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-900 text-foreground">{client?.name || 'Unknown client'}</p>
+                          <p className="text-xs font-700 text-muted-foreground">{key.api}</p>
+                        </div>
+                        <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-900 text-slate-700">{key.prefix}...</span>
+                      </div>
+                    );
+                  }) : (
+                    <div className="px-3 py-4 text-sm font-800 text-muted-foreground">No keys</div>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -1043,7 +1030,6 @@ function ActiveSection({
         <ApiKeysPanel keys={keys} clients={clients} />
         <Panel
           title="Issued Keys"
-          subtitle="Generate separate keys per client, environment, and API product."
           action={<button onClick={() => onCreateKey()} className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-900 text-white"><KeyRound size={15} />Generate Key</button>}
         >
           <div className="divide-y divide-border">
@@ -1071,7 +1057,7 @@ function ActiveSection({
 
   if (activeNav === 'IP Whitelist') {
     return (
-      <Panel title="IP Whitelist" subtitle="Per-client choice: require whitelist for strict clients, or keep optional for UAT/demo clients.">
+      <Panel title="IP Whitelist">
         <div className="divide-y divide-border">
           {clients.map((client) => (
             <div key={client.id} className="p-4">
@@ -1114,7 +1100,7 @@ function ActiveSection({
           <MetricCard label="Used Today" value={logs.filter((log) => log.status === 'Success').length.toString()} helper="successful calls" icon={Activity} tone="bg-violet-50 text-violet-700" />
           <MetricCard label="Failed Charges" value="0" helper="no failed deductions" icon={ShieldCheck} tone="bg-amber-50 text-amber-700" />
         </div>
-        <Panel title="Client Credit Control" subtitle="Add credits client-wise for UAT or Production from each client manage panel.">
+        <Panel title="Client Credit Control">
           <div className="divide-y divide-border">
             {clients.map((client) => (
               <div key={client.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1133,7 +1119,7 @@ function ActiveSection({
 
   if (activeNav === 'Logs') {
     return (
-      <Panel title="Request Logs" subtitle="Searchable audit trail for every API request, including client, environment, source IP, status, and charge.">
+      <Panel title="Request Logs">
         <LogsTable logs={logs} clients={clients} />
       </Panel>
     );
@@ -1143,7 +1129,7 @@ function ActiveSection({
     <div className="space-y-5">
       <ProductCatalog />
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-        <Panel title="API Documentation" subtitle="Client-facing docs expose CreditTrust endpoints, headers, payload, and normalized response only.">
+        <Panel title="API Documentation">
           <div className="divide-y divide-border">
             {[
               ['Bureau API Standard', 'POST /api/v1/bureau', 'Full customer details to bureau response.'],
@@ -1257,10 +1243,10 @@ export default function ApiConsolePage() {
 
         <div className="border-t border-white/10 p-4">
           <div className="rounded-lg bg-white/5 p-3">
-            <p className="text-xs font-800 uppercase tracking-wide text-slate-400">Gateway Health</p>
+            <p className="text-xs font-800 uppercase tracking-wide text-slate-400">Gateway</p>
             <div className="mt-3 flex items-center gap-2 text-sm font-800 text-emerald-300">
               <CheckCircle2 size={16} />
-              Operational
+              Live
             </div>
           </div>
         </div>
@@ -1271,7 +1257,7 @@ export default function ApiConsolePage() {
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <p className="text-xs font-900 uppercase tracking-wide text-blue-700">api.credittrust.in</p>
-              <h1 className="text-2xl font-900 tracking-normal text-foreground">Enterprise API Access Console</h1>
+              <h1 className="text-2xl font-900 tracking-normal text-foreground">API Console</h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button onClick={() => setActiveNav('Docs')} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-800 text-foreground shadow-sm">
@@ -1286,7 +1272,7 @@ export default function ApiConsolePage() {
           </div>
           {latestSecret ? (
             <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-800 text-emerald-800">
-              New key generated: <span className="font-900">{latestSecret}</span>
+              Key generated: <span className="font-900">{latestSecret}</span>
             </div>
           ) : null}
         </header>
