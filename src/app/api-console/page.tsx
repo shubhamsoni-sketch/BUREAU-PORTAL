@@ -19,6 +19,7 @@ type NavItem = 'Overview' | 'Clients' | 'Environments' | 'API Keys' | 'IP Whitel
 type Environment = 'UAT' | 'Production';
 type ClientStatus = 'Production' | 'UAT' | 'Review' | 'Suspended';
 type ApiProduct = 'Bureau Standard' | 'Bureau Advanced' | 'Mobile Prefill';
+type ResponseMode = 'Full JSON' | 'CreditTrust Standard' | 'Custom';
 
 type Client = {
   id: string;
@@ -31,6 +32,8 @@ type Client = {
   ipWhitelistingRequired: boolean;
   ips: string[];
   apis: ApiProduct[];
+  responseMode: ResponseMode;
+  responseFields: string[];
   successRate: string;
 };
 
@@ -73,6 +76,8 @@ const initialClients: Client[] = [
     ipWhitelistingRequired: true,
     ips: ['103.82.44.18', '185.64.112.90'],
     apis: ['Bureau Standard', 'Bureau Advanced'],
+    responseMode: 'CreditTrust Standard',
+    responseFields: ['score', 'status', 'report_id', 'customer_name', 'accounts_summary'],
     successRate: '98.7%',
   },
   {
@@ -86,6 +91,8 @@ const initialClients: Client[] = [
     ipWhitelistingRequired: true,
     ips: ['152.58.91.10'],
     apis: ['Bureau Advanced'],
+    responseMode: 'Full JSON',
+    responseFields: ['full_response'],
     successRate: '96.2%',
   },
   {
@@ -99,6 +106,8 @@ const initialClients: Client[] = [
     ipWhitelistingRequired: false,
     ips: [],
     apis: ['Mobile Prefill'],
+    responseMode: 'Custom',
+    responseFields: ['full_name', 'dob', 'pan', 'addresses', 'emails'],
     successRate: '-',
   },
 ];
@@ -219,6 +228,8 @@ function buildApiDoc(client: Client, key: ApiKeyRecord) {
 Client: ${client.name}
 Environment: ${key.environment}
 API: ${key.api}
+Response: ${client.responseMode}
+Fields: ${client.responseFields.join(', ')}
 Endpoint: ${endpointFor(key.api, key.environment)}
 
 Headers:
@@ -328,10 +339,10 @@ function ClientsTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[860px]">
+      <table className="w-full min-w-[980px]">
         <thead className="bg-slate-50">
           <tr>
-            {['Client', 'Status', 'APIs', 'Credits', 'IP Policy', 'Whitelisted IPs', 'Action'].map((head) => (
+            {['Client', 'Status', 'APIs', 'Response', 'Credits', 'IP Policy', 'Whitelisted IPs', 'Action'].map((head) => (
               <th key={head} className="px-4 py-3 text-left text-[11px] font-900 uppercase tracking-wide text-slate-500">
                 {head}
               </th>
@@ -358,6 +369,9 @@ function ClientsTable({
                 <div className="flex flex-wrap gap-1.5">
                   {client.apis.map((api) => <StatusPill key={api} tone="slate">{api}</StatusPill>)}
                 </div>
+              </td>
+              <td className="px-4 py-4">
+                <StatusPill tone={client.responseMode === 'Full JSON' ? 'amber' : client.responseMode === 'Custom' ? 'blue' : 'green'}>{client.responseMode}</StatusPill>
               </td>
               <td className="px-4 py-4 text-sm font-900 text-foreground">
                 <span className="block">UAT {client.uatCredits}</span>
@@ -435,36 +449,90 @@ function LogsTable({ logs, clients }: { logs: UsageLog[]; clients: Client[] }) {
   );
 }
 
-function ApiKeysPanel({ keys, clients }: { keys: ApiKeyRecord[]; clients: Client[] }) {
-  const latest = keys.slice(0, 4);
-  const clientById = new Map(clients.map((client) => [client.id, client.name]));
+function ClientKeyDirectory({
+  keys,
+  clients,
+  onCreateKey,
+}: {
+  keys: ApiKeyRecord[];
+  clients: Client[];
+  onCreateKey: (clientId?: string) => void;
+}) {
+  const copyKey = (key: ApiKeyRecord) => {
+    navigator.clipboard?.writeText(keyValue(key));
+  };
+
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-base font-900 text-foreground">Environment Keys</h3>
-          <p className="text-xs font-600 text-muted-foreground">Keys are client-specific and environment-specific.</p>
-        </div>
-        <KeyRound className="text-blue-700" size={20} />
-      </div>
-      <div className="space-y-3">
-        {latest.map((key) => (
-          <div key={key.id} className="rounded-lg border border-border bg-slate-50 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-900 text-foreground">{clientById.get(key.clientId)}</p>
-                <p className="text-xs font-700 text-muted-foreground">{key.environment} - {key.api}</p>
+    <Panel
+      title="Client API Keys"
+      action={<button onClick={() => onCreateKey()} className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-900 text-white"><KeyRound size={15} />Generate Key</button>}
+    >
+      <div className="divide-y divide-border">
+        {clients.map((client) => {
+          const clientKeys = keys.filter((key) => key.clientId === client.id);
+          const uatKeys = clientKeys.filter((key) => key.environment === 'UAT');
+          const productionKeys = clientKeys.filter((key) => key.environment === 'Production');
+          return (
+            <div key={client.id} className="p-4">
+              <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-lg font-900 text-foreground">{client.name}</p>
+                  <p className="text-xs font-700 text-muted-foreground">{client.country} - {client.contactEmail}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <StatusPill tone={client.status === 'Production' ? 'green' : client.status === 'UAT' ? 'blue' : client.status === 'Suspended' ? 'red' : 'amber'}>{client.status}</StatusPill>
+                  <StatusPill tone={client.responseMode === 'Full JSON' ? 'amber' : client.responseMode === 'Custom' ? 'blue' : 'green'}>{client.responseMode}</StatusPill>
+                  <button onClick={() => onCreateKey(client.id)} className="h-9 rounded-lg border border-border bg-white px-3 text-xs font-900 text-foreground">Generate Key</button>
+                </div>
               </div>
-              <StatusPill tone={key.environment === 'Production' ? 'green' : 'blue'}>{key.status}</StatusPill>
+
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {([
+                  ['UAT', uatKeys],
+                  ['Production', productionKeys],
+                ] as Array<[Environment, ApiKeyRecord[]]>).map(([environment, environmentKeys]) => (
+                  <div key={environment} className="rounded-lg border border-border bg-slate-50">
+                    <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                      <p className="text-sm font-900 text-foreground">{environment}</p>
+                      <StatusPill tone={environment === 'Production' ? 'green' : 'blue'}>{environmentKeys.length} Keys</StatusPill>
+                    </div>
+                    <div className="space-y-3 p-4">
+                      {environmentKeys.length ? environmentKeys.map((key) => (
+                        <div key={key.id} className="rounded-lg border border-border bg-white p-3">
+                          <div className="mb-3 flex flex-wrap items-center gap-2">
+                            <StatusPill tone="slate">{key.api}</StatusPill>
+                            <StatusPill tone={key.status === 'Active' ? 'green' : 'red'}>{key.status}</StatusPill>
+                            <span className="text-xs font-800 text-muted-foreground">{key.createdAt}</span>
+                          </div>
+                          <div className="rounded-lg bg-slate-950 px-3 py-3 font-mono text-xs font-800 leading-5 text-white">
+                            <span className="break-all">{keyValue(key)}</span>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button onClick={() => copyKey(key)} className="inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-white px-3 text-xs font-900 text-foreground">
+                              <Copy size={13} />
+                              Copy
+                            </button>
+                            <button
+                              onClick={() => downloadTextFile(`${client.name.replace(/\s+/g, '-').toLowerCase()}-${key.environment.toLowerCase()}-${key.api.replace(/\s+/g, '-').toLowerCase()}-api-doc.txt`, buildApiDoc(client, key))}
+                              className="inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-white px-3 text-xs font-900 text-foreground"
+                            >
+                              <Download size={13} />
+                              Doc
+                            </button>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="rounded-lg border border-dashed border-border bg-white px-4 py-6 text-sm font-800 text-muted-foreground">No {environment} key</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="mt-2 flex items-center justify-between rounded-lg bg-white px-3 py-2 text-xs font-800 text-muted-foreground">
-              <span>{key.prefix}........</span>
-              <Copy size={14} />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -564,6 +632,10 @@ function ClientDetailPanel({
             <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Keys</p>
             <p className="mt-1 text-sm font-900 text-foreground">{clientKeys.length}</p>
           </div>
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Response</p>
+            <p className="mt-1 text-sm font-900 text-foreground">{client.responseMode}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -625,6 +697,8 @@ function ClientForm({
       ipWhitelistingRequired: form.ipWhitelistingRequired,
       ips: form.ips.split(',').map((ip) => ip.trim()).filter(Boolean),
       apis: form.apis.length ? form.apis : ['Bureau Advanced'],
+      responseMode: 'CreditTrust Standard',
+      responseFields: ['score', 'status', 'report_id', 'customer_name', 'accounts_summary'],
       successRate: '-',
     });
   };
@@ -793,6 +867,7 @@ function ManageClientModal({
   const [ip, setIp] = useState('');
   const [credits, setCredits] = useState('10');
   const [creditEnv, setCreditEnv] = useState<Environment>('UAT');
+  const [responseFields, setResponseFields] = useState(client.responseFields.join(', '));
 
   return (
     <Modal title={`Manage ${client.name}`} onClose={onClose}>
@@ -854,6 +929,43 @@ function ManageClientModal({
             >
               Add Credits
             </button>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-900 text-foreground">Response format</p>
+              <p className="mt-1 text-xs font-700 text-muted-foreground">Client ko kaunsa response dena hai yahan set hoga.</p>
+            </div>
+            <select
+              value={client.responseMode}
+              onChange={(event) => onUpdate({ ...client, responseMode: event.target.value as ResponseMode })}
+              className="input-base lg:max-w-[240px]"
+            >
+              <option>CreditTrust Standard</option>
+              <option>Full JSON</option>
+              <option>Custom</option>
+            </select>
+          </div>
+
+          <div className="mt-4">
+            <Field label="Response fields">
+              <textarea
+                value={responseFields}
+                onChange={(event) => setResponseFields(event.target.value)}
+                onBlur={() => onUpdate({
+                  ...client,
+                  responseFields: responseFields.split(',').map((field) => field.trim()).filter(Boolean),
+                })}
+                className="input-base min-h-[90px]"
+                placeholder="score, status, report_id, customer_name"
+              />
+            </Field>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {client.responseFields.map((field) => <StatusPill key={field} tone="slate">{field}</StatusPill>)}
           </div>
         </div>
 
@@ -1149,7 +1261,7 @@ function ActiveSection({
                           <p className="text-sm font-900 text-foreground">{client?.name || 'Unknown client'}</p>
                           <p className="text-xs font-700 text-muted-foreground">{key.api}</p>
                         </div>
-                        <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-900 text-slate-700">{key.prefix}...</span>
+                        <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-900 text-slate-700 break-all">{keyValue(key)}</span>
                       </div>
                     );
                   }) : (
@@ -1165,35 +1277,7 @@ function ActiveSection({
   }
 
   if (activeNav === 'API Keys') {
-    const clientById = new Map(clients.map((client) => [client.id, client]));
-    return (
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.85fr_1.15fr]">
-        <ApiKeysPanel keys={keys} clients={clients} />
-        <Panel
-          title="Issued Keys"
-          action={<button onClick={() => onCreateKey()} className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-900 text-white"><KeyRound size={15} />Generate Key</button>}
-        >
-          <div className="divide-y divide-border">
-            {keys.map((key) => {
-              const client = clientById.get(key.clientId);
-              return (
-                <div key={key.id} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="text-sm font-900 text-foreground">{client?.name || 'Unknown client'}</p>
-                    <p className="text-xs font-700 text-muted-foreground">{key.label}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <StatusPill tone={key.environment === 'Production' ? 'green' : 'blue'}>{key.environment}</StatusPill>
-                    <StatusPill tone="slate">{key.api}</StatusPill>
-                    <StatusPill tone="green">{key.prefix}........</StatusPill>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Panel>
-      </div>
-    );
+    return <ClientKeyDirectory keys={keys} clients={clients} onCreateKey={onCreateKey} />;
   }
 
   if (activeNav === 'IP Whitelist') {
