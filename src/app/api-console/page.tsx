@@ -63,6 +63,38 @@ type UsageLog = {
 const navItems: NavItem[] = ['Overview', 'Clients', 'Environments', 'API Keys', 'IP Whitelist', 'Credits', 'Docs'];
 const apiProducts: ApiProduct[] = ['Bureau Standard', 'Bureau Advanced', 'Mobile Prefill'];
 const environments: Environment[] = ['UAT', 'Production'];
+const standardResponseFields = ['success', 'request_id', 'score', 'status', 'report_id', 'customer_name', 'bureau_summary'];
+const responseFieldOptions = [
+  ['success', 'Request success'],
+  ['request_id', 'CreditTrust request id'],
+  ['score', 'Bureau score'],
+  ['status', 'Hit/no-hit status'],
+  ['report_id', 'Report id'],
+  ['customer_name', 'Customer name'],
+  ['pan_masked', 'Masked PAN'],
+  ['mobile_masked', 'Masked mobile'],
+  ['bureau_summary', 'Bureau summary'],
+  ['accounts_summary', 'Accounts summary'],
+  ['enquiries_summary', 'Enquiries summary'],
+  ['risk_band', 'Risk band'],
+  ['raw_report', 'Raw provider report'],
+] as const;
+
+const sampleFieldValues: Record<string, unknown> = {
+  success: true,
+  request_id: 'ct_req_20260706_1021',
+  score: 742,
+  status: 'hit',
+  report_id: 'ct_rpt_81f4',
+  customer_name: 'CUSTOMER NAME',
+  pan_masked: 'ABCDE****F',
+  mobile_masked: '98******10',
+  bureau_summary: { active_accounts: 4, overdue_amount: 0 },
+  accounts_summary: { total_accounts: 12, live_accounts: 4 },
+  enquiries_summary: { last_30_days: 2, last_90_days: 5 },
+  risk_band: 'low',
+  raw_report: { provider: 'cibil', response: 'full provider json' },
+};
 
 const initialClients: Client[] = [
   {
@@ -219,17 +251,32 @@ function payloadFor(api: ApiProduct) {
   }
   return `{
   "mobile_number": ""
-}`;
+  }`;
+}
+
+function fieldsForMode(mode: ResponseMode, fields: string[]) {
+  if (mode === 'Full JSON') return ['raw_report'];
+  if (mode === 'CreditTrust Standard') return standardResponseFields;
+  return fields.length ? fields : ['success', 'request_id', 'status'];
+}
+
+function responsePreview(mode: ResponseMode, fields: string[]) {
+  const selectedFields = fieldsForMode(mode, fields);
+  return selectedFields.reduce<Record<string, unknown>>((preview, field) => {
+    preview[field] = sampleFieldValues[field] ?? 'value';
+    return preview;
+  }, {});
 }
 
 function buildApiDoc(client: Client, key: ApiKeyRecord) {
+  const responseFields = fieldsForMode(client.responseMode, client.responseFields);
   return `CreditTrust API Documentation
 
 Client: ${client.name}
 Environment: ${key.environment}
 API: ${key.api}
 Response: ${client.responseMode}
-Fields: ${client.responseFields.join(', ')}
+Fields: ${responseFields.join(', ')}
 Endpoint: ${endpointFor(key.api, key.environment)}
 
 Headers:
@@ -371,7 +418,10 @@ function ClientsTable({
                 </div>
               </td>
               <td className="px-4 py-4">
-                <StatusPill tone={client.responseMode === 'Full JSON' ? 'amber' : client.responseMode === 'Custom' ? 'blue' : 'green'}>{client.responseMode}</StatusPill>
+                <div className="flex flex-col gap-1">
+                  <StatusPill tone={client.responseMode === 'Full JSON' ? 'amber' : client.responseMode === 'Custom' ? 'blue' : 'green'}>{client.responseMode}</StatusPill>
+                  <span className="text-xs font-700 text-muted-foreground">{fieldsForMode(client.responseMode, client.responseFields).length} fields</span>
+                </div>
               </td>
               <td className="px-4 py-4 text-sm font-900 text-foreground">
                 <span className="block">UAT {client.uatCredits}</span>
@@ -635,6 +685,7 @@ function ClientDetailPanel({
           <div className="rounded-lg bg-slate-50 p-3">
             <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Response</p>
             <p className="mt-1 text-sm font-900 text-foreground">{client.responseMode}</p>
+            <p className="mt-1 text-xs font-700 text-muted-foreground">{fieldsForMode(client.responseMode, client.responseFields).length} fields</p>
           </div>
         </div>
       </div>
@@ -867,7 +918,23 @@ function ManageClientModal({
   const [ip, setIp] = useState('');
   const [credits, setCredits] = useState('10');
   const [creditEnv, setCreditEnv] = useState<Environment>('UAT');
-  const [responseFields, setResponseFields] = useState(client.responseFields.join(', '));
+  const effectiveFields = fieldsForMode(client.responseMode, client.responseFields);
+  const preview = responsePreview(client.responseMode, client.responseFields);
+
+  const updateResponseMode = (mode: ResponseMode) => {
+    onUpdate({
+      ...client,
+      responseMode: mode,
+      responseFields: mode === 'Full JSON' ? ['raw_report'] : mode === 'CreditTrust Standard' ? standardResponseFields : client.responseFields,
+    });
+  };
+
+  const toggleResponseField = (field: string) => {
+    const nextFields = client.responseFields.includes(field)
+      ? client.responseFields.filter((item) => item !== field)
+      : [...client.responseFields, field];
+    onUpdate({ ...client, responseMode: 'Custom', responseFields: nextFields });
+  };
 
   return (
     <Modal title={`Manage ${client.name}`} onClose={onClose}>
@@ -933,39 +1000,68 @@ function ManageClientModal({
         </div>
 
         <div className="rounded-lg border border-border p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-sm font-900 text-foreground">Response format</p>
-              <p className="mt-1 text-xs font-700 text-muted-foreground">Client ko kaunsa response dena hai yahan set hoga.</p>
-            </div>
-            <select
-              value={client.responseMode}
-              onChange={(event) => onUpdate({ ...client, responseMode: event.target.value as ResponseMode })}
-              className="input-base lg:max-w-[240px]"
-            >
-              <option>CreditTrust Standard</option>
-              <option>Full JSON</option>
-              <option>Custom</option>
-            </select>
+          <div>
+            <p className="text-sm font-900 text-foreground">Response builder</p>
+            <p className="mt-1 text-xs font-700 text-muted-foreground">Is client ko API hit ke baad kya JSON milega yahan set karo.</p>
           </div>
 
-          <div className="mt-4">
-            <Field label="Response fields">
-              <textarea
-                value={responseFields}
-                onChange={(event) => setResponseFields(event.target.value)}
-                onBlur={() => onUpdate({
-                  ...client,
-                  responseFields: responseFields.split(',').map((field) => field.trim()).filter(Boolean),
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {(['CreditTrust Standard', 'Full JSON', 'Custom'] as ResponseMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => updateResponseMode(mode)}
+                className={classNames(
+                  'rounded-lg border p-3 text-left transition',
+                  client.responseMode === mode ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-border bg-white text-slate-700 hover:bg-slate-50',
+                )}
+              >
+                <p className="text-sm font-900">{mode}</p>
+                <p className="mt-1 text-xs font-700">
+                  {mode === 'CreditTrust Standard' ? 'Safe fixed schema' : mode === 'Full JSON' ? 'Provider response pass-through' : 'Choose exact fields'}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_0.8fr]">
+            <div className={classNames('rounded-lg border border-border bg-slate-50 p-4', client.responseMode !== 'Custom' && 'opacity-60')}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-xs font-900 uppercase tracking-wide text-muted-foreground">Allowed fields</p>
+                <StatusPill tone={client.responseMode === 'Custom' ? 'blue' : 'slate'}>{effectiveFields.length}</StatusPill>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {responseFieldOptions.map(([field, label]) => {
+                  const checked = effectiveFields.includes(field);
+                  return (
+                    <label key={field} className={classNames('flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-xs font-800', checked ? 'border-blue-200 bg-white text-blue-800' : 'border-transparent bg-white text-slate-600')}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={client.responseMode !== 'Custom'}
+                        onChange={() => toggleResponseField(field)}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        <span className="block font-900">{field}</span>
+                        <span className="block text-muted-foreground">{label}</span>
+                      </span>
+                    </label>
+                  );
                 })}
-                className="input-base min-h-[90px]"
-                placeholder="score, status, report_id, customer_name"
-              />
-            </Field>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-white p-4">
+              <p className="text-xs font-900 uppercase tracking-wide text-muted-foreground">Response preview</p>
+              <pre className="mt-3 max-h-[320px] overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 text-slate-100">
+                {JSON.stringify(preview, null, 2)}
+              </pre>
+            </div>
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
-            {client.responseFields.map((field) => <StatusPill key={field} tone="slate">{field}</StatusPill>)}
+            {effectiveFields.map((field) => <StatusPill key={field} tone="slate">{field}</StatusPill>)}
           </div>
         </div>
 
