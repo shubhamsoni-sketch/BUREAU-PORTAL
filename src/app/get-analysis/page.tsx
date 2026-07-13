@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
+
 import PublicNav from '../home/components/PublicNav';
 import PublicFooter from '../home/components/PublicFooter';
 import {

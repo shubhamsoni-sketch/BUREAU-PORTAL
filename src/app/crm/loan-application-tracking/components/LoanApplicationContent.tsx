@@ -8,26 +8,10 @@ import { crmFetch } from '@/lib/crm/api';
 import ApplicationDetailPanel from './ApplicationDetailPanel';
 
 type AppStage =
-  | 'case_sent_to_lender'
-  | 'login_pending'
-  | 'draft'
-  | 'submitted'
-  | 'under_review'
-  | 'credit_check'
-  | 'conditional_approval'
-  | 'final_approval'
-  | 'sanctioned'
-  | 'disbursal_initiated'
-  | 'disbursed'
-  | 'rejected';
+  | 'case_sent_to_lender' |'login_pending' |'draft' |'submitted' |'under_review' |'credit_check' |'conditional_approval' |'final_approval' |'sanctioned' |'disbursal_initiated' |'disbursed' |'rejected';
 
 type ProductType =
-  | 'home_loan'
-  | 'personal_loan'
-  | 'business_loan'
-  | 'lap'
-  | 'car_loan'
-  | 'credit_card';
+  | 'home_loan' |'personal_loan' |'business_loan' |'lap' |'car_loan' |'credit_card';
 
 type ApplicationDocument = {
   id: string;
@@ -892,8 +876,7 @@ export default function LoanApplicationContent() {
                             className={[
                               'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-700',
                               progress.ready
-                                ? 'bg-success-bg text-success'
-                                : 'bg-warning-bg text-warning',
+                                ? 'bg-success-bg text-success' :'bg-warning-bg text-warning',
                             ].join(' ')}
                           >
                             {progress.verified}/{progress.required || 0}
@@ -908,8 +891,7 @@ export default function LoanApplicationContent() {
                           app.daysPending >= 7
                             ? 'bg-danger-bg text-danger'
                             : app.daysPending >= 4
-                              ? 'bg-warning-bg text-warning'
-                              : 'bg-muted text-muted-foreground',
+                              ? 'bg-warning-bg text-warning' :'bg-muted text-muted-foreground',
                         ].join(' ')}
                       >
                         {app.daysPending}d

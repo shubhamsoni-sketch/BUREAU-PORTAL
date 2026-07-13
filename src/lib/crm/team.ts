@@ -2,15 +2,7 @@ export type CrmUserRole = 'Admin' | 'Manager' | 'DSA Agent' | 'Ops Executive' | 
 export type CrmUserStatus = 'active' | 'inactive';
 
 export type CrmPermissionKey =
-  | 'dashboard'
-  | 'lead_management'
-  | 'eligibility_check'
-  | 'lender_selection'
-  | 'file_process'
-  | 'lender_management'
-  | 'team_management'
-  | 'eligibility_credits'
-  | 'reports';
+  | 'dashboard' |'lead_management' |'eligibility_check' |'lender_selection' |'file_process' |'lender_management' |'team_management' |'eligibility_credits' |'reports';
 
 export type CrmTeamMember = {
   id: string;

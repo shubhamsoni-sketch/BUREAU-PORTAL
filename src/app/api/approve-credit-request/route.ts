@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { createAdminClient } from '@/lib/supabase/admin';
 
 function generateInvoiceNumber(): string {
   const year = new Date().getFullYear();
@@ -16,6 +10,7 @@ function generateInvoiceNumber(): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = createAdminClient();
     const body = await req.json();
     const { credit_request_id } = body;
 
@@ -23,7 +18,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'credit_request_id is required' }, { status: 400 });
     }
 
-    // 1. Fetch the credit request
     const { data: creditRequest, error: crError } = await supabaseAdmin
       .from('credit_requests')
       .select('id, partner_id, user_id, amount, note, status')
@@ -41,7 +35,6 @@ export async function POST(req: NextRequest) {
     const { partner_id, amount, note } = creditRequest;
     const creditAmount = Number(amount);
 
-    // 2. Fetch partner details
     const { data: partner, error: partnerError } = await supabaseAdmin
       .from('partners')
       .select('id, name, email, wallet_balance')
@@ -52,7 +45,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
     }
 
-    // 3. Insert wallet_transactions row as PENDING (Payment Pending tag)
     const description = note
       ? `Credit Request Approved — ${note}`
       : `Credit Request Approved — ₹${creditAmount.toLocaleString('en-IN')}`;
@@ -80,7 +72,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: txnError.message }, { status: 500 });
     }
 
-    // 4. Create draft invoice
     const invoiceNumber = generateInvoiceNumber();
     const { data: invoiceData, error: invoiceError } = await supabaseAdmin
       .from('invoices')
@@ -105,13 +96,11 @@ export async function POST(req: NextRequest) {
       console.error('[approve-credit-request] invoice insert error:', invoiceError);
     }
 
-    // 5. Mark credit request as approved
     await supabaseAdmin
       .from('credit_requests')
       .update({ status: 'approved' })
       .eq('id', credit_request_id);
 
-    // 6. Notify the partner
     if (creditRequest.user_id) {
       await supabaseAdmin.from('notifications').insert({
         user_id: creditRequest.user_id,
@@ -142,6 +131,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const supabaseAdmin = createAdminClient();
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'pending';
 
@@ -163,7 +153,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Enrich with partner names
     const partnerIds = [...new Set((data ?? []).map((r: any) => r.partner_id))];
     let partnerMap: Record<string, { name: string; email: string; partner_code: string }> = {};
 

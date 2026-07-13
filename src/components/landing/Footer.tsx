@@ -19,7 +19,7 @@ export default function Footer() {
   const [year, setYear] = useState('');
 
   useEffect(() => {
-    setYear(new Date().getFullYear().toString());
+    setYear(new Date()?.getFullYear()?.toString());
   }, []);
 
   return (
@@ -51,9 +51,9 @@ export default function Footer() {
           </div>
 
           <div className="flex items-center gap-5 sm:gap-6 flex-wrap justify-center">
-            {footerLinks.map((link) => (
-              <Link key={link.href} href={link.href} className="text-sm font-medium text-fg-muted hover:text-fg transition-colors">
-                {link.label}
+            {footerLinks?.map((link) => (
+              <Link key={link?.href} href={link?.href} className="text-sm font-medium text-fg-muted hover:text-fg transition-colors">
+                {link?.label}
               </Link>
             ))}
           </div>

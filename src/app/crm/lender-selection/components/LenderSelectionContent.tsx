@@ -409,8 +409,7 @@ export default function LenderSelectionContent() {
                       className={[
                         'rounded-lg border p-4 transition-colors',
                         isSelected
-                          ? 'border-success bg-success/5'
-                          : 'border-border bg-background hover:border-primary/40',
+                          ? 'border-success bg-success/5' :'border-border bg-background hover:border-primary/40',
                       ].join(' ')}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -446,8 +445,7 @@ export default function LenderSelectionContent() {
                         className={[
                           'w-full h-9 rounded-sm text-xs font-700 transition-colors disabled:opacity-60',
                           isSelected
-                            ? 'bg-success/10 text-success'
-                            : 'bg-primary text-primary-foreground hover:bg-primary/90',
+                            ? 'bg-success/10 text-success' :'bg-primary text-primary-foreground hover:bg-primary/90',
                         ].join(' ')}
                       >
                         {isSelected
@@ -455,8 +453,7 @@ export default function LenderSelectionContent() {
                           : submitting === submitKey
                             ? 'Creating...'
                             : canSwitch
-                              ? 'Send to This Lender'
-                              : 'Create File Process'}
+                              ? 'Send to This Lender' :'Create File Process'}
                       </button>
                     </div>
                   );

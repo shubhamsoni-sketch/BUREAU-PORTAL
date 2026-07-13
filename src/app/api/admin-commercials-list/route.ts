@@ -1,14 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET() {
   try {
+    const supabaseAdmin = createAdminClient();
     const { data, error } = await supabaseAdmin
       .from('partner_commercials')
       .select('partner_id, pricing_plan, subscription_type, consumer_credit_rate, commercial_credit_rate, bundled_credits, credit_limit, notes');

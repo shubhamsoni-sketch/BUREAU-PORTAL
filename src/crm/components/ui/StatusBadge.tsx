@@ -1,45 +1,7 @@
 import React from 'react';
 
 type BadgeVariant =
-  | 'new'
-  | 'contacted'
-  | 'interested'
-  | 'eligibility_pending'
-  | 'eligibility_done'
-  | 'submitted_to_lender'
-  | 'sanctioned'
-  | 'docs_submitted'
-  | 'case_sent_to_lender'
-  | 'login_pending'
-  | 'logged_in'
-  | 'approved'
-  | 'disbursed'
-  | 'rejected'
-  | 'lost'
-  | 'draft'
-  | 'submitted'
-  | 'under_review'
-  | 'credit_check'
-  | 'conditional_approval'
-  | 'final_approval'
-  | 'disbursal_initiated'
-  | 'pending'
-  | 'verified'
-  | 'active'
-  | 'inactive'
-  | 'bank'
-  | 'nbfc'
-  | 'home_loan'
-  | 'personal_loan'
-  | 'business_loan'
-  | 'lap'
-  | 'car_loan'
-  | 'credit_card'
-  | 'web'
-  | 'reference'
-  | 'walk_in'
-  | 'campaign'
-  | 'social';
+  | 'new' |'contacted' |'interested' |'eligibility_pending' |'eligibility_done' |'submitted_to_lender' |'sanctioned' |'docs_submitted' |'case_sent_to_lender' |'login_pending' |'logged_in' |'approved' |'disbursed' |'rejected' |'lost' |'draft' |'submitted' |'under_review' |'credit_check' |'conditional_approval' |'final_approval' |'disbursal_initiated' |'pending' |'verified' |'active' |'inactive' |'bank' |'nbfc' |'home_loan' |'personal_loan' |'business_loan' |'lap' |'car_loan' |'credit_card' |'web' |'reference' |'walk_in' |'campaign' |'social';
 
 const variantMap: Record<BadgeVariant, { label: string; classes: string }> = {
   new: { label: 'New', classes: 'bg-info-bg text-info border-info/20' },

@@ -80,7 +80,7 @@ export default function AboutPage() {
                     ['Technology infrastructure', 'Modern systems for secure digital workflow execution.'],
                     ['Analytics systems', 'Assessment-oriented insights for user and partner journeys.'],
                     ['Workflow automation', 'Operational tools that simplify onboarding, reporting, and utility services.'],
-                  ].map(([label, desc]) => (
+                  ]?.map(([label, desc]) => (
                     <div key={label} className="border-b border-white/10 pb-4 last:border-b-0 last:pb-0">
                       <p className="font-semibold text-fg">{label}</p>
                       <p className="text-sm text-fg-muted mt-1">{desc}</p>
@@ -102,13 +102,13 @@ export default function AboutPage() {
               </p>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-              {focusAreas.map((item) => (
-                <div key={item.title} className="rounded-2xl border border-white/10 p-6 bg-white/[0.035]">
+              {focusAreas?.map((item) => (
+                <div key={item?.title} className="rounded-2xl border border-white/10 p-6 bg-white/[0.035]">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
                     <item.icon size={18} className="text-primary" />
                   </div>
-                  <h3 className="font-bold text-fg mb-2">{item.title}</h3>
-                  <p className="text-sm text-fg-muted leading-relaxed">{item.desc}</p>
+                  <h3 className="font-bold text-fg mb-2">{item?.title}</h3>
+                  <p className="text-sm text-fg-muted leading-relaxed">{item?.desc}</p>
                 </div>
               ))}
             </div>
@@ -139,7 +139,7 @@ export default function AboutPage() {
                     'Financial analytics and reporting',
                     'Digital onboarding workflows',
                     'Assessment insight delivery',
-                  ].map((item) => (
+                  ]?.map((item) => (
                     <div key={item} className="flex items-center gap-3 text-sm text-fg-muted">
                       <BadgeCheck size={17} className="shrink-0 text-primary" />
                       <span>{item}</span>

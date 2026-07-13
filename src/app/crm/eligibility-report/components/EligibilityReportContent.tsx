@@ -192,8 +192,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                   : Number(report.score || 0) >= 720
                     ? 'Good'
                     : Number(report.score || 0) >= 660
-                      ? 'Fair'
-                      : 'Poor',
+                      ? 'Fair' :'Poor',
               foir: 0,
               eligible: Boolean(report.eligible),
               matchedLenders: Array.isArray(report.matched_lenders)

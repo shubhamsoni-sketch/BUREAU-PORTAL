@@ -407,8 +407,7 @@ export default function Sidebar({
                     className={[
                       'flex items-center gap-3 px-2 py-2 rounded-sm text-sm font-medium transition-all duration-150 mb-0.5 group relative',
                       isActive
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                        ? 'bg-primary/10 text-primary' :'text-muted-foreground hover:bg-muted hover:text-foreground',
                     ].join(' ')}
                   >
                     <span className="shrink-0">{item.icon}</span>

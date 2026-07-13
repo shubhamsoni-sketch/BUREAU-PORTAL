@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePartnerProductAccess } from '@/lib/partner-access';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = createAdminClient();
     const { partner_id, product_access } = await request.json();
 
     if (!partner_id) {

@@ -25,17 +25,17 @@ const alerts = [
 export default function DashboardAlerts() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-      {alerts.map((alert) => (
+      {alerts?.map((alert) => (
         <div
-          key={alert.id}
-          className={`rounded-lg border ${alert.tone} px-4 py-3 flex items-center justify-between gap-3 shadow-sm`}
+          key={alert?.id}
+          className={`rounded-lg border ${alert?.tone} px-4 py-3 flex items-center justify-between gap-3 shadow-sm`}
         >
           <div className="min-w-0">
-            <p className="text-xs font-900 text-foreground">{alert.title}</p>
-            <p className="text-xs font-600 opacity-80 mt-0.5 truncate">{alert.text}</p>
+            <p className="text-xs font-900 text-foreground">{alert?.title}</p>
+            <p className="text-xs font-600 opacity-80 mt-0.5 truncate">{alert?.text}</p>
           </div>
           <button className="h-7 shrink-0 rounded-sm bg-white/80 px-2.5 text-[10px] font-900 shadow-sm hover:bg-white transition-colors">
-            {alert.action}
+            {alert?.action}
           </button>
         </div>
       ))}

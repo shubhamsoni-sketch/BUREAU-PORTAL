@@ -7,22 +7,9 @@ import LeadKanban from './LeadKanban';
 import { crmFetch } from '@/lib/crm/api';
 
 type LeadStage =
-  | 'new'
-  | 'contacted'
-  | 'eligibility_pending'
-  | 'eligibility_done'
-  | 'submitted_to_lender'
-  | 'sanctioned'
-  | 'rejected'
-  | 'disbursed'
-  | 'lost';
+  | 'new' |'contacted' |'eligibility_pending' |'eligibility_done' |'submitted_to_lender' |'sanctioned' |'rejected' |'disbursed' |'lost';
 type ProductType =
-  | 'home_loan'
-  | 'personal_loan'
-  | 'business_loan'
-  | 'lap'
-  | 'car_loan'
-  | 'credit_card';
+  | 'home_loan' |'personal_loan' |'business_loan' |'lap' |'car_loan' |'credit_card';
 type LeadSource = 'web' | 'reference' | 'walk_in' | 'campaign' | 'social';
 
 export interface Lead {
@@ -660,8 +647,7 @@ export default function LeadManagementContent() {
                               lead.daysInStage > 7
                                 ? 'text-danger'
                                 : lead.daysInStage > 3
-                                  ? 'text-warning'
-                                  : 'text-muted-foreground',
+                                  ? 'text-warning' :'text-muted-foreground',
                             ].join(' ')}
                           >
                             {lead.daysInStage}d
@@ -786,8 +772,7 @@ export default function LeadManagementContent() {
                 className={[
                   'border-2 border-dashed rounded-lg p-8 text-center transition-colors',
                   dragOver
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-primary/50',
+                    ? 'border-primary bg-primary/5' :'border-border hover:border-primary/50',
                 ].join(' ')}
               >
                 {uploadedFile ? (

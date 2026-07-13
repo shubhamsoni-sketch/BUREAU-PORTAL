@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = createAdminClient();
     const body = await req.json();
     const {
       partner_id,
@@ -31,7 +26,6 @@ export async function POST(req: NextRequest) {
     const plan = pricing_plan || 'Basic';
     const subType = subscription_type || 'prepaid';
 
-    // Use raw SQL via rpc to avoid enum casting issues
     const { error } = await supabaseAdmin.rpc('upsert_partner_commercials', {
       p_partner_id: partner_id,
       p_pricing_plan: plan,
@@ -47,7 +41,6 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error('[save-partner-commercials] rpc error:', JSON.stringify(error));
-      // Fallback: direct upsert with explicit casting
       const { error: upsertError } = await supabaseAdmin
         .from('partner_commercials')
         .upsert(

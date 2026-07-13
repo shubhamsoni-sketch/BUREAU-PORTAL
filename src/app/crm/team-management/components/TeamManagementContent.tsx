@@ -398,8 +398,7 @@ export default function TeamManagementContent() {
                             className={[
                               'inline-flex rounded-full px-2 py-0.5 text-[10px] font-700 whitespace-nowrap',
                               m.authUserId
-                                ? 'bg-success/10 text-success'
-                                : 'bg-muted text-muted-foreground',
+                                ? 'bg-success/10 text-success' :'bg-muted text-muted-foreground',
                             ].join(' ')}
                           >
                             {m.authUserId ? 'Active' : 'Not Created'}

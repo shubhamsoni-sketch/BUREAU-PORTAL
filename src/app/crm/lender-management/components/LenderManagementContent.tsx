@@ -234,7 +234,7 @@ const formatCr = (n: number) => {
 
 const emptyForm = {
   name: '',
-  type: 'bank' as 'bank' | 'nbfc',
+  type: 'bank\' as \'bank\' | \'nbfc',
   products: [] as string[],
   roiMin: '',
   roiMax: '',
@@ -250,7 +250,7 @@ const emptyForm = {
   contact: '',
   rm: '',
   avgTat: '',
-  status: 'active' as 'active' | 'inactive',
+  status: 'active\' as \'active\' | \'inactive',
 };
 
 export default function LenderManagementContent() {
@@ -611,8 +611,7 @@ export default function LenderManagementContent() {
                               lender.approvalRate >= 80
                                 ? 'bg-success'
                                 : lender.approvalRate >= 70
-                                  ? 'bg-warning'
-                                  : 'bg-danger',
+                                  ? 'bg-warning' :'bg-danger',
                             ].join(' ')}
                             style={{ width: `${lender.approvalRate}%` }}
                           />
@@ -623,8 +622,7 @@ export default function LenderManagementContent() {
                             lender.approvalRate >= 80
                               ? 'text-success'
                               : lender.approvalRate >= 70
-                                ? 'text-warning'
-                                : 'text-danger',
+                                ? 'text-warning' :'text-danger',
                           ].join(' ')}
                         >
                           {lender.approvalRate}%

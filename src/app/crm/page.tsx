@@ -32,7 +32,7 @@ export default function DashboardPage() {
                   ['Eligibility Pulls', '124', '93 successful', 'bg-emerald-500'],
                   ['Lender Logins', '31', '7 pending login', 'bg-violet-500'],
                   ['Disbursal MTD', '₹4.82 Cr', '80% target', 'bg-orange-500'],
-                ].map(([label, value, subtext, color]) => (
+                ]?.map(([label, value, subtext, color]) => (
                   <div key={label} className="rounded-lg border border-border bg-card/85 px-4 py-3 shadow-sm">
                     <div className={`w-7 h-1 rounded-full ${color} mb-3`} />
                     <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
@@ -61,7 +61,7 @@ export default function DashboardPage() {
                   ['Docs Pending', '23 files', 'text-amber-600 bg-amber-50'],
                   ['Lender TAT Breach', '3 files', 'text-red-600 bg-red-50'],
                   ['Fresh Eligibility Queue', '41 leads', 'text-emerald-600 bg-emerald-50'],
-                ].map(([label, value, tone]) => (
+                ]?.map(([label, value, tone]) => (
                   <div key={label} className="flex items-center justify-between gap-3 rounded-sm border border-border bg-muted/20 px-3 py-2">
                     <div className="min-w-0">
                       <p className="text-xs font-800 text-foreground truncate">{label}</p>

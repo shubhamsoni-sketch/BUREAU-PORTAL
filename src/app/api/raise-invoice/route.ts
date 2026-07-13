@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = createAdminClient();
     const body = await req.json();
     const { invoice_id } = body;
 
@@ -16,7 +11,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'invoice_id is required' }, { status: 400 });
     }
 
-    // Fetch invoice details first for notification
     const { data: invoice } = await supabaseAdmin
       .from('invoices')
       .select('id, invoice_number, partner_id, partner_name, amount')
@@ -35,7 +29,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Notify partner that invoice has been raised
     if (invoice) {
       const { data: partner } = await supabaseAdmin
         .from('partners')

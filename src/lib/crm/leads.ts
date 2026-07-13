@@ -1,13 +1,5 @@
 export type CrmLeadStage =
-  | 'new'
-  | 'contacted'
-  | 'eligibility_pending'
-  | 'eligibility_done'
-  | 'submitted_to_lender'
-  | 'sanctioned'
-  | 'rejected'
-  | 'disbursed'
-  | 'lost';
+  | 'new' |'contacted' |'eligibility_pending' |'eligibility_done' |'submitted_to_lender' |'sanctioned' |'rejected' |'disbursed' |'lost';
 
 export type CrmLead = {
   id: string;
@@ -39,18 +31,7 @@ export type CrmApplication = {
   product: string;
   loanAmount: number;
   status:
-    | 'case_sent_to_lender'
-    | 'login_pending'
-    | 'draft'
-    | 'submitted'
-    | 'under_review'
-    | 'credit_check'
-    | 'conditional_approval'
-    | 'final_approval'
-    | 'disbursal_initiated'
-    | 'sanctioned'
-    | 'rejected'
-    | 'disbursed';
+    | 'case_sent_to_lender' |'login_pending' |'draft' |'submitted' |'under_review' |'credit_check' |'conditional_approval' |'final_approval' |'disbursal_initiated' |'sanctioned' |'rejected' |'disbursed';
   statusHistory?: {
     status: CrmApplication['status'];
     note: string;

@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = createAdminClient();
     const body = await req.json();
     const { partner_id, report_type, customer_name, report_id } = body;
 
@@ -16,7 +11,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'partner_id and report_type are required' }, { status: 400 });
     }
 
-    // 1. Fetch partner's commercial rates
     const { data: commercials, error: commercialsError } = await supabaseAdmin
       .from('partner_commercials')
       .select('consumer_credit_rate, commercial_credit_rate, credit_rate')
@@ -27,12 +21,10 @@ export async function POST(req: NextRequest) {
       console.error('[pull-bureau-deduct] commercials fetch error:', commercialsError);
     }
 
-    // Determine rate: use split rates if available, fallback to credit_rate, then default
     const rate = report_type === 'commercial'
       ? Number(commercials?.commercial_credit_rate ?? commercials?.credit_rate ?? 15)
       : Number(commercials?.consumer_credit_rate ?? commercials?.credit_rate ?? 10);
 
-    // 2. Fetch current wallet balance from partners table
     const { data: partnerRow, error: partnerError } = await supabaseAdmin
       .from('partners')
       .select('id, wallet_balance')
@@ -54,7 +46,6 @@ export async function POST(req: NextRequest) {
 
     const newBalance = currentBalance - rate;
 
-    // 3. Deduct from partners.wallet_balance
     const { error: updateError } = await supabaseAdmin
       .from('partners')
       .update({ wallet_balance: newBalance, updated_at: new Date().toISOString() })
@@ -65,7 +56,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    // 4. Update wallet_balances table if row exists
     const { data: wbRow } = await supabaseAdmin
       .from('wallet_balances')
       .select('total_deducted')
@@ -84,7 +74,6 @@ export async function POST(req: NextRequest) {
         .eq('partner_id', partner_id);
     }
 
-    // 5. Insert wallet_transactions row
     const description = `${report_type === 'commercial' ? 'Commercial' : 'Consumer'} Bureau Pull${customer_name ? ` – ${customer_name}` : ''}`;
     const { error: txnError } = await supabaseAdmin
       .from('wallet_transactions')
@@ -106,10 +95,8 @@ export async function POST(req: NextRequest) {
 
     if (txnError) {
       console.error('[pull-bureau-deduct] transaction insert error:', txnError);
-      // Don't fail — balance already deducted, just log
     }
 
-    // 6. Insert bureau_pulls row for report history
     const memberRef = `n${Date.now().toString().slice(-8)}`;
     const { error: pullError } = await supabaseAdmin
       .from('bureau_pulls')
@@ -141,7 +128,6 @@ export async function POST(req: NextRequest) {
 
     if (pullError) {
       console.error('[pull-bureau-deduct] bureau_pulls insert error:', pullError);
-      // Don't fail — balance already deducted
     }
 
     return NextResponse.json({

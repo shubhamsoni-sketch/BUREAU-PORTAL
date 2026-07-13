@@ -568,7 +568,7 @@ export async function POST(request: NextRequest) {
 
     if (body.action === 'seed_demo_eligibility') {
       const supabase = createAdminClient();
-      const { rowId, store } = await getCrmStore(request, supabase);
+      const { rowId, store, scope } = await getCrmStore(request, supabase);
       const now = new Date().toISOString();
       const demos = [
         {
@@ -833,8 +833,7 @@ export async function POST(request: NextRequest) {
               ...application,
               status: status as CrmApplication['status'],
               rejectionReason:
-                status === 'rejected'
-                  ? rejectionReason || application.rejectionReason || note || 'Rejected'
+                status === 'rejected' ? rejectionReason || application.rejectionReason || note ||'Rejected'
                   : application.rejectionReason,
               statusHistory: [
                 {
@@ -1163,8 +1162,7 @@ export async function POST(request: NextRequest) {
       eligible
         ? matchedLenders.length
           ? `${matchedLenders.length} lender policy match found.`
-          : 'Customer passes score/FOIR policy, but no lender rule matched.'
-        : 'Customer needs manual review or alternate lender mapping.',
+          : 'Customer passes score/FOIR policy, but no lender rule matched.' :'Customer needs manual review or alternate lender mapping.',
     ];
 
     const report: CrmEligibilityReport = {
