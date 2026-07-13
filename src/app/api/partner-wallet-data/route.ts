@@ -1,26 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { bearerToken, requireUser } from '@/lib/supabase/admin';
 
 export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('user_id');
+  const auth = await requireUser(bearerToken(req));
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
 
-    if (!userId) {
-      return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
-    }
+  try {
+    const supabaseAdmin = auth.supabase;
 
     // 1. Get partner row by user_id
     const { data: partner, error: partnerError } = await supabaseAdmin
       .from('partners')
-      .select('id, wallet_balance')
-      .eq('user_id', userId)
+      .select('id, wallet_balance, reports_pulled')
+      .eq('user_id', auth.user.id)
       .maybeSingle();
 
     if (partnerError || !partner) {
@@ -62,6 +56,41 @@ export async function GET(req: NextRequest) {
       .eq('partner_id', partner.id)
       .maybeSingle();
 
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const [
+      { count: totalReportsCount },
+      { count: reportsPulledToday },
+      { data: weeklyPulls },
+      { data: recentReports },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from('bureau_pulls')
+        .select('id', { count: 'exact', head: true })
+        .eq('partner_id', partner.id),
+      supabaseAdmin
+        .from('bureau_pulls')
+        .select('id', { count: 'exact', head: true })
+        .eq('partner_id', partner.id)
+        .gte('created_at', todayStart.toISOString()),
+      supabaseAdmin
+        .from('bureau_pulls')
+        .select('created_at')
+        .eq('partner_id', partner.id)
+        .gte('created_at', sevenDaysAgo.toISOString()),
+      supabaseAdmin
+        .from('bureau_pulls')
+        .select('id, customer_name, bureau, credit_score, created_at, report_type')
+        .eq('partner_id', partner.id)
+        .order('created_at', { ascending: false })
+        .limit(5),
+    ]);
+
     return NextResponse.json({
       success: true,
       partnerId: partner.id,
@@ -70,6 +99,10 @@ export async function GET(req: NextRequest) {
       totalDeducted,
       transactions: txns,
       commercials: comm ?? null,
+      reportsPulled: totalReportsCount ?? partner.reports_pulled ?? 0,
+      reportsPulledToday: reportsPulledToday ?? 0,
+      weeklyPulls: weeklyPulls ?? [],
+      recentReports: recentReports ?? [],
     });
   } catch (err: any) {
     console.error('[partner-wallet-data] unexpected error:', err);

@@ -7,7 +7,7 @@ import {
   SimpleApiConfig,
 } from '@/lib/api-hub/simple-store';
 import { maskMobile, maskPan } from '@/lib/api-hub/keys';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { bearerToken, createAdminClient, requireUser } from '@/lib/supabase/admin';
 import { getStateName } from '@/lib/bureau/state-codes';
 import { resolveCrmScope } from '@/lib/crm/scope';
 import { requireCrmPermission } from '@/lib/crm/access';
@@ -107,6 +107,14 @@ const defaultCrmStore: CrmStore = {
   applications: [],
   team: defaultCrmTeam,
   reports: [],
+};
+
+const CRM_STANDARD_DEFAULTS = {
+  dob: '2000-01-01',
+  gender: 'male',
+  address: 'CreditTrust Verified Address',
+  state: 'MADHYA PRADESH',
+  pincode: '452001',
 };
 
 function generateInvoiceNumber() {
@@ -516,6 +524,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireUser(bearerToken(request));
+  if ('error' in auth) {
+    return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+  }
+
   const requestId = `CRM-ELIG-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
   try {
     const body = await request.json();
@@ -1083,27 +1096,20 @@ export async function POST(request: NextRequest) {
         .filter(Boolean)
         .join(' ');
     } else {
-      if (!name.firstName) return jsonError('First name is required', 400);
-      if (!name.lastName) return jsonError('Last name is required', 400);
+      if (!name.firstName || !name.lastName) return jsonError('Full name with first and last name is required', 400);
       if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(pan)) return jsonError('Valid PAN is required', 400);
-      if (!dob) return jsonError('Date of birth is required', 400);
-      if (!cleanString(body.gender)) return jsonError('Gender is required', 400);
-      if (!cleanString(body.address)) return jsonError('Address is required', 400);
-      if (!loanType) return jsonError('Loan type is required', 400);
-      if (!loanAmount || loanAmount <= 0) return jsonError('Loan amount is required', 400);
-      if (!monthlyIncome || monthlyIncome <= 0) return jsonError('Monthly income is required', 400);
 
-      const state = cleanString(body.state) || stateFromPincode(pincode, city);
+      const state = cleanString(body.state) || stateFromPincode(pincode, city) || CRM_STANDARD_DEFAULTS.state;
       cibilPayload = {
         firstName: name.firstName,
         lastName: name.lastName,
-        dob,
-        gender: normalizeGender(body.gender),
+        dob: dob || CRM_STANDARD_DEFAULTS.dob,
+        gender: normalizeGender(body.gender) || CRM_STANDARD_DEFAULTS.gender,
         pan,
         mobile,
-        address: cleanString(body.address),
+        address: cleanString(body.address) || CRM_STANDARD_DEFAULTS.address,
         state,
-        pincode,
+        pincode: pincode || CRM_STANDARD_DEFAULTS.pincode,
       };
     }
 
@@ -1247,6 +1253,10 @@ export async function POST(request: NextRequest) {
         remarks,
         matchedLenders: eligible ? matchedLenders : [],
         rawBureauResponse: bureauResponse.data,
+        reportId: report.id,
+        requestId,
+        customerName: borrowerName,
+        createdAt: report.created_at,
       },
     });
   } catch (error) {

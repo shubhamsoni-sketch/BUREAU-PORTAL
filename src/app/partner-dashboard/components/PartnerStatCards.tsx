@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
-import { createClient } from '@/lib/supabase/client';
+import { usePartnerDashboardData } from './PartnerDashboardDataContext';
 
 type StatCard = {
   id: string;
@@ -18,57 +18,16 @@ type StatCard = {
 
 export default function PartnerStatCards() {
   const { user } = useAuth();
-  const [walletBalance, setWalletBalance] = useState<number>(0);
-  const [reportsPulled, setReportsPulled] = useState<number>(0);
-  const [reportsPulledToday, setReportsPulledToday] = useState<number>(0);
-
-  useEffect(() => {
-    if (!user?.id) return;
-
-    // Use service-role API to bypass RLS and get real wallet balance
-    fetch(`/api/partner-wallet-data?user_id=${user.id}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.success) {
-          setWalletBalance(data.balance ?? 0);
-        }
-      })
-      .catch((err) => console.error('[PartnerStatCards] wallet fetch error:', err));
-
-    // Fetch reports_pulled separately via client (non-sensitive field, or fallback to 0)
-    const supabase = createClient();
-
-    // Fetch total reports pulled
-    supabase
-      .from('partners')
-      .select('reports_pulled')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setReportsPulled(data.reports_pulled ?? 0);
-        }
-      });
-
-    // Fetch reports pulled today
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    supabase
-      .from('bureau_pulls')
-      .select('id', { count: 'exact', head: true })
-      .eq('partner_id', user.id)
-      .gte('created_at', todayStart.toISOString())
-      .then(({ count }) => {
-        setReportsPulledToday(count ?? 0);
-      }, () => setReportsPulledToday(0));
-  }, [user?.id]);
+  const { data, loading } = usePartnerDashboardData();
+  const walletBalance = data?.balance ?? null;
+  const reportsPulled = data?.reportsPulled ?? null;
+  const reportsPulledToday = data?.reportsPulledToday ?? null;
 
   const stats: StatCard[] = [
     {
       id: 'stat-wallet-balance',
       label: 'Wallet Balance',
-      value: `₹${walletBalance.toLocaleString('en-IN')}`,
+      value: loading || walletBalance === null ? '—' : `₹${walletBalance.toLocaleString('en-IN')}`,
       subValue: 'Available credit',
       icon: 'WalletIcon',
       iconBg: 'bg-emerald-50',
@@ -79,7 +38,7 @@ export default function PartnerStatCards() {
       id: 'stat-partner-code',
       label: 'Partner Code',
       value: user?.partnerCode ?? '—',
-      subValue: 'Your DSA code',
+      subValue: 'Your partner code',
       icon: 'IdentificationIcon',
       iconBg: 'bg-purple-50',
       iconColor: 'text-purple-600',
@@ -88,7 +47,7 @@ export default function PartnerStatCards() {
     {
       id: 'stat-reports-today',
       label: 'Reports Pulled Today',
-      value: reportsPulledToday.toString(),
+      value: loading || reportsPulledToday === null ? '—' : reportsPulledToday.toString(),
       subValue: 'Today\'s activity',
       icon: 'ClipboardDocumentCheckIcon',
       iconBg: 'bg-amber-50',
@@ -98,7 +57,7 @@ export default function PartnerStatCards() {
     {
       id: 'stat-reports-total',
       label: 'Total Reports Pulled',
-      value: reportsPulled.toString(),
+      value: loading || reportsPulled === null ? '—' : reportsPulled.toString(),
       subValue: 'Lifetime total',
       icon: 'DocumentMagnifyingGlassIcon',
       iconBg: 'bg-blue-50',
@@ -123,9 +82,13 @@ export default function PartnerStatCards() {
             </div>
           </div>
 
-          <p className="text-3xl font-bold text-foreground font-tabular leading-none mb-2">
-            {stat.value}
-          </p>
+          {loading && stat.id !== 'stat-partner-code' ? (
+            <div className="h-8 w-24 bg-slate-100 rounded animate-pulse mb-2" />
+          ) : (
+            <p className="text-3xl font-bold text-foreground font-tabular leading-none mb-2">
+              {stat.value}
+            </p>
+          )}
 
           {stat.trend && (
             <div className="flex items-center gap-1">

@@ -7,7 +7,7 @@ const DEMO_RESET_BALANCE = 100000;
 const DEMO_TOP_UP_THRESHOLD = 1000;
 const BUREAU_API_URL = process.env.BUREAU_API_URL?.trim() ?? '';
 const BUREAU_API_AUTH_TOKEN = process.env.BUREAU_API_AUTH_TOKEN?.trim() ?? '';
-const BUREAU_API_AUTH_HEADER = process.env.BUREAU_API_AUTH_HEADER?.trim() || 'token';
+const BUREAU_API_AUTH_HEADER = process.env.BUREAU_API_AUTH_HEADER?.trim() || 'x-api-key';
 const BUREAU_API_TIMEOUT_MS = Number(process.env.BUREAU_API_TIMEOUT_MS ?? 30000);
 
 type ReportType = 'consumer' | 'commercial';
@@ -48,6 +48,60 @@ type CibilLikeResponse = {
   };
   [key: string]: unknown;
 };
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function normalizeJaadugarDob(value: string) {
+  if (/^\d{8}$/.test(value)) return `${value.slice(4)}-${value.slice(2, 4)}-${value.slice(0, 2)}`;
+  return value;
+}
+
+function normalizeJaadugarGender(value: string | null) {
+  if (value === '1') return 'female';
+  if (value === '2') return 'male';
+  if (value === '3') return 'transgender';
+  return '';
+}
+
+function findBureauBody(value: unknown, depth = 0): CibilLikeResponse | null {
+  if (depth > 5 || !isRecord(value)) return null;
+  if (Array.isArray(value.consumerCreditData) && isRecord(value.consumerSummaryData)) {
+    return value as CibilLikeResponse;
+  }
+  for (const nested of Object.values(value)) {
+    const found = findBureauBody(nested, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+function readProviderReportId(value: unknown): string | null {
+  if (!isRecord(value)) return null;
+  const direct = value.reportId || value.report_id || value.requestId || value.request_id;
+  if (direct) return String(direct);
+  for (const nested of Object.values(value)) {
+    const found = readProviderReportId(nested);
+    if (found) return found;
+  }
+  return null;
+}
+
+function generateMemberRef() {
+  return `CT-${Date.now().toString().slice(-6)}`;
+}
+
+function formatMemberRefForDisplay(value: string | null) {
+  if (!value) return '—';
+  if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value)) {
+    return `CT-${value.replace(/-/g, '').slice(-6).toUpperCase()}`;
+  }
+  if (/^(LIVE|DEMO)-\d+$/i.test(value)) {
+    return `CT-${value.slice(-6)}`;
+  }
+  return value;
+}
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ success: false, error: message }, { status });
@@ -276,7 +330,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const reportId = `${isDemoPartner ? 'DEMO' : 'LIVE'}-${Date.now().toString().slice(-10)}`;
+    let reportId = `${isDemoPartner ? 'DEMO' : 'LIVE'}-${Date.now().toString().slice(-10)}`;
+    const memberRef = generateMemberRef();
     const requestPayload = {
       firstName,
       middleName,
@@ -290,6 +345,7 @@ export async function POST(request: NextRequest) {
     };
 
     let rawResponse: CibilLikeResponse;
+    let providerResponse: unknown = null;
     if (isDemoPartner) {
       rawResponse = createDemoBureauResponse({
         name: customerName,
@@ -303,7 +359,24 @@ export async function POST(request: NextRequest) {
       });
     } else {
       try {
-        rawResponse = await callLiveBureauApi(requestPayload as Record<string, string>);
+        const jaadugarPayload = {
+          firstName,
+          lastName,
+          dob: normalizeJaadugarDob(birthDate),
+          gender: normalizeJaadugarGender(gender),
+          pan,
+          mobile: body.telephoneNumber!,
+          address: body.addressLine1 || `${body.pinCode} ${body.state}`.trim(),
+          state: (body.state || '').toUpperCase(),
+          pincode: body.pinCode!,
+        };
+        providerResponse = await callLiveBureauApi(jaadugarPayload);
+        reportId = readProviderReportId(providerResponse) || reportId;
+        const bureauBody = findBureauBody(providerResponse);
+        if (!bureauBody) {
+          throw new Error('Live bureau API response did not include full CIBIL report JSON');
+        }
+        rawResponse = bureauBody;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unable to fetch live bureau report';
         return jsonError(message, BUREAU_API_URL ? 502 : 501);
@@ -359,7 +432,7 @@ export async function POST(request: NextRequest) {
       partner_id: partner.id,
       report_type: body.report_type,
       status: 'success',
-      member_ref: reportId,
+      member_ref: memberRef,
       pan,
       customer_name: customerName,
       credit_score: result.score,
@@ -382,6 +455,7 @@ export async function POST(request: NextRequest) {
         demo: isDemoPartner,
         source: isDemoPartner ? 'shared_demo_account' : 'live_bureau_api',
         requestPayload,
+        providerResponse,
         response: rawResponse,
       },
     });

@@ -43,8 +43,6 @@ async function resolveAuthUser(supabaseUser: User): Promise<AuthUser | null> {
       .eq('id', supabaseUser.id)
       .maybeSingle();
 
-    console.log('[AuthContext] user_profiles fetch:', { profile, error: profileError });
-
     let role: UserRole = 'partner';
     if (profile?.role) {
       role = profile.role as UserRole;
@@ -63,24 +61,22 @@ async function resolveAuthUser(supabaseUser: User): Promise<AuthUser | null> {
     const email = profile?.email || supabaseUser.email || '';
 
     if (!profile) {
-      const { error: insertError } = await supabase
+      await supabase
         .from('user_profiles')
         .upsert(
           { id: supabaseUser.id, email, full_name: name, role },
           { onConflict: 'id', ignoreDuplicates: true }
         );
-      console.log('[AuthContext] user_profiles upsert (fallback):', { insertError });
     }
 
     let partnerCode: string | undefined;
     let productAccess: PartnerProductAccess | undefined;
     if (role === 'partner') {
-      const { data: partner, error: partnerError } = await supabase
+      const { data: partner } = await supabase
         .from('partners')
         .select('partner_code, product_access')
         .eq('user_id', supabaseUser.id)
         .maybeSingle();
-      console.log('[AuthContext] partners fetch:', { partner, error: partnerError });
       partnerCode = partner?.partner_code ?? undefined;
       productAccess = partner?.product_access
         ? normalizePartnerProductAccess(partner.product_access)
@@ -97,12 +93,30 @@ async function resolveAuthUser(supabaseUser: User): Promise<AuthUser | null> {
       isTempPassword: profile?.is_temp_password ??
         ((supabaseUser.app_metadata?.is_temp_password === true) || false),
     };
-    console.log('[AuthContext] resolveAuthUser result:', resolved);
     return resolved;
   } catch (err) {
     console.error('[AuthContext] resolveAuthUser threw:', err);
     return null;
   }
+}
+
+function buildFallbackAuthUser(supabaseUser: User): AuthUser {
+  const role = (
+    supabaseUser.app_metadata?.role ||
+    supabaseUser.user_metadata?.role ||
+    'partner'
+  ) as UserRole;
+
+  return {
+    id: supabaseUser.id,
+    name:
+      supabaseUser.user_metadata?.full_name ||
+      supabaseUser.email?.split('@')[0] ||
+      'User',
+    email: supabaseUser.email || '',
+    role,
+    isTempPassword: supabaseUser.app_metadata?.is_temp_password === true,
+  };
 }
 
 export function getPartnerRedirectPath(user: AuthUser | null): string {
@@ -116,12 +130,23 @@ function withAuthTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
   ]);
 }
 
+async function resolveStableAuthUser(supabaseUser: User): Promise<AuthUser> {
+  const fallback = buildFallbackAuthUser(supabaseUser);
+  const resolved = await withAuthTimeout(resolveAuthUser(supabaseUser), fallback);
+  return resolved ?? fallback;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   // Track if we're currently resolving to prevent duplicate calls
   const resolvingRef = useRef(false);
+  const userRef = useRef<AuthUser | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     // Immediately check for an existing session on mount
@@ -136,7 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           resolvingRef.current = true;
           try {
-            const profile = await withAuthTimeout(resolveAuthUser(session.user), null);
+            const profile = await resolveStableAuthUser(session.user);
             if (!cancelled) setUser(profile);
           } finally {
             resolvingRef.current = false;
@@ -166,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!resolvingRef.current) {
             resolvingRef.current = true;
             try {
-              const profile = await withAuthTimeout(resolveAuthUser(session.user), null);
+              const profile = await resolveStableAuthUser(session.user);
               setUser(profile);
             } finally {
               resolvingRef.current = false;
@@ -179,12 +204,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // TOKEN_REFRESHED failure — clear user
+      // A transient refresh miss should not kick the user out. Only an explicit SIGNED_OUT
+      // event clears the portal session.
       if (event === 'TOKEN_REFRESHED' && !session) {
-        console.warn('[AuthContext] Token refresh failed — clearing user');
-        await supabase.auth.signOut();
-        resetClient();
-        setUser(null);
+        console.warn('[AuthContext] Token refresh returned no session; keeping current user until explicit sign-out.');
         setIsLoading(false);
         return;
       }
@@ -196,7 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         resolvingRef.current = true;
         try {
-          const profile = await withAuthTimeout(resolveAuthUser(session.user), null);
+          const profile = await resolveStableAuthUser(session.user);
           console.log('[AuthContext] setUser:', profile);
           setUser(profile);
         } finally {
@@ -217,13 +240,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user && !resolvingRef.current) {
         resolvingRef.current = true;
         try {
-          const profile = await withAuthTimeout(resolveAuthUser(session.user), null);
+          const profile = await resolveStableAuthUser(session.user);
           setUser(profile);
         } finally {
           resolvingRef.current = false;
         }
       } else if (!session) {
-        setUser(null);
+        setUser(userRef.current);
       }
       setIsLoading(false);
     });
@@ -246,7 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: 'Login failed. Please try again.' };
       }
 
-      const profile = await withAuthTimeout(resolveAuthUser(data.user), null);
+      const profile = await resolveStableAuthUser(data.user);
       setUser(profile);
       setIsLoading(false);
       return { success: true, user: profile };

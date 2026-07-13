@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { normalizePartnerProductAccess } from '@/lib/partner-access';
 
 type PartnerProductGuardProps = {
   expected: 'bureau_portal' | 'dsa_crm';
@@ -14,7 +15,8 @@ export default function PartnerProductGuard({ expected }: PartnerProductGuardPro
 
   useEffect(() => {
     if (isLoading || !user || user.role !== 'partner') return;
-    if (user.productAccess === expected) return;
+    const productAccess = normalizePartnerProductAccess(user.productAccess);
+    if (productAccess === expected) return;
     router.replace(expected === 'bureau_portal' ? '/crm' : '/partner-dashboard');
   }, [expected, isLoading, router, user]);
 

@@ -41,6 +41,7 @@ interface InvoiceContextType {
 }
 
 const InvoiceContext = createContext<InvoiceContextType | null>(null);
+const partnerInvoiceCache = new Map<string, Invoice[]>();
 
 function toInvoice(row: Record<string, unknown>): Invoice {
   return {
@@ -71,6 +72,21 @@ function toSettings(row: Record<string, unknown>): InvoiceSettings {
   };
 }
 
+export function getCachedPartnerInvoices(partnerId: string | null | undefined) {
+  return partnerId ? partnerInvoiceCache.get(partnerId) ?? null : null;
+}
+
+export async function prefetchPartnerInvoices(partnerId: string) {
+  const res = await fetch(`/api/admin-invoices-list?partner_id=${partnerId}&status=raised,paid`);
+  const json = await res.json();
+  if (json.success && json.data) {
+    const invoices = json.data.map((r: Record<string, unknown>) => toInvoice(r));
+    partnerInvoiceCache.set(partnerId, invoices);
+    return invoices;
+  }
+  return [];
+}
+
 export function InvoiceProvider({ children }: { children: React.ReactNode }) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [settings, setSettings] = useState<InvoiceSettings | null>(null);
@@ -97,11 +113,7 @@ export function InvoiceProvider({ children }: { children: React.ReactNode }) {
   // Partner invoices — use service-role API route with partner_id filter
   const fetchPartnerInvoices = useCallback(async (partnerId: string): Promise<Invoice[]> => {
     try {
-      const res = await fetch(`/api/admin-invoices-list?partner_id=${partnerId}&status=raised,paid`);
-      const json = await res.json();
-      if (json.success && json.data) {
-        return json.data.map((r: Record<string, unknown>) => toInvoice(r));
-      }
+      return await prefetchPartnerInvoices(partnerId);
     } catch (err) {
       console.error('[InvoiceContext] fetchPartnerInvoices threw:', err);
     }

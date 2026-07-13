@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Bell, CheckCheck, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { authFetch } from '@/lib/supabase/auth-fetch';
 
 interface Notification {
   id: string;
@@ -45,7 +46,7 @@ export default function NotificationBell() {
   const fetchNotifications = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const res = await fetch(`/api/get-notifications?user_id=${user.id}`);
+      const res = await authFetch('/api/get-notifications');
       const json = await res.json();
       if (json.success) {
         setNotifications(json.notifications ?? []);
@@ -81,10 +82,10 @@ export default function NotificationBell() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      await fetch('/api/mark-notifications-read', {
+      await authFetch('/api/mark-notifications-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id }),
+        body: JSON.stringify({}),
       });
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
@@ -95,10 +96,10 @@ export default function NotificationBell() {
 
   const markOneRead = async (notifId: string) => {
     if (!user?.id) return;
-    await fetch('/api/mark-notifications-read', {
+    await authFetch('/api/mark-notifications-read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: user.id, notification_id: notifId }),
+      body: JSON.stringify({ notification_id: notifId }),
     });
     setNotifications((prev) =>
       prev.map((n) => (n.id === notifId ? { ...n, is_read: true } : n))

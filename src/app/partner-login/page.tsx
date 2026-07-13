@@ -9,37 +9,21 @@ import Link from 'next/link';
 
 export default function PartnerLoginPage() {
   const router = useRouter();
-  const { user, isLoading, login, logout } = useAuth();
+  const { user, isLoading, login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [switchingAccount, setSwitchingAccount] = useState(false);
 
   useEffect(() => {
     if (isLoading) return;
+    if (submitting) return;
     if (!user) return;
     if (user.role === 'partner') {
       router.replace(getPartnerRedirectPath(user));
-      return;
     }
-
-    let cancelled = false;
-    const clearWrongRoleSession = async () => {
-      setSwitchingAccount(true);
-      await logout('/partner-login');
-      if (!cancelled) {
-        setError('Admin session was signed out. Please sign in with a partner account.');
-        setSwitchingAccount(false);
-      }
-    };
-
-    clearWrongRoleSession();
-    return () => {
-      cancelled = true;
-    };
-  }, [user, isLoading, router, logout]);
+  }, [user, isLoading, submitting, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,21 +41,19 @@ export default function PartnerLoginPage() {
         return;
       }
       if (result.user?.role !== 'partner') {
-        await logout('/partner-login');
         setError('This is not a partner account. Please sign in with partner credentials.');
         setSubmitting(false);
         return;
       }
       setSubmitting(false);
       router.replace(getPartnerRedirectPath(result.user ?? null));
-      router.refresh();
     } catch {
       setError('Login failed. Please try again.');
       setSubmitting(false);
     }
   };
 
-  if (isLoading || switchingAccount) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />

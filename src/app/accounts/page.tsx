@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Topbar from '@/components/Topbar';
 import { useAuth } from '@/context/AuthContext';
-import { useInvoice, Invoice } from '@/context/InvoiceContext';
+import { getCachedPartnerInvoices, useInvoice, Invoice } from '@/context/InvoiceContext';
+import { usePartnerWalletData } from '@/hooks/usePartnerWalletData';
 import {
   FileText,
   ArrowUpCircle,
@@ -278,11 +279,13 @@ function SummaryCards({
   pendingAmount,
   paidAmount,
   walletBalance,
+  walletLoading,
 }: {
   pendingCount: number;
   pendingAmount: number;
   paidAmount: number;
   walletBalance: number;
+  walletLoading: boolean;
 }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -324,7 +327,7 @@ function SummaryCards({
         <div className="min-w-0">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Wallet Balance</p>
           <p className="text-xl font-bold text-blue-600 font-mono mt-0.5">
-            ₹{walletBalance.toLocaleString('en-IN')}
+            {walletLoading ? '—' : `₹${walletBalance.toLocaleString('en-IN')}`}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">Available credits in wallet</p>
         </div>
@@ -338,45 +341,27 @@ function SummaryCards({
 export default function AccountsPage() {
   const { user } = useAuth();
   const { fetchPartnerInvoices, settings, fetchSettings } = useInvoice();
+  const { data: walletData, loading: walletLoading, refresh: refreshWallet } = usePartnerWalletData();
 
   const [activeTab, setActiveTab] = useState<TabType>('pending');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  const [walletBalance, setWalletBalance] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [partnerId, setPartnerId] = useState<string | null>(null);
-
-  // Resolve partner ID from user_id
-  useEffect(() => {
-    if (!user?.id) return;
-    async function resolvePartner() {
-      try {
-        const res = await fetch(`/api/partner-wallet-data?user_id=${user!.id}`);
-        const json = await res.json();
-        if (json.success) {
-          setTransactions((json.transactions ?? []) as WalletTransaction[]);
-          setWalletBalance(json.balance ?? 0);
-          if (json.partnerId) {
-            setPartnerId(json.partnerId);
-          }
-        }
-      } catch (err) {
-        console.error('[Accounts] wallet data error:', err);
-      }
-    }
-    resolvePartner();
-  }, [user?.id]);
+  const partnerId = walletData?.partnerId ?? null;
+  const transactions = (walletData?.transactions ?? []) as WalletTransaction[];
+  const walletBalance = walletData?.balance ?? 0;
 
   // Fetch invoices once partnerId is resolved
   useEffect(() => {
     if (!partnerId) return;
     async function loadInvoices() {
-      setLoading(true);
+      const cached = getCachedPartnerInvoices(partnerId!);
+      if (cached) setInvoices(cached);
+      setLoading(!cached);
       try {
         const [invs] = await Promise.all([
           fetchPartnerInvoices(partnerId!),
-          fetchSettings(),
+          settings ? Promise.resolve() : fetchSettings(),
         ]);
         setInvoices(invs);
       } catch (err) {
@@ -386,19 +371,14 @@ export default function AccountsPage() {
       }
     }
     loadInvoices();
-  }, [partnerId]);
+  }, [fetchPartnerInvoices, fetchSettings, partnerId, settings]);
 
   async function handleRefresh() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      const walletRes = await fetch(`/api/partner-wallet-data?user_id=${user.id}`).then((r) => r.json());
-      if (walletRes.success) {
-        setTransactions((walletRes.transactions ?? []) as WalletTransaction[]);
-        setWalletBalance(walletRes.balance ?? 0);
-        if (walletRes.partnerId) setPartnerId(walletRes.partnerId);
-      }
-      const currentPartnerId = walletRes.partnerId ?? partnerId;
+      const walletRes = await refreshWallet();
+      const currentPartnerId = walletRes?.partnerId ?? partnerId;
       const invs = currentPartnerId ? await fetchPartnerInvoices(currentPartnerId) : [];
       setInvoices(invs);
     } catch (err) {
@@ -501,6 +481,7 @@ export default function AccountsPage() {
           pendingAmount={pendingAmount}
           paidAmount={paidAmount}
           walletBalance={walletBalance}
+          walletLoading={walletLoading && !walletData}
         />
 
         {/* Tabbed Section */}

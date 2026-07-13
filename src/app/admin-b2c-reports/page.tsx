@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
-import { Search, RefreshCw, Eye, X, IndianRupee, Users, FileText, AlertCircle } from 'lucide-react';
+import { authFetch, downloadAuthenticatedFile } from '@/lib/supabase/auth-fetch';
+import { Search, RefreshCw, Eye, X, IndianRupee, Users, FileText, AlertCircle, Download } from 'lucide-react';
 
 interface B2CReport {
   id: string;
@@ -51,10 +52,18 @@ export default function AdminB2CReportsPage() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [selected, setSelected] = useState<B2CReport | null>(null);
 
+  const downloadPdf = (report: B2CReport) => {
+    const filename = `${report.full_name || 'b2c-report'}-${report.report_id || report.id}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-') + '.pdf';
+    downloadAuthenticatedFile(`/api/bureau-report-pdf?source=b2c_report_requests&id=${encodeURIComponent(report.id)}`, filename)
+      .catch((error) => alert(error.message));
+  };
+
   async function fetchReports() {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin-b2c-reports');
+      const res = await authFetch('/api/admin-b2c-reports');
       const json = await res.json();
       setReports((json.reports as B2CReport[]) ?? []);
     } catch (error) {
@@ -191,7 +200,19 @@ export default function AdminB2CReportsPage() {
                 <h3 className="font-bold text-slate-800">B2C Report Detail</h3>
                 <p className="text-xs text-slate-400">{selected.id}</p>
               </div>
-              <button onClick={() => setSelected(null)} className="p-2 rounded-full hover:bg-slate-100"><X size={18} /></button>
+              <div className="flex items-center gap-2">
+                {selected.report_id && (
+                  <button
+                    type="button"
+                    onClick={() => downloadPdf(selected)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700"
+                  >
+                    <Download size={14} />
+                    PDF
+                  </button>
+                )}
+                <button onClick={() => setSelected(null)} className="p-2 rounded-full hover:bg-slate-100"><X size={18} /></button>
+              </div>
             </div>
             <div className="p-6 overflow-y-auto max-h-[72vh] grid sm:grid-cols-2 gap-4 text-sm">
               {[

@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 
 function generateInvoiceNumber(): string {
   const year = new Date().getFullYear();
@@ -15,9 +9,15 @@ function generateInvoiceNumber(): string {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAdmin(bearerToken(req));
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await req.json();
     const { credit_request_id } = body;
+    const supabaseAdmin = auth.supabase;
 
     if (!credit_request_id) {
       return NextResponse.json({ error: 'credit_request_id is required' }, { status: 400 });
@@ -141,9 +141,15 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(bearerToken(req));
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'pending';
+    const supabaseAdmin = auth.supabase;
 
     const { data, error } = await supabaseAdmin
       .from('credit_requests')

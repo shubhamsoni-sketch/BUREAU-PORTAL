@@ -3,6 +3,7 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
+import { generatePartnerCode } from '@/lib/partner-code';
 
 type CookieToSet = { name: string; value: string; options?: any };
 
@@ -13,12 +14,6 @@ function generatePassword(): string {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return password;
-}
-
-function generatePartnerCode(): string {
-  const year = new Date().getFullYear();
-  const num = Math.floor(Math.random() * 900) + 100;
-  return `DSA-${year}-${num}`;
 }
 
 function createAdminClient() {
@@ -118,7 +113,7 @@ export async function approvePartnerRequest(requestId: string): Promise<ApproveR
   if (request.status !== 'pending') return { success: false, error: 'Request already processed' };
 
   let password = generatePassword();
-  const partnerCode = generatePartnerCode();
+  const partnerCode = await generatePartnerCode(adminClient);
 
   // Create auth user with service role
   const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
@@ -235,7 +230,7 @@ export async function addPartnerManually(data: {
   }
 
   let password = generatePassword();
-  const partnerCode = generatePartnerCode();
+  const partnerCode = await generatePartnerCode(adminClient);
 
   // Create auth user with service role
   const { data: authData, error: authError } = await adminClient.auth.admin.createUser({

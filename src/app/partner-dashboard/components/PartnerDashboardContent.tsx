@@ -4,24 +4,27 @@ import PendingInvoiceBanner from './PendingInvoiceBanner';
 import BureauPullsChart from './BureauPullsChart';
 import WalletHealthBar from './WalletHealthBar';
 import MiniRecentReports from './MiniRecentReports';
+import { PartnerDashboardDataProvider } from './PartnerDashboardDataContext';
 
 export default function PartnerDashboardContent() {
   return (
-    <div className="space-y-6">
-      {/* Pending Invoice Banner */}
-      <PendingInvoiceBanner />
+    <PartnerDashboardDataProvider>
+      <div className="space-y-6">
+        {/* Pending Invoice Banner */}
+        <PendingInvoiceBanner />
 
-      {/* Stat Cards */}
-      <PartnerStatCards />
+        {/* Stat Cards */}
+        <PartnerStatCards />
 
-      {/* Chart + Wallet Health */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <BureauPullsChart />
-        <WalletHealthBar />
+        {/* Chart + Wallet Health */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <BureauPullsChart />
+          <WalletHealthBar />
+        </div>
+
+        {/* Mini Recent Reports */}
+        <MiniRecentReports />
       </div>
-
-      {/* Mini Recent Reports */}
-      <MiniRecentReports />
-    </div>
+    </PartnerDashboardDataProvider>
   );
 }

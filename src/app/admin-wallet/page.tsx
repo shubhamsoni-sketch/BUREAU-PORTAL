@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import AdminLayout from '@/components/AdminLayout';
+import { authFetch } from '@/lib/supabase/auth-fetch';
 import { Search, Plus, Minus, X, AlertTriangle, Wallet, BarChart3, ChevronDown, Edit2, Check, RefreshCw, Loader2, Clock, CheckCircle2 } from 'lucide-react';
 
 
@@ -130,7 +131,7 @@ export default function AdminWalletPage() {
   const loadPartners = useCallback(async () => {
     setPartnersLoading(true);
     try {
-      const res = await fetch('/api/admin-partners-list');
+      const res = await authFetch('/api/admin-partners-list');
       const result = await res.json();
 
       if (res.ok && result.success && result.data) {
@@ -160,7 +161,7 @@ export default function AdminWalletPage() {
   const loadTransactions = useCallback(async (partnerId: string) => {
     setTxnLoading(true);
     try {
-      const res = await fetch(`/api/admin-wallet-transactions?partner_id=${partnerId}`);
+      const res = await authFetch(`/api/admin-wallet-transactions?partner_id=${partnerId}`);
       const result = await res.json();
 
       if (res.ok && result.success && result.data) {
@@ -191,7 +192,7 @@ export default function AdminWalletPage() {
   const loadCommercials = useCallback(async () => {
     setCommercialsLoading(true);
     try {
-      const res = await fetch('/api/admin-commercials-list');
+      const res = await authFetch('/api/admin-commercials-list');
       const result = await res.json();
 
       if (res.ok && result.success && result.data) {
@@ -219,7 +220,7 @@ export default function AdminWalletPage() {
   const loadCreditRequests = useCallback(async () => {
     setCreditRequestsLoading(true);
     try {
-      const res = await fetch('/api/approve-credit-request?status=pending');
+      const res = await authFetch('/api/approve-credit-request?status=pending');
       const result = await res.json();
 
       if (res.ok && result.success && result.data) {
@@ -273,7 +274,7 @@ export default function AdminWalletPage() {
     if (!addModal || !addAmount || isNaN(Number(addAmount)) || Number(addAmount) <= 0) return;
     setAddLoading(true);
     try {
-      const res = await fetch('/api/add-credits', {
+      const res = await authFetch('/api/add-credits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -307,7 +308,7 @@ export default function AdminWalletPage() {
   const handleApproveRequest = async (request: CreditRequest) => {
     setApprovingRequestId(request.id);
     try {
-      const res = await fetch('/api/approve-credit-request', {
+      const res = await authFetch('/api/approve-credit-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credit_request_id: request.id }),
@@ -335,7 +336,7 @@ export default function AdminWalletPage() {
     if (!commercialDraft) return;
     setSavingCommercial(true);
     try {
-      const res = await fetch('/api/save-partner-commercials', {
+      const res = await authFetch('/api/save-partner-commercials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

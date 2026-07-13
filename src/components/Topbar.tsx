@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import NotificationBell from '@/components/NotificationBell';
 
 type TopbarProps = {
   title: string;
@@ -54,14 +55,7 @@ export default function Topbar({ title, subtitle, role, actions }: TopbarProps) 
       <div className="flex items-center gap-3 flex-shrink-0">
         {actions}
 
-        {/* Notifications */}
-        <button
-          className="relative p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150"
-          aria-label="Notifications"
-        >
-          <Icon name="BellIcon" size={20} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
-        </button>
+        <NotificationBell />
 
         {/* Help */}
         <button
@@ -88,7 +82,7 @@ export default function Topbar({ title, subtitle, role, actions }: TopbarProps) 
                 {user?.name ? user.name.split(' ')[0] : (role === 'admin' ? 'Admin' : 'Partner')}
               </p>
               <p className="text-xs text-muted-foreground leading-none mt-0.5">
-                {role === 'admin' ? 'Super Admin' : 'DSA Partner'}
+                {role === 'admin' ? 'Super Admin' : 'Partner'}
               </p>
             </div>
             <Icon name="ChevronDownIcon" size={14} className="text-muted-foreground group-hover:text-foreground transition-colors" />
@@ -101,7 +95,7 @@ export default function Topbar({ title, subtitle, role, actions }: TopbarProps) 
                   {user?.name ?? (role === 'admin' ? 'Super Admin' : 'Partner')}
                 </p>
                 <p className="text-[10px] text-slate-400 mt-0.5">
-                  {user?.email ?? (role === 'admin' ? 'admin@credittrust.in' : 'DSA Partner')}
+                  {user?.email ?? (role === 'admin' ? 'admin@credittrust.in' : 'Partner')}
                 </p>
               </div>
               <Link

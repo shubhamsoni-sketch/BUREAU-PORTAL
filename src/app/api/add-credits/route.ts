@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 
 function generateInvoiceNumber(): string {
   const year = new Date().getFullYear();
@@ -15,6 +9,11 @@ function generateInvoiceNumber(): string {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAdmin(bearerToken(req));
+  if ('error' in auth) {
+    return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await req.json();
     const { partner_id, amount, note } = body;
@@ -26,7 +25,7 @@ export async function POST(req: NextRequest) {
     const creditAmount = Number(amount);
 
     // 1. Fetch partner details
-    const { data: partner, error: partnerError } = await supabaseAdmin
+    const { data: partner, error: partnerError } = await auth.supabase
       .from('partners')
       .select('id, name, email, wallet_balance')
       .eq('id', partner_id)
@@ -38,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Insert wallet_transactions row as PENDING (no balance update yet)
     const description = note || `Admin Credit Addition — ₹${creditAmount.toLocaleString('en-IN')}`;
-    const { data: txnData, error: txnError } = await supabaseAdmin
+    const { data: txnData, error: txnError } = await auth.supabase
       .from('wallet_transactions')
       .insert({
         partner_id,
@@ -61,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Fetch invoice_settings for company info
-    const { data: invoiceSettings } = await supabaseAdmin
+    await auth.supabase
       .from('invoice_settings')
       .select('company_name, company_address, gst_number')
       .limit(1)
@@ -69,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     // 4. Create draft invoice (wallet NOT updated yet — only after invoice is marked paid)
     const invoiceNumber = generateInvoiceNumber();
-    const { data: invoiceData, error: invoiceError } = await supabaseAdmin
+    const { data: invoiceData, error: invoiceError } = await auth.supabase
       .from('invoices')
       .insert({
         invoice_number: invoiceNumber,

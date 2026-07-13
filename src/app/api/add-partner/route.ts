@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { generatePartnerCode } from '@/lib/partner-code';
 import { normalizePartnerProductAccess } from '@/lib/partner-access';
 
 function generatePassword(): string {
@@ -9,12 +10,6 @@ function generatePassword(): string {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return password;
-}
-
-function generatePartnerCode(): string {
-  const year = new Date().getFullYear();
-  const num = Math.floor(Math.random() * 900) + 100;
-  return `DSA-${year}-${num}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -112,7 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     let password = generatePassword();
-    const partnerCode = generatePartnerCode();
+    const partnerCode = await generatePartnerCode(adminClient);
 
     // Create auth user with service role
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({

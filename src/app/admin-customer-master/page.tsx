@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import AdminLayout from '@/components/AdminLayout';
+import { authFetch, downloadAuthenticatedFile } from '@/lib/supabase/auth-fetch';
 import {
   Search,
   Download,
@@ -190,6 +191,14 @@ export default function AdminCustomerMasterPage() {
   const [selectedRow, setSelectedRow] = useState<AdminBureauPull | null>(null);
   const [selectedB2C, setSelectedB2C] = useState<B2CReportRequest | null>(null);
 
+  const downloadB2CPdf = (report: B2CReportRequest) => {
+    const filename = `${report.full_name || 'b2c-report'}-${report.report_id || report.id}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-') + '.pdf';
+    downloadAuthenticatedFile(`/api/bureau-report-pdf?source=b2c_report_requests&id=${encodeURIComponent(report.id)}`, filename)
+      .catch((error) => alert(error.message));
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -198,8 +207,8 @@ export default function AdminCustomerMasterPage() {
       if (dateTo) params.set('date_to', dateTo);
 
       const [res, b2cRes] = await Promise.all([
-        fetch(`/api/admin-bureau-pulls?${params.toString()}`),
-        fetch(`/api/admin-b2c-reports?${params.toString()}`),
+        authFetch(`/api/admin-bureau-pulls?${params.toString()}`),
+        authFetch(`/api/admin-b2c-reports?${params.toString()}`),
       ]);
       const json = await res.json();
       const b2cJson = await b2cRes.json();
@@ -709,9 +718,21 @@ export default function AdminCustomerMasterPage() {
                 <h2 className="text-base font-semibold text-slate-800">B2C Customer Details</h2>
                 <p className="text-xs text-slate-500">{selectedB2C.full_name || 'Customer'} - {selectedB2C.mobile}</p>
               </div>
-              <button onClick={() => setSelectedB2C(null)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                {selectedB2C.report_id && (
+                  <button
+                    type="button"
+                    onClick={() => downloadB2CPdf(selectedB2C)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700"
+                  >
+                    <Download size={14} />
+                    PDF
+                  </button>
+                )}
+                <button onClick={() => setSelectedB2C(null)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
+                  <X size={16} />
+                </button>
+              </div>
             </div>
             <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               {[

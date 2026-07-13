@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Topbar from '@/components/Topbar';
 import { useAuth } from '@/context/AuthContext';
-import { Wallet, AlertTriangle, ArrowDownCircle, ArrowUpCircle, CreditCard, Package, TrendingUp, Users, Building2, RefreshCw, Receipt, BarChart3, Send, CheckCircle2, Clock, Zap, Lock } from 'lucide-react';
+import { usePartnerWalletData } from '@/hooks/usePartnerWalletData';
+import { authFetch } from '@/lib/supabase/auth-fetch';
+import { Wallet, AlertTriangle, ArrowDownCircle, ArrowUpCircle, TrendingUp, Users, RefreshCw, Receipt, BarChart3, Send, CheckCircle2, Clock } from 'lucide-react';
 
 interface WalletTransaction {
   id: string;
@@ -44,13 +46,8 @@ type TabType = 'recharges' | 'statement';
 
 export default function MyWalletPage() {
   const { user } = useAuth();
+  const { data: walletData, loading, refresh } = usePartnerWalletData();
 
-  const [balance, setBalance] = useState<number>(0);
-  const [totalDeducted, setTotalDeducted] = useState<number>(0);
-  const [totalRecharged, setTotalRecharged] = useState<number>(0);
-  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  const [commercials, setCommercials] = useState<Commercials | null>(null);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('recharges');
 
   // Credit request state
@@ -60,54 +57,24 @@ export default function MyWalletPage() {
   const [creditSubmitting, setCreditSubmitting] = useState(false);
   const [creditSuccess, setCreditSuccess] = useState(false);
 
-  // Stripe mock state
-  const [stripeAmount, setStripeAmount] = useState('');
-  const [stripeAmountError, setStripeAmountError] = useState('');
-  const [stripeStep, setStripeStep] = useState<'idle' | 'processing' | 'success'>('idle');
-
   const LOW_BALANCE_THRESHOLD = 200;
-  const isLowBalance = balance < LOW_BALANCE_THRESHOLD;
-
-  useEffect(() => {
-    if (!user?.id) return;
-    loadWalletData();
-  }, [user?.id]);
-
-  const loadWalletData = async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/partner-wallet-data?user_id=${user.id}`);
-      const json = await res.json();
-
-      if (!json.success) {
-        console.error('[MyWallet] API error:', json.error);
-        setLoading(false);
-        return;
+  const balance = walletData?.balance ?? 0;
+  const totalDeducted = walletData?.totalDeducted ?? 0;
+  const totalRecharged = walletData?.totalRecharged ?? 0;
+  const transactions = (walletData?.transactions ?? []) as WalletTransaction[];
+  const rawCommercials = walletData?.commercials;
+  const commercials: Commercials | null = rawCommercials
+    ? {
+        pricing_plan: rawCommercials.pricing_plan ?? 'Basic',
+        subscription_type: rawCommercials.subscription_type ?? 'prepaid',
+        consumer_credit_rate: Number(rawCommercials.consumer_credit_rate ?? rawCommercials.credit_rate ?? 10),
+        commercial_credit_rate: Number(rawCommercials.commercial_credit_rate ?? rawCommercials.credit_rate ?? 15),
+        bundled_credits: rawCommercials.bundled_credits ?? 0,
+        credit_limit: rawCommercials.credit_limit ?? 1000,
       }
-
-      setBalance(Number(json.balance ?? 0));
-      setTotalRecharged(Number(json.totalRecharged ?? 0));
-      setTotalDeducted(Number(json.totalDeducted ?? 0));
-      setTransactions((json.transactions ?? []) as WalletTransaction[]);
-
-      if (json.commercials) {
-        const c = json.commercials;
-        setCommercials({
-          pricing_plan: c.pricing_plan ?? 'Basic',
-          subscription_type: c.subscription_type ?? 'prepaid',
-          consumer_credit_rate: Number(c.consumer_credit_rate ?? c.credit_rate ?? 10),
-          commercial_credit_rate: Number(c.commercial_credit_rate ?? c.credit_rate ?? 15),
-          bundled_credits: c.bundled_credits ?? 0,
-          credit_limit: c.credit_limit ?? 1000,
-        });
-      }
-    } catch (err) {
-      console.error('[MyWallet] loadWalletData error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    : null;
+  const hasWalletData = Boolean(walletData);
+  const isLowBalance = hasWalletData && balance < LOW_BALANCE_THRESHOLD;
 
   const handleCreditRequest = async () => {
     setCreditAmountError('');
@@ -119,10 +86,10 @@ export default function MyWalletPage() {
     if (!user?.id) return;
     setCreditSubmitting(true);
     try {
-      const res = await fetch('/api/request-credits', {
+      const res = await authFetch('/api/request-credits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id, amount: amt, note: creditNote }),
+        body: JSON.stringify({ amount: amt, note: creditNote }),
       });
       const json = await res.json();
       if (!json.success) {
@@ -138,22 +105,6 @@ export default function MyWalletPage() {
     } finally {
       setCreditSubmitting(false);
     }
-  };
-
-  const handleStripePayment = () => {
-    setStripeAmountError('');
-    const amt = Number(stripeAmount);
-    if (!stripeAmount || isNaN(amt) || amt < 10000) {
-      setStripeAmountError('Minimum payment amount is ₹10,000');
-      return;
-    }
-    setStripeStep('processing');
-    // Simulate checkout flow (mock — no live keys)
-    setTimeout(() => {
-      setStripeStep('success');
-      setStripeAmount('');
-      setTimeout(() => setStripeStep('idle'), 6000);
-    }, 2500);
   };
 
   function formatDate(iso: string) {
@@ -197,7 +148,7 @@ export default function MyWalletPage() {
             <Wallet size={14} className={isLowBalance ? 'text-red-500' : 'text-muted-foreground'} />
             <span className="text-xs text-muted-foreground">Balance:</span>
             <span className={`text-sm font-semibold font-mono ${isLowBalance ? 'text-red-600' : 'text-foreground'}`}>
-              ₹{balance.toLocaleString('en-IN')}
+              {loading && !hasWalletData ? '—' : `₹${balance.toLocaleString('en-IN')}`}
             </span>
           </div>
         }
@@ -231,7 +182,7 @@ export default function MyWalletPage() {
                 <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Current Balance</span>
               </div>
               <p className={`text-3xl font-bold font-mono tabular-nums ${isLowBalance ? 'text-red-400' : 'text-white'}`}>
-                ₹{balance.toLocaleString('en-IN')}
+                {loading && !hasWalletData ? '—' : `₹${balance.toLocaleString('en-IN')}`}
               </p>
               {isLowBalance && (
                 <div className="flex items-center gap-1 mt-2">
@@ -301,10 +252,6 @@ export default function MyWalletPage() {
               <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
                 <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Users size={10} /> Consumer Rate</p>
                 <p className="text-sm font-bold text-blue-700">₹{commercials.consumer_credit_rate}<span className="text-xs font-normal text-muted-foreground">/pull</span></p>
-              </div>
-              <div className="p-3 rounded-lg bg-purple-50 border border-purple-100">
-                <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Building2 size={10} /> Commercial Rate</p>
-                <p className="text-sm font-bold text-purple-700">₹{commercials.commercial_credit_rate}<span className="text-xs font-normal text-muted-foreground">/pull</span></p>
               </div>
             </div>
           </div>
@@ -392,102 +339,6 @@ export default function MyWalletPage() {
           )}
         </div>
 
-        {/* Pay via Stripe — Mock Section */}
-        <div className="bg-white rounded-xl border border-border p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-                <Zap size={16} className="text-indigo-600" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-foreground">Pay via Stripe</h2>
-                <p className="text-xs text-muted-foreground">Instant wallet top-up using card / UPI / net banking</p>
-              </div>
-            </div>
-            <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-              <Lock size={10} />
-              Demo Mode
-            </span>
-          </div>
-
-          {/* Info banner */}
-          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-indigo-50 border border-indigo-100 mb-5">
-            <CreditCard size={14} className="text-indigo-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-indigo-700">
-              Stripe integration is ready. Your admin will activate live payments once keys are configured in the Integrations settings. This is a simulated checkout for preview.
-            </p>
-          </div>
-
-          {stripeStep === 'success' ? (
-            <div className="flex items-start gap-3 p-4 rounded-lg bg-emerald-50 border border-emerald-200">
-              <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-emerald-800">Payment Simulated Successfully!</p>
-                <p className="text-xs text-emerald-700 mt-0.5">
-                  In live mode, your wallet would be credited instantly and an invoice auto-generated as Paid.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                  Payment Amount <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">₹</span>
-                  <input
-                    type="number"
-                    min={10000}
-                    step={1000}
-                    value={stripeAmount}
-                    onChange={(e) => { setStripeAmount(e.target.value); setStripeAmountError(''); }}
-                    placeholder="10000"
-                    disabled={stripeStep === 'processing'}
-                    className={`w-full pl-7 pr-4 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 transition-all disabled:opacity-60
-                      ${stripeAmountError
-                        ? 'border-red-300 focus:ring-red-200 bg-red-50' :'border-slate-200 focus:ring-indigo-200 focus:border-indigo-400 bg-white'
-                      }`}
-                  />
-                </div>
-                {stripeAmountError && (
-                  <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
-                    <AlertTriangle size={11} />
-                    {stripeAmountError}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground mt-1">Minimum payment: ₹10,000 INR</p>
-              </div>
-
-              <button
-                onClick={handleStripePayment}
-                disabled={stripeStep === 'processing'}
-                className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-semibold rounded-lg transition-colors"
-              >
-                {stripeStep === 'processing' ? (
-                  <>
-                    <RefreshCw size={14} className="animate-spin" />
-                    Opening Stripe Checkout...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard size={14} />
-                    Pay via Stripe
-                  </>
-                )}
-              </button>
-
-              {/* Stripe branding strip */}
-              <div className="flex items-center justify-center gap-2 pt-1">
-                <Lock size={10} className="text-slate-400" />
-                <span className="text-xs text-slate-400">Secured by</span>
-                <span className="text-xs font-bold text-slate-500 tracking-wide">stripe</span>
-                <span className="text-xs text-slate-400">· Cards, UPI, Net Banking supported</span>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Tabbed Transaction Section */}
         <div className="bg-white rounded-xl border border-border">
           {/* Tab Header */}
@@ -512,8 +363,8 @@ export default function MyWalletPage() {
               ))}
             </div>
             <div className="flex items-center gap-3 pb-2">
-              <button
-                onClick={loadWalletData}
+            <button
+                onClick={() => void refresh()}
                 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 <RefreshCw size={12} />
@@ -656,38 +507,6 @@ export default function MyWalletPage() {
               </>
             )}
           </div>
-        </div>
-
-        {/* Subscription Plans placeholder */}
-        <div className="bg-white rounded-xl border border-dashed border-border p-6">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
-              <CreditCard size={16} className="text-purple-600" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Subscription Plans</h2>
-              <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">Coming Soon</span>
-            </div>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Monthly and annual subscription plans with discounted per-report pricing will be available here.
-          </p>
-        </div>
-
-        {/* Add-on Credits placeholder */}
-        <div className="bg-white rounded-xl border border-dashed border-border p-6">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-              <Package size={16} className="text-blue-600" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Add-on Credits</h2>
-              <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Coming Soon</span>
-            </div>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Purchase bulk credit packs at discounted rates. Add-on credit bundles (₹500, ₹2000, ₹5000) with bonus credits will be available here.
-          </p>
         </div>
 
       </div>

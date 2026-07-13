@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import EligibilityReportContent from '../../eligibility-report/components/EligibilityReportContent';
 import { crmFetch } from '@/lib/crm/api';
+import { downloadAuthenticatedFile } from '@/lib/supabase/auth-fetch';
 
 type MainTab = 'queue' | 'mobile' | 'full' | 'reports';
 type EligibilityMode = 'mobile_advanced' | 'full_details';
@@ -10,6 +11,7 @@ type QueueTab = 'pending' | 'checked';
 type LoanType = 'home_loan' | 'personal_loan' | 'business_loan' | 'lap' | 'car_loan';
 
 interface EligibilityForm {
+  fullName: string;
   firstName: string;
   lastName: string;
   mobile: string;
@@ -37,6 +39,10 @@ interface EligibilityResult {
   remarks: string[];
   matchedLenders: { name: string; roi: string; maxLoan: string }[];
   rawBureauResponse?: unknown;
+  reportId?: string;
+  requestId?: string;
+  customerName?: string;
+  createdAt?: string;
 }
 
 interface QueueLead {
@@ -64,6 +70,7 @@ interface ReportSummary {
 }
 
 const emptyForm: EligibilityForm = {
+  fullName: '',
   firstName: '',
   lastName: '',
   mobile: '',
@@ -80,20 +87,6 @@ const emptyForm: EligibilityForm = {
   loanAmount: '',
   tenure: '60',
 };
-
-const stateOptions = [
-  'MADHYA PRADESH',
-  'MAHARASHTRA',
-  'DELHI',
-  'RAJASTHAN',
-  'GUJARAT',
-  'KARNATAKA',
-  'TAMIL NADU',
-  'UTTAR PRADESH',
-  'HARYANA',
-  'PUNJAB',
-  'WEST BENGAL',
-];
 
 const formatINR = (n: number) =>
   new Intl.NumberFormat('en-IN', {
@@ -209,24 +202,12 @@ export default function EligibilityCheckContent() {
     }
 
     if (selectedMode === 'full_details') {
-      if (!values.firstName.trim()) nextErrors.firstName = 'First name is required';
-      if (!values.lastName.trim()) nextErrors.lastName = 'Last name is required';
-      if (!values.dob) nextErrors.dob = 'Date of birth is required';
-      if (!values.gender) nextErrors.gender = 'Gender is required';
+      if (values.fullName.trim().split(/\s+/).filter(Boolean).length < 2) {
+        nextErrors.fullName = 'Enter full name with first and last name';
+      }
       if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(values.pan.toUpperCase())) {
         nextErrors.pan = 'Valid PAN required';
       }
-      if (!values.address.trim()) nextErrors.address = 'Address is required';
-      if (!/^\d{6}$/.test(values.pincode)) nextErrors.pincode = '6-digit pincode required';
-      if (!values.state) nextErrors.state = 'State is required';
-      if (!values.monthlyIncome || isNaN(Number(values.monthlyIncome))) {
-        nextErrors.monthlyIncome = 'Monthly income required';
-      }
-      if (!values.loanType) nextErrors.loanType = 'Select loan type';
-      if (!values.loanAmount || isNaN(Number(values.loanAmount))) {
-        nextErrors.loanAmount = 'Loan amount required';
-      }
-      if (!values.tenure || isNaN(Number(values.tenure))) nextErrors.tenure = 'Tenure required';
     }
 
     return nextErrors;
@@ -532,7 +513,7 @@ export default function EligibilityCheckContent() {
                 <p className="text-xs text-muted-foreground mt-1">
                   {mode === 'mobile_advanced'
                     ? 'Use this when the DSA has only customer mobile number and consent.'
-                    : 'Use this when full customer and loan details are available.'}
+                    : 'Use this when customer name, mobile number, and PAN are available.'}
                 </p>
               </div>
               <button
@@ -565,160 +546,42 @@ export default function EligibilityCheckContent() {
                 </div>
               </div>
             ) : (
-              <>
-                <div>
-                  <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
-                    Customer Details
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
+                  Customer Details
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
                     <TextInput
-                      label="First Name"
+                      label="Full Name"
                       required
-                      value={form.firstName}
-                      error={errors.firstName}
-                      onChange={(value) => setField('firstName', value)}
-                      placeholder="Harshal"
-                    />
-                    <TextInput
-                      label="Last Name"
-                      required
-                      value={form.lastName}
-                      error={errors.lastName}
-                      onChange={(value) => setField('lastName', value)}
-                      placeholder="Pawar"
-                    />
-                    <TextInput
-                      label="Mobile Number"
-                      required
-                      value={form.mobile}
-                      error={errors.mobile}
-                      onChange={(value) => setField('mobile', value)}
-                      placeholder="9876543210"
-                      maxLength={10}
-                    />
-                    <TextInput
-                      label="PAN Number"
-                      required
-                      value={form.pan}
-                      error={errors.pan}
-                      onChange={(value) => setField('pan', value.toUpperCase())}
-                      placeholder="ABCDE1234F"
-                      maxLength={10}
-                      className="uppercase"
-                    />
-                    <TextInput
-                      label="Date of Birth"
-                      required
-                      type="date"
-                      value={form.dob}
-                      error={errors.dob}
-                      onChange={(value) => setField('dob', value)}
-                    />
-                    <SelectInput
-                      label="Gender"
-                      required
-                      value={form.gender}
-                      error={errors.gender}
-                      onChange={(value) => setField('gender', value)}
-                      options={[
-                        ['male', 'Male'],
-                        ['female', 'Female'],
-                        ['transgender', 'Transgender'],
-                      ]}
-                    />
-                    <div className="sm:col-span-2">
-                      <TextInput
-                        label="Address"
-                        required
-                        value={form.address}
-                        error={errors.address}
-                        onChange={(value) => setField('address', value)}
-                        placeholder="House no, street, locality"
-                      />
-                    </div>
-                    <TextInput
-                      label="Pincode"
-                      required
-                      value={form.pincode}
-                      error={errors.pincode}
-                      onChange={(value) => setField('pincode', value)}
-                      placeholder="450221"
-                      maxLength={6}
-                    />
-                    <SelectInput
-                      label="State"
-                      required
-                      value={form.state}
-                      error={errors.state}
-                      onChange={(value) => setField('state', value)}
-                      options={stateOptions.map((state) => [state, state])}
+                      value={form.fullName}
+                      error={errors.fullName}
+                      onChange={(value) => setField('fullName', value)}
+                      placeholder="Harshal Pawar"
                     />
                   </div>
+                  <TextInput
+                    label="Mobile Number"
+                    required
+                    value={form.mobile}
+                    error={errors.mobile}
+                    onChange={(value) => setField('mobile', value)}
+                    placeholder="9876543210"
+                    maxLength={10}
+                  />
+                  <TextInput
+                    label="PAN Number"
+                    required
+                    value={form.pan}
+                    error={errors.pan}
+                    onChange={(value) => setField('pan', value.toUpperCase())}
+                    placeholder="ABCDE1234F"
+                    maxLength={10}
+                    className="uppercase"
+                  />
                 </div>
-
-                <div>
-                  <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
-                    Loan And Income Details
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <TextInput
-                      label="Monthly Income"
-                      required
-                      type="number"
-                      value={form.monthlyIncome}
-                      error={errors.monthlyIncome}
-                      onChange={(value) => setField('monthlyIncome', value)}
-                      placeholder="75000"
-                    />
-                    <TextInput
-                      label="Other Monthly Income"
-                      type="number"
-                      value={form.otherIncome}
-                      onChange={(value) => setField('otherIncome', value)}
-                      placeholder="0"
-                    />
-                    <TextInput
-                      label="Existing EMI"
-                      type="number"
-                      value={form.existingEMI}
-                      onChange={(value) => setField('existingEMI', value)}
-                      placeholder="0"
-                    />
-                    <SelectInput
-                      label="Loan Type"
-                      required
-                      value={form.loanType}
-                      error={errors.loanType}
-                      onChange={(value) => setField('loanType', value)}
-                      options={[
-                        ['home_loan', 'Home Loan'],
-                        ['personal_loan', 'Personal Loan'],
-                        ['business_loan', 'Business Loan'],
-                        ['lap', 'Loan Against Property'],
-                        ['car_loan', 'Car Loan'],
-                      ]}
-                    />
-                    <TextInput
-                      label="Required Loan Amount"
-                      required
-                      type="number"
-                      value={form.loanAmount}
-                      error={errors.loanAmount}
-                      onChange={(value) => setField('loanAmount', value)}
-                      placeholder="2500000"
-                    />
-                    <TextInput
-                      label="Tenure (months)"
-                      required
-                      type="number"
-                      value={form.tenure}
-                      error={errors.tenure}
-                      onChange={(value) => setField('tenure', value)}
-                      placeholder="60"
-                    />
-                  </div>
-                </div>
-              </>
+              </div>
             )}
 
             <div className="pt-2 border-t border-border">
@@ -755,7 +618,7 @@ export default function EligibilityCheckContent() {
                 ) : mode === 'mobile_advanced' ? (
                   'Check by Mobile'
                 ) : (
-                  'Check with Full Details'
+                  'Check with Name, Mobile & PAN'
                 )}
               </button>
             </div>
@@ -814,43 +677,6 @@ function TextInput({
   );
 }
 
-function SelectInput({
-  label,
-  value,
-  onChange,
-  options,
-  error,
-  required,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: string[][];
-  error?: string;
-  required?: boolean;
-}) {
-  return (
-    <div className="space-y-1">
-      <label className="block text-sm font-600 text-foreground">
-        {label} {required && <span className="text-danger">*</span>}
-      </label>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-      >
-        <option value="">Select</option>
-        {options.map(([optionValue, labelText]) => (
-          <option key={optionValue} value={optionValue}>
-            {labelText}
-          </option>
-        ))}
-      </select>
-      {error && <p className="text-xs text-danger">{error}</p>}
-    </div>
-  );
-}
-
 function ResultPanel({
   result,
   mode,
@@ -865,6 +691,17 @@ function ResultPanel({
   if (!result) {
     return null;
   }
+
+  const downloadPdf = () => {
+    if (!result.reportId) return;
+    const filename = `${result.customerName || 'crm-eligibility-report'}-${result.requestId || result.reportId}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-') + '.pdf';
+    downloadAuthenticatedFile(
+      `/api/bureau-report-pdf?source=crm_eligibility_reports&id=${encodeURIComponent(result.reportId)}`,
+      filename
+    ).catch((error) => alert(error.message));
+  };
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -915,6 +752,15 @@ function ResultPanel({
             <p className="text-xs text-muted-foreground">Eligibility report generated</p>
           </div>
         </div>
+        {result.reportId && (
+          <button
+            type="button"
+            onClick={downloadPdf}
+            className="mb-3 inline-flex h-8 items-center justify-center rounded-sm border border-border bg-background px-3 text-xs font-700 text-foreground hover:bg-muted"
+          >
+            Download Live Report PDF
+          </button>
+        )}
         {mode === 'full_details' && (
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-background/60 rounded-sm p-2">

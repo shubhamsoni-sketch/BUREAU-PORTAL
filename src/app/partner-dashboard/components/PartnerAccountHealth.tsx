@@ -5,7 +5,7 @@ import Icon from '@/components/ui/AppIcon';
 import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { createClient } from '@/lib/supabase/client';
-import { TrendingUp, Users, Building2, Package, Zap } from 'lucide-react';
+import { TrendingUp, Users, Package, Zap } from 'lucide-react';
 
 interface PartnerData {
   partner_code: string;
@@ -182,12 +182,6 @@ export default function PartnerAccountHealth() {
                     <Users size={11} /> Consumer Rate
                   </span>
                   <span className="text-xs font-semibold text-blue-700">₹{commercials.consumer_credit_rate}/pull</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <Building2 size={11} /> Commercial Rate
-                  </span>
-                  <span className="text-xs font-semibold text-purple-700">₹{commercials.commercial_credit_rate}/pull</span>
                 </div>
                 {commercials.bundled_credits > 0 && (
                   <div className="flex items-center justify-between">

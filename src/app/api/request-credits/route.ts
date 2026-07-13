@@ -1,37 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { bearerToken, requireUser } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(bearerToken(req));
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await req.json();
-    const { user_id, partner_id, amount, note } = body;
-
-    if (!user_id && !partner_id) {
-      return NextResponse.json({ error: 'user_id or partner_id is required' }, { status: 400 });
-    }
+    const { partner_id, amount, note } = body;
+    const supabaseAdmin = auth.supabase;
 
     const requestedAmount = Number(amount);
     if (!amount || isNaN(requestedAmount) || requestedAmount < 10000) {
       return NextResponse.json({ error: 'Minimum credit request amount is ₹10,000' }, { status: 400 });
     }
 
-    // Get partner by partner_id for CRM/team users, or by user_id for legacy partner portal users.
     let partnerQuery = supabaseAdmin
       .from('partners')
       .select('id, name, email, user_id');
 
-    partnerQuery = partner_id ? partnerQuery.eq('id', partner_id) : partnerQuery.eq('user_id', user_id);
+    partnerQuery = partner_id ? partnerQuery.eq('id', partner_id) : partnerQuery.eq('user_id', auth.user.id);
 
     const { data: partner, error: partnerError } = await partnerQuery.maybeSingle();
 
     if (partnerError || !partner) {
       return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
+    }
+    if (partner.user_id !== auth.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Insert credit request
@@ -39,7 +37,7 @@ export async function POST(req: NextRequest) {
       .from('credit_requests')
       .insert({
         partner_id: partner.id,
-        user_id: user_id || partner.user_id,
+        user_id: partner.user_id,
         amount: requestedAmount,
         note: note || '',
         status: 'pending',

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart,  } from 'recharts';
 import { useAuth } from '@/context/AuthContext';
-import { createClient } from '@/lib/supabase/client';
+import { usePartnerDashboardData } from './PartnerDashboardDataContext';
 
 interface DayData {
   day: string;
@@ -26,67 +26,40 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function BureauPullsChart() {
   const { user } = useAuth();
+  const { data: dashboardData, loading } = usePartnerDashboardData();
   const [data, setData] = useState<DayData[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const buildEmptyDays = () => {
+    const days: DayData[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      days.push({
+        day: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+        pulls: 0,
+      });
+    }
+    return days;
+  };
 
   useEffect(() => {
     if (!user?.id) return;
 
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const supabase = createClient();
+    const days = buildEmptyDays();
+    const pulls = dashboardData?.weeklyPulls ?? [];
 
-        // Build last 7 days range
-        const days: DayData[] = [];
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          d.setHours(0, 0, 0, 0);
-          const label = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-          days.push({ day: label, pulls: 0 });
-        }
-
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-        sevenDaysAgo.setHours(0, 0, 0, 0);
-
-        const { data: pulls } = await supabase
-          .from('bureau_pulls')
-          .select('created_at')
-          .eq('partner_id', user.id)
-          .gte('created_at', sevenDaysAgo.toISOString());
-
-        if (pulls) {
-          pulls.forEach((p) => {
-            const d = new Date(p.created_at);
-            const label = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-            const idx = days.findIndex((x) => x.day === label);
-            if (idx !== -1) days[idx].pulls += 1;
-          });
-        }
-
-        setData(days);
-      } catch (err) {
-        console.error('[BureauPullsChart] fetch error:', err);
-        // Fallback: empty 7 days
-        const days: DayData[] = [];
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          days.push({
-            day: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
-            pulls: 0,
-          });
-        }
-        setData(days);
-      } finally {
-        setLoading(false);
+    pulls.forEach((p) => {
+      if (p.created_at) {
+        const d = new Date(p.created_at);
+        const label = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+        const idx = days.findIndex((x) => x.day === label);
+        if (idx !== -1) days[idx].pulls += 1;
       }
-    };
+    });
 
-    fetchData();
-  }, [user?.id]);
+    setData(days);
+  }, [user?.id, dashboardData?.weeklyPulls]);
 
   const totalPulls = data.reduce((s, d) => s + d.pulls, 0);
 

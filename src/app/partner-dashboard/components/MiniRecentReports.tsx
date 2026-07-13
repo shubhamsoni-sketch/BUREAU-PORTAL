@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { createClient } from '@/lib/supabase/client';
+import { DashboardRecentReport, usePartnerDashboardData } from './PartnerDashboardDataContext';
 
 interface ReportRow {
   id: string;
@@ -22,47 +22,27 @@ function scoreColor(score: number | null) {
 
 export default function MiniRecentReports() {
   const { user } = useAuth();
+  const { data, loading } = usePartnerDashboardData();
   const [reports, setReports] = useState<ReportRow[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user?.id) return;
+    const recentReports: DashboardRecentReport[] = data?.recentReports ?? [];
 
-    const fetchReports = async () => {
-      setLoading(true);
-      try {
-        const supabase = createClient();
-        const { data } = await supabase
-          .from('bureau_pulls')
-          .select('id, customer_name, bureau, credit_score, created_at, report_type')
-          .eq('partner_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        if (data) {
-          setReports(
-            data.map((r) => ({
-              id: r.id,
-              customerName: r.customer_name ?? '—',
-              reportType: r.report_type ?? r.bureau ?? 'Bureau',
-              score: r.credit_score ?? null,
-              date: new Date(r.created_at).toLocaleDateString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: '2-digit',
-              }),
-            }))
-          );
-        }
-      } catch (err) {
-        console.error('[MiniRecentReports] fetch error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchReports();
-  }, [user?.id]);
+    setReports(
+      recentReports.map((r) => ({
+        id: r.id,
+        customerName: r.customer_name ?? '—',
+        reportType: r.report_type ?? r.bureau ?? 'Bureau',
+        score: r.credit_score ?? null,
+        date: new Date(r.created_at).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: '2-digit',
+        }),
+      }))
+    );
+  }, [user?.id, data?.recentReports]);
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">

@@ -255,13 +255,13 @@ export default function AddPartnerButton() {
             {/* Partner Code */}
             <div>
               <label htmlFor="partnerCode" className="block text-sm font-medium text-foreground mb-1">
-                Partner Code (DSA ID)
+                Partner Code
               </label>
               <input
                 id="partnerCode"
                 type="text"
                 className="input-base font-mono"
-                placeholder="DSA-2024-001"
+                placeholder="CT-101"
                 {...register('partnerCode')}
               />
             </div>

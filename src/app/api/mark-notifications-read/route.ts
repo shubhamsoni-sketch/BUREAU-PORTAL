@@ -1,38 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { bearerToken, requireUser } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(bearerToken(req));
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await req.json();
-    const { user_id, notification_id } = body;
-
-    if (!user_id) {
-      return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
-    }
+    const { notification_id } = body;
 
     if (notification_id) {
       // Mark single notification as read
-      const { error } = await supabaseAdmin
+      const { error } = await auth.supabase
         .from('notifications')
         .update({ is_read: true })
         .eq('id', notification_id)
-        .eq('user_id', user_id);
+        .eq('user_id', auth.user.id);
 
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
     } else {
       // Mark all as read
-      const { error } = await supabaseAdmin
+      const { error } = await auth.supabase
         .from('notifications')
         .update({ is_read: true })
-        .eq('user_id', user_id)
+        .eq('user_id', auth.user.id)
         .eq('is_read', false);
 
       if (error) {

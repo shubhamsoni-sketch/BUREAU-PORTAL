@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AlertCircle, X, ArrowRight, FileText } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { usePartnerDashboardData } from './PartnerDashboardDataContext';
 
 const DISMISSED_KEY = 'dismissed_invoice_ids';
 
@@ -34,6 +35,7 @@ interface Invoice {
 
 export default function PendingInvoiceBanner() {
   const { user } = useAuth();
+  const { data: dashboardData, loading: dashboardLoading } = usePartnerDashboardData();
   const [pendingInvoices, setPendingInvoices] = useState<Invoice[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
@@ -44,18 +46,14 @@ export default function PendingInvoiceBanner() {
   }, []);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || dashboardLoading) return;
 
     async function loadPending() {
       try {
-        const walletRes = await fetch(`/api/partner-wallet-data?user_id=${user!.id}`);
-        const walletJson = await walletRes.json();
-        if (!walletJson.success || !walletJson.partnerId) return;
-
-        const partnerId = walletJson.partnerId;
+        if (!dashboardData?.partnerId) return;
 
         const invRes = await fetch(
-          `/api/admin-invoices-list?partner_id=${partnerId}&status=raised,Pending`
+          `/api/admin-invoices-list?partner_id=${dashboardData.partnerId}&status=raised,Pending`
         );
         const invJson = await invRes.json();
 
@@ -85,7 +83,7 @@ export default function PendingInvoiceBanner() {
     // Re-check every 30 seconds for new invoices
     const interval = setInterval(loadPending, 30000);
     return () => clearInterval(interval);
-  }, [user?.id]);
+  }, [user?.id, dashboardData?.partnerId, dashboardLoading]);
 
   function handleDismissPopup() {
     // Mark all current pending invoices as dismissed

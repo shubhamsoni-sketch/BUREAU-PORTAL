@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { normalizePartnerProductAccess, type PartnerProductAccess } from '@/lib/partner-access';
+import { authFetch } from '@/lib/supabase/auth-fetch';
 
 export type PartnerStatus = 'Active' | 'Pending' | 'Suspended' | 'Terminated';
 
@@ -154,9 +155,7 @@ function generatePassword(name: string): string {
 }
 
 function generatePartnerCode(existingCount: number): string {
-  const year = new Date().getFullYear();
-  const num = String(existingCount + 1).padStart(3, '0');
-  return `DSA-${year}-${num}`;
+  return `CT-${101 + existingCount}`;
 }
 
 function mapDbStatus(dbStatus: string): PartnerStatus {
@@ -182,10 +181,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const loadPartners = useCallback(async () => {
     setPartnersLoading(true);
     try {
-      const res = await fetch('/api/admin-partners-list');
+      const res = await authFetch('/api/admin-partners-list');
       const json = await res.json();
-
-      console.log('[AdminContext] partners fetch:', { count: json.data?.length ?? 0, error: json.error });
 
       if (res.ok && json.success && json.data && json.data.length > 0) {
         const mapped: Partner[] = json.data.map((row: any) => ({
@@ -209,7 +206,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         }));
         setPartners(mapped);
       } else {
-        console.warn('[AdminContext] No partners returned or error — using empty array', json.error);
         setPartners([]);
       }
     } catch (err) {

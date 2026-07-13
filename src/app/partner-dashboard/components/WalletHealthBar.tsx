@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import React, { useMemo } from 'react';
+import { usePartnerDashboardData } from './PartnerDashboardDataContext';
 
 interface WalletHealth {
   balance: number;
@@ -11,42 +11,27 @@ interface WalletHealth {
 }
 
 export default function WalletHealthBar() {
-  const { user } = useAuth();
-  const [health, setHealth] = useState<WalletHealth | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, loading } = usePartnerDashboardData();
 
-  useEffect(() => {
-    if (!user?.id) return;
+  const health = useMemo<WalletHealth | null>(() => {
+    if (!data) return null;
 
-    fetch(`/api/partner-wallet-data?user_id=${user.id}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.success) {
-          const balance = data.balance ?? 0;
-          const comm = data.commercials;
+    const balance = data.balance ?? 0;
+    const comm = data.commercials;
+    const pricePerPull =
+      Number(comm?.consumer_credit_rate) ||
+      Number(comm?.credit_rate) ||
+      Number(comm?.commercial_credit_rate) ||
+      35;
 
-          // Determine price per pull: use consumer_credit_rate or credit_rate fallback
-          const pricePerPull =
-            Number(comm?.consumer_credit_rate) ||
-            Number(comm?.credit_rate) ||
-            Number(comm?.commercial_credit_rate) ||
-            35; // default fallback
+    const estimatedPulls = pricePerPull > 0 ? Math.floor(balance / pricePerPull) : 0;
+    const maxPulls =
+      data.totalRecharged > 0 && pricePerPull > 0
+        ? Math.floor(data.totalRecharged / pricePerPull)
+        : Math.max(estimatedPulls * 2, 100);
 
-          const estimatedPulls = pricePerPull > 0 ? Math.floor(balance / pricePerPull) : 0;
-
-          // Scale: use totalRecharged to set max, or estimatedPulls * 2 as fallback
-          const totalRecharged = data.totalRecharged ?? 0;
-          const maxPulls =
-            totalRecharged > 0 && pricePerPull > 0
-              ? Math.floor(totalRecharged / pricePerPull)
-              : Math.max(estimatedPulls * 2, 100);
-
-          setHealth({ balance, pricePerPull, estimatedPulls, maxPulls });
-        }
-      })
-      .catch((err) => console.error('[WalletHealthBar] fetch error:', err))
-      .finally(() => setLoading(false));
-  }, [user?.id]);
+    return { balance, pricePerPull, estimatedPulls, maxPulls };
+  }, [data]);
 
   const pct =
     health && health.maxPulls > 0

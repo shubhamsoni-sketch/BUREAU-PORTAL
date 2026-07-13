@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { X, FileText, User, TrendingUp, CreditCard, AlertTriangle, XCircle } from 'lucide-react';
+import { X, FileText, User, TrendingUp, CreditCard, AlertTriangle, XCircle, Download } from 'lucide-react';
 import type { BureauPull } from '../page';
+import { downloadAuthenticatedFile } from '@/lib/supabase/auth-fetch';
 
 interface Props {
   pull: BureauPull;
@@ -40,6 +41,17 @@ function formatBalance(val: number | null) {
   return `₹${val}`;
 }
 
+function shortMemberRef(value: string | null) {
+  if (!value) return '—';
+  if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value)) {
+    return `CT-${value.replace(/-/g, '').slice(-6).toUpperCase()}`;
+  }
+  if (/^(LIVE|DEMO)-\d+$/i.test(value)) {
+    return `CT-${value.slice(-6)}`;
+  }
+  return value;
+}
+
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between py-2 border-b border-slate-50 last:border-0">
@@ -52,6 +64,9 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 export default function BureauReportModal({ pull, onClose }: Props) {
   const isFailed = pull.status === 'failed';
   const isCommercial = pull.report_type === 'commercial';
+  const downloadFilename = `${pull.customer_name || 'bureau-report'}-${pull.report_id || pull.id}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-') + '.pdf';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -147,7 +162,7 @@ export default function BureauReportModal({ pull, onClose }: Props) {
               <div>
                 <InfoRow label="Name" value={pull.customer_name} />
                 <InfoRow label="PAN" value={<span className="font-mono uppercase">{pull.pan}</span>} />
-                <InfoRow label="Member Ref" value={<span className="font-mono">{pull.member_ref}</span>} />
+                <InfoRow label="Member Ref" value={<span className="font-mono" title={pull.member_ref ?? ''}>{shortMemberRef(pull.member_ref)}</span>} />
                 <InfoRow label="Date of Birth" value={pull.dob} />
               </div>
               <div>
@@ -227,12 +242,24 @@ export default function BureauReportModal({ pull, onClose }: Props) {
                 <></>
               )}
             </div>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
-            >
-              Close
-            </button>
+            <div className="flex items-center gap-2">
+              {!isFailed && (
+                <button
+                  type="button"
+                  onClick={() => downloadAuthenticatedFile(`/api/bureau-report-pdf?source=bureau_pulls&id=${encodeURIComponent(pull.id)}`, downloadFilename).catch((error) => alert(error.message))}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Download size={14} />
+                  Download PDF
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       </div>

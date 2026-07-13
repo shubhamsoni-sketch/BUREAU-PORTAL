@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { crmFetch } from '@/lib/crm/api';
+import { downloadAuthenticatedFile } from '@/lib/supabase/auth-fetch';
 
 interface EligibilityReport {
   id: string;
@@ -18,6 +19,7 @@ interface EligibilityReport {
   checkedBy: string;
   checkedOn: string;
   status: 'eligible' | 'not_eligible' | 'pending';
+  isLive?: boolean;
 }
 
 const MOCK_REPORTS: EligibilityReport[] = [
@@ -214,6 +216,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                   })
                 : '',
               status: report.eligible ? 'eligible' : report.score ? 'not_eligible' : 'pending',
+              isLive: true,
             }))
           );
         }
@@ -237,6 +240,16 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
   });
 
   const scoredReports = reports.filter((r) => r.creditScore > 0);
+  const downloadPdf = (report: EligibilityReport) => {
+    if (!report.isLive) return;
+    const filename = `${report.borrowerName || 'crm-eligibility-report'}-${report.id}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-') + '.pdf';
+    downloadAuthenticatedFile(
+      `/api/bureau-report-pdf?source=crm_eligibility_reports&id=${encodeURIComponent(report.id)}`,
+      filename
+    ).catch((error) => alert(error.message));
+  };
   const stats = {
     total: reports.length,
     eligible: reports.filter((r) => r.status === 'eligible').length,
@@ -444,8 +457,14 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              downloadPdf(report);
+                            }}
+                            disabled={!report.isLive}
                             className="w-7 h-7 flex items-center justify-center rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                            title="Download report"
+                            title={report.isLive ? 'Download report' : 'Sample report'}
                           >
                             <svg
                               width="13"
@@ -531,7 +550,12 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                   ))}
                 </div>
 
-                <button className="w-full h-8 rounded-sm border border-border text-xs font-600 text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => downloadPdf(selectedReport)}
+                  disabled={!selectedReport.isLive}
+                  className="w-full h-8 rounded-sm border border-border text-xs font-600 text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:hover:bg-card"
+                >
                   <svg
                     width="12"
                     height="12"

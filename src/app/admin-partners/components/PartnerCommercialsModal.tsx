@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, DollarSign, CreditCard, Package, Zap, TrendingUp, Save, Loader2, AlertCircle, CheckCircle2, Users, Building2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { authFetch } from '@/lib/supabase/auth-fetch';
 
 interface Partner {
   id: string;
@@ -133,7 +134,7 @@ export default function PartnerCommercialsModal({ partner, onClose, onSaved }: P
         notes: form.notes,
       };
 
-      const res = await fetch('/api/save-partner-commercials', {
+      const res = await authFetch('/api/save-partner-commercials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

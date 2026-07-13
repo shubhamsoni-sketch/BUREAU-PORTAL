@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Topbar from '@/components/Topbar';
-import { useAuth } from '@/context/AuthContext';
+import { CachedBureauPull, usePartnerReportsCache } from '@/hooks/usePartnerReportsCache';
 import {
   Search,
   Download,
@@ -20,36 +20,9 @@ import {
 import BureauReportModal from './components/BureauReportModal';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
-export interface BureauPull {
-  id: string;
-  partner_id: string;
-  report_type: string;
-  status: string;
-  member_ref: string | null;
-  pan: string | null;
-  customer_name: string | null;
-  credit_score: number | null;
-  occupation_code: string | null;
-  gender: string | null;
-  state: string | null;
-  dob: string | null;
-  income: string | null;
-  total_trades: number | null;
-  active_trade_lines: number | null;
-  loan_types: string | null;
-  dpd_tag: string | null;
-  current_balance: number | null;
-  overdue_amount: number | null;
-  total_enquiries: number | null;
-  amount_deducted: number | null;
-  report_id: string | null;
-  bureau: string | null;
-  error_message: string | null;
-  raw_json: Record<string, unknown>;
-  created_at: string;
-}
+export type BureauPull = CachedBureauPull;
 
-type TabType = 'consumer' | 'commercial' | 'failed';
+type TabType = 'consumer' | 'failed';
 
 const ALL_COLUMNS = [
   { key: 'member_ref', label: 'Member Ref' },
@@ -117,6 +90,17 @@ function truncate(str: string | null, max = 22) {
   return str.length > max ? str.slice(0, max) + '...' : str;
 }
 
+function shortMemberRef(value: string | null) {
+  if (!value) return '—';
+  if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value)) {
+    return `CT-${value.replace(/-/g, '').slice(-6).toUpperCase()}`;
+  }
+  if (/^(LIVE|DEMO)-\d+$/i.test(value)) {
+    return `CT-${value.slice(-6)}`;
+  }
+  return value;
+}
+
 // ─── Export CSV ────────────────────────────────────────────────────────────────
 function exportCSV(rows: BureauPull[], visibleCols: ColumnKey[], tab: TabType, dateFrom: string, dateTo: string) {
   const headers = ALL_COLUMNS.filter(c => visibleCols.includes(c.key)).map(c => c.label);
@@ -143,11 +127,7 @@ function exportCSV(rows: BureauPull[], visibleCols: ColumnKey[], tab: TabType, d
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function ReportsHistoryPage() {
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('consumer');
-  const [allData, setAllData] = useState<BureauPull[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [partnerId, setPartnerId] = useState<string | null>(null);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -159,35 +139,7 @@ export default function ReportsHistoryPage() {
 
   // Row detail modal
   const [selectedRow, setSelectedRow] = useState<BureauPull | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ user_id: user.id });
-      if (dateFrom) params.set('date_from', dateFrom);
-      if (dateTo) params.set('date_to', dateTo);
-
-      const res = await fetch(`/api/bureau-pulls?${params.toString()}`);
-      const json = await res.json();
-
-      if (json.success) {
-        setPartnerId(json.partnerId ?? null);
-        setAllData((json.pulls as BureauPull[]) ?? []);
-      } else {
-        console.error('[ReportsHistory] API error:', json.error);
-        setAllData([]);
-      }
-    } catch (err) {
-      console.error('[ReportsHistory] fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id, dateFrom, dateTo]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const { pulls: allData, loading, refresh } = usePartnerReportsCache(dateFrom, dateTo);
 
   // Filtered rows per tab
   const filteredRows = useMemo(() => {
@@ -215,7 +167,6 @@ export default function ReportsHistoryPage() {
 
   const tabs: { key: TabType; label: string }[] = [
     { key: 'consumer', label: 'Consumer' },
-    { key: 'commercial', label: 'Commercial' },
     { key: 'failed', label: 'Failed Pulls' },
   ];
 
@@ -230,7 +181,11 @@ export default function ReportsHistoryPage() {
   function renderCell(row: BureauPull, key: ColumnKey) {
     switch (key) {
       case 'member_ref':
-        return <span className="font-mono text-xs text-slate-700">{row.member_ref ?? '—'}</span>;
+        return (
+          <span className="font-mono text-xs text-slate-700" title={row.member_ref ?? ''}>
+            {shortMemberRef(row.member_ref)}
+          </span>
+        );
       case 'pan':
         return <span className="font-mono text-xs text-slate-700 uppercase">{row.pan ?? '—'}</span>;
       case 'customer_name':
@@ -281,12 +236,10 @@ export default function ReportsHistoryPage() {
   }
 
   const consumerCount = allData.filter(r => r.status !== 'failed' && r.report_type === 'consumer').length;
-  const commercialCount = allData.filter(r => r.status !== 'failed' && r.report_type === 'commercial').length;
   const failedCount = allData.filter(r => r.status === 'failed').length;
 
   const tabCounts: Record<TabType, number> = {
     consumer: consumerCount,
-    commercial: commercialCount,
     failed: failedCount,
   };
 
@@ -455,7 +408,7 @@ export default function ReportsHistoryPage() {
 
           {/* Refresh */}
           <button
-            onClick={fetchData}
+            onClick={() => void refresh(true)}
             disabled={loading}
             className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors"
             title="Refresh"
