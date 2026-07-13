@@ -1,11 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET() {
-  return handleSetupAdmin();
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const setupSecret = process.env.SETUP_ADMIN_SECRET;
+  const providedSecret = request.headers.get('x-setup-admin-secret');
+
+  if (!setupSecret || providedSecret !== setupSecret) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   return handleSetupAdmin();
 }
 
@@ -26,8 +33,15 @@ async function handleSetupAdmin() {
       },
     });
 
-    const adminEmail = process.env.DEFAULT_ADMIN_EMAIL ?? 'admin@bureau-portal.in';
-    const adminPassword = 'Admin@2026';
+    const adminEmail = process.env.DEFAULT_ADMIN_EMAIL;
+    const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD;
+
+    if (!adminEmail || !adminPassword) {
+      return NextResponse.json(
+        { error: 'DEFAULT_ADMIN_EMAIL and DEFAULT_ADMIN_PASSWORD are required.' },
+        { status: 500 }
+      );
+    }
 
     // Check if user already exists
     const { data: existingUsers, error: listError } = await adminClient.auth.admin.listUsers();

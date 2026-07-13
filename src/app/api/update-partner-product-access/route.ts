@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { normalizePartnerProductAccess } from '@/lib/partner-access';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAdmin(bearerToken(request));
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const { partner_id, product_access } = await request.json();
 
@@ -17,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const access = normalizePartnerProductAccess(product_access);
-    const { error } = await supabaseAdmin
+    const { error } = await auth.supabase
       .from('partners')
       .update({ product_access: access, updated_at: new Date().toISOString() })
       .eq('id', partner_id);

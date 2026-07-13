@@ -2,15 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { generatePartnerCode } from '@/lib/partner-code';
 import { normalizePartnerProductAccess } from '@/lib/partner-access';
-
-function generatePassword(): string {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$';
-  let password = '';
-  for (let i = 0; i < 10; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-}
+import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
+import { generateTemporaryPassword } from '@/lib/security/password';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,45 +28,9 @@ export async function POST(request: NextRequest) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Accept either a Bearer token OR an internal admin secret header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    const internalSecret = request.headers.get('x-admin-secret');
-    const anonKeySecret = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    let isAuthorized = false;
-
-    if (internalSecret && anonKeySecret && internalSecret === anonKeySecret) {
-      // Internal call authenticated via anon key — safe since anon key is already public
-      // but still acts as a shared secret to confirm the call originates from our own app
-      isAuthorized = true;
-    } else if (token) {
-      // Verify Bearer token
-      const { data: { user: callerUser }, error: userError } = await adminClient.auth.getUser(token);
-
-      if (!userError && callerUser) {
-        const isAdminMeta =
-          callerUser.app_metadata?.role === 'admin' ||
-          callerUser.user_metadata?.role === 'admin';
-
-        if (isAdminMeta) {
-          isAuthorized = true;
-        } else {
-          const { data: callerProfile } = await adminClient
-            .from('user_profiles')
-            .select('role')
-            .eq('id', callerUser.id)
-            .maybeSingle();
-
-          if (callerProfile?.role === 'admin') {
-            isAuthorized = true;
-          }
-        }
-      }
-    }
-
-    if (!isAuthorized) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const auth = await requireAdmin(bearerToken(request));
+    if ('error' in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const body = await request.json();
@@ -106,7 +63,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authorised person name and email are required' }, { status: 400 });
     }
 
-    let password = generatePassword();
+    const password = generateTemporaryPassword();
     const partnerCode = await generatePartnerCode(adminClient);
 
     // Create auth user with service role
@@ -173,7 +130,9 @@ export async function POST(request: NextRequest) {
 
     // Send credentials email via Resend edge function (non-blocking — don't fail if email fails)
     try {
-      const loginUrl = 'https://bureau-portal.vercel.app/partner-login';
+      const loginUrl = process.env.NEXT_PUBLIC_APP_URL
+        ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/partner-login`
+        : 'https://credittrust.in/partner-login';
       await fetch(
         `${supabaseUrl}/functions/v1/send-partner-credentials`,
         {

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAdmin(bearerToken(req));
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await req.json();
     const { partner_id, pricing_plan } = body;
@@ -16,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'partner_id and pricing_plan are required' }, { status: 400 });
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await auth.supabase
       .from('partners')
       .update({ pricing_plan, updated_at: new Date().toISOString() })
       .eq('id', partner_id);

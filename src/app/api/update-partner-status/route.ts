@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 
 const STATUS_MAP: Record<string, string> = {
   Active: 'approved',
@@ -15,6 +9,11 @@ const STATUS_MAP: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAdmin(bearerToken(req));
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await req.json();
     const { partner_id, status } = body;
@@ -25,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     const dbStatus = STATUS_MAP[status] ?? status.toLowerCase();
 
-    const { error } = await supabaseAdmin
+    const { error } = await auth.supabase
       .from('partners')
       .update({ status: dbStatus, updated_at: new Date().toISOString() })
       .eq('id', partner_id);

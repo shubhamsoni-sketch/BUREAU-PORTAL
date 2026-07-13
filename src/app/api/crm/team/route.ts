@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { generateTemporaryPassword } from '@/lib/security/password';
 import { resolveCrmScope } from '@/lib/crm/scope';
 import { requireCrmPermission } from '@/lib/crm/access';
 import { defaultCrmLenders, normalizeLenders } from '@/lib/crm/lender-policy';
@@ -36,15 +37,6 @@ function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
 }
 
-function generatePassword() {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$';
-  let password = '';
-  for (let i = 0; i < 12; i += 1) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-}
-
 async function findAuthUserByEmail(
   supabase: ReturnType<typeof createAdminClient>,
   email: string
@@ -65,7 +57,7 @@ async function provisionCrmAuthUser(
     return { member, temporaryPassword: '' };
   }
 
-  const temporaryPassword = forcePassword || !existing?.authUserId ? generatePassword() : '';
+  const temporaryPassword = forcePassword || !existing?.authUserId ? generateTemporaryPassword(12) : '';
   let authUserId = existing?.authUserId || '';
 
   if (!authUserId) {

@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { generatePartnerCode } from '@/lib/partner-code';
-
-function generatePassword(): string {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$';
-  let password = '';
-  for (let i = 0; i < 10; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-}
+import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
+import { generateTemporaryPassword } from '@/lib/security/password';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +14,6 @@ export async function POST(request: NextRequest) {
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     const isRealServiceKey =
@@ -37,53 +29,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify caller via Authorization Bearer token (works in iframe / third-party cookie blocked envs)
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-
-    // Also accept internal admin secret header (anon key) as fallback — same pattern as /api/add-partner
-    const internalSecret = request.headers.get('x-admin-secret');
-    const anonKeySecret = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const isInternalAdmin = !!(internalSecret && anonKeySecret && internalSecret === anonKeySecret);
-
-    if (!token && !isInternalAdmin) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const auth = await requireAdmin(bearerToken(request));
+    if ('error' in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
-
-    let callerUserId = 'admin-internal';
-
-    if (token) {
-      // Verify the token using the anon client
-      const anonClient = createSupabaseClient(supabaseUrl, anonKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
-      const { data: { user: callerUser }, error: userError } = await anonClient.auth.getUser(token);
-
-      if (userError || !callerUser) {
-        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-      }
-
-      // Allow if JWT metadata says admin
-      const isAdmin =
-        callerUser.app_metadata?.role === 'admin' ||
-        callerUser.user_metadata?.role === 'admin';
-
-      if (!isAdmin) {
-        // Fallback: check user_profiles table
-        const { data: callerProfile } = await anonClient
-          .from('user_profiles')
-          .select('role')
-          .eq('id', callerUser.id)
-          .maybeSingle();
-
-        if (callerProfile?.role !== 'admin') {
-          return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
-        }
-      }
-
-      callerUserId = callerUser.id;
-    }
-    // If isInternalAdmin is true (no token), we trust the request as admin
+    const callerUserId = auth.user.id;
 
     // Use service role admin client for ALL operations
     const adminClient = createSupabaseClient(supabaseUrl, serviceRoleKey!, {
@@ -105,7 +55,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Request already processed' }, { status: 409 });
     }
 
-    let password = generatePassword();
+    const password = generateTemporaryPassword();
     const partnerCode = await generatePartnerCode(adminClient);
 
     // Check if an auth user with this email already exists
@@ -222,13 +172,15 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${anonKey}`,
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           partnerName: partnerRequest.name,
           partnerEmail: partnerRequest.email,
           tempPassword: password,
-          loginUrl: 'https://bureau-portal.vercel.app/partner-login',
+          loginUrl: process.env.NEXT_PUBLIC_APP_URL
+            ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/partner-login`
+            : 'https://credittrust.in/partner-login',
         }),
       });
     } catch (emailErr) {

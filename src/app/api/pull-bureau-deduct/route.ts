@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { bearerToken, requireUser } from '@/lib/supabase/admin';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,12 +9,39 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(bearerToken(req));
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
     const body = await req.json();
     const { partner_id, report_type, customer_name, report_id } = body;
 
     if (!partner_id || !report_type) {
       return NextResponse.json({ error: 'partner_id and report_type are required' }, { status: 400 });
+    }
+
+    const isAdmin =
+      auth.user.app_metadata?.role === 'admin' ||
+      auth.user.user_metadata?.role === 'admin';
+
+    if (!isAdmin) {
+      const { data: ownedPartner, error: ownershipError } = await supabaseAdmin
+        .from('partners')
+        .select('id')
+        .eq('user_id', auth.user.id)
+        .eq('id', partner_id)
+        .maybeSingle();
+
+      if (ownershipError) {
+        console.error('[pull-bureau-deduct] ownership check error:', ownershipError);
+        return NextResponse.json({ error: ownershipError.message }, { status: 500 });
+      }
+
+      if (!ownedPartner) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     // 1. Fetch partner's commercial rates

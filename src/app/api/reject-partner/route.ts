@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +13,6 @@ export async function POST(request: NextRequest) {
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const anonKeySecret = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     const isRealServiceKey =
       serviceRoleKey &&
@@ -27,16 +27,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Accept internal admin secret header (anon key) — same pattern as approve-partner and add-partner
-    const internalSecret = request.headers.get('x-admin-secret');
-    const isInternalAdmin = !!(internalSecret && anonKeySecret && internalSecret === anonKeySecret);
-
-    // Also accept Bearer token
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-
-    if (!token && !isInternalAdmin) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const auth = await requireAdmin(bearerToken(request));
+    if ('error' in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     // Use service role admin client to bypass RLS
@@ -49,7 +42,7 @@ export async function POST(request: NextRequest) {
       .update({
         status: 'rejected',
         reviewed_at: new Date().toISOString(),
-        reviewed_by: 'admin-internal',
+        reviewed_by: auth.user.id,
       })
       .eq('id', requestId);
 

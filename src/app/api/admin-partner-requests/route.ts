@@ -1,15 +1,14 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
+import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(bearerToken(req));
+  if ('error' in auth) {
+    return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+  }
 
-export async function GET() {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await auth.supabase
       .from('partner_requests')
       .select('*')
       .eq('status', 'pending')

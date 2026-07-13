@@ -15,8 +15,6 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [setupLoading, setSetupLoading] = useState(false);
-  const [setupMessage, setSetupMessage] = useState('');
 
   useEffect(() => {
     if (isLoading) return;
@@ -94,24 +92,6 @@ export default function AdminLoginPage() {
     } catch {
       setError('Login failed. Please try again.');
       setSubmitting(false);
-    }
-  };
-
-  const handleSetupAdmin = async () => {
-    setSetupLoading(true);
-    setSetupMessage('');
-    try {
-      const res = await fetch('/api/setup-admin', { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        setSetupMessage(data.message ?? 'Admin account ready. Try logging in now.');
-      } else {
-        setSetupMessage(data.error ?? 'Setup failed. Please try again.');
-      }
-    } catch {
-      setSetupMessage('Network error. Please try again.');
-    } finally {
-      setSetupLoading(false);
     }
   };
 
@@ -227,26 +207,6 @@ export default function AdminLoginPage() {
                 )}
                 {submitting ? 'Signing in...' : 'Sign In as Admin'}
               </button>
-
-              {/* Reset/Setup Admin */}
-              <div className="pt-2 border-t border-slate-100">
-                {setupMessage && (
-                  <p className="text-xs text-center text-slate-500 mb-2">{setupMessage}</p>
-                )}
-                <button
-                  type="button"
-                  disabled={setupLoading}
-                  onClick={handleSetupAdmin}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 text-slate-600 text-xs font-medium rounded-xl transition-colors"
-                >
-                  {setupLoading ? (
-                    <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <ShieldAlert size={14} />
-                  )}
-                  {setupLoading ? 'Setting up...' : 'Reset / Setup Admin Account'}
-                </button>
-              </div>
             </form>
           </div>
         </div>

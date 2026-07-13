@@ -5,6 +5,7 @@ import AdminLayout from '@/components/AdminLayout';
 import { useAdmin, Partner, PartnerStatus } from '@/context/AdminContext';
 import { createClient } from '@/lib/supabase/client';
 import { PARTNER_PRODUCT_ACCESS_LABELS, type PartnerProductAccess } from '@/lib/partner-access';
+import { authFetch } from '@/lib/supabase/auth-fetch';
 
 import { Search, CheckCircle, XCircle, Ban, RotateCcw, ChevronDown, X, Edit2, Wallet, UserPlus, Mail, Copy, Eye, EyeOff, Phone, Settings2 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -90,7 +91,7 @@ export default function AdminPartnersPage() {
   const loadPartnerRequests = useCallback(async () => {
     setRequestsLoading(true);
     try {
-      const res = await fetch('/api/admin-partner-requests');
+      const res = await authFetch('/api/admin-partner-requests');
       const result = await res.json();
       if (res.ok && result.success && result.data) {
         setPartnerRequests(result.data);
@@ -141,14 +142,9 @@ export default function AdminPartnersPage() {
 
   const handleApproveRequest = async (req: PartnerRequest) => {
     try {
-      // Use internal admin secret header — avoids cookie/session issues in iframe environments
-      // Same pattern as add-partner which works reliably
-      const res = await fetch('/api/approve-partner', {
+      const res = await authFetch('/api/approve-partner', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-secret': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId: req.id }),
       });
       const result = await res.json();
@@ -193,12 +189,9 @@ export default function AdminPartnersPage() {
 
   const handleRejectRequest = async (req: PartnerRequest) => {
     try {
-      const res = await fetch('/api/reject-partner', {
+      const res = await authFetch('/api/reject-partner', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-secret': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId: req.id }),
       });
       const result = await res.json();
@@ -236,13 +229,9 @@ export default function AdminPartnersPage() {
 
     setAddFormSubmitting(true);
     try {
-      // Use internal admin secret header — avoids cookie/session issues in iframe environments
-      const res = await fetch('/api/add-partner', {
+      const res = await authFetch('/api/add-partner', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-secret': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(addForm),
       });
       const result = await res.json();

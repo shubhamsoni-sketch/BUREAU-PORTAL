@@ -4,17 +4,9 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { generatePartnerCode } from '@/lib/partner-code';
+import { generateTemporaryPassword } from '@/lib/security/password';
 
 type CookieToSet = { name: string; value: string; options?: any };
-
-function generatePassword(): string {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$';
-  let password = '';
-  for (let i = 0; i < 10; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-}
 
 function createAdminClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -112,7 +104,7 @@ export async function approvePartnerRequest(requestId: string): Promise<ApproveR
   if (fetchError || !request) return { success: false, error: 'Request not found' };
   if (request.status !== 'pending') return { success: false, error: 'Request already processed' };
 
-  let password = generatePassword();
+  const password = generateTemporaryPassword();
   const partnerCode = await generatePartnerCode(adminClient);
 
   // Create auth user with service role
@@ -229,7 +221,7 @@ export async function addPartnerManually(data: {
     return { success: false, error: 'Service role key not configured. Please add SUPABASE_SERVICE_ROLE_KEY to your environment variables.' };
   }
 
-  let password = generatePassword();
+  const password = generateTemporaryPassword();
   const partnerCode = await generatePartnerCode(adminClient);
 
   // Create auth user with service role
