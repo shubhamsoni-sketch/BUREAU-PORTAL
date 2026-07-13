@@ -1,11 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendWalletRechargeSuccessEmail } from '@/lib/email/wallet-events';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { persistSession: false } }
 );
+
+async function sendRechargeEmailForInvoice(invoiceId: string, transactionId?: string | null) {
+  try {
+    const { data: invoice, error: invoiceError } = await supabaseAdmin
+      .from('invoices')
+      .select('id, invoice_number, partner_id, amount, credits_added, partner_name, partner_email')
+      .eq('id', invoiceId)
+      .maybeSingle();
+
+    if (invoiceError || !invoice) {
+      if (invoiceError) console.warn('[mark-invoice-paid] recharge email invoice lookup failed:', invoiceError.message);
+      return;
+    }
+
+    const { data: partner } = await supabaseAdmin
+      .from('partners')
+      .select('name, email, wallet_balance')
+      .eq('id', invoice.partner_id)
+      .maybeSingle();
+
+    await sendWalletRechargeSuccessEmail({
+      partnerName: partner?.name || invoice.partner_name || 'Partner',
+      partnerEmail: partner?.email || invoice.partner_email || '',
+      amount: Number(invoice.credits_added ?? invoice.amount ?? 0),
+      newBalance: partner?.wallet_balance == null ? null : Number(partner.wallet_balance),
+      transactionId: transactionId || invoice.id,
+      invoiceNumber: invoice.invoice_number,
+    });
+  } catch (emailError) {
+    console.warn('[mark-invoice-paid] recharge email error (non-blocking):', emailError);
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -126,6 +159,8 @@ export async function POST(req: NextRequest) {
           recorded_by: recorded_by || null,
           paid_at: new Date().toISOString(),
         });
+
+        await sendRechargeEmailForInvoice(invoice_id, utr_number || invoice_id);
       }
 
       return NextResponse.json({ success: true, invoice: inv });
@@ -174,6 +209,8 @@ export async function POST(req: NextRequest) {
     } catch (notifErr) {
       console.error('[mark-invoice-paid] notification error (non-blocking):', notifErr);
     }
+
+    await sendRechargeEmailForInvoice(invoice_id, result.payment_id || utr_number || invoice_id);
 
     return NextResponse.json({ ...result, success: true });
   } catch (err: any) {

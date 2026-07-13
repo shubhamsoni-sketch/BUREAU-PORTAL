@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, bearerToken, requireUser } from '@/lib/supabase/admin';
 import { createDemoBureauResponse } from '@/lib/bureau/demo-response';
 import { getStateCode } from '@/lib/bureau/state-codes';
+import { sendLowWalletBalanceEmailIfNeeded } from '@/lib/email/wallet-events';
 
 const DEMO_RESET_BALANCE = 100000;
 const DEMO_TOP_UP_THRESHOLD = 1000;
@@ -300,7 +301,7 @@ export async function POST(request: NextRequest) {
 
     const { data: partner, error: partnerError } = await supabase
       .from('partners')
-      .select('id, user_id, wallet_balance, email, partner_code')
+      .select('id, user_id, wallet_balance, email, partner_code, name')
       .eq('id', body.partner_id)
       .maybeSingle();
 
@@ -459,6 +460,19 @@ export async function POST(request: NextRequest) {
         response: rawResponse,
       },
     });
+
+    try {
+      await sendLowWalletBalanceEmailIfNeeded({
+        supabase,
+        partnerId: partner.id,
+        userId: partner.user_id,
+        partnerName: partner.name || 'Partner',
+        partnerEmail: partner.email || '',
+        walletBalance: newBalance,
+      });
+    } catch (emailError) {
+      console.warn('[pull-bureau-real] low wallet email error (non-blocking):', emailError);
+    }
 
     return NextResponse.json({
       success: true,
