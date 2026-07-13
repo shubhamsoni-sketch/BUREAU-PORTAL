@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { AUTH_STORAGE_KEY, createClient, resetClient } from '@/lib/supabase/client';
+import { AUTH_STORAGE_KEY, createClient, resetClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { getPartnerLandingPath, normalizePartnerProductAccess, type PartnerProductAccess } from '@/lib/partner-access';
 import type { User } from '@supabase/supabase-js';
 
@@ -124,6 +124,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // If Supabase is not configured, skip auth entirely
+    if (!isSupabaseConfigured()) {
+      console.warn('[AuthContext] Supabase env vars not set — running in unauthenticated mode.');
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
     // Immediately check for an existing session on mount
     const supabase = createClient();
     let cancelled = false;
@@ -235,6 +243,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string; user?: AuthUser | null }> => {
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Authentication service is not configured.' };
+    }
     try {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -259,7 +270,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setIsLoading(true);
     try {
-      await createClient().auth.signOut({ scope: 'global' });
+      if (isSupabaseConfigured()) {
+        await createClient().auth.signOut({ scope: 'global' });
+      }
     } catch (err) {
       console.warn('[AuthContext] signOut failed, clearing local session anyway:', err);
     } finally {
