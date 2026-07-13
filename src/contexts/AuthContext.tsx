@@ -1,4 +1,7 @@
 // Re-export from the canonical AuthContext location
 // This file exists only for backward compatibility
-export { AuthProvider, useAuth } from '@/context/AuthContext';
-export type { AuthUser, UserRole } from '@/context/AuthContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import type { AuthUser, UserRole } from '@/context/AuthContext';
+
+export { AuthProvider, useAuth };
+export type { AuthUser, UserRole };

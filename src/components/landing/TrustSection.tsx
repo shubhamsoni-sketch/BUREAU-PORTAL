@@ -30,7 +30,7 @@ const copy = {
       quote: 'The report helped me understand my credit health before applying for a loan.',
       name: 'Priya Venkataraman',
       role: 'Software Engineer, Bengaluru',
-      avatar: "https://images.unsplash.com/photo-1603171293231-44348cdd22a9",
+      avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1d4349ef8-1780547940762.png",
       avatarAlt: 'Young Indian woman smiling, professional headshot with neutral background',
       score: '684 to 741'
     },
@@ -74,7 +74,7 @@ const copy = {
       quote: 'The financial analysis view makes customer conversations faster, clearer, and easier to document.',
       name: 'à¤°à¤®à¥‡à¤¶ à¤¯à¤¾à¤¦à¤µ',
       role: 'à¤¦à¥à¤•à¤¾à¤¨à¤¦à¤¾à¤°, à¤²à¤–à¤¨à¤Š',
-      avatar: "https://images.unsplash.com/photo-1606161577782-f93f22c68732",
+      avatar: "https://images.unsplash.com/photo-1657846255959-fe5a67388e3c",
       avatarAlt: 'à¤†à¤¤à¥à¤®à¤µà¤¿à¤¶à¥à¤µà¤¾à¤¸ à¤¸à¥‡ à¤­à¤°à¥‡ à¤®à¤§à¥à¤¯à¤® à¤†à¤¯à¥ à¤•à¥‡ à¤­à¤¾à¤°à¤¤à¥€à¤¯ à¤µà¥à¤¯à¤•à¥à¤¤à¤¿ à¤•à¥€ à¤«à¥‹à¤Ÿà¥‹',
       score: 'â†‘ 612 â†’ 689'
     }],

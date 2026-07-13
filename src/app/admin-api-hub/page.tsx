@@ -620,7 +620,7 @@ function JsonArea({ label, value, onChange, rows = 8 }: { label: string; value: 
   );
 }
 
-function PrimaryButton({ children, disabled, icon: IconComponent }: { children: React.ReactNode; disabled?: boolean; icon: React.ElementType }) {
+function PrimaryButton({ children, disabled, icon: IconComponent }: { children: React.ReactNode; disabled?: boolean; icon?: React.ElementType }) {
   return (
     <button type="submit" disabled={disabled} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">
       {IconComponent && <IconComponent size={16} />}
