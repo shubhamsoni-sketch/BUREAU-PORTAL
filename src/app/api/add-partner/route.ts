@@ -65,30 +65,60 @@ export async function POST(request: NextRequest) {
 
     const password = generateTemporaryPassword();
     const partnerCode = await generatePartnerCode(adminClient);
+    const normalizedEmail = String(email).trim().toLowerCase();
 
-    // Create auth user with service role
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: resolvedFullName,
-        role: 'partner',
-      },
-      app_metadata: {
-        role: 'partner',
-        is_temp_password: true,
-      },
-    });
+    const { data: existingUsersData } = await adminClient.auth.admin.listUsers();
+    const existingUser = existingUsersData?.users?.find(
+      (user) => user.email?.toLowerCase() === normalizedEmail
+    );
 
-    if (authError || !authData.user) {
-      return NextResponse.json(
-        { error: authError?.message || 'Failed to create auth user' },
-        { status: 500 }
-      );
+    let newUserId: string;
+
+    if (existingUser) {
+      newUserId = existingUser.id;
+      const { error: updateError } = await adminClient.auth.admin.updateUserById(newUserId, {
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: resolvedFullName,
+          role: 'partner',
+        },
+        app_metadata: {
+          role: 'partner',
+          is_temp_password: true,
+        },
+      });
+
+      if (updateError) {
+        return NextResponse.json(
+          { error: updateError.message || 'Failed to update existing auth user' },
+          { status: 500 }
+        );
+      }
+    } else {
+      const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+        email: normalizedEmail,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: resolvedFullName,
+          role: 'partner',
+        },
+        app_metadata: {
+          role: 'partner',
+          is_temp_password: true,
+        },
+      });
+
+      if (authError || !authData.user) {
+        return NextResponse.json(
+          { error: authError?.message || 'Failed to create auth user' },
+          { status: 500 }
+        );
+      }
+
+      newUserId = authData.user.id;
     }
-
-    const newUserId = authData.user.id;
 
     // Ensure user_profiles row exists with is_temp_password = true
     await adminClient
@@ -96,7 +126,7 @@ export async function POST(request: NextRequest) {
       .upsert(
         {
           id: newUserId,
-          email,
+          email: normalizedEmail,
           full_name: resolvedFullName,
           role: 'partner',
           is_temp_password: true,
@@ -104,36 +134,77 @@ export async function POST(request: NextRequest) {
         { onConflict: 'id', ignoreDuplicates: false }
       );
 
-    // Create partner record
-    const { error: partnerError } = await adminClient.from('partners').insert({
-      user_id: newUserId,
-      name: resolvedFullName,
-      company_name: resolvedCompany,
-      mobile: resolvedPhone,
-      email,
-      city: city || '',
-      partner_code: partnerCode,
-      status: 'approved',
-      pricing_plan: pricingPlan || 'Basic',
-      product_access: normalizePartnerProductAccess(productAccess),
-      wallet_balance: 0,
-      reports_pulled: 0,
-    });
+    const { data: existingPartner } = await adminClient
+      .from('partners')
+      .select('id, partner_code')
+      .or(`user_id.eq.${newUserId},email.eq.${normalizedEmail}`)
+      .maybeSingle();
 
-    if (partnerError) {
-      await adminClient.auth.admin.deleteUser(newUserId);
-      return NextResponse.json(
-        { error: 'Failed to create partner record: ' + partnerError.message },
-        { status: 500 }
-      );
+    let finalPartnerCode = existingPartner?.partner_code || partnerCode;
+
+    if (existingPartner) {
+      const { error: partnerUpdateError } = await adminClient
+        .from('partners')
+        .update({
+          user_id: newUserId,
+          name: resolvedFullName,
+          company_name: resolvedCompany,
+          mobile: resolvedPhone,
+          email: normalizedEmail,
+          city: city || '',
+          authorized_person: resolvedFullName,
+          address: address || '',
+          gst_number: gst || '',
+          pricing_plan: pricingPlan || 'Basic',
+          product_access: normalizePartnerProductAccess(productAccess),
+          status: 'approved',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingPartner.id);
+
+      if (partnerUpdateError) {
+        return NextResponse.json(
+          { error: 'Failed to update partner record: ' + partnerUpdateError.message },
+          { status: 500 }
+        );
+      }
+    } else {
+      const { error: partnerError } = await adminClient.from('partners').insert({
+        user_id: newUserId,
+        name: resolvedFullName,
+        company_name: resolvedCompany,
+        mobile: resolvedPhone,
+        email: normalizedEmail,
+        city: city || '',
+        authorized_person: resolvedFullName,
+        address: address || '',
+        gst_number: gst || '',
+        partner_code: finalPartnerCode,
+        status: 'approved',
+        pricing_plan: pricingPlan || 'Basic',
+        product_access: normalizePartnerProductAccess(productAccess),
+        wallet_balance: 0,
+        reports_pulled: 0,
+      });
+
+      if (partnerError) {
+        if (!existingUser) await adminClient.auth.admin.deleteUser(newUserId);
+        return NextResponse.json(
+          { error: 'Failed to create partner record: ' + partnerError.message },
+          { status: 500 }
+        );
+      }
     }
+
+    let emailSent = false;
+    let emailError: string | null = null;
 
     // Send credentials email via Resend edge function (non-blocking — don't fail if email fails)
     try {
       const loginUrl = process.env.NEXT_PUBLIC_APP_URL
         ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/partner-login`
         : 'https://credittrust.in/partner-login';
-      await fetch(
+      const mailResponse = await fetch(
         `${supabaseUrl}/functions/v1/send-partner-credentials`,
         {
           method: 'POST',
@@ -143,23 +214,33 @@ export async function POST(request: NextRequest) {
           },
           body: JSON.stringify({
             partnerName: resolvedFullName,
-            partnerEmail: email,
+            partnerEmail: normalizedEmail,
             tempPassword: password,
             loginUrl,
           }),
         }
       );
-    } catch {
+      if (mailResponse.ok) {
+        emailSent = true;
+      } else {
+        const mailData = await mailResponse.json().catch(() => null);
+        emailError = mailData?.error || 'Credentials email failed to send';
+        console.warn('[add-partner] Credentials email failed to send:', emailError);
+      }
+    } catch (error) {
       // Email failure is non-fatal — partner is still created
-      console.warn('[add-partner] Credentials email failed to send');
+      emailError = error instanceof Error ? error.message : 'Credentials email failed to send';
+      console.warn('[add-partner] Credentials email failed to send:', emailError);
     }
 
     return NextResponse.json({
       success: true,
-      partnerCode,
-      email,
+      partnerCode: finalPartnerCode,
+      email: normalizedEmail,
       password,
       name: resolvedFullName,
+      emailSent,
+      emailError,
     });
   } catch (err) {
     console.error('Add partner API error:', err);
