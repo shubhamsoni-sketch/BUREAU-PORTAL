@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = createAdminClient();
     const body = await req.json();
     const { invoice_id, payment_mode, utr_number, recorded_by } = body;
 
@@ -20,11 +15,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'payment_mode is required' }, { status: 400 });
     }
 
-    // Call the atomic DB function that handles everything in one transaction:
-    // 1. Marks invoice as paid
-    // 2. Confirms the pending wallet transaction
-    // 3. Updates wallet balance
-    // 4. Inserts payment record
     const { data, error } = await supabaseAdmin.rpc('mark_invoice_paid_atomic', {
       p_invoice_id: invoice_id,
       p_payment_mode: payment_mode,
@@ -34,7 +24,6 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error('[mark-invoice-paid] rpc error:', error);
-      // Fallback: try direct update if RPC not available yet
       const { data: inv, error: updateError } = await supabaseAdmin
         .from('invoices')
         .update({
@@ -51,7 +40,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: updateError.message }, { status: 500 });
       }
 
-      // Confirm pending transaction
       if (inv) {
         const { data: txn } = await supabaseAdmin
           .from('wallet_transactions')
@@ -69,7 +57,6 @@ export async function POST(req: NextRequest) {
             .eq('id', txn.id);
         }
 
-        // Recalculate wallet balance from confirmed transactions
         const { data: confirmedTxns } = await supabaseAdmin
           .from('wallet_transactions')
           .select('type, amount')
@@ -111,7 +98,6 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Insert payment record
         await supabaseAdmin.from('payments').insert({
           partner_id: inv.partner_id,
           partner_name: inv.partner_name,
@@ -137,7 +123,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: result?.error || 'Failed to mark invoice as paid' }, { status: 500 });
     }
 
-    // Notify partner: invoice paid + wallet recharged
     try {
       const { data: paidInvoice } = await supabaseAdmin
         .from('invoices')

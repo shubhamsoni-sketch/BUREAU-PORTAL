@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { bearerToken, createAdminClient, requireAdmin } from '@/lib/supabase/admin';
+import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 import { createApiKey } from '@/lib/api-hub/keys';
 import {
   defaultBureauApi,
@@ -299,7 +299,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'test_api') {
-      const api = store.apis.find((item) => item.id === String(body.api_id || ''));
+      let api = store.apis.find((item) => item.id === String(body.api_id || ''));
       if (!api) return jsonError('API not found', 404);
       let payload: Record<string, unknown>;
       try {
@@ -408,7 +408,7 @@ export async function POST(request: NextRequest) {
       const clientId = String(body.client_id || '').trim();
       const apiId = String(body.api_id || '').trim();
       const client = store.clients.find((item) => item.id === clientId && item.status === 'active');
-      const api = store.apis.find((item) => item.id === apiId && item.status === 'active');
+      let api = store.apis.find((item) => item.id === apiId && item.status === 'active');
       if (!client) return jsonError('Active client not found', 404);
       if (!api) return jsonError('Active API not found', 404);
 

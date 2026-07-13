@@ -76,8 +76,7 @@ export default function LeadKanban({ leads }: LeadKanbanProps) {
                             lead.daysInStage >= 5
                               ? 'text-danger'
                               : lead.daysInStage >= 3
-                                ? 'text-warning'
-                                : 'text-muted-foreground',
+                                ? 'text-warning' :'text-muted-foreground',
                           ].join(' ')}
                         >
                           {lead.daysInStage}d in stage

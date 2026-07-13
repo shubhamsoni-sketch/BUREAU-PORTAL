@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
-
-const supabaseAdmin = createSupabaseAdmin(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
   try {
-    // Read Bearer token from Authorization header (session stored in localStorage, not cookies)
+    const supabaseAdmin = createAdminClient();
     const authHeader = req.headers.get('authorization') ?? '';
     const accessToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
@@ -16,7 +11,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify the token and get the user
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(accessToken);
 
     if (authError || !user) {
@@ -25,7 +19,6 @@ export async function POST(req: NextRequest) {
 
     const { companyName, authorizedPerson, mobile, gstNumber, address } = await req.json();
 
-    // Update partners table
     const { error: partnerError } = await supabaseAdmin
       .from('partners')
       .update({

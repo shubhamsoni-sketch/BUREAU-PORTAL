@@ -482,9 +482,7 @@ function LedgerTable({ transactions }: { transactions: WalletTransaction[] }) {
                   <span
                     className={[
                       'inline-flex rounded-full px-2 py-0.5 text-[10px] font-700 capitalize',
-                      txn.type === 'credit'
-                        ? 'bg-success/10 text-success'
-                        : 'bg-warning/10 text-warning',
+                      txn.type === 'credit' ?'bg-success/10 text-success' :'bg-warning/10 text-warning',
                     ].join(' ')}
                   >
                     {txn.type}

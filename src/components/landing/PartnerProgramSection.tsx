@@ -154,9 +154,7 @@ export default function PartnerProgramSection() {
                 className="absolute top-0 left-0 right-0 h-1"
                 style={{
                   background:
-                    product.tone === 'accent'
-                      ? 'linear-gradient(90deg, rgba(245,166,35,0.9), rgba(255,209,102,0.7))'
-                      : 'linear-gradient(90deg, rgba(0,212,170,0.9), rgba(127,255,223,0.7))',
+                    product.tone === 'accent' ?'linear-gradient(90deg, rgba(245,166,35,0.9), rgba(255,209,102,0.7))' :'linear-gradient(90deg, rgba(0,212,170,0.9), rgba(127,255,223,0.7))',
                 }}
               />
               <div className="flex items-start justify-between gap-4">

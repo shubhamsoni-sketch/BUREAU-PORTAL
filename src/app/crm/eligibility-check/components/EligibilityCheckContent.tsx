@@ -287,16 +287,12 @@ export default function EligibilityCheckContent() {
     ? result.score >= 750
       ? 'text-success'
       : result.score >= 680
-        ? 'text-warning'
-        : 'text-danger'
-    : '';
+        ? 'text-warning' :'text-danger' :'';
   const scoreBarColor = result
     ? result.score >= 750
       ? 'bg-success'
       : result.score >= 680
-        ? 'bg-warning'
-        : 'bg-danger'
-    : '';
+        ? 'bg-warning' :'bg-danger' :'';
 
   return (
     <div className="px-4 lg:px-6 xl:px-8 py-6 max-w-screen-2xl mx-auto">
@@ -421,9 +417,7 @@ export default function EligibilityCheckContent() {
                           colSpan={7}
                           className="px-4 py-10 text-center text-sm text-muted-foreground"
                         >
-                          {queueTab === 'pending'
-                            ? 'No pending leads found'
-                            : 'No checked leads found'}
+                          {queueTab === 'pending' ?'No pending leads found' :'No checked leads found'}
                         </td>
                       </tr>
                     ) : (
@@ -478,8 +472,7 @@ export default function EligibilityCheckContent() {
                                     {lead.selectedLender
                                       ? `Sent to ${lead.selectedLender}`
                                       : report
-                                        ? 'Report ready'
-                                        : lead.stage.replace(/_/g, ' ')}
+                                        ? 'Report ready' : lead.stage.replace(/_/g,' ')}
                                   </p>
                                 </div>
                               )}
@@ -525,14 +518,10 @@ export default function EligibilityCheckContent() {
             <div className="flex items-start justify-between gap-4 pb-4 border-b border-border">
               <div>
                 <h2 className="text-base font-800 text-foreground">
-                  {mode === 'mobile_advanced'
-                    ? 'Check Eligibility by Mobile No.'
-                    : 'Check Eligibility with Full Details'}
+                  {mode === 'mobile_advanced' ?'Check Eligibility by Mobile No.' :'Check Eligibility with Full Details'}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {mode === 'mobile_advanced'
-                    ? 'Use this when the DSA has only customer mobile number and consent.'
-                    : 'Use this when full customer and loan details are available.'}
+                  {mode === 'mobile_advanced' ?'Use this when the DSA has only customer mobile number and consent.' :'Use this when full customer and loan details are available.'}
                 </p>
               </div>
               <button
@@ -937,8 +926,7 @@ function ResultPanel({
               result.score >= 750
                 ? 'bg-success/10 text-success'
                 : result.score >= 680
-                  ? 'bg-warning/10 text-warning'
-                  : 'bg-danger/10 text-danger'
+                  ? 'bg-warning/10 text-warning' :'bg-danger/10 text-danger'
             }`}
           >
             {result.scoreGrade}
@@ -965,8 +953,7 @@ function ResultPanel({
                 result.foir <= 40
                   ? 'text-success'
                   : result.foir <= 55
-                    ? 'text-warning'
-                    : 'text-danger'
+                    ? 'text-warning' :'text-danger'
               }`}
             >
               {result.foir}%

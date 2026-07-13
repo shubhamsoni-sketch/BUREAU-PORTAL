@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(req: NextRequest) {
   try {
+    const supabaseAdmin = createAdminClient();
     const { searchParams } = new URL(req.url);
     const partnerId = searchParams.get('partner_id');
-    const statusParam = searchParams.get('status'); // comma-separated e.g. "raised,paid"
+    const statusParam = searchParams.get('status');
 
     let query = supabaseAdmin
       .from('invoices')
@@ -43,6 +38,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = createAdminClient();
     const body = await req.json();
 
     const { data, error } = await supabaseAdmin

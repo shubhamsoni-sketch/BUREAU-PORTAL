@@ -166,8 +166,7 @@ export default function AgentPerformanceTable() {
                       parseFloat(agent?.conversionRate) >= 35
                         ? 'text-success'
                         : parseFloat(agent?.conversionRate) >= 25
-                          ? 'text-warning'
-                          : 'text-danger',
+                          ? 'text-warning' :'text-danger',
                     ]?.join(' ')}
                   >
                     {agent?.conversionRate}

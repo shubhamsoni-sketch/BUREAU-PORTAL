@@ -194,8 +194,7 @@ export default function ApplicationDetailPanel({
             className={[
               'flex-1 py-2 text-xs font-600 transition-colors capitalize',
               activeTab === tab
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-muted-foreground hover:text-foreground',
+                ? 'text-primary border-b-2 border-primary' :'text-muted-foreground hover:text-foreground',
             ].join(' ')}
           >
             {tab}
@@ -262,8 +261,7 @@ export default function ApplicationDetailPanel({
                     app.cibil >= 750
                       ? 'text-success'
                       : app.cibil >= 700
-                        ? 'text-warning'
-                        : 'text-danger',
+                        ? 'text-warning' :'text-danger',
                   ].join(' ')}
                 >
                   {app.cibil || '—'}
@@ -274,17 +272,14 @@ export default function ApplicationDetailPanel({
                     app.cibil >= 750
                       ? 'text-success'
                       : app.cibil >= 700
-                        ? 'text-warning'
-                        : 'text-danger',
+                        ? 'text-warning' :'text-danger',
                   ].join(' ')}
                 >
                   {app.cibil
                     ? app.cibil >= 750
                       ? 'Excellent'
                       : app.cibil >= 700
-                        ? 'Good'
-                        : 'Poor'
-                    : 'Pending'}
+                        ? 'Good' :'Poor' :'Pending'}
                 </span>
               </div>
               <div className="mt-2 h-1.5 rounded-full bg-border overflow-hidden">
@@ -498,13 +493,9 @@ export default function ApplicationDetailPanel({
                     <div
                       className={[
                         'w-7 h-7 rounded-sm flex items-center justify-center shrink-0',
-                        doc.status === 'verified'
-                          ? 'bg-success-bg text-success'
-                          : doc.status === 'rejected'
-                            ? 'bg-danger-bg text-danger'
-                            : doc.status === 'uploaded'
-                              ? 'bg-info-bg text-info'
-                              : 'bg-warning-bg text-warning',
+                        doc.status === 'verified' ?'bg-success-bg text-success'
+                          : doc.status === 'rejected' ?'bg-danger-bg text-danger'
+                            : doc.status === 'uploaded' ?'bg-info-bg text-info' :'bg-warning-bg text-warning',
                       ].join(' ')}
                     >
                       {doc.status === 'verified' ? (
@@ -556,13 +547,9 @@ export default function ApplicationDetailPanel({
                   <span
                     className={[
                       'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-700 capitalize',
-                      doc.status === 'verified'
-                        ? 'bg-success-bg text-success'
-                        : doc.status === 'rejected'
-                          ? 'bg-danger-bg text-danger'
-                          : doc.status === 'uploaded'
-                            ? 'bg-info-bg text-info'
-                            : 'bg-warning-bg text-warning',
+                      doc.status === 'verified' ?'bg-success-bg text-success'
+                        : doc.status === 'rejected' ?'bg-danger-bg text-danger'
+                          : doc.status === 'uploaded' ?'bg-info-bg text-info' :'bg-warning-bg text-warning',
                     ].join(' ')}
                   >
                     {doc.status}
@@ -668,8 +655,7 @@ export default function ApplicationDetailPanel({
                   className={[
                     'w-full mt-2.5 h-7 rounded-sm text-[11px] font-700 transition-all active:scale-95',
                     i === 0
-                      ? 'bg-success text-white hover:bg-success/90'
-                      : 'border border-border text-foreground hover:bg-muted',
+                      ? 'bg-success text-white hover:bg-success/90' :'border border-border text-foreground hover:bg-muted',
                   ].join(' ')}
                   onClick={() => toast.success(`Application sent to ${offer.lender}`)}
                 >

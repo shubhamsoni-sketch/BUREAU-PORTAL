@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import Link from 'next/link';
+
 import PublicNav from '../home/components/PublicNav';
 import PublicFooter from '../home/components/PublicFooter';
 import { ArrowRight, Database, FileText, Building, Globe, Mail } from 'lucide-react';

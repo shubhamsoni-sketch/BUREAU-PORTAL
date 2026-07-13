@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(req: NextRequest) {
   try {
+    const supabaseAdmin = createAdminClient();
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('user_id');
     const dateFrom = searchParams.get('date_from');
@@ -18,7 +13,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
     }
 
-    // Resolve partner_id from user_id using service role (bypasses RLS)
     const { data: partner, error: partnerError } = await supabaseAdmin
       .from('partners')
       .select('id')

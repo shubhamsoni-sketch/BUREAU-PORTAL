@@ -11,7 +11,6 @@ export default function PartnerProgramPage() {
   return (
     <div className="landing-page min-h-screen bg-bg text-fg">
       <div className="grain-overlay" aria-hidden />
-
       <header className="fixed top-0 inset-x-0 z-50 bg-bg/90 backdrop-blur-xl border-b border-white/5 py-3">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5" aria-label="Go to homepage">
@@ -41,7 +40,6 @@ export default function PartnerProgramPage() {
           </div>
         </div>
       </header>
-
       <main>
         <section
           className="relative min-h-[72vh] flex items-center pt-28 pb-16 overflow-hidden"
@@ -135,21 +133,21 @@ export default function PartnerProgramPage() {
                     { title: 'Repayment', value: 'Stable', icon: 'CheckCircleIcon', tone: 'primary' },
                     { title: 'Utilization', value: 'Moderate', icon: 'ChartBarIcon', tone: 'accent' },
                     { title: 'Risk', value: 'Reviewed', icon: 'ShieldCheckIcon', tone: 'primary' },
-                  ].map((item) => (
-                    <div key={item.title} className="rounded-3xl p-4" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  ]?.map((item) => (
+                    <div key={item?.title} className="rounded-3xl p-4" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.07)' }}>
                       <div className="flex flex-col gap-3">
                         <div
                           className="w-9 h-9 rounded-xl flex items-center justify-center"
                           style={{
-                            background: item.tone === 'accent' ? 'rgba(245,166,35,0.12)' : 'rgba(0,212,170,0.12)',
-                            border: item.tone === 'accent' ? '1px solid rgba(245,166,35,0.22)' : '1px solid rgba(0,212,170,0.22)',
+                            background: item?.tone === 'accent' ? 'rgba(245,166,35,0.12)' : 'rgba(0,212,170,0.12)',
+                            border: item?.tone === 'accent' ? '1px solid rgba(245,166,35,0.22)' : '1px solid rgba(0,212,170,0.22)',
                           }}
                         >
-                          <Icon name={item.icon} size={18} className={item.tone === 'accent' ? 'text-accent' : 'text-primary'} />
+                          <Icon name={item?.icon} size={18} className={item?.tone === 'accent' ? 'text-accent' : 'text-primary'} />
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-fg">{item.title}</p>
-                          <p className="text-xs text-fg-muted mt-0.5">{item.value}</p>
+                          <p className="text-sm font-bold text-fg">{item?.title}</p>
+                          <p className="text-xs text-fg-muted mt-0.5">{item?.value}</p>
                         </div>
                       </div>
                     </div>
@@ -161,18 +159,18 @@ export default function PartnerProgramPage() {
                     { label: 'Account summary', width: '82%', tone: 'primary' },
                     { label: 'Payment behavior', width: '68%', tone: 'accent' },
                     { label: 'Improvement actions', width: '76%', tone: 'primary' },
-                  ].map((item) => (
-                    <div key={item.label} className="rounded-2xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.035)' }}>
+                  ]?.map((item) => (
+                    <div key={item?.label} className="rounded-2xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.035)' }}>
                       <div className="flex items-center justify-between gap-4 mb-2">
-                        <p className="text-sm font-bold text-fg">{item.label}</p>
-                        <Icon name="DocumentChartBarIcon" size={16} className={item.tone === 'accent' ? 'text-accent' : 'text-primary'} />
+                        <p className="text-sm font-bold text-fg">{item?.label}</p>
+                        <Icon name="DocumentChartBarIcon" size={16} className={item?.tone === 'accent' ? 'text-accent' : 'text-primary'} />
                       </div>
                       <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
                         <div
                           className="h-full rounded-full"
                           style={{
-                            width: item.width,
-                            background: item.tone === 'accent' ? 'linear-gradient(90deg, #F5A623, #FFD166)' : 'linear-gradient(90deg, #00D4AA, #7FFFDF)',
+                            width: item?.width,
+                            background: item?.tone === 'accent' ? 'linear-gradient(90deg, #F5A623, #FFD166)' : 'linear-gradient(90deg, #00D4AA, #7FFFDF)',
                           }}
                         />
                       </div>
@@ -207,7 +205,6 @@ export default function PartnerProgramPage() {
           </div>
         </section>
       </main>
-
       <Footer />
     </div>
   );

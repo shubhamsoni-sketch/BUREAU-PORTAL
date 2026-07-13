@@ -1,19 +1,9 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import {
-  ArrowRight,
-  BarChart3,
-  CheckCircle2,
-  Copy,
-  Download,
-  Globe2,
-  KeyRound,
-  Plus,
-  ShieldCheck,
-  WalletCards,
-  X,
-} from 'lucide-react';
+import { ArrowRight, CheckCircle2, Copy, Download, Globe2, KeyRound, Plus, ShieldCheck, WalletCards, X,  } from 'lucide-react';
+import Icon from '@/components/ui/AppIcon';
+
 
 type NavItem = 'Overview' | 'Clients' | 'Environments' | 'API Keys' | 'IP Whitelist' | 'Credits' | 'Docs';
 type Environment = 'UAT' | 'Production';

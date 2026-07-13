@@ -40,17 +40,17 @@ export default function PublicFooter() {
             </p>
           </div>
 
-          {Object.entries(footerLinks).map(([category, links]) => (
+          {Object.entries(footerLinks)?.map(([category, links]) => (
             <div key={category}>
               <h4 className="text-slate-900 text-sm font-semibold mb-4">{category}</h4>
               <ul className="space-y-3">
-                {links.map((link) => (
-                  <li key={link.href}>
+                {links?.map((link) => (
+                  <li key={link?.href}>
                     <Link
-                      href={link.href}
+                      href={link?.href}
                       className="text-slate-500 hover:text-slate-900 text-sm transition-colors duration-200"
                     >
-                      {link.label}
+                      {link?.label}
                     </Link>
                   </li>
                 ))}
@@ -61,7 +61,7 @@ export default function PublicFooter() {
 
         <div className="mt-12 pt-8 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-400 text-sm">
-            (c) {new Date().getFullYear()} Credit Trust. All rights reserved. Powered by Fincoopers Tech India Private Limited.
+            (c) {new Date()?.getFullYear()} Credit Trust. All rights reserved. Powered by Fincoopers Tech India Private Limited.
           </p>
           <div className="flex items-center gap-6 flex-wrap justify-center">
             <Link href="/privacy-policy" className="text-slate-400 hover:text-slate-600 text-sm transition-colors">
