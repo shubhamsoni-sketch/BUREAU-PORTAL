@@ -116,6 +116,7 @@ const CRM_STANDARD_DEFAULTS = {
   state: 'MADHYA PRADESH',
   pincode: '452001',
 };
+const CRM_LIVE_ELIGIBILITY_ENABLED = process.env.CRM_LIVE_ELIGIBILITY_ENABLED === 'true';
 
 function generateInvoiceNumber() {
   const year = new Date().getFullYear();
@@ -420,6 +421,63 @@ function scoreGrade(score: number | null) {
   if (score >= 720) return 'Good';
   if (score >= 660) return 'Fair';
   return 'Poor';
+}
+
+function buildEligibilityResultFromReport(report: CrmEligibilityReport) {
+  const score = Number(report.score || 0);
+  return {
+    eligible: Boolean(report.eligible),
+    score,
+    scoreGrade: scoreGrade(score || null),
+    maxLoanAmount: Number(report.max_loan_amount || 0),
+    recommendedEMI: 0,
+    foir: Number(report.foir || 0),
+    remarks: [
+      score ? `Saved bureau score: ${score}` : `Saved bureau status: ${report.status || 'available'}`,
+      'Saved CRM report used. No live bureau API was called.',
+      report.matched_lenders?.length
+        ? `${report.matched_lenders.length} lender policy match found in saved result.`
+        : 'Open the PDF for the full saved bureau report.',
+    ],
+    matchedLenders: Array.isArray(report.matched_lenders) ? report.matched_lenders : [],
+    rawBureauResponse: report.bureau_response,
+    reportId: report.id,
+    requestId: report.request_id,
+    customerName: report.borrower_name,
+    createdAt: report.created_at,
+  };
+}
+
+function findSavedReport(
+  store: CrmStore,
+  input: { leadId: string; mobile: string; pan: string; reportId?: string }
+) {
+  const reports = Array.isArray(store.reports) ? store.reports : [];
+  if (input.reportId) {
+    const report = reports.find((item) => item.id === input.reportId);
+    if (report) return report;
+  }
+
+  const lead = input.leadId ? store.leads.find((item) => item.id === input.leadId) : null;
+  if (lead?.eligibilityReportId) {
+    const report = reports.find((item) => item.id === lead.eligibilityReportId);
+    if (report) return report;
+  }
+
+  const mobileMatch = reports.find(
+    (item) => digits(item.cibil_payload?.mobile).slice(-10) === input.mobile
+  );
+  if (mobileMatch) return mobileMatch;
+
+  const pan = input.pan.toUpperCase();
+  if (pan) {
+    const panMatch = reports.find(
+      (item) => cleanString(item.cibil_payload?.pan).toUpperCase() === pan
+    );
+    if (panMatch) return panMatch;
+  }
+
+  return reports[0] || null;
 }
 
 async function getCrmStore(request: NextRequest, supabase: ReturnType<typeof createAdminClient>) {
@@ -1066,6 +1124,54 @@ export async function POST(request: NextRequest) {
       crmStore.team = tableData.team;
       crmStore.reports = tableData.reports as CrmEligibilityReport[];
     }
+    if (!CRM_LIVE_ELIGIBILITY_ENABLED) {
+      const savedReport = findSavedReport(crmStore, {
+        leadId,
+        mobile,
+        pan,
+        reportId: cleanString(body.reportId),
+      });
+      if (!savedReport) {
+        return jsonError(
+          'No saved bureau report found for CRM safe mode. Run a live check only after enabling CRM_LIVE_ELIGIBILITY_ENABLED.',
+          409
+        );
+      }
+
+      if (leadId) {
+        crmStore.leads = crmStore.leads.map((lead) =>
+          lead.id === leadId
+            ? {
+                ...lead,
+                stage: 'eligibility_done',
+                eligibilityReportId: savedReport.id,
+                updatedAt: new Date().toISOString(),
+              }
+            : lead
+        );
+        await saveCrmStore(supabase, crmRowId, crmStore);
+        const changedLead = crmStore.leads.find((lead) => lead.id === leadId);
+        if (changedLead) await upsertCrmLead(supabase, scope, changedLead);
+      }
+
+      await logCrmAudit(supabase, scope, {
+        module: 'eligibility_check',
+        action: 'saved_eligibility_replay',
+        entityType: 'eligibility_report',
+        entityId: savedReport.id,
+        summary: `Saved eligibility report opened for ${savedReport.borrower_name || 'customer'}`,
+        metadata: { requestId, savedReportId: savedReport.id, leadId },
+      });
+
+      return NextResponse.json({
+        success: true,
+        request_id: requestId,
+        charged: { credits: 0, balance: crmStore.eligibility_credits.balance },
+        mode: 'saved_report',
+        data: buildEligibilityResultFromReport(savedReport),
+      });
+    }
+
     const creditCost = Math.max(1, Number(crmStore.eligibility_credits.per_check_cost || 1));
     if (crmStore.eligibility_credits.balance < creditCost)
       return jsonError('Insufficient eligibility credits', 402);
