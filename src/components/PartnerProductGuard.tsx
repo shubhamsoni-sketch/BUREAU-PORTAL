@@ -17,7 +17,7 @@ export default function PartnerProductGuard({ expected }: PartnerProductGuardPro
     if (isLoading || !user || user.role !== 'partner') return;
     const productAccess = normalizePartnerProductAccess(user.productAccess);
     if (productAccess === expected) return;
-    router.replace(expected === 'bureau_portal' ? '/crm' : '/partner-dashboard');
+    router.replace(expected === 'bureau_portal' ? '/partner-dashboard' : '/crm');
   }, [expected, isLoading, router, user]);
 
   return null;

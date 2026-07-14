@@ -263,9 +263,9 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<CurrentCrmUser>({
-    name: 'Rajesh Kumar',
+    name: 'CRM User',
     role: 'Admin',
-    avatar: 'RK',
+    avatar: 'CU',
     permissions: rolePermissions.Admin,
   });
 
@@ -286,9 +286,9 @@ export default function Sidebar({
         });
       } catch {
         setCurrentUser({
-          name: 'Rajesh Kumar',
+          name: 'CRM User',
           role: 'Admin',
-          avatar: 'RK',
+          avatar: 'CU',
           permissions: rolePermissions.Admin,
         });
       }

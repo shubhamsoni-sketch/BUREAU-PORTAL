@@ -1,24 +1,52 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
 import { CrmPermissionKey, rolePermissions } from '@/lib/crm/team';
 import { crmFetch } from '@/lib/crm/api';
+import { createClient } from '@/lib/supabase/client';
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [currentUser, setCurrentUser] = useState({
-    name: 'Rajesh Kumar',
+    name: 'CRM User',
     role: 'Admin' as keyof typeof rolePermissions,
-    avatar: 'RK',
+    avatar: 'CU',
     permissions: rolePermissions.Admin as CrmPermissionKey[],
   });
 
   useEffect(() => {
+    let cancelled = false;
+    const requireCrmSession = async () => {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (!session?.access_token) {
+        router.replace(
+          `/crm/sign-up-login-screen?next=${encodeURIComponent(pathname || '/crm')}`
+        );
+        return;
+      }
+      setAuthChecked(true);
+    };
+    requireCrmSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, router]);
+
+  useEffect(() => {
+    if (!authChecked) return;
     const loadCurrentUser = () => {
       try {
         const raw = window.localStorage.getItem('crm_current_user');
@@ -35,9 +63,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
         });
       } catch {
         setCurrentUser({
-          name: 'Rajesh Kumar',
+          name: 'CRM User',
           role: 'Admin',
-          avatar: 'RK',
+          avatar: 'CU',
           permissions: rolePermissions.Admin,
         });
       }
@@ -69,7 +97,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
       window.removeEventListener('crm-current-user-changed', loadCurrentUser);
       window.removeEventListener('storage', loadCurrentUser);
     };
-  }, []);
+  }, [authChecked]);
+
+  if (!authChecked) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background text-sm font-700 text-muted-foreground">
+        Opening CreditTrust CRM...
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
