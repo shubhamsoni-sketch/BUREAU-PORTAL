@@ -22,124 +22,6 @@ interface EligibilityReport {
   isLive?: boolean;
 }
 
-const MOCK_REPORTS: EligibilityReport[] = [
-  {
-    id: 'rpt-001',
-    borrowerName: 'Ramesh Gupta',
-    pan: 'ABCDE1234F',
-    mobile: '9876543210',
-    loanType: 'Home Loan',
-    loanAmount: 4200000,
-    creditScore: 748,
-    scoreGrade: 'Good',
-    foir: 38,
-    eligible: true,
-    matchedLenders: [
-      { name: 'HDFC Bank', roi: '8.65%', maxLoan: '₹42L' },
-      { name: 'Axis Bank', roi: '8.9%', maxLoan: '₹38L' },
-    ],
-    checkedBy: 'Priya Sharma',
-    checkedOn: '22 Jun 2026, 10:30 AM',
-    status: 'eligible',
-  },
-  {
-    id: 'rpt-002',
-    borrowerName: 'Neha Kulkarni',
-    pan: 'FGHIJ5678K',
-    mobile: '9765432109',
-    loanType: 'Personal Loan',
-    loanAmount: 850000,
-    creditScore: 792,
-    scoreGrade: 'Excellent',
-    foir: 29,
-    eligible: true,
-    matchedLenders: [{ name: 'Bajaj Finserv', roi: '13.5%', maxLoan: '₹8.5L' }],
-    checkedBy: 'Anil Mehta',
-    checkedOn: '21 Jun 2026, 03:15 PM',
-    status: 'eligible',
-  },
-  {
-    id: 'rpt-003',
-    borrowerName: 'Mohan Das',
-    pan: 'KLMNO9012P',
-    mobile: '9210987654',
-    loanType: 'Personal Loan',
-    loanAmount: 500000,
-    creditScore: 612,
-    scoreGrade: 'Poor',
-    foir: 67,
-    eligible: false,
-    matchedLenders: [],
-    checkedBy: 'Anil Mehta',
-    checkedOn: '20 Jun 2026, 11:45 AM',
-    status: 'not_eligible',
-  },
-  {
-    id: 'rpt-004',
-    borrowerName: 'Kavya Reddy',
-    pan: 'PQRST3456U',
-    mobile: '9321098765',
-    loanType: 'LAP',
-    loanAmount: 3800000,
-    creditScore: 731,
-    scoreGrade: 'Good',
-    foir: 44,
-    eligible: true,
-    matchedLenders: [{ name: 'ICICI Bank', roi: '9.8%', maxLoan: '₹38L' }],
-    checkedBy: 'Kavitha Nair',
-    checkedOn: '19 Jun 2026, 02:00 PM',
-    status: 'eligible',
-  },
-  {
-    id: 'rpt-005',
-    borrowerName: 'Suresh Patel',
-    pan: 'UVWXY7890Z',
-    mobile: '9654321098',
-    loanType: 'Business Loan',
-    loanAmount: 2500000,
-    creditScore: 712,
-    scoreGrade: 'Good',
-    foir: 51,
-    eligible: true,
-    matchedLenders: [{ name: 'Tata Capital', roi: '16%', maxLoan: '₹25L' }],
-    checkedBy: 'Priya Sharma',
-    checkedOn: '18 Jun 2026, 09:20 AM',
-    status: 'eligible',
-  },
-  {
-    id: 'rpt-006',
-    borrowerName: 'Deepak Nair',
-    pan: 'ABCDE9876F',
-    mobile: '9432109876',
-    loanType: 'Home Loan',
-    loanAmount: 5500000,
-    creditScore: 0,
-    scoreGrade: 'Fair',
-    foir: 0,
-    eligible: false,
-    matchedLenders: [],
-    checkedBy: 'Vikram Joshi',
-    checkedOn: '22 Jun 2026, 04:00 PM',
-    status: 'pending',
-  },
-  {
-    id: 'rpt-007',
-    borrowerName: 'Preethi Kumar',
-    pan: 'FGHIJ1234K',
-    mobile: '9098765432',
-    loanType: 'Home Loan',
-    loanAmount: 3200000,
-    creditScore: 756,
-    scoreGrade: 'Good',
-    foir: 36,
-    eligible: true,
-    matchedLenders: [{ name: 'Axis Bank', roi: '8.9%', maxLoan: '₹32L' }],
-    checkedBy: 'Sunita Rao',
-    checkedOn: '17 Jun 2026, 01:30 PM',
-    status: 'eligible',
-  },
-];
-
 const formatINR = (n: number) => {
   if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
   if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
@@ -166,7 +48,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function EligibilityReportContent({ embedded = false }: { embedded?: boolean }) {
-  const [reports, setReports] = useState<EligibilityReport[]>(MOCK_REPORTS);
+  const [reports, setReports] = useState<EligibilityReport[]>([]);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedReport, setSelectedReport] = useState<EligibilityReport | null>(null);
@@ -178,7 +60,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
         const response = await crmFetch('/api/crm/eligibility-check', { cache: 'no-store' });
         const json = await response.json();
         const liveReports = json?.data?.reports;
-        if (!cancelled && Array.isArray(liveReports) && liveReports.length) {
+        if (!cancelled && Array.isArray(liveReports)) {
           setReports(
             liveReports.map((report: any) => ({
               id: String(report.id || report.request_id),
@@ -221,7 +103,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
           );
         }
       } catch {
-        // Keep bundled sample reports when the backend store has not been initialized.
+        if (!cancelled) setReports([]);
       }
     };
     loadReports();
