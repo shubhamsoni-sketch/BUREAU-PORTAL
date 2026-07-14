@@ -242,6 +242,97 @@ const formatINR = (n: number) => {
   return `₹${(n / 1000).toFixed(0)}K`;
 };
 
+const headerKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const parseCsvLine = (line: string) => {
+  const cells: string[] = [];
+  let current = '';
+  let quoted = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === '"' && quoted && next === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === ',' && !quoted) {
+      cells.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  cells.push(current.trim());
+  return cells;
+};
+
+const productFromText = (value: string): ProductType => {
+  const key = headerKey(value);
+  if (key.includes('home')) return 'home_loan';
+  if (key.includes('business')) return 'business_loan';
+  if (key.includes('lap') || key.includes('loanagainstproperty')) return 'lap';
+  if (key.includes('car')) return 'car_loan';
+  if (key.includes('card')) return 'credit_card';
+  return 'personal_loan';
+};
+
+const sourceFromText = (value: string): LeadSource => {
+  const key = headerKey(value);
+  if (key.includes('reference') || key.includes('referral')) return 'reference';
+  if (key.includes('walk')) return 'walk_in';
+  if (key.includes('campaign')) return 'campaign';
+  if (key.includes('social')) return 'social';
+  return 'web';
+};
+
+const parseLeadCsv = (csv: string) => {
+  const lines = csv
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length < 2) throw new Error('CSV must include header and at least one lead row');
+
+  const headers = parseCsvLine(lines[0]).map(headerKey);
+  const indexOf = (...keys: string[]) => headers.findIndex((header) => keys.includes(header));
+  const indexes = {
+    name: indexOf('name', 'customername', 'fullname'),
+    mobile: indexOf('mobile', 'mobileno', 'mobilenumber', 'phone', 'phonenumber'),
+    email: indexOf('email', 'emailid'),
+    city: indexOf('city', 'location'),
+    product: indexOf('product', 'loantype', 'loanproduct'),
+    loanAmount: indexOf('loanamount', 'amount', 'requiredamount'),
+    source: indexOf('source', 'leadsource'),
+  };
+
+  if (indexes.name < 0 || indexes.mobile < 0 || indexes.product < 0 || indexes.loanAmount < 0) {
+    throw new Error('Required columns: Name, Mobile, Product, Loan Amount');
+  }
+
+  return lines.slice(1, 501).map((line, rowIndex) => {
+    const cells = parseCsvLine(line);
+    const mobile = (cells[indexes.mobile] || '').replace(/\D/g, '').slice(-10);
+    const loanAmount = Number((cells[indexes.loanAmount] || '').replace(/[^0-9.]/g, ''));
+    const lead = {
+      name: cells[indexes.name] || '',
+      mobile,
+      email: indexes.email >= 0 ? cells[indexes.email] || '' : '',
+      city: indexes.city >= 0 ? cells[indexes.city] || '' : '',
+      product: productFromText(cells[indexes.product] || ''),
+      loanAmount,
+      source: indexes.source >= 0 ? sourceFromText(cells[indexes.source] || '') : 'web',
+      stage: 'eligibility_pending',
+    };
+    if (!lead.name || !/^[6-9]\d{9}$/.test(lead.mobile) || !lead.loanAmount) {
+      throw new Error(`Invalid data in CSV row ${rowIndex + 2}`);
+    }
+    return lead;
+  });
+};
+
 export default function LeadManagementContent() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -260,6 +351,7 @@ export default function LeadManagementContent() {
     'idle'
   );
   const [uploadCount, setUploadCount] = useState(0);
+  const [uploadError, setUploadError] = useState('');
 
   const loadLeads = async () => {
     setLoading(true);
@@ -328,27 +420,52 @@ export default function LeadManagementContent() {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (
-      file &&
-      (file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))
-    ) {
+    if (file && file.name.toLowerCase().endsWith('.csv')) {
       setUploadedFile(file);
+      setUploadError('');
+    } else {
+      setUploadError('Please upload a CSV file. XLS/XLSX import will be added after parser setup.');
     }
   }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setUploadedFile(file);
+    if (!file) return;
+    if (file.name.toLowerCase().endsWith('.csv')) {
+      setUploadedFile(file);
+      setUploadError('');
+    } else {
+      setUploadedFile(null);
+      setUploadError('Please upload a CSV file. XLS/XLSX import will be added after parser setup.');
+    }
   };
 
   const handleBulkUpload = async () => {
     if (!uploadedFile) return;
     setUploadStatus('processing');
-    await new Promise((r) => setTimeout(r, 1500));
-    // Simulate parsing — in production, parse CSV/XLSX and POST to API
-    const count = Math.floor(Math.random() * 20) + 5;
-    setUploadCount(count);
-    setUploadStatus('done');
+    setUploadError('');
+    try {
+      const parsedLeads = parseLeadCsv(await uploadedFile.text());
+      let imported = 0;
+      for (const lead of parsedLeads) {
+        const response = await crmFetch('/api/crm/leads', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(lead),
+        });
+        const json = await response.json();
+        if (!response.ok || !json.success) {
+          throw new Error(json.error || `Unable to import row ${imported + 2}`);
+        }
+        imported += 1;
+      }
+      setUploadCount(imported);
+      setUploadStatus('done');
+      await loadLeads();
+    } catch (error) {
+      setUploadStatus('error');
+      setUploadError(error instanceof Error ? error.message : 'Unable to import leads');
+    }
   };
 
   const closeBulkUpload = () => {
@@ -356,6 +473,7 @@ export default function LeadManagementContent() {
     setUploadedFile(null);
     setUploadStatus('idle');
     setUploadCount(0);
+    setUploadError('');
   };
 
   return (
@@ -765,7 +883,7 @@ export default function LeadManagementContent() {
                 <p className="font-700 text-foreground text-sm">File format requirements</p>
                 <p>
                   • Accepted formats:{' '}
-                  <span className="font-600 text-foreground">.csv, .xlsx, .xls</span>
+                  <span className="font-600 text-foreground">.csv</span>
                 </p>
                 <p>
                   • Required columns:{' '}
@@ -860,7 +978,7 @@ export default function LeadManagementContent() {
                       Browse File
                       <input
                         type="file"
-                        accept=".csv,.xlsx,.xls"
+                        accept=".csv"
                         onChange={handleFileSelect}
                         className="hidden"
                       />
@@ -868,6 +986,12 @@ export default function LeadManagementContent() {
                   </div>
                 )}
               </div>
+
+              {uploadError && (
+                <div className="rounded-sm border border-danger/20 bg-danger-bg px-3 py-2 text-xs font-600 text-danger">
+                  {uploadError}
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
                 <button

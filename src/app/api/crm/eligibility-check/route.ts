@@ -580,6 +580,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.action === 'seed_demo_eligibility') {
+      if (process.env.CRM_ALLOW_DEMO_SEED !== 'true') {
+        return jsonError('Demo seed is disabled in production', 403);
+      }
+
       const supabase = createAdminClient();
       const { rowId, store } = await getCrmStore(request, supabase);
       const now = new Date().toISOString();
