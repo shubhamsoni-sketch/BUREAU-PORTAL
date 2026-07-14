@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 export function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
   const { pathname } = request.nextUrl;
-  const isApiConsoleHost = host.split(':')[0] === 'api.credittrust.in';
+  const hostname = host.split(':')[0];
+  const isApiConsoleHost = hostname === 'api.credittrust.in';
+  const isCrmHost = hostname === 'crm.credittrust.in';
   const isAsset = pathname.startsWith('/_next') || pathname.includes('.');
   const isApiRoute = pathname.startsWith('/api/');
 
@@ -13,6 +15,14 @@ export function middleware(request: NextRequest) {
 
   if (isApiConsoleHost && !isAsset && !isApiRoute && !pathname.startsWith('/api-console')) {
     return NextResponse.rewrite(new URL('/api-console', request.url));
+  }
+
+  if (isCrmHost && pathname === '/') {
+    return NextResponse.rewrite(new URL('/crm', request.url));
+  }
+
+  if (isCrmHost && !isAsset && !isApiRoute && !pathname.startsWith('/crm')) {
+    return NextResponse.rewrite(new URL(`/crm${pathname}`, request.url));
   }
 
   return NextResponse.next();
