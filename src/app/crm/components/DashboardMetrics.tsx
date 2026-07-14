@@ -10,12 +10,12 @@ type DashboardStore = {
 };
 
 const fallbackMetrics = [
-  ['Lead Queue', '286', '41 fresh leads waiting', '+18 today', 'border-blue-200 bg-blue-50 text-blue-700', 'bg-blue-500'],
-  ['Eligibility Checked', '124', '93 bureau reports success', '75% hit rate', 'border-emerald-200 bg-emerald-50 text-emerald-700', 'bg-emerald-500'],
-  ['Files In Process', '58', '31 sent to lenders', '9 urgent', 'border-violet-200 bg-violet-50 text-violet-700', 'bg-violet-500'],
-  ['Login Pending', '7', 'Lender action required', '3 ageing', 'border-amber-200 bg-amber-50 text-amber-700', 'bg-amber-500'],
-  ['Disbursed MTD', '₹4.82 Cr', '₹6.00 Cr monthly target', '80% achieved', 'border-green-200 bg-green-50 text-green-700', 'bg-green-500'],
-  ['Rejections', '11', '4 can be rerouted', 'Review', 'border-rose-200 bg-rose-50 text-rose-700', 'bg-rose-500'],
+  ['Lead Queue', '0', 'No leads loaded yet', '0 pending', 'border-blue-200 bg-blue-50 text-blue-700', 'bg-blue-500'],
+  ['Eligibility Checked', '0', 'No bureau reports yet', '0% hit rate', 'border-emerald-200 bg-emerald-50 text-emerald-700', 'bg-emerald-500'],
+  ['Files In Process', '0', 'No lender files yet', '0 active', 'border-violet-200 bg-violet-50 text-violet-700', 'bg-violet-500'],
+  ['Login Pending', '0', 'No lender action pending', '0 ageing', 'border-amber-200 bg-amber-50 text-amber-700', 'bg-amber-500'],
+  ['Disbursed MTD', '₹0', 'No disbursed files yet', 'MTD', 'border-green-200 bg-green-50 text-green-700', 'bg-green-500'],
+  ['Rejections', '0', 'No rejected files yet', 'Review', 'border-rose-200 bg-rose-50 text-rose-700', 'bg-rose-500'],
 ];
 
 function currencyShort(value: number) {

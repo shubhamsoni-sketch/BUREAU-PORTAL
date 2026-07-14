@@ -21,13 +21,6 @@ type Store = {
   applications?: Application[];
 };
 
-const fallbackAgents = [
-  ['Priya Sharma', 'Mumbai Central', 42, 31, 18, 43, 'Eligibility queue', '7 callbacks due', 'On track', 'bg-emerald-500'],
-  ['Anil Mehta', 'Pune West', 38, 26, 14, 37, 'File process', '3 docs pending', 'Needs follow-up', 'bg-amber-500'],
-  ['Sunita Rao', 'Bangalore HSR', 31, 22, 11, 36, 'Lender selection', '5 lender responses', 'On track', 'bg-blue-500'],
-  ['Vikram Joshi', 'Delhi NCR', 28, 19, 9, 32, 'Login pending', '2 urgent files', 'Attention', 'bg-red-500'],
-] as const;
-
 export default function TopAgentsTable() {
   const [store, setStore] = useState<Store | null>(null);
 
@@ -45,7 +38,7 @@ export default function TopAgentsTable() {
   }, []);
 
   const agents = useMemo(() => {
-    if (!store) return fallbackAgents;
+    if (!store) return [];
     const leads = store.leads || [];
     const applications = store.applications || [];
     const grouped = new Map<string, Lead[]>();
@@ -78,15 +71,15 @@ export default function TopAgentsTable() {
       return [agent, branch, agentLeads.length, eligibility, files, conversion, currentStage, activeTask, status, tone] as const;
     });
 
-    return rows.length ? rows.sort((a, b) => Number(b[2]) - Number(a[2])).slice(0, 6) : fallbackAgents;
+    return rows.sort((a, b) => Number(b[2]) - Number(a[2])).slice(0, 6);
   }, [store]);
 
   const summary = useMemo(() => {
     if (!store) return [
-      ['Active agents', '12'],
-      ['Leads assigned today', '64'],
-      ['Eligibility pending', '41'],
-      ['Follow-ups due', '17'],
+      ['Active agents', '0'],
+      ['Total assigned leads', '0'],
+      ['Eligibility pending', '0'],
+      ['Files in process', '0'],
     ];
     const leads = store.leads || [];
     const pending = leads.filter((lead) =>
@@ -127,7 +120,13 @@ export default function TopAgentsTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {agents.map(([name, branch, leads, eligibility, files, conversion, currentStage, activeTask, status, tone], index) => (
+            {agents.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  No agent workload yet
+                </td>
+              </tr>
+            ) : agents.map(([name, branch, leads, eligibility, files, conversion, currentStage, activeTask, status, tone], index) => (
               <tr key={`${name}-${index}`} className="hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-2.5 min-w-0">
