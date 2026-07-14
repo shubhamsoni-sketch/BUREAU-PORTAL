@@ -5,8 +5,7 @@ import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import AppLogo from '@/crm/components/ui/AppLogo';
-import { useAuth } from '@/context/AuthContext';
-import { crmFetch } from '@/lib/crm/api';
+import { createClient } from '@/lib/supabase/client';
 
 type LoginForm = { email: string; password: string; remember: boolean };
 
@@ -22,7 +21,6 @@ function initials(name: string) {
 
 export default function SignUpLoginContent() {
   const router = useRouter();
-  const { login, logout } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -34,24 +32,36 @@ export default function SignUpLoginContent() {
     setIsLoading(true);
     loginForm.clearErrors();
 
-    const result = await login(data.email.trim().toLowerCase(), data.password);
-    if (!result.success || !result.user) {
+    const supabase = createClient();
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: data.email.trim().toLowerCase(),
+      password: data.password,
+    });
+    if (authError || !authData.session?.access_token || !authData.user) {
       setIsLoading(false);
-      loginForm.setError('email', { message: result.error || 'Invalid email or password' });
+      loginForm.setError('email', { message: 'Invalid email or password' });
       return;
     }
 
     try {
-      const response = await crmFetch('/api/crm/me', { cache: 'no-store' });
+      const response = await fetch('/api/crm/me', {
+        cache: 'no-store',
+        headers: {
+          authorization: `Bearer ${authData.session.access_token}`,
+          'x-crm-user-id': authData.user.id,
+        },
+      });
       const json = await response.json();
       if (!response.ok || !json.success || !json.data) {
         throw new Error(json.error || 'CRM access is not enabled for this account');
       }
 
       const crmUser = {
-        name: json.data.name || result.user.name || 'CRM User',
+        name: json.data.name || authData.user.user_metadata?.full_name || 'CRM User',
         role: json.data.role || 'Admin',
-        avatar: json.data.avatar || initials(json.data.name || result.user.name || 'CRM User'),
+        avatar:
+          json.data.avatar ||
+          initials(json.data.name || authData.user.user_metadata?.full_name || 'CRM User'),
         permissions: Array.isArray(json.data.permissions) ? json.data.permissions : [],
       };
       window.localStorage.setItem('crm_current_user', JSON.stringify(crmUser));
@@ -61,7 +71,7 @@ export default function SignUpLoginContent() {
       router.replace(next);
       router.refresh();
     } catch (error) {
-      await logout('/crm/sign-up-login-screen');
+      await supabase.auth.signOut();
       loginForm.setError('email', {
         message: error instanceof Error ? error.message : 'CRM access is not enabled',
       });
