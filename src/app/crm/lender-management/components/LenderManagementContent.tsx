@@ -254,7 +254,7 @@ const emptyForm = {
 };
 
 export default function LenderManagementContent() {
-  const [lenders, setLenders] = useState<Lender[]>(MOCK_LENDERS);
+  const [lenders, setLenders] = useState<Lender[]>([]);
   const [selectedLender, setSelectedLender] = useState<Lender | null>(null);
   const [compareList, setCompareList] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
@@ -274,6 +274,9 @@ export default function LenderManagementContent() {
       const response = await crmFetch('/api/crm/lenders', { cache: 'no-store' });
       const json = await response.json();
       if (json.success && Array.isArray(json.data)) setLenders(json.data);
+      else setLenders([]);
+    } catch {
+      setLenders([]);
     } finally {
       setLoading(false);
     }
@@ -531,7 +534,13 @@ export default function LenderManagementContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((lender) => (
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                      {loading ? 'Loading lender policies...' : 'No lenders configured'}
+                    </td>
+                  </tr>
+                ) : filtered.map((lender) => (
                   <tr
                     key={lender.id}
                     className={[

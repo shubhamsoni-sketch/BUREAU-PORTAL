@@ -243,7 +243,7 @@ const formatINR = (n: number) => {
 };
 
 export default function LeadManagementContent() {
-  const [leads, setLeads] = useState<Lead[]>(MOCK_LEADS);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'table' | 'kanban'>('table');
   const [filterProduct, setFilterProduct] = useState('all');
@@ -267,6 +267,9 @@ export default function LeadManagementContent() {
       const response = await crmFetch('/api/crm/leads', { cache: 'no-store' });
       const json = await response.json();
       if (json.success && Array.isArray(json.data)) setLeads(json.data);
+      else setLeads([]);
+    } catch {
+      setLeads([]);
     } finally {
       setLoading(false);
     }
@@ -580,7 +583,7 @@ export default function LeadManagementContent() {
                         colSpan={11}
                         className="px-4 py-12 text-center text-sm text-muted-foreground"
                       >
-                        No leads match the current filters
+                        {loading ? 'Loading leads...' : 'No leads found'}
                       </td>
                     </tr>
                   ) : (

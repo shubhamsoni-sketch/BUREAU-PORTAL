@@ -298,7 +298,7 @@ const getDocumentProgress = (documents?: ApplicationDocument[]) => {
 };
 
 export default function LoanApplicationContent() {
-  const [apps, setApps] = useState<LoanApplication[]>(MOCK_APPS);
+  const [apps, setApps] = useState<LoanApplication[]>([]);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedApp, setSelectedApp] = useState<LoanApplication | null>(null);
   const [filterStage, setFilterStage] = useState('all');
@@ -378,7 +378,7 @@ export default function LoanApplicationContent() {
             };
           }
         );
-        const nextApps = liveApps.length ? [...liveApps, ...MOCK_APPS] : MOCK_APPS;
+        const nextApps = liveApps;
         setApps(nextApps);
         if (highlightedApplicationId) {
           const highlightedApp = nextApps.find((app) => app.id === highlightedApplicationId);
@@ -388,7 +388,7 @@ export default function LoanApplicationContent() {
           }
         }
       } catch {
-        setApps(MOCK_APPS);
+        setApps([]);
       }
     };
 
@@ -810,7 +810,13 @@ export default function LoanApplicationContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((app) => (
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={15} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                      No files found
+                    </td>
+                  </tr>
+                ) : filtered.map((app) => (
                   <tr
                     key={app.id}
                     className={[

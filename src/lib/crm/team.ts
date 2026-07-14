@@ -218,5 +218,5 @@ export function normalizeTeam(value: unknown): CrmTeamMember[] {
       };
     })
     .filter((member) => member.name && member.email);
-  return team.length ? team : defaultCrmTeam;
+  return team;
 }
