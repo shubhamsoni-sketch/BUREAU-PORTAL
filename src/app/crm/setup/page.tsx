@@ -87,7 +87,7 @@ type CrmContext = {
 type OnboardingTab = 'profile' | 'wallet' | 'invoice' | 'agreement';
 
 const onboardingTabs: { id: OnboardingTab; label: string }[] = [
-  { id: 'profile', label: 'DSA Profile' },
+  { id: 'profile', label: 'Partner Profile' },
   { id: 'wallet', label: 'Wallet Management' },
   { id: 'invoice', label: 'Invoice & Accounting' },
   { id: 'agreement', label: 'Agreement' },
@@ -271,7 +271,7 @@ export default function CrmSetupPage() {
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-800 text-foreground">DSA Profile</h3>
+                    <h3 className="text-sm font-800 text-foreground">Partner Profile</h3>
                     <p className="text-xs text-muted-foreground mt-1">
                       Created from the approved CreditTrust partner onboarding record.
                     </p>

@@ -108,7 +108,7 @@ export const defaultCrmTeam: CrmTeamMember[] = [
   {
     id: 'usr-001',
     name: 'Rajesh Kumar',
-    email: 'rajesh.k@dsacrm.in',
+    email: 'rajesh.k@credittrust.in',
     mobile: '9876543210',
     role: 'Admin',
     zone: 'HQ - Mumbai',
@@ -122,7 +122,7 @@ export const defaultCrmTeam: CrmTeamMember[] = [
   {
     id: 'usr-002',
     name: 'Sunita Rao',
-    email: 'sunita.r@dsacrm.in',
+    email: 'sunita.r@credittrust.in',
     mobile: '9765432109',
     role: 'Manager',
     zone: 'Bangalore HSR',
@@ -136,7 +136,7 @@ export const defaultCrmTeam: CrmTeamMember[] = [
   {
     id: 'usr-003',
     name: 'Priya Sharma',
-    email: 'priya.s@dsacrm.in',
+    email: 'priya.s@credittrust.in',
     mobile: '9654321098',
     role: 'DSA Agent',
     zone: 'Mumbai Central',
@@ -150,7 +150,7 @@ export const defaultCrmTeam: CrmTeamMember[] = [
   {
     id: 'usr-004',
     name: 'Anil Mehta',
-    email: 'anil.m@dsacrm.in',
+    email: 'anil.m@credittrust.in',
     mobile: '9543210987',
     role: 'DSA Agent',
     zone: 'Pune West',
@@ -164,7 +164,7 @@ export const defaultCrmTeam: CrmTeamMember[] = [
   {
     id: 'usr-005',
     name: 'Kavitha Nair',
-    email: 'kavitha.n@dsacrm.in',
+    email: 'kavitha.n@credittrust.in',
     mobile: '9321098765',
     role: 'Ops Executive',
     zone: 'Chennai Adyar',
@@ -178,7 +178,7 @@ export const defaultCrmTeam: CrmTeamMember[] = [
   {
     id: 'usr-006',
     name: 'Nitin Shah',
-    email: 'accounts@dsacrm.in',
+    email: 'accounts@credittrust.in',
     mobile: '9210987654',
     role: 'Accounts',
     zone: 'HQ - Finance',

@@ -512,7 +512,7 @@ export default function EligibilityCheckContent() {
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
                   {mode === 'mobile_advanced'
-                    ? 'Use this when the DSA has only customer mobile number and consent.'
+                    ? 'Use this when only customer mobile number and consent are available.'
                     : 'Use this when customer name, mobile number, and PAN are available.'}
                 </p>
               </div>

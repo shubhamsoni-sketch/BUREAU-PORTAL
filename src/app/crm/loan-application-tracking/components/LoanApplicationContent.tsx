@@ -94,7 +94,7 @@ interface LoanApplication {
 const MOCK_APPS: LoanApplication[] = [
   {
     id: 'app-001',
-    appId: 'DSA-HL-2026-0841',
+    appId: 'CT-HL-2026-0841',
     applicant: 'Ramesh Gupta',
     product: 'home_loan',
     loanAmount: 4200000,
@@ -112,7 +112,7 @@ const MOCK_APPS: LoanApplication[] = [
   },
   {
     id: 'app-002',
-    appId: 'DSA-PL-2026-0842',
+    appId: 'CT-PL-2026-0842',
     applicant: 'Neha Kulkarni',
     product: 'personal_loan',
     loanAmount: 850000,
@@ -130,7 +130,7 @@ const MOCK_APPS: LoanApplication[] = [
   },
   {
     id: 'app-003',
-    appId: 'DSA-BL-2026-0843',
+    appId: 'CT-BL-2026-0843',
     applicant: 'Suresh Patel',
     product: 'business_loan',
     loanAmount: 2500000,
@@ -148,7 +148,7 @@ const MOCK_APPS: LoanApplication[] = [
   },
   {
     id: 'app-004',
-    appId: 'DSA-LAP-2026-0844',
+    appId: 'CT-LAP-2026-0844',
     applicant: 'Kavya Reddy',
     product: 'lap',
     loanAmount: 3800000,
@@ -166,7 +166,7 @@ const MOCK_APPS: LoanApplication[] = [
   },
   {
     id: 'app-005',
-    appId: 'DSA-HL-2026-0845',
+    appId: 'CT-HL-2026-0845',
     applicant: 'Preethi Kumar',
     product: 'home_loan',
     loanAmount: 3200000,
@@ -184,7 +184,7 @@ const MOCK_APPS: LoanApplication[] = [
   },
   {
     id: 'app-006',
-    appId: 'DSA-PL-2026-0846',
+    appId: 'CT-PL-2026-0846',
     applicant: 'Arjun Sharma',
     product: 'personal_loan',
     loanAmount: 500000,
@@ -202,7 +202,7 @@ const MOCK_APPS: LoanApplication[] = [
   },
   {
     id: 'app-007',
-    appId: 'DSA-BL-2026-0847',
+    appId: 'CT-BL-2026-0847',
     applicant: 'Fatima Sheikh',
     product: 'business_loan',
     loanAmount: 1200000,
@@ -220,7 +220,7 @@ const MOCK_APPS: LoanApplication[] = [
   },
   {
     id: 'app-008',
-    appId: 'DSA-HL-2026-0848',
+    appId: 'CT-HL-2026-0848',
     applicant: 'Ganesh Iyer',
     product: 'home_loan',
     loanAmount: 6500000,
@@ -238,7 +238,7 @@ const MOCK_APPS: LoanApplication[] = [
   },
   {
     id: 'app-009',
-    appId: 'DSA-CAR-2026-0849',
+    appId: 'CT-CAR-2026-0849',
     applicant: 'Anita Singh',
     product: 'car_loan',
     loanAmount: 720000,
@@ -256,7 +256,7 @@ const MOCK_APPS: LoanApplication[] = [
   },
   {
     id: 'app-010',
-    appId: 'DSA-PL-2026-0850',
+    appId: 'CT-PL-2026-0850',
     applicant: 'Mohan Das',
     product: 'personal_loan',
     loanAmount: 500000,
@@ -346,7 +346,7 @@ export default function LoanApplicationContent() {
             return {
               id: application.id,
               leadId: application.leadId,
-              appId: `DSA-${application.product.replace(/_/g, '').toUpperCase().slice(0, 3)}-${created.getFullYear()}-${application.id.slice(0, 4).toUpperCase()}`,
+              appId: `CT-${application.product.replace(/_/g, '').toUpperCase().slice(0, 3)}-${created.getFullYear()}-${application.id.slice(0, 4).toUpperCase()}`,
               applicant: application.customerName,
               product: application.product,
               loanAmount: Number(application.loanAmount || 0),

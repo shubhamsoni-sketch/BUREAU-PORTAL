@@ -81,7 +81,7 @@ export default function SignUpLoginContent() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-[0.9fr_1.1fr] bg-background">
-      <section className="hidden lg:flex flex-col justify-between border-r border-border bg-[#0f172a] p-10 text-white">
+      <section className="hidden lg:flex flex-col justify-center border-r border-border bg-[#0f172a] p-10 text-white">
         <div>
           <div className="flex items-center gap-3">
             <AppLogo size={42} />
@@ -99,24 +99,7 @@ export default function SignUpLoginContent() {
             <h1 className="mt-4 text-4xl font-900 leading-tight">
               Leads, eligibility checks, and file movement in one workspace.
             </h1>
-            <p className="mt-4 text-sm leading-6 text-slate-300">
-              Sign in with the credentials created by CreditTrust admin for your CRM account.
-            </p>
           </div>
-        </div>
-
-        <div className="grid gap-3 text-sm text-slate-200">
-          {['Partner-scoped data', 'Role-based CRM access', 'Saved bureau PDF workflow'].map(
-            (item) => (
-              <div
-                key={item}
-                className="flex items-center gap-3 rounded-md border border-white/10 bg-white/5 px-4 py-3"
-              >
-                <span className="h-2 w-2 rounded-full bg-blue-300" />
-                <span className="font-700">{item}</span>
-              </div>
-            )
-          )}
         </div>
       </section>
 

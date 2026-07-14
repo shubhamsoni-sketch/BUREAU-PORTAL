@@ -4,7 +4,7 @@ export type PartnerProductAccess = (typeof PARTNER_PRODUCT_ACCESS_VALUES)[number
 
 export const PARTNER_PRODUCT_ACCESS_LABELS: Record<PartnerProductAccess, string> = {
   bureau_portal: 'Bureau Portal',
-  dsa_crm: 'DSA CRM',
+  dsa_crm: 'CreditTrust CRM',
 };
 
 export function normalizePartnerProductAccess(value: unknown): PartnerProductAccess {

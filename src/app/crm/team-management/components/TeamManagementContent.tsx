@@ -17,6 +17,8 @@ import {
 const USER_ROLES = Object.keys(rolePermissions) as CrmUserRole[];
 const PERMISSION_KEYS = Object.keys(crmPermissionLabels) as CrmPermissionKey[];
 
+const roleLabel = (role: CrmUserRole) => (role === 'DSA Agent' ? 'CT Agent' : role);
+
 const ROLE_COLORS: Record<CrmUserRole, string> = {
   Admin: 'bg-purple-100 text-purple-700',
   Manager: 'bg-blue-100 text-blue-700',
@@ -214,7 +216,7 @@ export default function TeamManagementContent() {
       })
     );
     window.dispatchEvent(new Event('crm-current-user-changed'));
-    toast.success(`Previewing CRM as ${member.role}`);
+    toast.success(`Previewing CRM as ${roleLabel(member.role)}`);
   };
 
   const updateRole = (role: CrmUserRole) => {
@@ -317,7 +319,7 @@ export default function TeamManagementContent() {
           <option value="all">All Roles</option>
           <option value="Admin">Admin</option>
           <option value="Manager">Manager</option>
-          <option value="DSA Agent">DSA Agent</option>
+          <option value="DSA Agent">CT Agent</option>
           <option value="Ops Executive">Ops Executive</option>
           <option value="Accounts">Accounts</option>
         </select>
@@ -387,7 +389,7 @@ export default function TeamManagementContent() {
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-700 ${ROLE_COLORS[m.role]}`}
                           >
-                            {m.role}
+                            {roleLabel(m.role)}
                           </span>
                           <p className="text-[10px] text-muted-foreground truncate max-w-[130px]">{m.zone}</p>
                         </div>
@@ -604,7 +606,7 @@ export default function TeamManagementContent() {
               >
                 {USER_ROLES.map((role) => (
                   <option key={`role-${role}`} value={role}>
-                    {role}
+                    {roleLabel(role)}
                   </option>
                 ))}
               </select>

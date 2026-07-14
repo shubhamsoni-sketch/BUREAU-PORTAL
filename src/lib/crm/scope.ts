@@ -80,7 +80,7 @@ export async function resolveCrmScope(
       isPartnerOwner: false,
       storeMobile: DEMO_STORE_MOBILE,
       storeStatus: DEMO_STORE_STATUS,
-      storeName: 'DSA CRM Store',
+      storeName: 'CreditTrust CRM Store',
       isDemo: true,
     };
   }

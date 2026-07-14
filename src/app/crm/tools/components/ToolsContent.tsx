@@ -61,7 +61,7 @@ export default function ToolsContent() {
       <div className="mb-6">
         <h1 className="text-2xl font-700 text-foreground">EMI Calculator</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Financial calculators and utilities for DSA agents
+          Financial calculators and utilities for CreditTrust teams
         </p>
       </div>
 
