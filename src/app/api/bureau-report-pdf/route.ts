@@ -33,6 +33,38 @@ async function isAdminUser(auth: Awaited<ReturnType<typeof requireUser>>) {
   return data?.role === 'admin';
 }
 
+async function canAccessPartnerReport(
+  auth: Exclude<Awaited<ReturnType<typeof requireUser>>, { error: string }>,
+  partnerId: string | null | undefined
+) {
+  if (!partnerId) return false;
+  if (await isAdminUser(auth)) return true;
+
+  const metadataPartnerId =
+    auth.user.app_metadata?.crm_partner_id ||
+    auth.user.app_metadata?.partner_id ||
+    auth.user.user_metadata?.crm_partner_id ||
+    auth.user.user_metadata?.partner_id;
+  if (metadataPartnerId === partnerId) return true;
+
+  const { data: partner } = await auth.supabase
+    .from('partners')
+    .select('id')
+    .eq('id', partnerId)
+    .eq('user_id', auth.user.id)
+    .maybeSingle();
+  if (partner) return true;
+
+  const { data: teamMember } = await auth.supabase
+    .from('crm_team_members')
+    .select('id')
+    .eq('partner_id', partnerId)
+    .eq('auth_user_id', auth.user.id)
+    .eq('status', 'active')
+    .maybeSingle();
+  return Boolean(teamMember);
+}
+
 async function loadReport(source: Source, id: string, auth: Exclude<Awaited<ReturnType<typeof requireUser>>, { error: string }>) {
   const supabase = auth.supabase;
   if (source === 'bureau_pulls') {
@@ -43,16 +75,7 @@ async function loadReport(source: Source, id: string, auth: Exclude<Awaited<Retu
       .maybeSingle();
     if (error) throw error;
     if (!data) return null;
-    const admin = await isAdminUser(auth);
-    if (!admin) {
-      const { data: partner } = await supabase
-        .from('partners')
-        .select('id')
-        .eq('id', data.partner_id)
-        .eq('user_id', auth.user.id)
-        .maybeSingle();
-      if (!partner) return 'forbidden' as const;
-    }
+    if (!(await canAccessPartnerReport(auth, data.partner_id))) return 'forbidden' as const;
     return {
       rawJson: pickRaw(data, source),
       reportId: data.report_id || data.member_ref,
@@ -69,16 +92,7 @@ async function loadReport(source: Source, id: string, auth: Exclude<Awaited<Retu
       .maybeSingle();
     if (error) throw error;
     if (!data) return null;
-    const admin = await isAdminUser(auth);
-    if (!admin) {
-      const { data: partner } = await supabase
-        .from('partners')
-        .select('id')
-        .eq('id', data.partner_id)
-        .eq('user_id', auth.user.id)
-        .maybeSingle();
-      if (!partner) return 'forbidden' as const;
-    }
+    if (!(await canAccessPartnerReport(auth, data.partner_id))) return 'forbidden' as const;
     return {
       rawJson: pickRaw(data, source),
       reportId: data.request_id || data.id,
