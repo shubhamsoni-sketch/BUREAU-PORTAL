@@ -1,5 +1,6 @@
 'use client';
-import React from 'react';
+
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AreaChart,
   Area,
@@ -15,45 +16,39 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { crmFetch } from '@/lib/crm/api';
 
-const disbursalTrend90 = [
-  { week: 'W1 Apr', amount: 38.2, applications: 12 },
-  { week: 'W2 Apr', amount: 52.6, applications: 16 },
-  { week: 'W3 Apr', amount: 44.1, applications: 14 },
-  { week: 'W4 Apr', amount: 61.8, applications: 19 },
-  { week: 'W1 May', amount: 48.3, applications: 15 },
-  { week: 'W2 May', amount: 72.4, applications: 22 },
-  { week: 'W3 May', amount: 58.9, applications: 18 },
-  { week: 'W4 May', amount: 84.2, applications: 26 },
-  { week: 'W1 Jun', amount: 69.5, applications: 21 },
-  { week: 'W2 Jun', amount: 91.3, applications: 28 },
-  { week: 'W3 Jun', amount: 78.6, applications: 24 },
-  { week: 'W4 Jun', amount: 48.2, applications: 15 },
-];
+type CrmLead = {
+  name?: string;
+  product?: string;
+  loanAmount?: number;
+  source?: string;
+  assignedAgent?: string;
+  stage?: string;
+};
 
-const productMix = [
-  { product: 'Home Loan', amount: 682, count: 58 },
-  { product: 'Personal Loan', amount: 312, count: 48 },
-  { product: 'Business Loan', amount: 428, count: 24 },
-  { product: 'LAP', amount: 284, count: 12 },
-  { product: 'Car Loan', amount: 98, count: 18 },
-];
+type CrmApplication = {
+  customerName?: string;
+  product?: string;
+  loanAmount?: number;
+  status?: string;
+  updatedAt?: string;
+};
 
-const leadSourceData = [
-  { name: 'Reference', value: 38, color: 'var(--success)' },
-  { name: 'Web / Online', value: 28, color: 'var(--primary)' },
-  { name: 'Campaign', value: 18, color: 'var(--accent)' },
-  { name: 'Walk-in', value: 10, color: 'var(--info)' },
-  { name: 'Social Media', value: 6, color: 'var(--muted-foreground)' },
-];
+type AnalyticsStore = {
+  leads?: CrmLead[];
+  applications?: CrmApplication[];
+};
 
-const agentProductivity = [
-  { agent: 'Priya S.', leads: 42, disbursed: 18, rejected: 5 },
-  { agent: 'Anil M.', leads: 38, disbursed: 14, rejected: 7 },
-  { agent: 'Sunita R.', leads: 31, disbursed: 11, rejected: 4 },
-  { agent: 'Vikram J.', leads: 28, disbursed: 9, rejected: 6 },
-  { agent: 'Kavitha N.', leads: 24, disbursed: 7, rejected: 3 },
-];
+const colors = ['var(--success)', 'var(--primary)', 'var(--accent)', 'var(--info)', 'var(--muted-foreground)'];
+
+const labelize = (value: string) =>
+  value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .trim() || 'Unknown';
+
+const amountInLakhs = (value: number) => Math.round((value / 100000) * 10) / 10;
 
 const CustomTooltip = ({
   active,
@@ -72,7 +67,7 @@ const CustomTooltip = ({
         <p key={`ctt-${i}`} className="text-muted-foreground">
           {p.name}:{' '}
           <span className="font-600 text-foreground">
-            {typeof p.value === 'number' && p.name === 'amount' ? `₹${p.value}L` : p.value}
+            {p.name.toLowerCase().includes('amount') ? `₹${p.value}L` : p.value}
           </span>
         </p>
       ))}
@@ -98,163 +93,197 @@ const PieTooltip = ({
   );
 };
 
+function EmptyChart({ text }: { text: string }) {
+  return (
+    <div className="h-[180px] flex items-center justify-center rounded-sm border border-dashed border-border bg-muted/20 text-xs text-muted-foreground">
+      {text}
+    </div>
+  );
+}
+
 export default function ReportsChartsInner() {
+  const [store, setStore] = useState<AnalyticsStore>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    crmFetch('/api/crm/eligibility-check', { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((json) => {
+        if (!cancelled && json?.success) setStore(json.data || {});
+      })
+      .catch(() => {
+        if (!cancelled) setStore({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const analytics = useMemo(() => {
+    const leads = Array.isArray(store.leads) ? store.leads : [];
+    const applications = Array.isArray(store.applications) ? store.applications : [];
+    const disbursed = applications.filter((application) => application.status === 'disbursed');
+
+    const weeklyMap = new Map<string, { week: string; amount: number; applications: number }>();
+    disbursed.forEach((application) => {
+      const date = application.updatedAt ? new Date(application.updatedAt) : new Date();
+      const week = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      const current = weeklyMap.get(week) || { week, amount: 0, applications: 0 };
+      current.amount += amountInLakhs(Number(application.loanAmount || 0));
+      current.applications += 1;
+      weeklyMap.set(week, current);
+    });
+
+    const productMap = new Map<string, { product: string; amount: number; count: number }>();
+    const productSource = applications.length ? applications : leads;
+    productSource.forEach((item) => {
+      const product = labelize(String(item.product || 'unknown'));
+      const current = productMap.get(product) || { product, amount: 0, count: 0 };
+      current.amount += amountInLakhs(Number(item.loanAmount || 0));
+      current.count += 1;
+      productMap.set(product, current);
+    });
+
+    const sourceCount = new Map<string, number>();
+    leads.forEach((lead) => {
+      const source = labelize(String(lead.source || 'unknown'));
+      sourceCount.set(source, (sourceCount.get(source) || 0) + 1);
+    });
+    const leadSourceTotal = Math.max(1, leads.length);
+    const leadSourceData = Array.from(sourceCount.entries()).map(([name, count], index) => ({
+      name,
+      value: Math.round((count / leadSourceTotal) * 100),
+      color: colors[index % colors.length],
+    }));
+
+    const agentMap = new Map<string, { agent: string; leads: number; disbursed: number; rejected: number }>();
+    leads.forEach((lead) => {
+      const agent = lead.assignedAgent && lead.assignedAgent !== 'Unassigned' ? lead.assignedAgent : 'Unassigned';
+      const current = agentMap.get(agent) || { agent, leads: 0, disbursed: 0, rejected: 0 };
+      current.leads += 1;
+      if (lead.stage === 'disbursed') current.disbursed += 1;
+      if (lead.stage === 'rejected') current.rejected += 1;
+      agentMap.set(agent, current);
+    });
+
+    return {
+      weekly: Array.from(weeklyMap.values()).slice(-12),
+      products: Array.from(productMap.values()).slice(0, 8),
+      sources: leadSourceData.slice(0, 6),
+      agents: Array.from(agentMap.values()).sort((a, b) => b.leads - a.leads).slice(0, 8),
+    };
+  }, [store]);
+
   return (
     <div className="space-y-5 mb-6">
-      {/* Row 1: Disbursal trend + Product mix */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
         <div className="xl:col-span-3 bg-card rounded-lg border border-border p-5 shadow-card">
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-sm font-700 text-foreground">Weekly Disbursal Trend</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Last 90 days — disbursed amount (₹ Lakhs)
+                Live disbursed amount in rupee lakhs
               </p>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={disbursalTrend90} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-              <defs>
-                <linearGradient id="gradRep" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="week"
-                tick={{ fontSize: 9, fill: 'var(--muted-foreground)' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="amount"
-                name="amount"
-                stroke="var(--primary)"
-                strokeWidth={2}
-                fill="url(#gradRep)"
-                dot={false}
-                activeDot={{ r: 4, fill: 'var(--primary)' }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {analytics.weekly.length ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={analytics.weekly} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                <defs>
+                  <linearGradient id="gradRep" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="week" tick={{ fontSize: 9, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="amount" name="Amount" stroke="var(--primary)" strokeWidth={2} fill="url(#gradRep)" dot={false} activeDot={{ r: 4, fill: 'var(--primary)' }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyChart text="No disbursed files yet" />
+          )}
         </div>
 
         <div className="xl:col-span-2 bg-card rounded-lg border border-border p-5 shadow-card">
           <div className="mb-4">
             <h3 className="text-sm font-700 text-foreground">Product-wise Volume</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Disbursed amount by loan type (₹ Lakhs)
-            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Live amount by loan type</p>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={productMix} margin={{ top: 0, right: 4, bottom: 0, left: -20 }}>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="product"
-                tick={{ fontSize: 9, fill: 'var(--muted-foreground)' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="amount" name="amount" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {analytics.products.length ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={analytics.products} margin={{ top: 0, right: 4, bottom: 0, left: -20 }}>
+                <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="product" tick={{ fontSize: 9, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="amount" name="Amount" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyChart text="No lead or file volume yet" />
+          )}
         </div>
       </div>
 
-      {/* Row 2: Lead source pie + Agent productivity bar */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
         <div className="xl:col-span-2 bg-card rounded-lg border border-border p-5 shadow-card">
           <div className="mb-4">
             <h3 className="text-sm font-700 text-foreground">Lead Source Distribution</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Where leads are coming from (% share)
-            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Live source share</p>
           </div>
-          <div className="flex items-center gap-4">
-            <ResponsiveContainer width="50%" height={180}>
-              <PieChart>
-                <Pie
-                  data={leadSourceData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={45}
-                  outerRadius={70}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {leadSourceData.map((entry, index) => (
-                    <Cell key={`cell-src-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<PieTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex-1 space-y-2">
-              {leadSourceData.map((item, i) => (
-                <div key={`ls-legend-${i}`} className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-xs text-muted-foreground">{item.name}</span>
+          {analytics.sources.length ? (
+            <div className="flex items-center gap-4">
+              <ResponsiveContainer width="50%" height={180}>
+                <PieChart>
+                  <Pie data={analytics.sources} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
+                    {analytics.sources.map((entry, index) => (
+                      <Cell key={`cell-src-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<PieTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex-1 space-y-2">
+                {analytics.sources.map((item, i) => (
+                  <div key={`ls-legend-${i}`} className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                      <span className="text-xs text-muted-foreground">{item.name}</span>
+                    </div>
+                    <span className="text-xs font-700 text-foreground tabular-nums">{item.value}%</span>
                   </div>
-                  <span className="text-xs font-700 text-foreground tabular-nums">
-                    {item.value}%
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <EmptyChart text="No lead source data yet" />
+          )}
         </div>
 
         <div className="xl:col-span-3 bg-card rounded-lg border border-border p-5 shadow-card">
           <div className="mb-4">
             <h3 className="text-sm font-700 text-foreground">Agent Productivity</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Leads assigned vs disbursed vs rejected (MTD)
-            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Live leads vs outcomes</p>
           </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={agentProductivity} margin={{ top: 0, right: 4, bottom: 0, left: -20 }}>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="agent"
-                tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: '11px', color: 'var(--muted-foreground)' }} />
-              <Bar dataKey="leads" name="Leads" fill="var(--secondary)" radius={[3, 3, 0, 0]} />
-              <Bar
-                dataKey="disbursed"
-                name="Disbursed"
-                fill="var(--success)"
-                radius={[3, 3, 0, 0]}
-              />
-              <Bar dataKey="rejected" name="Rejected" fill="var(--danger)" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {analytics.agents.length ? (
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={analytics.agents} margin={{ top: 0, right: 4, bottom: 0, left: -20 }}>
+                <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="agent" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ fontSize: '11px', color: 'var(--muted-foreground)' }} />
+                <Bar dataKey="leads" name="Leads" fill="var(--secondary)" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="disbursed" name="Disbursed" fill="var(--success)" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="rejected" name="Rejected" fill="var(--danger)" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyChart text="No agent activity yet" />
+          )}
         </div>
       </div>
     </div>
