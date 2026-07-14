@@ -32,6 +32,26 @@ function jsonError(message: string, status = 400) {
 async function getStore(request: NextRequest) {
   const supabase = createAdminClient();
   const scope = await resolveCrmScope(request, supabase);
+  const emptyStore = {
+    eligibility_credits: { balance: 0, total_added: 0, total_used: 0, per_check_cost: 1 },
+    credit_transactions: [],
+    invoices: [],
+    lenders: [],
+    leads: [],
+    applications: [],
+    reports: [],
+    team: [],
+    scope: {
+      partner_id: scope.partnerId,
+      user_id: scope.userId,
+      scoped_at: new Date().toISOString(),
+    },
+  };
+
+  if (!scope.isDemo && scope.partnerId) {
+    return { supabase, rowId: '', store: emptyStore, scope };
+  }
+
   const { data, error } = await supabase
     .from('b2c_report_requests')
     .select('id,report_json')
@@ -89,6 +109,7 @@ async function saveStore(
   rowId: string,
   store: Record<string, unknown>
 ) {
+  if (!rowId) return;
   const { error } = await supabase
     .from('b2c_report_requests')
     .update({ report_json: store, updated_at: new Date().toISOString() })
@@ -156,9 +177,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     if (!isObject(body)) return jsonError('Request body must be JSON');
     const { supabase, rowId, store, scope } = await getStore(request);
-    const access = requireCrmPermission(scope, store, 'lead_management');
+    const tableData = await getCrmTableData(supabase, scope);
+    const effectiveStore = tableData ? { ...store, ...tableData } : store;
+    const access = requireCrmPermission(scope, effectiveStore, 'lead_management');
     if (!access.ok) return jsonError(access.error, access.status);
-    const leads = normalizeLeads(store.leads);
+    const leads = normalizeLeads(effectiveStore.leads);
     const existing = leads.find((lead) => lead.id === body.id);
     const lead = normalizeIncomingLead(body, existing);
     if (!lead.name) return jsonError('Lead name is required');
@@ -169,7 +192,7 @@ export async function POST(request: NextRequest) {
     const nextLeads = existing
       ? leads.map((item) => (item.id === lead.id ? lead : item))
       : [lead, ...leads];
-    const nextStore = { ...store, leads: nextLeads };
+    const nextStore = { ...effectiveStore, leads: nextLeads };
     await saveStore(supabase, rowId, nextStore);
     await upsertCrmLead(supabase, scope, lead);
     return NextResponse.json({ success: true, data: nextLeads, lead, scope });

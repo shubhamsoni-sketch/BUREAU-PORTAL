@@ -129,6 +129,26 @@ async function provisionCrmAuthUser(
 async function getStore(request: NextRequest) {
   const supabase = createAdminClient();
   const scope = await resolveCrmScope(request, supabase);
+  const emptyStore = {
+    eligibility_credits: { balance: 0, total_added: 0, total_used: 0, per_check_cost: 1 },
+    credit_transactions: [],
+    invoices: [],
+    lenders: [],
+    leads: [],
+    applications: [],
+    reports: [],
+    team: [],
+    scope: {
+      partner_id: scope.partnerId,
+      user_id: scope.userId,
+      scoped_at: new Date().toISOString(),
+    },
+  };
+
+  if (!scope.isDemo && scope.partnerId) {
+    return { supabase, rowId: '', store: emptyStore, scope };
+  }
+
   const { data, error } = await supabase
     .from('b2c_report_requests')
     .select('id,report_json')
@@ -192,6 +212,7 @@ async function saveStore(
   rowId: string,
   store: Record<string, unknown>
 ) {
+  if (!rowId) return;
   const { error } = await supabase
     .from('b2c_report_requests')
     .update({ report_json: store, updated_at: new Date().toISOString() })
@@ -266,7 +287,7 @@ export async function POST(request: NextRequest) {
       if (!target) return jsonError('Member not found', 404);
       if (target.role === 'Admin') return jsonError('Admin member cannot be removed', 400);
       const nextTeam = team.filter((member) => member.id !== id);
-      await saveStore(supabase, rowId, { ...store, team: nextTeam });
+      await saveStore(supabase, rowId, { ...effectiveStore, team: nextTeam });
       await deleteCrmTeamMember(supabase, scope, id);
       return NextResponse.json({ success: true, data: nextTeam, scope });
     }
@@ -280,7 +301,7 @@ export async function POST(request: NextRequest) {
       const nextTeam = team.map((member) =>
         member.id === id ? provisioned.member : member
       );
-      await saveStore(supabase, rowId, { ...store, team: nextTeam });
+      await saveStore(supabase, rowId, { ...effectiveStore, team: nextTeam });
       await upsertCrmTeamMember(supabase, scope, provisioned.member);
       return NextResponse.json({
         success: true,
@@ -302,7 +323,7 @@ export async function POST(request: NextRequest) {
       const nextTeam = team.map((member) =>
         member.id === id ? { ...member, status, loginEnabled: status === 'active' } : member
       );
-      await saveStore(supabase, rowId, { ...store, team: nextTeam });
+      await saveStore(supabase, rowId, { ...effectiveStore, team: nextTeam });
       const changed = nextTeam.find((member) => member.id === id);
       if (changed) await upsertCrmTeamMember(supabase, scope, changed);
       return NextResponse.json({ success: true, data: nextTeam, scope });
@@ -323,7 +344,7 @@ export async function POST(request: NextRequest) {
     const nextTeam = existing
       ? team.map((item) => (item.id === provisioned.member.id ? provisioned.member : item))
       : [provisioned.member, ...team];
-    await saveStore(supabase, rowId, { ...store, team: nextTeam });
+    await saveStore(supabase, rowId, { ...effectiveStore, team: nextTeam });
     await upsertCrmTeamMember(supabase, scope, provisioned.member);
     return NextResponse.json({
       success: true,

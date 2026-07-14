@@ -16,6 +16,26 @@ function jsonError(message: string, status = 400) {
 async function getStore(request: NextRequest) {
   const supabase = createAdminClient();
   const scope = await resolveCrmScope(request, supabase);
+  const emptyStore = {
+    eligibility_credits: { balance: 0, total_added: 0, total_used: 0, per_check_cost: 1 },
+    credit_transactions: [],
+    invoices: [],
+    lenders: [],
+    leads: [],
+    applications: [],
+    team: [],
+    reports: [],
+    scope: {
+      partner_id: scope.partnerId,
+      user_id: scope.userId,
+      scoped_at: new Date().toISOString(),
+    },
+  };
+
+  if (!scope.isDemo && scope.partnerId) {
+    return { supabase, rowId: '', store: emptyStore, scope };
+  }
+
   const { data, error } = await supabase
     .from('b2c_report_requests')
     .select('id,report_json')
@@ -67,6 +87,7 @@ async function saveStore(
   rowId: string,
   store: Record<string, unknown>
 ) {
+  if (!rowId) return;
   const { error } = await supabase
     .from('b2c_report_requests')
     .update({ report_json: store, updated_at: new Date().toISOString() })
@@ -135,7 +156,7 @@ export async function POST(request: NextRequest) {
     const nextLenders = existing
       ? lenders.map((item) => (item.id === lender.id ? lender : item))
       : [lender, ...lenders];
-    const nextStore = { ...store, lenders: nextLenders };
+    const nextStore = { ...effectiveStore, lenders: nextLenders };
     await saveStore(supabase, rowId, nextStore);
     await upsertCrmLender(supabase, scope, lender);
     return NextResponse.json({ success: true, data: nextLenders, scope });
