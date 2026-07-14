@@ -41,15 +41,6 @@ export default function SignUpLoginContent() {
       return;
     }
 
-    if (result.user.role === 'partner' && result.user.productAccess === 'bureau_portal') {
-      await logout('/crm/sign-up-login-screen');
-      setIsLoading(false);
-      loginForm.setError('email', {
-        message: 'This account is enabled for Bureau Portal, not CreditTrust CRM.',
-      });
-      return;
-    }
-
     try {
       const response = await crmFetch('/api/crm/me', { cache: 'no-store' });
       const json = await response.json();
