@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import { CrmPermissionKey, rolePermissions } from '@/lib/crm/team';
 import { crmFetch } from '@/lib/crm/api';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ interface AppLayoutProps {
 export default function AppLayout({ children }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { logout } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
@@ -107,6 +109,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
     );
   }
 
+  const handleLogout = async () => {
+    window.localStorage.removeItem('crm_current_user');
+    await logout('/crm/sign-up-login-screen');
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Mobile overlay */}
@@ -177,6 +184,27 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">{currentUser.role}</p>
               </div>
+              <button
+                onClick={handleLogout}
+                className="ml-1 flex h-8 w-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
+                aria-label="Logout"
+                title="Logout"
+              >
+                <svg
+                  width="17"
+                  height="17"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
             </div>
           </div>
         </header>
