@@ -9,6 +9,7 @@ import AdminGuard from '@/components/AdminGuard';
 import { InvoiceProvider } from '@/context/InvoiceContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Toaster } from 'sonner';
+import GoogleAnalytics from '@/components/GoogleAnalytics';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -35,6 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-background text-foreground antialiased">
+        <GoogleAnalytics />
         <ErrorBoundary label="App Root">
           <AuthProvider>
             <AdminGuard>

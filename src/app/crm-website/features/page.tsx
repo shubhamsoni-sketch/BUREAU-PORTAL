@@ -8,19 +8,25 @@ import LenderWorkflowSection from './components/LenderWorkflowSection';
 import TeamManagementSection from './components/TeamManagementSection';
 import CreditsAccountingSection from './components/CreditsAccountingSection';
 import FeaturesCta from './components/FeaturesCta';
+import { featuresMetadata, featuresSchemas, JsonLd } from '../seo';
+
+export const metadata = featuresMetadata;
 
 export default function FeaturesPage() {
   return (
-    <main className="min-h-screen bg-background">
-      <Header />
-      <FeaturesHero />
-      <EligibilitySection />
-      <LeadFileSection />
-      <LenderWorkflowSection />
-      <TeamManagementSection />
-      <CreditsAccountingSection />
-      <FeaturesCta />
-      <Footer />
-    </main>
+    <>
+      <JsonLd data={featuresSchemas} />
+      <main className="min-h-screen bg-background">
+        <Header />
+        <FeaturesHero />
+        <EligibilitySection />
+        <LeadFileSection />
+        <LenderWorkflowSection />
+        <TeamManagementSection />
+        <CreditsAccountingSection />
+        <FeaturesCta />
+        <Footer />
+      </main>
+    </>
   );
 }

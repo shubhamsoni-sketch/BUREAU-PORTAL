@@ -6,17 +6,23 @@ import AboutMission from './components/AboutMission';
 import TrustSection from './components/TrustSection';
 import AboutStats from './components/AboutStats';
 import AboutCta from './components/AboutCta';
+import { aboutMetadata, aboutSchemas, JsonLd } from '../seo';
+
+export const metadata = aboutMetadata;
 
 export default function AboutPage() {
   return (
-    <main className="min-h-screen bg-background">
-      <Header />
-      <AboutHero />
-      <AboutStats />
-      <AboutMission />
-      <TrustSection />
-      <AboutCta />
-      <Footer />
-    </main>
+    <>
+      <JsonLd data={aboutSchemas} />
+      <main className="min-h-screen bg-background">
+        <Header />
+        <AboutHero />
+        <AboutStats />
+        <AboutMission />
+        <TrustSection />
+        <AboutCta />
+        <Footer />
+      </main>
+    </>
   );
 }

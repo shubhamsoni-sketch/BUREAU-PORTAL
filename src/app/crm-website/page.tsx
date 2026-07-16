@@ -7,18 +7,24 @@ import ProblemSection from './components/ProblemSection';
 import SolutionSection from './components/SolutionSection';
 import FeaturesBento from './components/FeaturesBento';
 import CtaBand from './components/CtaBand';
+import { homeMetadata, homeSchemas, JsonLd } from './seo';
+
+export const metadata = homeMetadata;
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-background">
-      <Header />
-      <HeroSection />
-      <TrustStrip />
-      <ProblemSection />
-      <SolutionSection />
-      <FeaturesBento />
-      <CtaBand />
-      <Footer />
-    </main>
+    <>
+      <JsonLd data={homeSchemas} />
+      <main className="min-h-screen bg-background">
+        <Header />
+        <HeroSection />
+        <TrustStrip />
+        <ProblemSection />
+        <SolutionSection />
+        <FeaturesBento />
+        <CtaBand />
+        <Footer />
+      </main>
+    </>
   );
 }
