@@ -16,6 +16,8 @@ const leadVolumes = ['< 20 leads/month', '20–50 leads/month', '50–100 leads/
 export default function ContactForm() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
   const [form, setForm] = useState({
     fullName: '', mobile: '', businessName: '', city: '',
     teamSize: '', leadVolume: '', message: '',
@@ -31,9 +33,32 @@ export default function ContactForm() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setSubmitting(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/crm-demo-enquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          loanProducts: selectedProducts,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Unable to submit demo request.');
+      }
+
+      setSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to submit demo request.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -178,11 +203,16 @@ export default function ContactForm() {
 
         <button
           type="submit"
+          disabled={submitting}
           className="w-full h-12 bg-primary text-white font-bold text-base rounded-lg hover:bg-accent transition-colors duration-200 flex items-center justify-center gap-2"
         >
-          Book My Demo
+          {submitting ? 'Sending Request...' : 'Book My Demo'}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
+
+        {error && (
+          <p className="text-sm font-semibold text-red-600 text-center">{error}</p>
+        )}
 
         <p className="text-xs text-center text-muted-foreground">
           By submitting, you agree to our{' '}

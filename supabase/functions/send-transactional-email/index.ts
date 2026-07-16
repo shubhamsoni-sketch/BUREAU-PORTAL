@@ -30,6 +30,23 @@ function fallbackHtml(templateAlias: string, variables: Record<string, unknown>)
     `;
   }
 
+  if (templateAlias === "crm-demo-enquiry") {
+    return `
+      <h2>New CRM Demo Enquiry</h2>
+      <p>A new CRM demo request has been submitted on CreditTrust.</p>
+      <p><b>Name:</b> ${escapeHtml(variables.full_name)}</p>
+      <p><b>Mobile:</b> ${escapeHtml(variables.mobile)}</p>
+      <p><b>Business / DSA Name:</b> ${escapeHtml(variables.business_name)}</p>
+      <p><b>City:</b> ${escapeHtml(variables.city)}</p>
+      <p><b>Team Size:</b> ${escapeHtml(variables.team_size)}</p>
+      <p><b>Monthly Lead Volume:</b> ${escapeHtml(variables.lead_volume)}</p>
+      <p><b>Loan Products:</b> ${escapeHtml(variables.loan_products)}</p>
+      <p><b>Message:</b> ${escapeHtml(variables.message)}</p>
+      <p><b>Submitted At:</b> ${escapeHtml(variables.submitted_at)}</p>
+      <p><b>Source:</b> ${escapeHtml(variables.source)}</p>
+    `;
+  }
+
   if (templateAlias === "low-wallet-balance-alert") {
     return `
       <h2>Low Wallet Balance</h2>
