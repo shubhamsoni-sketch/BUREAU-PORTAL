@@ -62,7 +62,7 @@ export default function Header() {
         {/* Desktop CTAs */}
         <div className="hidden md:flex items-center gap-3">
           <a
-            href="https://crm.credittrust.in/crm/sign-up-login-screen"
+            href="https://crm.credittrust.in"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm font-semibold text-primary hover:text-accent transition-colors px-4 py-2"

@@ -4,7 +4,7 @@ type SupabaseLike = {
   from: (table: string) => any;
 };
 
-const PORTAL_LINK = 'https://credittrust.in/partner-login';
+const PORTAL_LINK = 'https://portal.credittrust.in/partner-login';
 const LOW_BALANCE_THRESHOLD = Number(process.env.LOW_WALLET_BALANCE_THRESHOLD ?? 500);
 const LOW_BALANCE_COOLDOWN_HOURS = Number(process.env.LOW_WALLET_BALANCE_COOLDOWN_HOURS ?? 24);
 

@@ -186,7 +186,7 @@ export default function ContactForm() {
 
         <p className="text-xs text-center text-muted-foreground">
           By submitting, you agree to our{' '}
-          <a href="https://credittrust.in/privacy-policy" className="text-accent hover:underline">Privacy Policy</a>.
+          <a href="https://portal.credittrust.in/privacy-policy" className="text-accent hover:underline">Privacy Policy</a>.
           We will never share your data with third parties.
         </p>
       </form>

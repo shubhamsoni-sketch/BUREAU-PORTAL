@@ -178,9 +178,9 @@ export async function POST(request: NextRequest) {
           partnerName: partnerRequest.name,
           partnerEmail: partnerRequest.email,
           tempPassword: password,
-          loginUrl: process.env.NEXT_PUBLIC_APP_URL
-            ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/partner-login`
-            : 'https://credittrust.in/partner-login',
+          loginUrl: process.env.NEXT_PUBLIC_PORTAL_URL
+            ? `${process.env.NEXT_PUBLIC_PORTAL_URL.replace(/\/$/, '')}/partner-login`
+            : 'https://portal.credittrust.in/partner-login',
         }),
       });
     } catch (emailErr) {

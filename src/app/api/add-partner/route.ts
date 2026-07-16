@@ -201,9 +201,9 @@ export async function POST(request: NextRequest) {
 
     // Send credentials email via Resend edge function (non-blocking — don't fail if email fails)
     try {
-      const loginUrl = process.env.NEXT_PUBLIC_APP_URL
-        ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/partner-login`
-        : 'https://credittrust.in/partner-login';
+      const loginUrl = process.env.NEXT_PUBLIC_PORTAL_URL
+        ? `${process.env.NEXT_PUBLIC_PORTAL_URL.replace(/\/$/, '')}/partner-login`
+        : 'https://portal.credittrust.in/partner-login';
       const mailResponse = await fetch(
         `${supabaseUrl}/functions/v1/send-partner-credentials`,
         {
