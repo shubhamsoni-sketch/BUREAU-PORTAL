@@ -18,7 +18,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (isCrmHost && pathname === '/') {
-    return NextResponse.rewrite(new URL('/crm-website/index.html', request.url));
+    return NextResponse.rewrite(new URL('/crm-website', request.url));
   }
 
   if (isCrmHost && pathname === '/login') {
@@ -32,7 +32,7 @@ export function middleware(request: NextRequest) {
     !pathname.startsWith('/crm') &&
     !pathname.startsWith('/crm-website')
   ) {
-    return NextResponse.rewrite(new URL('/crm-website/index.html', request.url));
+    return NextResponse.rewrite(new URL(`/crm-website${pathname}`, request.url));
   }
 
   return NextResponse.next();

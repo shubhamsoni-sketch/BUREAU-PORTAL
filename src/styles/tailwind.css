@@ -448,3 +448,119 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.crm-marketing {
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --primary: 212 69% 19%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 195 42% 94%;
+  --secondary-foreground: 212 69% 19%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 178 84% 35%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 178 84% 35%;
+  --radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.crm-marketing .text-hero-xl {
+  font-size: clamp(2rem, 4.5vw, 3.5rem);
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.crm-marketing .text-hero-lg {
+  font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.crm-marketing .text-section-title {
+  font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.crm-marketing .glass-nav {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(14, 165, 160, 0.12);
+}
+
+.crm-marketing .card-shadow {
+  box-shadow: 0 1px 3px rgba(15, 45, 82, 0.06), 0 4px 16px rgba(15, 45, 82, 0.08);
+}
+
+.crm-marketing .card-shadow-lg,
+.crm-marketing .shadow-card-lg {
+  box-shadow: 0 4px 6px rgba(15, 45, 82, 0.04), 0 12px 40px rgba(15, 45, 82, 0.12);
+}
+
+.crm-marketing .dashboard-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 45, 82, 0.06);
+}
+
+.crm-marketing .status-dot-green,
+.crm-marketing .status-dot-amber,
+.crm-marketing .status-dot-blue {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+}
+
+.crm-marketing .status-dot-green {
+  background: #10b981;
+  animation: pulse-green 2s infinite;
+}
+
+.crm-marketing .status-dot-amber {
+  background: #f59e0b;
+}
+
+.crm-marketing .status-dot-blue {
+  background: #3b82f6;
+}
+
+.crm-marketing .gradient-teal-navy {
+  background: linear-gradient(135deg, #0ea5a0 0%, #0f2d52 100%);
+}
+
+.crm-marketing .gradient-hero-bg {
+  background: linear-gradient(160deg, #ebf8f8 0%, #f0f7ff 40%, #f8fafc 100%);
+}
+
+.crm-marketing .section-reveal,
+.crm-marketing .stagger-child {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.crm-marketing .feature-card-hover {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.crm-marketing .feature-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(14, 165, 160, 0.15), 0 2px 8px rgba(15, 45, 82, 0.08);
+}
+
+.crm-marketing .blob-accent {
+  background: radial-gradient(circle, rgba(14, 165, 160, 0.12) 0%, transparent 70%);
+  filter: blur(40px);
+}
+
+.crm-marketing .pipeline-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #0ea5a0, #3b82f6);
+}
