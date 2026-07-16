@@ -18,11 +18,21 @@ export function middleware(request: NextRequest) {
   }
 
   if (isCrmHost && pathname === '/') {
-    return NextResponse.rewrite(new URL('/crm', request.url));
+    return NextResponse.rewrite(new URL('/crm-website/index.html', request.url));
   }
 
-  if (isCrmHost && !isAsset && !isApiRoute && !pathname.startsWith('/crm')) {
-    return NextResponse.rewrite(new URL(`/crm${pathname}`, request.url));
+  if (isCrmHost && pathname === '/login') {
+    return NextResponse.rewrite(new URL('/crm/sign-up-login-screen', request.url));
+  }
+
+  if (
+    isCrmHost &&
+    !isAsset &&
+    !isApiRoute &&
+    !pathname.startsWith('/crm') &&
+    !pathname.startsWith('/crm-website')
+  ) {
+    return NextResponse.rewrite(new URL('/crm-website/index.html', request.url));
   }
 
   return NextResponse.next();
