@@ -2,8 +2,8 @@ import React from 'react';
 
 export default function ContactInfo() {
   return (
-    <div className="space-y-5">
-      <div className="bg-white border border-border rounded-xl p-5">
+    <div className="space-y-4 lg:sticky lg:top-24">
+      <div className="bg-white border border-border rounded-xl p-4">
         <h3 className="text-sm font-bold text-foreground mb-2">Contact</h3>
         <a
           href="mailto:support@credittrust.in"

@@ -76,11 +76,11 @@ export default function ContactForm() {
   };
 
   return (
-    <div className="bg-white border border-border rounded-xl p-6 md:p-8 card-shadow">
+    <div className="bg-white border border-border rounded-xl p-5 md:p-6 card-shadow">
       <h2 className="text-xl font-extrabold text-primary mb-1">Book My Demo</h2>
-      <p className="text-sm text-muted-foreground mb-6">Tell us about your business and we will set up a personalized walkthrough.</p>
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <p className="text-sm text-muted-foreground mb-4">Tell us about your business and we will set up a personalized walkthrough.</p>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div>
             <label className="block text-xs font-semibold text-foreground mb-1.5">Full Name *</label>
             <input
@@ -90,7 +90,7 @@ export default function ContactForm() {
               value={form.fullName}
               onChange={handleChange}
               placeholder="Rajesh Mehta"
-              className="w-full h-11 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
+              className="w-full h-10 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
             />
           </div>
           <div>
@@ -102,12 +102,12 @@ export default function ContactForm() {
               value={form.email}
               onChange={handleChange}
               placeholder="name@example.com"
-              className="w-full h-11 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
+              className="w-full h-10 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div>
             <label className="block text-xs font-semibold text-foreground mb-1.5">Mobile Number *</label>
             <input
@@ -117,7 +117,7 @@ export default function ContactForm() {
               value={form.mobile}
               onChange={handleChange}
               placeholder="+91 98765 43210"
-              className="w-full h-11 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
+              className="w-full h-10 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
             />
           </div>
           <div>
@@ -129,12 +129,12 @@ export default function ContactForm() {
               value={form.businessName}
               onChange={handleChange}
               placeholder="Mehta Finance Solutions"
-              className="w-full h-11 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
+              className="w-full h-10 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div>
             <label className="block text-xs font-semibold text-foreground mb-1.5">City *</label>
             <input
@@ -144,19 +144,19 @@ export default function ContactForm() {
               value={form.city}
               onChange={handleChange}
               placeholder="Mumbai"
-              className="w-full h-11 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
+              className="w-full h-10 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div>
             <label className="block text-xs font-semibold text-foreground mb-1.5">Team Size</label>
             <select
               name="teamSize"
               value={form.teamSize}
               onChange={handleChange}
-              className="w-full h-11 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
+              className="w-full h-10 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
             >
               <option value="">Select team size</option>
               {teamSizes.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -168,7 +168,7 @@ export default function ContactForm() {
               name="leadVolume"
               value={form.leadVolume}
               onChange={handleChange}
-              className="w-full h-11 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
+              className="w-full h-10 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
             >
               <option value="">Select volume</option>
               {leadVolumes.map((v) => <option key={v} value={v}>{v}</option>)}
@@ -201,16 +201,16 @@ export default function ContactForm() {
             name="message"
             value={form.message}
             onChange={handleChange}
-            rows={3}
+            rows={2}
             placeholder="Tell us about your current workflow or any specific questions..."
-            className="w-full px-3.5 py-3 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors resize-none"
+            className="w-full px-3.5 py-2.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors resize-none"
           />
         </div>
 
         <button
           type="submit"
           disabled={submitting}
-          className="w-full h-12 bg-primary text-white font-bold text-base rounded-lg hover:bg-accent transition-colors duration-200 flex items-center justify-center gap-2"
+          className="w-full h-11 bg-primary text-white font-bold text-base rounded-lg hover:bg-accent transition-colors duration-200 flex items-center justify-center gap-2"
         >
           {submitting ? 'Sending Request...' : 'Book My Demo'}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
