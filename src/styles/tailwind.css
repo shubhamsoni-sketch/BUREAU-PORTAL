@@ -475,6 +475,12 @@
   letter-spacing: 0;
 }
 
+.crm-marketing .text-hero-home {
+  font-size: clamp(2rem, 3.4vw, 2.9rem);
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
 .crm-marketing .text-hero-lg {
   font-size: clamp(1.75rem, 3.5vw, 2.75rem);
   line-height: 1.15;

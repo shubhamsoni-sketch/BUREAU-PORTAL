@@ -26,32 +26,32 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <section className="relative min-h-screen gradient-hero-bg pt-16 overflow-hidden">
+    <section className="relative gradient-hero-bg pt-14 overflow-hidden">
       {/* Subtle bg accent */}
       <div className="absolute top-20 right-0 w-96 h-96 blob-accent pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-72 h-72 blob-accent pointer-events-none" />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-16 pb-12 lg:pt-24 lg:pb-20">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-8 lg:pt-6 lg:pb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center min-h-[calc(100vh-10rem)] max-h-none lg:max-h-[720px]">
 
           {/* LEFT: Copy */}
-          <div ref={heroRef} className="lg:col-span-5 flex flex-col gap-6 section-reveal">
+          <div ref={heroRef} className="lg:col-span-6 flex flex-col gap-5 section-reveal">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 self-start bg-white border border-accent/20 px-3 py-1.5 rounded-full shadow-sm">
               <span className="status-dot-green" />
               <span className="text-xs font-semibold text-accent tracking-wide uppercase">
-                Loan CRM Software — India
+                CreditTrust CRM Platform
               </span>
             </div>
 
-            <h1 className="text-hero-xl font-extrabold text-primary leading-tight">
+            <h1 className="text-hero-home font-extrabold text-primary leading-tight max-w-[720px]">
               A modern CRM for live credit reports, eligibility checks, and loan file tracking
             </h1>
 
-            <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-lg">
+            <p className="text-base text-muted-foreground leading-relaxed max-w-xl">
               CreditTrust helps loan teams, fintech partners, and sourcing businesses manage leads, pull consent-based live credit reports, check eligibility, route files to lenders, and track performance from one workspace.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 pt-1">
               <Link
                 href="/contact"
                 className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold text-base px-7 py-3.5 rounded-lg hover:bg-accent transition-colors duration-200 shadow-card"
@@ -68,7 +68,7 @@ export default function HeroSection() {
             </div>
 
             {/* Social proof */}
-            <div className="flex items-center gap-4 pt-2 border-t border-border mt-2">
+            <div className="hidden sm:flex items-center gap-4 pt-1 border-t border-border mt-1">
               <div className="flex -space-x-2">
                 {['bg-primary', 'bg-accent', 'bg-blue-500', 'bg-amber-500']?.map((c, i) => (
                   <div key={i} className={`w-8 h-8 rounded-full border-2 border-white ${c} flex items-center justify-center text-white text-xs font-bold`}>
@@ -84,9 +84,9 @@ export default function HeroSection() {
           </div>
 
           {/* RIGHT: Dashboard Mockup */}
-          <div className="lg:col-span-7 relative">
+          <div className="lg:col-span-6 relative">
             {/* Main Dashboard Card */}
-            <div className="dashboard-card rounded-xl overflow-hidden card-shadow-lg float-animation">
+            <div className="dashboard-card rounded-xl overflow-hidden card-shadow-lg float-animation lg:scale-[0.9] lg:origin-center">
               {/* Dashboard Header */}
               <div className="bg-primary px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -103,7 +103,7 @@ export default function HeroSection() {
                 </div>
               </div>
 
-              <div className="p-4 bg-muted/40">
+              <div className="p-3 bg-muted/40">
                 {/* Top Stats Row */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                   {[
@@ -112,7 +112,7 @@ export default function HeroSection() {
                     { label: 'Lender Matches', value: '12', icon: '🏦', trend: '+2', color: 'text-blue-600' },
                     { label: 'Credit Balance', value: '142', icon: '◈', trend: '', color: 'text-amber-600' },
                   ]?.map((stat) => (
-                    <div key={stat?.label} className="dashboard-card p-3 rounded-lg">
+                    <div key={stat?.label} className="dashboard-card p-2.5 rounded-lg">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs text-muted-foreground">{stat?.label}</span>
                         <span className="text-base">{stat?.icon}</span>
@@ -170,7 +170,7 @@ export default function HeroSection() {
                 </div>
 
                 {/* Agent Performance Row */}
-                <div className="dashboard-card p-3 rounded-lg mt-3">
+                <div className="dashboard-card p-3 rounded-lg mt-3 hidden xl:block">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-semibold text-foreground">Agent Performance — July 2026</span>
                     <span className="text-xs text-muted-foreground">4 agents</span>
@@ -196,7 +196,7 @@ export default function HeroSection() {
             </div>
 
             {/* Floating Card: Eligibility Check */}
-            <div className="absolute -left-4 lg:-left-8 top-1/3 dashboard-card p-3 rounded-xl shadow-card-lg float-animation-delayed w-44 hidden sm:block">
+            <div className="absolute -left-4 lg:-left-3 top-1/3 dashboard-card p-3 rounded-xl shadow-card-lg float-animation-delayed w-44 hidden xl:block">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0EA5A0" strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -216,7 +216,7 @@ export default function HeroSection() {
             </div>
 
             {/* Floating Card: New Lead */}
-            <div className="absolute -right-4 lg:-right-6 bottom-16 dashboard-card p-3 rounded-xl shadow-card-lg w-40 hidden sm:block" style={{ animation: 'float-card 5s ease-in-out infinite', animationDelay: '0.8s' }}>
+            <div className="absolute -right-4 lg:-right-2 bottom-16 dashboard-card p-3 rounded-xl shadow-card-lg w-40 hidden xl:block" style={{ animation: 'float-card 5s ease-in-out infinite', animationDelay: '0.8s' }}>
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="status-dot-green" />
                 <span className="text-xs font-semibold text-foreground">New Lead</span>
