@@ -54,7 +54,7 @@ export default function EligibilityBenefits() {
             Why It Matters
           </span>
           <h2 className="text-section-title font-extrabold text-primary mb-4">
-            What eligibility intelligence does for your DSA business.
+            What eligibility intelligence does for your loan workflow.
           </h2>
         </div>
 
@@ -81,7 +81,7 @@ export default function EligibilityBenefits() {
             Important: CreditTrust is not a bureau or CIBIL resale portal.
           </p>
           <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-            Our eligibility intelligence is a consent-based customer profile assessment tool built for DSA operational workflows. It is designed to help loan agents make informed decisions — not to resell credit reports.
+            Our eligibility intelligence is a consent-based customer profile assessment tool built for loan and credit workflows. It is designed to help teams make informed decisions — not to resell credit reports.
           </p>
         </div>
       </div>

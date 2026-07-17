@@ -4,14 +4,14 @@ import type { ReactNode } from 'react';
 export const metadata: Metadata = {
   metadataBase: new URL('https://credittrust.in'),
   title: {
-    default: 'CreditTrust DSA CRM - Loan Lead & File Management',
+    default: 'CreditTrust CRM - Loan Lead & File Management',
     template: '%s',
   },
   description:
-    'CreditTrust DSA CRM helps loan agents, DSAs, and channel partners manage leads, check customer eligibility, route files to lenders, and track team performance from one modern dashboard.',
+    'CreditTrust CRM helps loan teams, fintech partners, and sourcing businesses manage leads, check customer eligibility, route files to lenders, and track team performance from one modern dashboard.',
   openGraph: {
-    title: 'CreditTrust DSA CRM',
-    description: 'Loan lead management, eligibility checking, and file routing for DSAs',
+    title: 'CreditTrust CRM',
+    description: 'Loan lead management, eligibility checking, and file routing for loan teams',
     url: 'https://credittrust.in',
     siteName: 'CreditTrust',
     type: 'website',
@@ -20,14 +20,14 @@ export const metadata: Metadata = {
         url: '/assets/images/app_logo.png',
         width: 1200,
         height: 630,
-        alt: 'CreditTrust DSA CRM Platform',
+        alt: 'CreditTrust CRM Platform',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CreditTrust DSA CRM',
-    description: 'Loan lead management, eligibility checking, and file routing for DSAs',
+    title: 'CreditTrust CRM',
+    description: 'Loan lead management, eligibility checking, and file routing for loan teams',
     images: ['/assets/images/app_logo.png'],
   },
 };

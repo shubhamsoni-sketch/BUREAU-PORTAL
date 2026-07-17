@@ -73,7 +73,7 @@ export default function TeamManagementSection() {
               Give every agent the right access and track performance.
             </h2>
             <p className="text-base text-muted-foreground mb-6 leading-relaxed">
-              Whether you run a 2-person team or a 20-agent DSA office, CreditTrust gives every member the right level of access — and gives owners full visibility.
+              Whether you run a 2-person team or a 20-agent loan team, CreditTrust gives every member the right level of access — and gives owners full visibility.
             </p>
             <div className="space-y-3 mb-6">
               {[

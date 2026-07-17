@@ -39,16 +39,16 @@ export default function HeroSection() {
             <div className="inline-flex items-center gap-2 self-start bg-white border border-accent/20 px-3 py-1.5 rounded-full shadow-sm">
               <span className="status-dot-green" />
               <span className="text-xs font-semibold text-accent tracking-wide uppercase">
-                DSA CRM Software — India
+                Loan CRM Software — India
               </span>
             </div>
 
             <h1 className="text-hero-xl font-extrabold text-primary leading-tight">
-              DSA CRM built for faster loan eligibility, lead tracking, and file movement
+              A modern CRM for live credit reports, eligibility checks, and loan file tracking
             </h1>
 
             <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-lg">
-              CreditTrust helps DSAs and loan teams manage leads, check customer fit, route files to suitable lenders, track follow-ups, and monitor business performance from one modern CRM.
+              CreditTrust helps loan teams, fintech partners, and sourcing businesses manage leads, pull consent-based live credit reports, check eligibility, route files to lenders, and track performance from one workspace.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
@@ -77,7 +77,7 @@ export default function HeroSection() {
                 ))}
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">2,400+ loan agents</p>
+                <p className="text-sm font-semibold text-foreground">2,400+ loan professionals</p>
                 <p className="text-xs text-muted-foreground">managing leads on CreditTrust</p>
               </div>
             </div>

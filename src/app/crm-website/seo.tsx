@@ -11,7 +11,7 @@ const organizationSchema: Schema = {
   name: 'CreditTrust',
   url: siteUrl,
   logo: `${siteUrl}${ogImage}`,
-  description: 'DSA CRM software for loan lead management and eligibility checking',
+  description: 'Credit CRM software for live credit reports, eligibility checks, and loan file tracking',
   sameAs: [],
 };
 
@@ -36,8 +36,8 @@ function webPageSchema(name: string, path: string, description: string): Schema 
 const softwareApplicationSchema: Schema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'CreditTrust DSA CRM',
-  description: 'DSA CRM software for loan lead management, eligibility checking, and lender routing',
+  name: 'CreditTrust CRM',
+  description: 'Credit CRM software for loan lead management, live credit reports, eligibility checking, and lender routing',
   url: siteUrl,
   applicationCategory: 'BusinessApplication',
   offers: {
@@ -103,116 +103,116 @@ export function JsonLd({ data }: { data: Schema | Schema[] }) {
 }
 
 export const homeMetadata = createCrmMetadata({
-  title: 'DSA CRM Software India - Loan Agent CRM & Lead Management | CreditTrust',
+  title: 'Loan CRM Software India - Live Credit Reports & File Tracking | CreditTrust',
   description:
-    "CreditTrust is India's leading DSA CRM software for loan agents and channel partners. Manage loan leads, check customer eligibility, route files to lenders, and track team performance - all from one modern loan distribution CRM.",
+    "CreditTrust is a modern CRM for loan teams, fintech partners, and sourcing businesses. Manage leads, pull consent-based live credit reports, check eligibility, route files to lenders, and track performance from one workspace.",
   keywords: [
-    'DSA CRM software India',
-    'loan agent CRM',
-    'DSA management software',
+    'loan CRM software India',
+    'loan team CRM',
+    'credit workflow management software',
     'loan distribution CRM',
-    'CRM for loan agents India',
-    'DSA software',
+    'CRM for loan teams India',
+    'loan sourcing software',
     'loan lead management CRM',
   ],
-  imageAlt: 'CreditTrust DSA CRM Platform',
+  imageAlt: 'CreditTrust CRM Platform',
 });
 
 export const aboutMetadata = createCrmMetadata({
-  title: 'About CreditTrust - Best CRM for DSA India | Trusted Loan Distribution Software',
+  title: 'About CreditTrust - Modern Loan CRM & Credit Workflow Software',
   description:
-    'CreditTrust is the best CRM for DSA India - built for loan agents, channel partners, and DSA businesses. Trusted loan distribution software designed for Indian loan workflows.',
+    'CreditTrust is built for loan teams, fintech partners, channel partners, and sourcing businesses. Trusted loan distribution software designed for Indian credit workflows.',
   keywords: [
-    'CreditTrust DSA CRM',
-    'best CRM for DSA India',
+    'CreditTrust CRM',
+    'best loan CRM India',
     'trusted loan distribution software',
-    'DSA CRM India',
-    'loan agent CRM India',
+    'loan CRM India',
+    'loan team CRM India',
     'channel partner CRM',
   ],
   path: '/about',
-  imageAlt: 'About CreditTrust DSA CRM',
+  imageAlt: 'About CreditTrust CRM',
 });
 
 export const contactMetadata = createCrmMetadata({
-  title: 'Book a Free DSA CRM Demo - Loan CRM India | CreditTrust',
+  title: 'Book a Free Loan CRM Demo - CreditTrust',
   description:
-    "Book a free demo of CreditTrust DSA CRM - India's loan CRM for agents and channel partners. See how our loan distribution software works for your DSA business. Our team responds within 24 hours.",
+    "Book a free demo of CreditTrust CRM for loan teams, fintech partners, and sourcing businesses. See live credit reports, eligibility checks, and loan file tracking in one workspace.",
   keywords: [
-    'DSA CRM free demo',
+    'loan CRM free demo',
     'book demo loan CRM India',
     'CreditTrust demo request',
     'loan CRM demo India',
-    'DSA software demo',
-    'loan agent CRM demo',
+    'loan sourcing software demo',
+    'loan team CRM demo',
   ],
   path: '/contact',
-  imageAlt: 'Book CreditTrust DSA CRM Demo',
+  imageAlt: 'Book CreditTrust CRM Demo',
 });
 
 export const eligibilityMetadata = createCrmMetadata({
-  title: 'Loan Eligibility Checker for DSA - CIBIL Check & Customer Intelligence | CreditTrust',
+  title: 'Loan Eligibility Checker - Live Credit Reports & Customer Intelligence | CreditTrust',
   description:
-    'CreditTrust loan eligibility checker for DSA helps agents run CIBIL checks, download CIBIL reports, calculate FOIR, and check loan eligibility CIBIL score before routing files to lenders. Smarter customer eligibility intelligence for DSA teams.',
+    'CreditTrust eligibility checker helps loan teams pull consent-based live credit reports, review customer profile strength, and check eligibility before routing files to lenders.',
   keywords: [
-    'loan eligibility checker for DSA',
+    'loan eligibility checker',
     'customer eligibility intelligence',
-    'FOIR calculator DSA',
+    'FOIR calculator',
     'loan eligibility check tool India',
-    'CIBIL check for DSA',
+    'live credit report check',
     'download CIBIL report',
     'loan eligibility CIBIL score',
-    'CIBIL score check DSA',
-    'eligibility check loan agent',
-    'lender matching DSA',
+    'credit score check',
+    'eligibility check for loan teams',
+    'lender matching software',
   ],
   path: '/eligibility-checker',
-  imageAlt: 'CreditTrust Loan Eligibility Checker for DSA',
+  imageAlt: 'CreditTrust Loan Eligibility Checker',
 });
 
 export const featuresMetadata = createCrmMetadata({
   title: 'Loan CRM Features - Lead Management, Eligibility & Lender Routing | CreditTrust',
   description:
-    'Explore CreditTrust loan CRM features built for DSA teams: lead management for DSA, loan file tracking software, FOIR-based eligibility checking, lender routing, team management, and credit accounting.',
+    'Explore CreditTrust loan CRM features built for loan teams and fintech partners: lead management, loan file tracking, live credit report workflows, eligibility checking, lender routing, team management, and credit accounting.',
   keywords: [
     'loan CRM features',
-    'CRM for loan agents',
-    'lead management for DSA',
+    'CRM for loan teams',
+    'lead management for loan teams',
     'loan file tracking software',
-    'DSA lead tracking',
+    'loan lead tracking',
     'loan pipeline management',
-    'lender routing software DSA',
-    'DSA team management software',
+    'lender routing software',
+    'team management software',
   ],
   path: '/features',
   imageAlt: 'CreditTrust Loan CRM Features',
 });
 
 export const pricingMetadata = createCrmMetadata({
-  title: 'DSA CRM Pricing - Affordable Loan CRM Software Plans India | CreditTrust',
+  title: 'Loan CRM Pricing - Credit Workflow Software Plans India | CreditTrust',
   description:
-    'Transparent DSA CRM pricing for every team size. Affordable loan CRM software cost India - customized plans based on agents, modules, and eligibility credit usage. Book a demo for your DSA software quote.',
+    'Transparent loan CRM pricing for every team size. Plans are customized based on users, modules, live credit report usage, eligibility credits, and workflow requirements.',
   keywords: [
-    'DSA CRM pricing',
+    'loan CRM pricing',
     'loan CRM software cost India',
-    'affordable CRM for loan agents',
-    'DSA software plans',
+    'affordable CRM for loan teams',
+    'loan sourcing software plans',
     'loan CRM India pricing',
-    'DSA CRM plans',
+    'credit CRM plans',
   ],
   path: '/pricing',
-  imageAlt: 'CreditTrust DSA CRM Pricing',
+  imageAlt: 'CreditTrust CRM Pricing',
 });
 
 export const homeSchemas = [
   organizationSchema,
-  webPageSchema('CreditTrust DSA CRM', '/', 'Loan lead management, eligibility checking, and file routing for DSAs'),
+  webPageSchema('CreditTrust CRM', '/', 'Loan lead management, eligibility checking, and file routing for loan teams'),
   softwareApplicationSchema,
 ];
 
 export const aboutSchemas = [
   organizationSchema,
-  webPageSchema('About CreditTrust', '/about', 'Learn about CreditTrust DSA CRM'),
+  webPageSchema('About CreditTrust', '/about', 'Learn about CreditTrust CRM'),
 ];
 
 export const contactSchemas = [
@@ -245,21 +245,21 @@ export const eligibilitySchemas = [
 
 export const featuresSchemas = [
   organizationSchema,
-  webPageSchema('CreditTrust Features', '/features', 'Complete feature set for DSA loan management'),
+  webPageSchema('CreditTrust Features', '/features', 'Complete feature set for loan lead management, eligibility checks, and file tracking'),
   softwareApplicationSchema,
 ];
 
 export const pricingSchemas = [
   organizationSchema,
-  webPageSchema('CreditTrust Pricing', '/pricing', 'Pricing plans for DSA CRM software'),
+  webPageSchema('CreditTrust Pricing', '/pricing', 'Pricing plans for loan CRM and credit workflow software'),
   {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
     mainEntity: [
       { '@type': 'Question', name: 'What are eligibility credits?', acceptedAnswer: { '@type': 'Answer', text: 'Eligibility credits are used when you run a consent-based customer profile check through CreditTrust. Each check uses 1 credit. Credits are purchased in packs and managed by the admin. Usage is tracked per agent with a full audit trail.' } },
       { '@type': 'Question', name: 'Can I add more agents to my plan?', acceptedAnswer: { '@type': 'Answer', text: 'Yes. Each plan has a default user limit, but you can request additional agent seats. Talk to our team to get a custom quote based on your team size.' } },
-      { '@type': 'Question', name: 'Is there a free trial available?', acceptedAnswer: { '@type': 'Answer', text: 'We offer a guided demo session rather than a self-serve trial. This ensures your team gets properly onboarded and you see the features most relevant to your DSA workflow. Book a demo to get started.' } },
-      { '@type': 'Question', name: 'What loan products does CreditTrust support?', acceptedAnswer: { '@type': 'Answer', text: 'CreditTrust supports all major loan products - Personal Loan, Business Loan, Home Loan, Loan Against Property, Used Car Loan, and more. Product categories can be customized for your DSA office.' } },
+      { '@type': 'Question', name: 'Is there a free trial available?', acceptedAnswer: { '@type': 'Answer', text: 'We offer a guided demo session rather than a self-serve trial. This ensures your team gets properly onboarded and you see the features most relevant to your loan workflow. Book a demo to get started.' } },
+      { '@type': 'Question', name: 'What loan products does CreditTrust support?', acceptedAnswer: { '@type': 'Answer', text: 'CreditTrust supports all major loan products - Personal Loan, Business Loan, Home Loan, Loan Against Property, Used Car Loan, and more. Product categories can be customized for your loan team.' } },
       { '@type': 'Question', name: 'How is billing handled?', acceptedAnswer: { '@type': 'Answer', text: 'Platform subscription is billed monthly or annually. Eligibility credits are billed separately per purchase. Invoices are generated automatically in the platform.' } },
       { '@type': 'Question', name: 'Is my customer data secure?', acceptedAnswer: { '@type': 'Answer', text: 'Yes. CreditTrust uses role-based access controls, consent-first workflows, and secure data handling practices. Agents can only see leads and files assigned to them. Admin has full visibility and control.' } },
     ],

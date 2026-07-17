@@ -21,16 +21,16 @@ export default function AboutMission() {
               Our Mission
             </span>
             <h2 className="text-section-title font-extrabold text-primary mb-5">
-              Giving Indian DSAs the tools to run a professional loan business.
+              Giving Indian loan teams the tools to run a professional loan business.
             </h2>
             <p className="text-base text-muted-foreground mb-5 leading-relaxed">
-              Most DSA offices in India still rely on WhatsApp groups, Excel sheets, and memory to manage their loan pipeline. CreditTrust was built to change that — not with a complicated enterprise tool, but with a clean, practical CRM that fits how DSA teams actually work.
+              Most loan teams in India still rely on WhatsApp groups, Excel sheets, and memory to manage their loan pipeline. CreditTrust was built to change that — not with a complicated enterprise tool, but with a clean, practical CRM that fits how loan teams actually work.
             </p>
             <p className="text-base text-muted-foreground mb-5 leading-relaxed">
               We focus on the complete workflow: from the first lead call to the final disbursal confirmation. Eligibility intelligence, lender routing, team management, and business reporting — all built around the real operational needs of Indian loan distribution.
             </p>
             <p className="text-base text-muted-foreground leading-relaxed">
-              CreditTrust is not a bureau portal or a CIBIL resale platform. It is a DSA CRM that uses consent-based customer assessment to help loan agents make smarter decisions — faster.
+              CreditTrust is not a bureau portal or a CIBIL resale platform. It is a loan CRM that uses consent-based customer assessment to help loan teams make smarter decisions — faster.
             </p>
           </div>
 
@@ -38,8 +38,8 @@ export default function AboutMission() {
             {[
               {
                 icon: '🎯',
-                title: 'Purpose-built for DSA operations',
-                desc: 'Every feature in CreditTrust was designed around how Indian DSA offices actually work — not adapted from a generic CRM template.',
+                title: 'Purpose-built for lending operations',
+                desc: 'Every feature in CreditTrust was designed around how Indian loan teams actually work — not adapted from a generic CRM template.',
               },
               {
                 icon: '🔒',

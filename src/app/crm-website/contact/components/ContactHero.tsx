@@ -11,7 +11,7 @@ export default function ContactHero() {
           See CreditTrust in action.
         </h1>
         <p className="text-base text-muted-foreground max-w-xl mx-auto">
-          Fill in your details and our team will reach out within 24 hours to schedule a personalized demo for your DSA business.
+          Fill in your details and our team will reach out within 24 hours to schedule a personalized demo for your loan workflow.
         </p>
       </div>
     </section>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 const plans = [
   {
     name: 'Starter',
-    tagline: 'For individual DSAs and small teams',
+    tagline: 'For individual loan teams and small teams',
     description: 'Everything you need to start managing leads and tracking files professionally.',
     features: [
       'Lead management & pipeline',
@@ -22,7 +22,7 @@ const plans = [
   },
   {
     name: 'Growth',
-    tagline: 'For growing DSA offices with multiple agents',
+    tagline: 'For growing loan teams with multiple agents',
     description: 'Full workflow coverage for teams that need lender routing, team controls, and detailed reporting.',
     features: [
       'Everything in Starter',

@@ -11,7 +11,7 @@ export default function AboutHero() {
           Built for Indian loan distribution workflows.
         </h1>
         <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
-          CreditTrust DSA CRM is designed for DSAs, agents, and channel partners who need a simple but powerful way to manage leads, files, customer eligibility, lenders, teams, and reports — all in one place.
+          CreditTrust CRM is designed for loan teams, agents, and channel partners who need a simple but powerful way to manage leads, files, customer eligibility, lenders, teams, and reports — all in one place.
         </p>
       </div>
     </section>

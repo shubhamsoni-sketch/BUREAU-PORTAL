@@ -8,10 +8,10 @@ export default function PricingHero() {
           Pricing
         </span>
         <h1 className="text-hero-lg font-extrabold text-primary mb-5">
-          Simple plans for every DSA team size.
+          Simple plans for every loan team size.
         </h1>
         <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
-          Plans are customized based on your team size, modules needed, eligibility credit usage, and workflow requirements. Book a demo to get a quote tailored to your DSA business.
+          Plans are customized based on your team size, modules needed, eligibility credit usage, and workflow requirements. Book a demo to get a quote tailored to your business.
         </p>
       </div>
     </section>

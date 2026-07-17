@@ -6,7 +6,7 @@ export default function FeaturesCta() {
     <section className="py-16 md:py-20 bg-primary">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
         <h2 className="text-section-title font-extrabold text-white mb-4">
-          See CreditTrust in action for your DSA team.
+          See CreditTrust in action for your loan team.
         </h2>
         <p className="text-base text-white/70 mb-8 max-w-xl mx-auto">
           Book a free demo and we will walk you through the complete platform — from lead capture to lender routing to team performance reports.

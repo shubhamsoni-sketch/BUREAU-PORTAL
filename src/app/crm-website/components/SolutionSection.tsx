@@ -91,7 +91,7 @@ export default function SolutionSection() {
             The Solution
           </span>
           <h2 className="text-section-title font-extrabold text-primary mb-4">
-            One CRM to manage your complete DSA workflow.
+            One CRM to manage your complete loan workflow.
           </h2>
           <p className="text-base text-muted-foreground max-w-2xl mx-auto">
             CreditTrust brings your leads, eligibility checks, lender routing, team management, and business reporting into a single clean platform.

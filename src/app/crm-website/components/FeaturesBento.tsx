@@ -28,7 +28,7 @@ export default function FeaturesBento() {
             Platform Features
           </span>
           <h2 className="text-section-title font-extrabold text-primary mb-4">
-            Everything your DSA business needs, in one place.
+            Everything your loan workflow needs, in one place.
           </h2>
           <p className="text-base text-muted-foreground max-w-xl mx-auto">
             From first lead to final disbursal — CreditTrust handles every step of the loan distribution workflow.

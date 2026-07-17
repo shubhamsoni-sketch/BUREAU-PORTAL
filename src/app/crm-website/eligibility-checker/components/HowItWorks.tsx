@@ -69,7 +69,7 @@ export default function HowItWorks() {
             From lead to lender match in 5 steps.
           </h2>
           <p className="text-base text-muted-foreground max-w-xl mx-auto">
-            The eligibility intelligence workflow is designed to be fast, consent-first, and directly integrated into your DSA CRM lead pipeline.
+            The eligibility intelligence workflow is designed to be fast, consent-first, and directly integrated into your CRM lead pipeline.
           </p>
         </div>
 

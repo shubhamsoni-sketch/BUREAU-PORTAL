@@ -15,7 +15,7 @@ export default function EligibilityHero() {
               Qualify customers before sending files to lenders.
             </h1>
             <p className="text-base sm:text-lg text-muted-foreground mb-8 leading-relaxed max-w-lg">
-              CreditTrust eligibility intelligence helps DSAs and loan agents run consent-based customer checks, understand profile strength, and make smarter lender routing decisions — before wasting time on the wrong lender.
+              CreditTrust eligibility intelligence helps loan teams and loan teams run consent-based customer checks, understand profile strength, and make smarter lender routing decisions — before wasting time on the wrong lender.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link href="/contact" className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold text-base px-7 py-3.5 rounded-lg hover:bg-accent transition-colors shadow-card">

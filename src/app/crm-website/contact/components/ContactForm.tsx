@@ -78,7 +78,7 @@ export default function ContactForm() {
   return (
     <div className="bg-white border border-border rounded-xl p-6 md:p-8 card-shadow">
       <h2 className="text-xl font-extrabold text-primary mb-1">Book My Demo</h2>
-      <p className="text-sm text-muted-foreground mb-6">Tell us about your DSA business and we will set up a personalized walkthrough.</p>
+      <p className="text-sm text-muted-foreground mb-6">Tell us about your business and we will set up a personalized walkthrough.</p>
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -121,7 +121,7 @@ export default function ContactForm() {
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-foreground mb-1.5">Business / DSA Name *</label>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">Business Name *</label>
             <input
               type="text"
               name="businessName"

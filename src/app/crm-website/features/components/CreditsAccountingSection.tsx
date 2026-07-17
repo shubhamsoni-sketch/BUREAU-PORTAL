@@ -39,7 +39,7 @@ export default function CreditsAccountingSection() {
                 'Admin approval workflow with notifications',
                 'Automatic invoice generation on approval',
                 'Credit usage statement per agent',
-                'Monthly billing summary for the DSA office',
+                'Monthly billing summary for the loan team',
               ]?.map((b) => (
                 <div key={b} className="flex items-center gap-2.5 text-sm text-muted-foreground">
                   <svg className="flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>

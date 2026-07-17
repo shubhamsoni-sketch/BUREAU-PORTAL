@@ -9,7 +9,7 @@ export default function EligibilityCta() {
           See eligibility intelligence in action.
         </h2>
         <p className="text-base text-white/70 mb-8 max-w-xl mx-auto">
-          Book a free demo and we will show you exactly how the eligibility check workflow fits into your DSA lead pipeline — from consent to lender match.
+          Book a free demo and we will show you exactly how the eligibility check workflow fits into your lead pipeline — from consent to lender match.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link

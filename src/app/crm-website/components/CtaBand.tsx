@@ -9,7 +9,7 @@ export default function CtaBand() {
           Get Started Today
         </span>
         <h2 className="text-section-title font-extrabold text-primary mb-4">
-          Ready to run your DSA business from one CRM?
+          Ready to run your loan workflow from one CRM?
         </h2>
         <p className="text-base text-muted-foreground mb-8 max-w-xl mx-auto">
           Book a free demo and see how CreditTrust can help your team manage more leads, qualify customers faster, and track every file to disbursal.

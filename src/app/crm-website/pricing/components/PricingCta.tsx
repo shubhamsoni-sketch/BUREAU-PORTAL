@@ -9,7 +9,7 @@ export default function PricingCta() {
           Not sure which plan is right for you?
         </h2>
         <p className="text-base text-muted-foreground mb-8">
-          Book a 20-minute demo and our team will recommend the right setup for your DSA office, team size, and loan product mix.
+          Book a 20-minute demo and our team will recommend the right setup for your loan team, team size, and loan product mix.
         </p>
         <Link href="/contact" className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold text-base px-8 py-3.5 rounded-lg hover:bg-accent transition-colors shadow-card">
           Book a Free Demo

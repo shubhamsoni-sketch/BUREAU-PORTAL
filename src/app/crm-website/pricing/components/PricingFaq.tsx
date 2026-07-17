@@ -12,11 +12,11 @@ const faqs = [
   },
   {
     q: 'Is there a free trial available?',
-    a: 'We offer a guided demo session rather than a self-serve trial. This ensures your team gets properly onboarded and you see the features most relevant to your DSA workflow. Book a demo to get started.',
+    a: 'We offer a guided demo session rather than a self-serve trial. This ensures your team gets properly onboarded and you see the features most relevant to your loan workflow. Book a demo to get started.',
   },
   {
     q: 'What loan products does CreditTrust support?',
-    a: 'CreditTrust supports all major loan products — Personal Loan, Business Loan, Home Loan, Loan Against Property, Used Car Loan, and more. Product categories can be customized for your DSA office.',
+    a: 'CreditTrust supports all major loan products — Personal Loan, Business Loan, Home Loan, Loan Against Property, Used Car Loan, and more. Product categories can be customized for your loan team.',
   },
   {
     q: 'How is billing handled?',

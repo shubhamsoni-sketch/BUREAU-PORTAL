@@ -58,8 +58,8 @@ const trustPoints = [
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
       </svg>
     ),
-    title: 'Built for practical DSA operations',
-    desc: 'No unnecessary complexity. CreditTrust is designed to be adopted quickly by DSA teams without heavy training.',
+    title: 'Built for practical lending operations',
+    desc: 'No unnecessary complexity. CreditTrust is designed to be adopted quickly by loan teams without heavy training.',
     color: 'bg-purple-100 text-purple-600',
   },
 ];
@@ -86,7 +86,7 @@ export default function TrustSection() {
             Trust & Security
           </span>
           <h2 className="text-section-title font-extrabold text-primary mb-4">
-            A platform your DSA team can trust.
+            A platform your loan team can trust.
           </h2>
           <p className="text-base text-muted-foreground max-w-2xl mx-auto">
             CreditTrust is built with responsible data practices at its core. Here is how we protect your business and your customers.

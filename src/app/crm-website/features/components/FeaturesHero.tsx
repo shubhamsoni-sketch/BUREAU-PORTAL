@@ -9,10 +9,10 @@ export default function FeaturesHero() {
           Platform Features
         </span>
         <h1 className="text-hero-lg font-extrabold text-primary mb-5">
-          Every feature your DSA team needs to close more loans.
+          Every feature your loan team needs to close more loans.
         </h1>
         <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-          CreditTrust DSA CRM covers the complete loan distribution workflow — from lead capture to disbursal tracking, eligibility intelligence to lender routing, team management to business reporting.
+          CreditTrust CRM covers the complete loan distribution workflow — from lead capture to disbursal tracking, eligibility intelligence to lender routing, team management to business reporting.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link href="/contact" className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold text-base px-7 py-3.5 rounded-lg hover:bg-accent transition-colors">

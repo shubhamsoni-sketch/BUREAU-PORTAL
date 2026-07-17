@@ -65,7 +65,7 @@ export default function ProblemSection() {
             Loan teams lose time when leads, eligibility, lenders, and files are scattered.
           </h2>
           <p className="text-base text-muted-foreground max-w-2xl mx-auto">
-            Most DSA offices run on WhatsApp, Excel, and memory. The result is missed follow-ups, wrong lender choices, and no visibility into team performance.
+            Most loan teams run on WhatsApp, Excel, and memory. The result is missed follow-ups, wrong lender choices, and no visibility into team performance.
           </p>
         </div>
 
