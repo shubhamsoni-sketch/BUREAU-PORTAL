@@ -19,19 +19,19 @@ export default function Footer() {
             <Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">About</Link>
             <Link href="/contact" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">Contact</Link>
           </nav>
-          <a
-            href="https://credittrust.in/contact"
+          <Link
+            href="/contact"
             className="text-sm font-semibold bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:bg-accent transition-colors duration-200"
           >
             Book Demo
-          </a>
+          </Link>
         </div>
         {/* Row 2 */}
         <div className="border-t border-border pt-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">© 2026 CreditTrust. All rights reserved.</p>
           <div className="flex gap-5">
-            <a href="https://credittrust.in/privacy-policy" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">Privacy Policy</a>
-            <a href="https://credittrust.in/terms-and-conditions" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">Terms of Use</a>
+            <a href="/privacy-policy" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">Privacy Policy</a>
+            <a href="/terms-and-conditions" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">Terms of Use</a>
           </div>
         </div>
       </div>

@@ -16,8 +16,9 @@ export function middleware(request: NextRequest) {
     '/pricing',
     '/about',
     '/contact',
+    '/privacy-policy',
+    '/terms-and-conditions',
   ]);
-  const legalPaths = new Set(['/privacy-policy', '/terms-and-conditions']);
 
   if (isApiConsoleHost && pathname === '/') {
     return NextResponse.rewrite(new URL('/api-console', request.url));
@@ -47,10 +48,6 @@ export function middleware(request: NextRequest) {
 
   if (isMarketingHost && pathname.startsWith('/crm')) {
     return NextResponse.redirect(new URL(pathname, 'https://crm.credittrust.in'));
-  }
-
-  if (isMarketingHost && !isAsset && !isApiRoute && legalPaths.has(pathname)) {
-    return NextResponse.next();
   }
 
   if (isMarketingHost && !isAsset && !isApiRoute && marketingPaths.has(pathname)) {
