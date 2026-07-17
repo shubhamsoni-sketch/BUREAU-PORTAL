@@ -19,7 +19,7 @@ export default function ContactForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
-    fullName: '', mobile: '', businessName: '', city: '',
+    fullName: '', email: '', mobile: '', businessName: '', city: '',
     teamSize: '', leadVolume: '', message: '',
   });
 
@@ -69,7 +69,7 @@ export default function ContactForm() {
         </div>
         <h3 className="text-xl font-extrabold text-primary mb-2">Demo Request Submitted!</h3>
         <p className="text-sm text-muted-foreground">
-          Thank you, <strong>{form.fullName}</strong>. Our team will call you at <strong>{form.mobile}</strong> within 24 hours to schedule your personalized CreditTrust demo.
+          Thank you, <strong>{form.fullName}</strong>. We have sent a confirmation email to <strong>{form.email}</strong>. Our team will call you at <strong>{form.mobile}</strong> within 24 hours.
         </p>
       </div>
     );
@@ -94,6 +94,21 @@ export default function ContactForm() {
             />
           </div>
           <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">Email ID *</label>
+            <input
+              type="email"
+              name="email"
+              required
+              value={form.email}
+              onChange={handleChange}
+              placeholder="name@example.com"
+              className="w-full h-11 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
             <label className="block text-xs font-semibold text-foreground mb-1.5">Mobile Number *</label>
             <input
               type="tel"
@@ -105,9 +120,6 @@ export default function ContactForm() {
               className="w-full h-11 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
             />
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-foreground mb-1.5">Business / DSA Name *</label>
             <input
@@ -120,6 +132,9 @@ export default function ContactForm() {
               className="w-full h-11 px-3.5 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-foreground mb-1.5">City *</label>
             <input

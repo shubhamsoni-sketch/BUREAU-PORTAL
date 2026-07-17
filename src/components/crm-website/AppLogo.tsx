@@ -13,7 +13,7 @@ interface AppLogoProps {
 }
 
 const AppLogo = memo(function AppLogo({
-  src = '/assets/images/crm-app-logo.png',
+  src = '/assets/images/credit-trust-mark.svg',
   iconName = 'SparklesIcon',
   size = 64,
   className = '',

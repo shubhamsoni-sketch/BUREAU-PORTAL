@@ -19,12 +19,12 @@ export default function Footer() {
             <Link href="/about" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">About</Link>
             <Link href="/contact" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">Contact</Link>
           </nav>
-          <Link
-            href="/contact"
+          <a
+            href="https://credittrust.in/contact"
             className="text-sm font-semibold bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:bg-accent transition-colors duration-200"
           >
             Book Demo
-          </Link>
+          </a>
         </div>
         {/* Row 2 */}
         <div className="border-t border-border pt-5 flex flex-col sm:flex-row items-center justify-between gap-3">

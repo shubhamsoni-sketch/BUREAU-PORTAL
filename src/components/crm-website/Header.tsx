@@ -69,12 +69,12 @@ export default function Header() {
           >
             Login
           </a>
-          <Link
-            href="/contact"
+          <a
+            href="https://credittrust.in/contact"
             className="text-sm font-semibold bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:bg-accent transition-colors duration-200"
           >
             Book Demo
-          </Link>
+          </a>
         </div>
 
         {/* Mobile Menu Button */}
@@ -108,13 +108,19 @@ export default function Header() {
             </Link>
           ))}
           <div className="pt-6 flex flex-col gap-3">
-            <Link
-              href="/contact"
+            <a
+              href="https://crm.credittrust.in"
+              className="w-full text-center text-base font-bold border border-primary/20 text-primary px-6 py-3.5 rounded-lg hover:bg-primary/5 transition-colors"
+            >
+              Login
+            </a>
+            <a
+              href="https://credittrust.in/contact"
               onClick={() => setMenuOpen(false)}
               className="w-full text-center text-base font-bold bg-primary text-primary-foreground px-6 py-3.5 rounded-lg hover:bg-accent transition-colors"
             >
               Book Demo
-            </Link>
+            </a>
           </div>
         </div>
       )}

@@ -27,6 +27,7 @@ async function sendDirectDemoEmail(input: {
     <h2>New CRM Demo Enquiry</h2>
     <p>A new CRM demo request has been submitted on CreditTrust.</p>
     <p><b>Name:</b> ${escapeHtml(input.variables.full_name)}</p>
+    <p><b>Email:</b> ${escapeHtml(input.variables.email)}</p>
     <p><b>Mobile:</b> ${escapeHtml(input.variables.mobile)}</p>
     <p><b>Business / DSA Name:</b> ${escapeHtml(input.variables.business_name)}</p>
     <p><b>City:</b> ${escapeHtml(input.variables.city)}</p>
@@ -61,11 +62,52 @@ async function sendDirectDemoEmail(input: {
   return { success: true, emailId: data?.id as string | undefined };
 }
 
+async function sendCustomerThankYouEmail(input: {
+  to: string;
+  fullName: string;
+  businessName: string;
+}) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    return { success: false, error: 'RESEND_API_KEY is missing' };
+  }
+
+  const html = `
+    <h2>Thank you for booking a CreditTrust demo</h2>
+    <p>Dear ${escapeHtml(input.fullName)},</p>
+    <p>We have received your demo request for ${escapeHtml(input.businessName)}.</p>
+    <p>Our team will review your details and contact you within 24 hours to schedule your personalized CreditTrust CRM walkthrough.</p>
+    <p>Regards,<br/>CreditTrust Team</p>
+  `;
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: FROM_EMAIL,
+      to: [input.to],
+      subject: 'Thank you for booking a CreditTrust CRM demo',
+      html,
+    }),
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    return { success: false, error: data?.message || 'Customer thank-you email failed' };
+  }
+
+  return { success: true, emailId: data?.id as string | undefined };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
       fullName,
+      email,
       mobile,
       businessName,
       city,
@@ -75,9 +117,9 @@ export async function POST(request: NextRequest) {
       message,
     } = body;
 
-    if (!fullName || !mobile || !businessName || !city) {
+    if (!fullName || !email || !mobile || !businessName || !city) {
       return NextResponse.json(
-        { error: 'Full name, mobile number, business name, and city are required.' },
+        { error: 'Full name, email, mobile number, business name, and city are required.' },
         { status: 400 }
       );
     }
@@ -85,6 +127,7 @@ export async function POST(request: NextRequest) {
     const submittedAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
     const variables = {
       full_name: String(fullName).trim(),
+      email: String(email).trim().toLowerCase(),
       mobile: String(mobile).trim(),
       business_name: String(businessName).trim(),
       city: String(city).trim(),
@@ -100,6 +143,7 @@ export async function POST(request: NextRequest) {
     const directResult = await sendDirectDemoEmail({
       subject,
       variables,
+      replyTo: String(email).trim().toLowerCase(),
     });
 
     const result = directResult.success ? directResult : await sendTransactionalEmail({
@@ -116,6 +160,16 @@ export async function POST(request: NextRequest) {
         { error: 'Demo request could not be sent. Please try again.' },
         { status: 502 }
       );
+    }
+
+    const thankYouResult = await sendCustomerThankYouEmail({
+      to: String(email).trim().toLowerCase(),
+      fullName: String(fullName).trim(),
+      businessName: String(businessName).trim(),
+    });
+
+    if (!thankYouResult.success) {
+      console.warn('[crm-demo-enquiry] thank-you email failed:', thankYouResult.error);
     }
 
     return NextResponse.json({ success: true }, { status: 200 });

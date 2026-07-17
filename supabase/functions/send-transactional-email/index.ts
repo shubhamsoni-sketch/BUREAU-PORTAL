@@ -35,6 +35,7 @@ function fallbackHtml(templateAlias: string, variables: Record<string, unknown>)
       <h2>New CRM Demo Enquiry</h2>
       <p>A new CRM demo request has been submitted on CreditTrust.</p>
       <p><b>Name:</b> ${escapeHtml(variables.full_name)}</p>
+      <p><b>Email:</b> ${escapeHtml(variables.email)}</p>
       <p><b>Mobile:</b> ${escapeHtml(variables.mobile)}</p>
       <p><b>Business / DSA Name:</b> ${escapeHtml(variables.business_name)}</p>
       <p><b>City:</b> ${escapeHtml(variables.city)}</p>
