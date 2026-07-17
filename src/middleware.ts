@@ -16,6 +16,8 @@ export function middleware(request: NextRequest) {
     '/pricing',
     '/about',
     '/contact',
+    '/privacy-policy',
+    '/terms-and-conditions',
   ]);
 
   if (isApiConsoleHost && pathname === '/') {

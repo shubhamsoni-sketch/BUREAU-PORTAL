@@ -30,8 +30,8 @@ export default function Footer() {
         <div className="border-t border-border pt-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">© 2026 CreditTrust. All rights reserved.</p>
           <div className="flex gap-5">
-            <a href="https://portal.credittrust.in/privacy-policy" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">Privacy Policy</a>
-            <a href="https://portal.credittrust.in/terms-and-conditions" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">Terms of Use</a>
+            <a href="https://credittrust.in/privacy-policy" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">Privacy Policy</a>
+            <a href="https://credittrust.in/terms-and-conditions" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">Terms of Use</a>
           </div>
         </div>
       </div>
