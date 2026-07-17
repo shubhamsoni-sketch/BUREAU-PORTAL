@@ -5,7 +5,7 @@ import Script from 'next/script';
 const envMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 const GA_MEASUREMENT_ID =
   !envMeasurementId || envMeasurementId === 'enter-your-value-here'
-    ? 'G-N5EQ7QV5JS'
+    ? 'G-QY5W5KEKCB'
     : envMeasurementId;
 
 export default function GoogleAnalytics() {
