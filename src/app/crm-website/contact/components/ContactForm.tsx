@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const loanProducts = [
   'Personal Loan',
@@ -12,6 +12,10 @@ const loanProducts = [
 
 const teamSizes = ['Just me', '2–5 agents', '6–15 agents', '16–30 agents', '30+ agents'];
 const leadVolumes = ['< 20 leads/month', '20–50 leads/month', '50–100 leads/month', '100–200 leads/month', '200+ leads/month'];
+const emptyForm = {
+  fullName: '', email: '', mobile: '', businessName: '', city: '',
+  teamSize: '', leadVolume: '', message: '',
+};
 
 export default function ContactForm() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -19,10 +23,17 @@ export default function ContactForm() {
   const [submitting, setSubmitting] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({
-    fullName: '', email: '', mobile: '', businessName: '', city: '',
-    teamSize: '', leadVolume: '', message: '',
-  });
+  const [form, setForm] = useState(emptyForm);
+
+  useEffect(() => {
+    if (!submitted) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setSubmitted(false);
+    }, 2600);
+
+    return () => window.clearTimeout(timer);
+  }, [submitted]);
 
   const toggleProduct = (p: string) => {
     setSelectedProducts((prev) =>
@@ -55,26 +66,14 @@ export default function ContactForm() {
       }
 
       setSubmitted(true);
+      setForm(emptyForm);
+      setSelectedProducts([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to submit demo request.');
     } finally {
       setSubmitting(false);
     }
   };
-
-  if (submitted) {
-    return (
-      <div className="bg-white border border-border rounded-xl p-8 text-center card-shadow">
-        <div className="w-14 h-14 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0EA5A0" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-        <h3 className="text-xl font-extrabold text-primary mb-2">Demo Request Submitted!</h3>
-        <p className="text-sm text-muted-foreground">
-          Thank you, <strong>{form.fullName}</strong>. We have sent a confirmation email to <strong>{form.email}</strong>. Our team will call you at <strong>{form.mobile}</strong> within 24 hours.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white border border-border rounded-xl p-6 md:p-8 card-shadow">
@@ -233,6 +232,25 @@ export default function ContactForm() {
           We will never share your data with third parties.
         </p>
       </form>
+
+      {submitted && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/35 px-4"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="w-full max-w-sm rounded-xl border border-accent/20 bg-white p-6 text-center shadow-2xl">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0EA5A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <p className="text-lg font-extrabold text-primary">
+              Demo request placed successfully
+            </p>
+          </div>
+        </div>
+      )}
 
       {showPrivacyPolicy && (
         <div
