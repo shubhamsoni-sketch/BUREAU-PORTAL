@@ -17,6 +17,7 @@ export default function ContactForm() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
     fullName: '', email: '', mobile: '', businessName: '', city: '',
@@ -222,10 +223,83 @@ export default function ContactForm() {
 
         <p className="text-xs text-center text-muted-foreground">
           By submitting, you agree to our{' '}
-          <a href="https://credittrust.in/privacy-policy" className="text-accent hover:underline">Privacy Policy</a>.
+          <button
+            type="button"
+            onClick={() => setShowPrivacyPolicy(true)}
+            className="font-semibold text-accent hover:underline"
+          >
+            Privacy Policy
+          </button>.
           We will never share your data with third parties.
         </p>
       </form>
+
+      {showPrivacyPolicy && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-4 py-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="demo-privacy-policy-title"
+        >
+          <div className="max-h-[88vh] w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <div>
+                <h3 id="demo-privacy-policy-title" className="text-lg font-extrabold text-primary">
+                  Privacy Policy
+                </h3>
+                <p className="text-xs text-muted-foreground">Last updated: 12 May 2026</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPrivacyPolicy(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:border-accent hover:text-accent"
+                aria-label="Close privacy policy"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="max-h-[68vh] overflow-y-auto px-5 py-5 text-sm leading-relaxed text-muted-foreground">
+              <p className="mb-4">
+                CreditTrust collects only the information required to respond to demo enquiries, provide CRM and financial utility services, run partner onboarding, process payments, support customers, and maintain platform security.
+              </p>
+
+              <h4 className="mb-2 font-bold text-foreground">Information we collect</h4>
+              <ul className="mb-4 list-disc space-y-1.5 pl-5">
+                <li>Name, email, mobile number, city, business name, team size, lead volume, and selected loan products submitted in this demo form.</li>
+                <li>Technical details such as IP address, browser/device information, timestamps, and basic request logs for security and support.</li>
+                <li>Partner, payment, wallet, invoice, consent, and report-related details only when you use those platform services.</li>
+              </ul>
+
+              <h4 className="mb-2 font-bold text-foreground">How we use this data</h4>
+              <ul className="mb-4 list-disc space-y-1.5 pl-5">
+                <li>To contact you about your demo request and understand your business requirements.</li>
+                <li>To provide access to CreditTrust CRM, partner portal, eligibility workflows, support, billing, and compliance operations where applicable.</li>
+                <li>To prevent misuse, detect suspicious activity, maintain audit records, and improve platform reliability.</li>
+              </ul>
+
+              <h4 className="mb-2 font-bold text-foreground">Data sharing</h4>
+              <p className="mb-4">
+                We do not sell personal data. We share data only with trusted service providers when required for email delivery, hosting, analytics, payment processing, customer support, legal compliance, fraud prevention, or the service requested by you.
+              </p>
+
+              <h4 className="mb-2 font-bold text-foreground">Consent and control</h4>
+              <p className="mb-4">
+                You may contact us to request correction, support, or deletion review of your information, subject to legal, payment, audit, fraud-prevention, and contractual retention requirements.
+              </p>
+
+              <div className="rounded-lg border border-border bg-background p-4">
+                <p className="font-semibold text-foreground">Contact</p>
+                <a href="mailto:support@credittrust.in" className="font-bold text-accent hover:underline">
+                  support@credittrust.in
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
