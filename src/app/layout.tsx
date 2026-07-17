@@ -10,6 +10,7 @@ import { InvoiceProvider } from '@/context/InvoiceContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Toaster } from 'sonner';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
+import MetaPixel from '@/components/MetaPixel';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -28,6 +29,9 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: '/apple-touch-icon.png?v=2', sizes: '180x180', type: 'image/png' }],
   },
+  other: {
+    'facebook-domain-verification': 'ea72459vl839c0mswzpv0lry3pp7ao',
+  },
 };
 
 export default function RootLayout({
@@ -37,6 +41,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-background text-foreground antialiased">
         <GoogleAnalytics />
+        <MetaPixel />
         <ErrorBoundary label="App Root">
           <AuthProvider>
             <AdminGuard>
