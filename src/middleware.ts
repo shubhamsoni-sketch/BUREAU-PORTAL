@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 export function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
   const { pathname } = request.nextUrl;
+  const normalizedPathname =
+    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
   const hostname = host.split(':')[0];
   const isApiConsoleHost = hostname === 'api.credittrust.in';
   const isCrmHost = hostname === 'crm.credittrust.in';
@@ -20,20 +22,20 @@ export function middleware(request: NextRequest) {
     '/terms-and-conditions',
   ]);
 
-  if (isApiConsoleHost && pathname === '/') {
+  if (isApiConsoleHost && normalizedPathname === '/') {
     return NextResponse.rewrite(new URL('/api-console', request.url));
   }
 
-  if (isApiConsoleHost && !isAsset && !isApiRoute && !pathname.startsWith('/api-console')) {
+  if (isApiConsoleHost && !isAsset && !isApiRoute && !normalizedPathname.startsWith('/api-console')) {
     return NextResponse.rewrite(new URL('/api-console', request.url));
   }
 
-  if (isCrmHost && (pathname === '/' || pathname === '/login')) {
+  if (isCrmHost && (normalizedPathname === '/' || normalizedPathname === '/login')) {
     return NextResponse.rewrite(new URL('/crm/sign-up-login-screen', request.url));
   }
 
-  if (isCrmHost && pathname.startsWith('/crm-website')) {
-    const marketingPath = pathname.replace(/^\/crm-website/, '') || '/';
+  if (isCrmHost && normalizedPathname.startsWith('/crm-website')) {
+    const marketingPath = normalizedPathname.replace(/^\/crm-website/, '') || '/';
     return NextResponse.redirect(new URL(marketingPath, 'https://credittrust.in'));
   }
 
@@ -41,21 +43,21 @@ export function middleware(request: NextRequest) {
     isCrmHost &&
     !isAsset &&
     !isApiRoute &&
-    !pathname.startsWith('/crm')
+    !normalizedPathname.startsWith('/crm')
   ) {
-    return NextResponse.redirect(new URL(pathname, 'https://credittrust.in'));
+    return NextResponse.redirect(new URL(normalizedPathname, 'https://credittrust.in'));
   }
 
-  if (isMarketingHost && pathname.startsWith('/crm')) {
-    return NextResponse.redirect(new URL(pathname, 'https://crm.credittrust.in'));
+  if (isMarketingHost && normalizedPathname.startsWith('/crm')) {
+    return NextResponse.redirect(new URL(normalizedPathname, 'https://crm.credittrust.in'));
   }
 
-  if (isMarketingHost && !isAsset && !isApiRoute && marketingPaths.has(pathname)) {
-    return NextResponse.rewrite(new URL(pathname === '/' ? '/crm-website' : `/crm-website${pathname}`, request.url));
+  if (isMarketingHost && !isAsset && !isApiRoute && marketingPaths.has(normalizedPathname)) {
+    return NextResponse.rewrite(new URL(normalizedPathname === '/' ? '/crm-website' : `/crm-website${normalizedPathname}`, request.url));
   }
 
-  if (isMarketingHost && !isAsset && !isApiRoute && !pathname.startsWith('/crm-website')) {
-    return NextResponse.redirect(new URL(pathname, 'https://portal.credittrust.in'));
+  if (isMarketingHost && !isAsset && !isApiRoute && !normalizedPathname.startsWith('/crm-website')) {
+    return NextResponse.redirect(new URL(normalizedPathname, 'https://portal.credittrust.in'));
   }
 
   return NextResponse.next();
