@@ -24,9 +24,9 @@ export default function GoogleAnalytics() {
       <Script id="google-analytics" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          ${GA_MEASUREMENT_IDS.map((id) => `gtag('config', '${id}');`).join('\n          ')}
+          window.gtag = window.gtag || function(){window.dataLayer.push(arguments);}
+          window.gtag('js', new Date());
+          ${GA_MEASUREMENT_IDS.map((id) => `window.gtag('config', '${id}');`).join('\n          ')}
         `}
       </Script>
     </>
