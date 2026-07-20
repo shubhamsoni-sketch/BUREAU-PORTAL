@@ -17,6 +17,13 @@ const emptyForm = {
   teamSize: '', leadVolume: '', message: '',
 };
 
+declare global {
+  interface Window {
+    gtag?: (...args: unknown[]) => void;
+    fbq?: (...args: unknown[]) => void;
+  }
+}
+
 export default function ContactForm() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
@@ -65,6 +72,15 @@ export default function ContactForm() {
         throw new Error(data?.error || 'Unable to submit demo request.');
       }
 
+      window.gtag?.('event', 'generate_lead', {
+        event_category: 'crm_demo',
+        event_label: 'book_demo_form',
+        value: 1,
+      });
+      window.fbq?.('track', 'Lead', {
+        content_name: 'CRM Demo Request',
+        content_category: 'Book Demo',
+      });
       setSubmitted(true);
       setForm(emptyForm);
       setSelectedProducts([]);
