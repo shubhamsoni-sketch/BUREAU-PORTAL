@@ -73,6 +73,7 @@ export default function ContactForm() {
       }
 
       window.gtag?.('event', 'generate_lead', {
+        send_to: ['G-QY5W5KEKCB', 'G-N5EQ7QV5JS'],
         event_category: 'crm_demo',
         event_label: 'book_demo_form',
         value: 1,
