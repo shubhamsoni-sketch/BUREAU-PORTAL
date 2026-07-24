@@ -111,6 +111,25 @@ function jsonError(message: string, status: number) {
   return NextResponse.json({ success: false, error: message }, { status });
 }
 
+function readString(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function bureauApiErrorMessage(raw: CibilLikeResponse, status: number) {
+  const message = readString(raw.message);
+  const error = readString(raw.error);
+  const nestedMessage = isRecord(raw.data) ? readString(raw.data.message) : '';
+  const nestedError = isRecord(raw.data) ? readString(raw.data.error) : '';
+
+  if (message && message.toLowerCase() !== 'internal server error') return message;
+  if (nestedMessage && nestedMessage.toLowerCase() !== 'internal server error') return nestedMessage;
+  if (error && error.toLowerCase() !== 'internal server error') return error;
+  if (nestedError && nestedError.toLowerCase() !== 'internal server error') return nestedError;
+  if (message) return message;
+  if (error) return error;
+  return `Bureau API failed with status ${status}`;
+}
+
 function safeMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
@@ -210,11 +229,7 @@ async function callLiveBureauApi(payload: Record<string, string>) {
     }
 
     if (!response.ok) {
-      const message =
-        typeof raw.error === 'string' ? raw.error :
-        typeof raw.message === 'string' ? raw.message :
-        `Bureau API failed with status ${response.status}`;
-      throw new Error(message);
+      throw new Error(bureauApiErrorMessage(raw, response.status));
     }
 
     return raw;
