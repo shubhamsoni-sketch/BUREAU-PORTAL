@@ -4,6 +4,9 @@ import { createDemoBureauResponse } from '@/lib/bureau/demo-response';
 import { getStateCode } from '@/lib/bureau/state-codes';
 import { sendLowWalletBalanceEmailIfNeeded } from '@/lib/email/wallet-events';
 
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 const DEMO_RESET_BALANCE = 100000;
 const DEMO_TOP_UP_THRESHOLD = 1000;
 const BUREAU_API_URL = process.env.BUREAU_API_URL?.trim() ?? '';
@@ -106,6 +109,10 @@ function formatMemberRefForDisplay(value: string | null) {
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ success: false, error: message }, { status });
+}
+
+function safeMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 function normalizeNamePart(value: string | undefined) {
@@ -211,6 +218,11 @@ async function callLiveBureauApi(payload: Record<string, string>) {
     }
 
     return raw;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Live bureau API timed out. Please try again.');
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -390,12 +402,16 @@ export async function POST(request: NextRequest) {
     }
 
     const newBalance = currentBalance - rate;
-    await supabase
+    const { error: partnerUpdateError } = await supabase
       .from('partners')
       .update({ wallet_balance: newBalance, updated_at: new Date().toISOString() })
       .eq('id', partner.id);
+    if (partnerUpdateError) {
+      console.error('[pull-bureau-real] partner balance update error:', partnerUpdateError);
+      return jsonError('Report fetched, but wallet update failed. Please contact support.', 500);
+    }
 
-    await supabase.from('wallet_balances').upsert(
+    const { error: walletBalanceError } = await supabase.from('wallet_balances').upsert(
       {
         partner_id: partner.id,
         balance: newBalance,
@@ -405,8 +421,12 @@ export async function POST(request: NextRequest) {
       },
       { onConflict: 'partner_id' }
     );
+    if (walletBalanceError) {
+      console.error('[pull-bureau-real] wallet balance upsert error:', walletBalanceError);
+      return jsonError('Report fetched, but wallet ledger update failed. Please contact support.', 500);
+    }
 
-    await supabase.from('wallet_transactions').insert({
+    const { error: walletTransactionError } = await supabase.from('wallet_transactions').insert({
       partner_id: partner.id,
       type: 'debit',
       amount: rate,
@@ -423,13 +443,17 @@ export async function POST(request: NextRequest) {
         report_id: reportId,
       },
     });
+    if (walletTransactionError) {
+      console.error('[pull-bureau-real] wallet transaction insert error:', walletTransactionError);
+      return jsonError('Report fetched, but wallet transaction save failed. Please contact support.', 500);
+    }
 
     const accountSummary = getAccountSummary(rawResponse);
     const inquirySummary = getInquirySummary(rawResponse);
     const employment = getEmployment(rawResponse);
     const activeTradeLines = Number(accountSummary.totalAccounts) - Number(accountSummary.zeroBalanceAccounts);
 
-    await supabase.from('bureau_pulls').insert({
+    const { error: bureauPullError } = await supabase.from('bureau_pulls').insert({
       partner_id: partner.id,
       report_type: body.report_type,
       status: 'success',
@@ -460,6 +484,10 @@ export async function POST(request: NextRequest) {
         response: rawResponse,
       },
     });
+    if (bureauPullError) {
+      console.error('[pull-bureau-real] bureau pull insert error:', bureauPullError);
+      return jsonError('Report fetched, but report history save failed. Please contact support.', 500);
+    }
 
     try {
       await sendLowWalletBalanceEmailIfNeeded({
@@ -483,7 +511,7 @@ export async function POST(request: NextRequest) {
       raw_json: rawResponse,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unexpected error';
+    const message = safeMessage(err, 'Unexpected error');
     console.error('[pull-bureau-real] unexpected error:', err);
     return jsonError(message, 500);
   }
