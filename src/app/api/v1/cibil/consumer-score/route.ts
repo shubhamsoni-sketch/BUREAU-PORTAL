@@ -15,6 +15,14 @@ type JaadugarCibilPayload = {
   pincode: string;
 };
 
+const PORTAL_DEFAULTS = {
+  dob: '2000-01-01',
+  gender: 'male',
+  address: 'CreditTrust Verified Address',
+  state: 'MADHYA PRADESH',
+  pincode: '452001',
+};
+
 function jsonError(message: string, status = 400, requestId?: string) {
   return NextResponse.json({ success: false, request_id: requestId, error: message }, { status });
 }
@@ -27,27 +35,36 @@ function digits(value: unknown) {
   return cleanString(value).replace(/\D/g, '');
 }
 
-function normalizePayload(body: Record<string, unknown>): JaadugarCibilPayload {
+function splitName(value: unknown) {
+  const parts = cleanString(value).toUpperCase().split(/\s+/).filter(Boolean);
   return {
-    firstName: cleanString(body.firstName),
-    lastName: cleanString(body.lastName),
-    dob: cleanString(body.dob || body.birthDate || body.dateOfBirth),
-    gender: cleanString(body.gender),
+    firstName: parts[0] || '',
+    lastName: parts.length > 1 ? parts[parts.length - 1] : '',
+  };
+}
+
+function normalizePayload(body: Record<string, unknown>): JaadugarCibilPayload {
+  const fullName = splitName(body.name || body.fullName || body.customerName);
+  return {
+    firstName: cleanString(body.firstName).toUpperCase() || fullName.firstName,
+    lastName: cleanString(body.lastName).toUpperCase() || fullName.lastName,
+    dob: cleanString(body.dob || body.birthDate || body.dateOfBirth) || PORTAL_DEFAULTS.dob,
+    gender: cleanString(body.gender) || PORTAL_DEFAULTS.gender,
     pan: cleanString(body.pan || body.idNumber).toUpperCase(),
     mobile: digits(body.mobile || body.telephoneNumber || body.mobile_number).slice(-10),
-    address: cleanString(body.address || body.detailed_address),
-    state: cleanString(body.state || body.stateName),
-    pincode: digits(body.pincode || body.pinCode).slice(0, 6),
+    address: cleanString(body.address || body.detailed_address) || PORTAL_DEFAULTS.address,
+    state: cleanString(body.state || body.stateName).toUpperCase() || PORTAL_DEFAULTS.state,
+    pincode: digits(body.pincode || body.pinCode).slice(0, 6) || PORTAL_DEFAULTS.pincode,
   };
 }
 
 function validatePayload(payload: JaadugarCibilPayload) {
-  const required: Array<keyof JaadugarCibilPayload> = ['firstName', 'lastName', 'dob', 'gender', 'pan', 'mobile', 'address', 'state', 'pincode'];
+  const required: Array<keyof JaadugarCibilPayload> = ['firstName', 'lastName', 'pan', 'mobile'];
   const missing = required.filter((field) => !payload[field]);
+  if (missing.includes('firstName') || missing.includes('lastName')) return 'name must include first and last name';
   if (missing.length) return `Missing required fields: ${missing.join(', ')}`;
   if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(payload.pan)) return 'pan must be a valid PAN format';
   if (!/^\d{10}$/.test(payload.mobile)) return 'mobile must be 10 digits';
-  if (!/^\d{6}$/.test(payload.pincode)) return 'pincode must be 6 digits';
   return null;
 }
 
@@ -72,14 +89,8 @@ export async function POST(request: NextRequest) {
       return jsonError('API key is not allowed for Bureau API Standard', 403, requestId);
     }
 
-    const cost = Math.max(1, Number(api.per_hit_credits || 1));
-    if (Number(client.credits || 0) < cost) return jsonError('Insufficient credits', 402, requestId);
-
     const body = await request.json();
     const payload = normalizePayload(body || {});
-    const validationError = validatePayload(payload);
-    if (validationError) return jsonError(validationError, 400, requestId);
-
     const baseLog = {
       id: crypto.randomUUID(),
       request_id: requestId,
@@ -90,6 +101,24 @@ export async function POST(request: NextRequest) {
       masked_mobile: maskMobile(payload.mobile),
       created_at: new Date().toISOString(),
     };
+
+    async function saveFailure(message: string, status = 400) {
+      store.usage = [{
+        ...baseLog,
+        status: 'failed' as const,
+        credits_deducted: 0,
+        response_time_ms: Date.now() - startedAt,
+        error_message: message,
+      }, ...store.usage].slice(0, 200);
+      await saveApiHubStore(supabase, rowId, store);
+      return jsonError(message, status, requestId);
+    }
+
+    const cost = Math.max(1, Number(api.per_hit_credits || 1));
+    if (Number(client.credits || 0) < cost) return saveFailure('Insufficient credits', 402);
+
+    const validationError = validatePayload(payload);
+    if (validationError) return saveFailure(validationError, 400);
 
     const response = await hitMasterApi(api, payload);
     const responseTime = Date.now() - startedAt;
