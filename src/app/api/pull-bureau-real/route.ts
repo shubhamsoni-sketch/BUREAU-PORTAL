@@ -13,6 +13,20 @@ const BUREAU_API_URL = process.env.BUREAU_API_URL?.trim() ?? '';
 const BUREAU_API_AUTH_TOKEN = process.env.BUREAU_API_AUTH_TOKEN?.trim() ?? '';
 const BUREAU_API_AUTH_HEADER = process.env.BUREAU_API_AUTH_HEADER?.trim() || 'x-api-key';
 const BUREAU_API_TIMEOUT_MS = Number(process.env.BUREAU_API_TIMEOUT_MS ?? 30000);
+const DEMO_CUSTOMER = {
+  firstName: 'RAHUL',
+  middleName: '',
+  lastName: 'VERMA',
+  name: 'RAHUL VERMA',
+  birthDate: '01012000',
+  gender: '2',
+  pan: 'ABCDE1234F',
+  state: 'Madhya Pradesh',
+  stateCode: '23',
+  pinCode: '452001',
+  mobile: '9876543210',
+  addressLine1: 'DEMO CUSTOMER ADDRESS',
+};
 
 type ReportType = 'consumer' | 'commercial';
 
@@ -360,29 +374,45 @@ export async function POST(request: NextRequest) {
 
     let reportId = `${isDemoPartner ? 'DEMO' : 'LIVE'}-${Date.now().toString().slice(-10)}`;
     const memberRef = generateMemberRef();
+    const reportCustomer = isDemoPartner
+      ? DEMO_CUSTOMER
+      : {
+          firstName,
+          middleName,
+          lastName,
+          name: customerName,
+          birthDate,
+          gender,
+          pan,
+          state: body.state ?? '',
+          stateCode,
+          pinCode: body.pinCode!,
+          mobile: body.telephoneNumber!,
+          addressLine1: body.addressLine1 || `${body.pinCode} ${body.state}`.trim(),
+        };
     const requestPayload = {
-      firstName,
-      middleName,
-      lastName,
-      birthDate,
-      gender,
-      idNumber: pan,
-      stateCode,
-      pinCode: body.pinCode,
-      telephoneNumber: body.telephoneNumber,
+      firstName: reportCustomer.firstName,
+      middleName: reportCustomer.middleName,
+      lastName: reportCustomer.lastName,
+      birthDate: reportCustomer.birthDate,
+      gender: reportCustomer.gender,
+      idNumber: reportCustomer.pan,
+      stateCode: reportCustomer.stateCode,
+      pinCode: reportCustomer.pinCode,
+      telephoneNumber: reportCustomer.mobile,
     };
 
     let rawResponse: CibilLikeResponse;
     let providerResponse: unknown = null;
     if (isDemoPartner) {
       rawResponse = createDemoBureauResponse({
-        name: customerName,
-        birthDate,
-        gender,
-        idNumber: pan,
-        stateCode,
-        pinCode: body.pinCode!,
-        telephoneNumber: body.telephoneNumber!,
+        name: reportCustomer.name,
+        birthDate: reportCustomer.birthDate,
+        gender: reportCustomer.gender,
+        idNumber: reportCustomer.pan,
+        stateCode: reportCustomer.stateCode,
+        pinCode: reportCustomer.pinCode,
+        telephoneNumber: reportCustomer.mobile,
         reportId,
       });
     } else {
@@ -445,7 +475,7 @@ export async function POST(request: NextRequest) {
       partner_id: partner.id,
       type: 'debit',
       amount: rate,
-      description: `${body.report_type === 'commercial' ? 'Commercial' : 'Consumer'} Bureau Pull - ${customerName}`,
+      description: `${body.report_type === 'commercial' ? 'Commercial' : 'Consumer'} Bureau Pull - ${reportCustomer.name}`,
       transaction_type: 'deduction',
       rate_snapshot: rate,
       running_balance: newBalance,
@@ -454,7 +484,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         demo: isDemoPartner,
         report_type: body.report_type,
-        customer_name: customerName,
+        customer_name: reportCustomer.name,
         report_id: reportId,
       },
     });
@@ -473,13 +503,13 @@ export async function POST(request: NextRequest) {
       report_type: body.report_type,
       status: 'success',
       member_ref: memberRef,
-      pan,
-      customer_name: customerName,
+      pan: reportCustomer.pan,
+      customer_name: reportCustomer.name,
       credit_score: result.score,
       occupation_code: String(employment.occupationCode ?? ''),
-      gender: body.gender,
-      state: body.state,
-      dob: birthDate,
+      gender: isDemoPartner ? 'Male' : body.gender,
+      state: reportCustomer.state,
+      dob: reportCustomer.birthDate,
       income: String(employment.income ?? ''),
       total_trades: Number(accountSummary.totalAccounts ?? 0),
       active_trade_lines: Number.isFinite(activeTradeLines) ? activeTradeLines : null,
@@ -524,6 +554,11 @@ export async function POST(request: NextRequest) {
       new_balance: newBalance,
       result,
       raw_json: rawResponse,
+      display_customer: {
+        name: reportCustomer.name,
+        mobile: reportCustomer.mobile,
+        pan: reportCustomer.pan,
+      },
     });
   } catch (err) {
     const message = safeMessage(err, 'Unexpected error');

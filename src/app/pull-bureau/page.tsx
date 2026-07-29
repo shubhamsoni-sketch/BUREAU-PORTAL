@@ -271,15 +271,20 @@ export default function PullBureauPage() {
       }
 
       const fetchedResult = pullResult.result as BureauResult;
-      const customerName = getCustomerName(details);
+      const displayCustomer = pullResult.display_customer && typeof pullResult.display_customer === 'object'
+        ? pullResult.display_customer as { name?: string; mobile?: string; pan?: string }
+        : null;
+      const customerName = displayCustomer?.name || getCustomerName(details);
+      const customerMobile = displayCustomer?.mobile || details.mobile;
+      const customerPan = (displayCustomer?.pan || details.pan).toUpperCase();
       const nextBalance = Number(pullResult.new_balance ?? walletBalance - rate);
       updateCachedPartnerWalletData(user?.id, (current) => current ? { ...current, balance: nextBalance } : current);
       const pulledAtIso = new Date().toISOString();
 
       addRecord({
         customerName,
-        mobile: details.mobile,
-        pan: details.pan.toUpperCase(),
+        mobile: customerMobile,
+        pan: customerPan,
         aadhaar: HARD_CODED_CUSTOMER_DETAILS.aadhaar,
         partnerId,
         partnerName: user?.name ?? 'Partner',
@@ -300,7 +305,7 @@ export default function PullBureauPage() {
           keyIssues: fetchedResult.keyIssues,
           generatedAt: fetchedResult.generatedAt,
           customerName,
-          pan: details.pan.toUpperCase(),
+          pan: customerPan,
           raw: pullResult.raw_json,
         },
       });
