@@ -28,7 +28,9 @@ export default function Footer() {
         </div>
         {/* Row 2 */}
         <div className="border-t border-border pt-5 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">© 2026 CreditTrust. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">
+            © 2026 CreditTrust. All rights reserved by Fin Coopers Tech India Private Limited.
+          </p>
           <div className="flex gap-5">
             <a href="/privacy-policy" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">Privacy Policy</a>
             <a href="/terms-and-conditions" className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors">Terms of Use</a>

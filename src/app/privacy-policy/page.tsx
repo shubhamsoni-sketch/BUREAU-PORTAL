@@ -2,6 +2,10 @@ import LegalPage from '@/components/legal/LegalPage';
 
 const sections = [
   {
+    title: 'Legal Entity',
+    body: 'CreditTrust is operated and managed by Fin Coopers Tech India Private Limited. All rights in the CreditTrust platform, website, brand materials, and related workflows are reserved by Fin Coopers Tech India Private Limited.',
+  },
+  {
     title: 'Information We Collect',
     body: 'We collect only the information required to provide financial health report services, partner services, payment processing, security controls, and customer support.',
     bullets: [

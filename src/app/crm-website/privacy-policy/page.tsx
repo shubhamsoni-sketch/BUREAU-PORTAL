@@ -25,6 +25,12 @@ export default function PrivacyPolicyPage() {
       <section className="py-12 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8 text-sm leading-7 text-muted-foreground">
           <div>
+            <h2 className="text-xl font-extrabold text-primary mb-3">Legal Entity</h2>
+            <p>
+              CreditTrust is operated and managed by Fin Coopers Tech India Private Limited. All rights in the CreditTrust platform, website, brand materials, and related workflows are reserved by Fin Coopers Tech India Private Limited.
+            </p>
+          </div>
+          <div>
             <h2 className="text-xl font-extrabold text-primary mb-3">Information We Collect</h2>
             <p>
               We may collect your name, email, mobile number, city, business name, team size, lead volume, selected loan products, demo enquiry details, account information, usage logs, and support messages.

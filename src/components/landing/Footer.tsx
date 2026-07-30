@@ -62,8 +62,8 @@ export default function Footer() {
         <div className="mt-5 pt-5 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-fg-subtle">
           <span>
             {year
-              ? `(c) ${year} Credit Trust. All rights reserved. Powered by Fincoopers Tech India Private Limited.`
-              : '(c) Credit Trust. All rights reserved. Powered by Fincoopers Tech India Private Limited.'}
+              ? `© ${year} CreditTrust. All rights reserved by Fin Coopers Tech India Private Limited.`
+              : '© CreditTrust. All rights reserved by Fin Coopers Tech India Private Limited.'}
           </span>
           <span className="text-center">Independent financial intelligence platform for credit health workflows.</span>
         </div>

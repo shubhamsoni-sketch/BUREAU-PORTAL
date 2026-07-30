@@ -71,9 +71,9 @@ export default function AboutPage() {
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5">
                   <Building2 size={22} className="text-primary" />
                 </div>
-                <h2 className="text-lg font-bold text-fg mb-4">Operated by Fincoopers Tech India Private Limited</h2>
+                <h2 className="text-lg font-bold text-fg mb-4">Operated by Fin Coopers Tech India Private Limited</h2>
                 <p className="text-sm text-fg-muted leading-relaxed mb-5">
-                  CreditTrust is operated and managed by Fincoopers Tech India Private Limited, working as a technology and sourcing partner within the financial ecosystem.
+                  CreditTrust is operated and managed by Fin Coopers Tech India Private Limited, working as a technology and sourcing partner within the financial ecosystem.
                 </p>
                 <div className="space-y-4">
                   {[

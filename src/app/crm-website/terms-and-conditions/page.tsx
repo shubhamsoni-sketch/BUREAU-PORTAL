@@ -25,6 +25,12 @@ export default function TermsAndConditionsPage() {
       <section className="py-12 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8 text-sm leading-7 text-muted-foreground">
           <div>
+            <h2 className="text-xl font-extrabold text-primary mb-3">Legal Entity</h2>
+            <p>
+              CreditTrust is operated and managed by Fin Coopers Tech India Private Limited. References to CreditTrust, the platform, website, CRM, demo enquiries, and related services mean services operated by Fin Coopers Tech India Private Limited.
+            </p>
+          </div>
+          <div>
             <h2 className="text-xl font-extrabold text-primary mb-3">Use of Services</h2>
             <p>
               CreditTrust CRM is intended for legitimate business use by loan teams, fintech partners, sourcing businesses, and authorized users. You agree to provide accurate information and use the platform lawfully.
