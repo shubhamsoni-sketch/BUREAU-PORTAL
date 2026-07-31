@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { createClient } from '@/lib/supabase/client';
-import { Megaphone, RefreshCw, Send, Upload, Users } from 'lucide-react';
+import { Megaphone, RefreshCw, Send, Upload, Users, type LucideIcon } from 'lucide-react';
 
 type Lead = {
   id: string;
@@ -47,6 +47,8 @@ type Recipient = {
     city?: string | null;
   } | null;
 };
+
+type StatCard = [label: string, value: number, Icon: LucideIcon];
 
 const sampleCsv = `name,mobile,email,city,business_name,source
 Rajesh Mehta,9876543210,rajesh@example.com,Indore,Mehta Finance,facebook
@@ -93,7 +95,7 @@ export default function AdminPromotionsPage() {
     return { optedIn, sent, failed };
   }, [campaigns, leads]);
 
-  async function authHeaders() {
+  async function authHeaders(): Promise<Record<string, string>> {
     const supabase = createClient();
     const { data } = await supabase.auth.getSession();
     return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
@@ -180,12 +182,12 @@ export default function AdminPromotionsPage() {
         {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>}
 
         <div className="grid gap-4 md:grid-cols-4">
-          {[
+          {([
             ['Total leads', leads.length, Users],
             ['Opted-in leads', stats.optedIn, Users],
             ['Messages sent', stats.sent, Send],
             ['Failed sends', stats.failed, Megaphone],
-          ].map(([label, value, Icon]) => (
+          ] satisfies StatCard[]).map(([label, value, Icon]) => (
             <div key={String(label)} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>

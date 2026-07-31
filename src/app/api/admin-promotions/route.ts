@@ -8,6 +8,10 @@ function jsonError(error: string, status = 400) {
   return NextResponse.json({ success: false, error }, { status });
 }
 
+function isAuthError(auth: unknown): auth is { error: string; status: number } {
+  return Boolean(auth && typeof auth === 'object' && 'error' in auth);
+}
+
 function clean(value: unknown) {
   return String(value ?? '').trim();
 }
@@ -52,7 +56,7 @@ async function loadData(supabase: any) {
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(bearerToken(request));
-  if ('error' in auth) return jsonError(auth.error, auth.status);
+  if (isAuthError(auth)) return jsonError(auth.error, auth.status);
 
   try {
     const data = await loadData(auth.supabase);
@@ -65,7 +69,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(bearerToken(request));
-  if ('error' in auth) return jsonError(auth.error, auth.status);
+  if (isAuthError(auth)) return jsonError(auth.error, auth.status);
 
   try {
     const body = await request.json();
@@ -85,7 +89,7 @@ export async function POST(request: NextRequest) {
           opt_in: row.opt_in !== false && clean(row.opt_in).toLowerCase() !== 'false',
           metadata: { imported_from: 'admin_promotions' },
         }))
-        .filter((lead) => lead.name && lead.mobile.length >= 11);
+        .filter((lead: { name: string; mobile: string }) => lead.name && lead.mobile.length >= 11);
 
       if (!leads.length) return jsonError('No valid leads found. Name and mobile are required.');
 
