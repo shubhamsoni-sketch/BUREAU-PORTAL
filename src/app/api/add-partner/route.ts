@@ -4,6 +4,7 @@ import { generatePartnerCode } from '@/lib/partner-code';
 import { normalizePartnerProductAccess } from '@/lib/partner-access';
 import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 import { generateTemporaryPassword } from '@/lib/security/password';
+import { sendConfiguredTemplate } from '@/lib/whatsapp/cloud-api';
 
 export async function POST(request: NextRequest) {
   try {
@@ -231,6 +232,27 @@ export async function POST(request: NextRequest) {
       // Email failure is non-fatal — partner is still created
       emailError = error instanceof Error ? error.message : 'Credentials email failed to send';
       console.warn('[add-partner] Credentials email failed to send:', emailError);
+    }
+
+    const loginUrl = process.env.NEXT_PUBLIC_PORTAL_URL
+      ? `${process.env.NEXT_PUBLIC_PORTAL_URL.replace(/\/$/, '')}/partner-login`
+      : 'https://portal.credittrust.in/partner-login';
+    const whatsappResult = await sendConfiguredTemplate({
+      supabase: adminClient,
+      eventType: 'partner_welcome',
+      templateEnv: 'WHATSAPP_PARTNER_WELCOME_TEMPLATE',
+      to: resolvedPhone,
+      userId: newUserId,
+      bodyValues: [resolvedFullName, loginUrl],
+      metadata: {
+        source: 'admin_add_partner',
+        partner_code: finalPartnerCode,
+        email: normalizedEmail,
+      },
+    });
+
+    if (!whatsappResult.sent && whatsappResult.error) {
+      console.warn('[add-partner] welcome whatsapp failed:', whatsappResult.error);
     }
 
     return NextResponse.json({

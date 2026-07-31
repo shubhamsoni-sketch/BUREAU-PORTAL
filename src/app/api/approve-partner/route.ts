@@ -3,6 +3,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { generatePartnerCode } from '@/lib/partner-code';
 import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 import { generateTemporaryPassword } from '@/lib/security/password';
+import { sendConfiguredTemplate } from '@/lib/whatsapp/cloud-api';
 
 export async function POST(request: NextRequest) {
   try {
@@ -186,6 +187,31 @@ export async function POST(request: NextRequest) {
     } catch (emailErr) {
       // Email failure is non-blocking — partner account is still created
       console.error('Failed to send credentials email:', emailErr);
+    }
+
+    try {
+      const loginUrl = process.env.NEXT_PUBLIC_PORTAL_URL
+        ? `${process.env.NEXT_PUBLIC_PORTAL_URL.replace(/\/$/, '')}/partner-login`
+        : 'https://portal.credittrust.in/partner-login';
+      const whatsappResult = await sendConfiguredTemplate({
+        supabase: adminClient,
+        eventType: 'partner_welcome',
+        templateEnv: 'WHATSAPP_PARTNER_WELCOME_TEMPLATE',
+        to: partnerRequest.mobile,
+        userId: newUserId,
+        bodyValues: [partnerRequest.name, loginUrl],
+        metadata: {
+          source: 'approve_partner_request',
+          partner_code: partnerCode,
+          email: partnerRequest.email,
+        },
+      });
+
+      if (!whatsappResult.sent && whatsappResult.error) {
+        console.warn('[approve-partner] welcome whatsapp failed:', whatsappResult.error);
+      }
+    } catch (whatsappErr) {
+      console.error('Failed to send partner welcome WhatsApp:', whatsappErr);
     }
 
     // Notify the new partner that their account has been approved

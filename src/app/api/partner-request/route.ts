@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTransactionalEmail } from '@/lib/email/transactional';
+import { sendConfiguredTemplate } from '@/lib/whatsapp/cloud-api';
 
 export async function POST(request: NextRequest) {
   try {
@@ -147,5 +148,21 @@ async function sendPartnerEnquiryEmail(body: {
 
   if (!result.success) {
     console.warn('[partner-request] enquiry email failed:', result.error);
+  }
+
+  const whatsappResult = await sendConfiguredTemplate({
+    eventType: 'partner_enquiry_received',
+    templateEnv: 'WHATSAPP_PARTNER_ENQUIRY_TEMPLATE',
+    to: body.mobile,
+    bodyValues: [body.name, body.company_name],
+    metadata: {
+      source: 'partner_request',
+      email: body.email,
+      company_name: body.company_name,
+    },
+  });
+
+  if (!whatsappResult.sent && whatsappResult.error) {
+    console.warn('[partner-request] enquiry whatsapp failed:', whatsappResult.error);
   }
 }

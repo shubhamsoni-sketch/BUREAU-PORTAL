@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendTransactionalEmail } from '@/lib/email/transactional';
+import { sendConfiguredTemplate } from '@/lib/whatsapp/cloud-api';
 
 const SUPPORT_EMAIL = process.env.CRM_DEMO_ENQUIRY_EMAIL || process.env.SUPPORT_EMAIL || 'support@credittrust.in';
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Credit Trust <support@credittrust.in>';
@@ -170,6 +171,22 @@ export async function POST(request: NextRequest) {
 
     if (!thankYouResult.success) {
       console.warn('[crm-demo-enquiry] thank-you email failed:', thankYouResult.error);
+    }
+
+    const whatsappResult = await sendConfiguredTemplate({
+      eventType: 'crm_demo_thank_you',
+      templateEnv: 'WHATSAPP_DEMO_THANK_YOU_TEMPLATE',
+      to: String(mobile).trim(),
+      bodyValues: [String(fullName).trim()],
+      metadata: {
+        source: 'crm_demo_enquiry',
+        email: String(email).trim().toLowerCase(),
+        business_name: String(businessName).trim(),
+      },
+    });
+
+    if (!whatsappResult.sent && whatsappResult.error) {
+      console.warn('[crm-demo-enquiry] whatsapp thank-you failed:', whatsappResult.error);
     }
 
     return NextResponse.json({ success: true }, { status: 200 });
