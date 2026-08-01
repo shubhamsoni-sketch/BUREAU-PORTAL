@@ -55,10 +55,12 @@ type CibilLikeResponse = {
     tuefHeader?: {
       enquiryControlNumber?: string;
       memberRefNo?: string;
+      [key: string]: unknown;
     };
     employment?: Array<Record<string, unknown>>;
     scores?: Array<Record<string, unknown>>;
     accounts?: Array<Record<string, unknown>>;
+    [key: string]: unknown;
   }>;
   consumerSummaryData?: {
     accountSummary?: Record<string, unknown>;
@@ -156,11 +158,13 @@ function normalizeScore(score: unknown) {
   if (typeof score === 'number') return score;
   if (typeof score !== 'string') return null;
   const parsed = Number(score.replace(/^0+/, '') || '0');
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  if (!Number.isFinite(parsed)) return null;
+  if (parsed === -1) return -1;
+  return parsed > 0 ? parsed : null;
 }
 
 function riskLevel(score: number | null) {
-  if (!score) return 'High';
+  if (!score || score < 300) return 'High';
   if (score >= 750) return 'Low';
   if (score >= 650) return 'Medium';
   return 'High';
@@ -187,12 +191,111 @@ function isSuccessfulBureauResponse(response: CibilLikeResponse) {
   return success === true || success === 'true' || success === 'Success' || success === 'SUCCESS';
 }
 
+function readProviderStatus(value: unknown): string {
+  if (!isRecord(value)) return '';
+  const direct = value.status || value.code || value.message;
+  if (direct) return String(direct);
+  for (const nested of Object.values(value)) {
+    const found = readProviderStatus(nested);
+    if (found) return found;
+  }
+  return '';
+}
+
+function createNoHistoryBureauResponse(params: {
+  reportCustomer: typeof DEMO_CUSTOMER;
+  reportId: string;
+  providerResponse: unknown;
+}): CibilLikeResponse {
+  const providerStatus = readProviderStatus(params.providerResponse);
+  const now = new Date();
+  const processedDate = `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}${now.getFullYear()}`;
+  const processedTime = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+
+  return {
+    controlData: { success: true },
+    consumerCreditData: [
+      {
+        tuefHeader: {
+          enquiryControlNumber: params.reportId,
+          memberRefNo: params.reportId,
+          dateProcessed: processedDate,
+          timeProcessed: processedTime,
+        },
+        names: [
+          {
+            name: params.reportCustomer.name,
+            birthDate: params.reportCustomer.birthDate,
+          },
+        ],
+        ids: [
+          {
+            idType: '01',
+            idNumber: params.reportCustomer.pan,
+          },
+        ],
+        telephones: [
+          {
+            telephoneType: '01',
+            telephoneNumber: params.reportCustomer.mobile,
+          },
+        ],
+        addresses: [
+          {
+            line1: params.reportCustomer.addressLine1,
+            state: params.reportCustomer.state,
+            pinCode: params.reportCustomer.pinCode,
+            addressCategory: '01',
+            dateReported: processedDate,
+          },
+        ],
+        employment: [],
+        scores: [
+          {
+            scoreName: 'CIBILTUSC4',
+            score: '-1',
+            reasonCodes: [
+              {
+                reasonCodeValue: providerStatus || 'No credit history found for this customer',
+              },
+            ],
+          },
+        ],
+        accounts: [],
+        enquiries: [],
+      },
+    ],
+    consumerSummaryData: {
+      accountSummary: {
+        totalAccounts: 0,
+        overdueAccounts: 0,
+        zeroBalanceAccounts: 0,
+        highCreditAmount: 0,
+        currentBalance: 0,
+        overdueBalance: 0,
+      },
+      inquirySummary: {
+        totalInquiry: 0,
+        inquiryPast30Days: 0,
+        inquiryPast12Months: 0,
+        inquiryPast24Months: 0,
+      },
+    },
+    providerStatus: providerStatus || 'no_credit_history',
+    providerResponse: params.providerResponse,
+  };
+}
+
 function buildKeyIssues(response: CibilLikeResponse) {
   const accountSummary = getAccountSummary(response);
   const inquirySummary = getInquirySummary(response);
   const overdue = Number(accountSummary.overdueAccounts ?? 0);
   const recent = Number(inquirySummary.inquiryPast30Days ?? 0);
   const issues: string[] = [];
+  const score = normalizeScore(getPrimaryCredit(response).scores?.[0]?.score);
+  if (score === -1 || response.providerStatus) {
+    issues.push('No credit history found in bureau response');
+  }
   if (overdue > 0) issues.push(`${overdue} overdue account${overdue > 1 ? 's' : ''}`);
   else issues.push('No overdue accounts found');
   if (recent > 0) issues.push(`${recent} enquiries in last 30 days`);
@@ -431,10 +534,7 @@ export async function POST(request: NextRequest) {
         providerResponse = await callLiveBureauApi(jaadugarPayload);
         reportId = readProviderReportId(providerResponse) || reportId;
         const bureauBody = findBureauBody(providerResponse);
-        if (!bureauBody) {
-          throw new Error('Live bureau API response did not include full CIBIL report JSON');
-        }
-        rawResponse = bureauBody;
+        rawResponse = bureauBody || createNoHistoryBureauResponse({ reportCustomer, reportId, providerResponse });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unable to fetch live bureau report';
         return jsonError(message, BUREAU_API_URL ? 502 : 501);
@@ -442,7 +542,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = normalizeBureauResult(rawResponse, reportId);
-    if (!isSuccessfulBureauResponse(rawResponse) || !result.score) {
+    if (!isSuccessfulBureauResponse(rawResponse) || result.score === null) {
       return jsonError('Bureau report response was invalid or missing score', 502);
     }
 
