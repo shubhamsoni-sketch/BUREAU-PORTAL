@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { createClient } from '@/lib/supabase/client';
-import { Megaphone, RefreshCw, Send, Upload, Users, type LucideIcon } from 'lucide-react';
+import { Mail, Megaphone, RefreshCw, Send, Upload, Users, type LucideIcon } from 'lucide-react';
 
 type Lead = {
   id: string;
@@ -48,6 +48,19 @@ type Recipient = {
   } | null;
 };
 
+type InboundMessage = {
+  id: string;
+  recipient_phone: string;
+  status: string;
+  message_id?: string | null;
+  created_at: string;
+  metadata?: {
+    text?: string | null;
+    message_type?: string | null;
+    display_phone_number?: string | null;
+  } | null;
+};
+
 type StatCard = [label: string, value: number, Icon: LucideIcon];
 
 const sampleCsv = `name,mobile,email,city,business_name,source
@@ -76,6 +89,8 @@ export default function AdminPromotionsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [inboundMessages, setInboundMessages] = useState<InboundMessage[]>([]);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [csvText, setCsvText] = useState(sampleCsv);
   const [campaignForm, setCampaignForm] = useState({
     name: '',
@@ -111,6 +126,7 @@ export default function AdminPromotionsPage() {
       setLeads(json.leads || []);
       setCampaigns(json.campaigns || []);
       setRecipients(json.recipients || []);
+      setInboundMessages(json.inboundMessages || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load promotions');
     } finally {
@@ -133,6 +149,7 @@ export default function AdminPromotionsPage() {
       setLeads(json.leads || leads);
       setCampaigns(json.campaigns || campaigns);
       setRecipients(json.recipients || recipients);
+      setInboundMessages(json.inboundMessages || inboundMessages);
       setNotice(successMessage);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');
@@ -345,6 +362,52 @@ export default function AdminPromotionsPage() {
             </div>
           </section>
         </div>
+
+        <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-2 border-b border-slate-100 p-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">WhatsApp Inbox</h2>
+              <p className="text-sm text-slate-500">Incoming customer messages received through the webhook.</p>
+            </div>
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{inboundMessages.length} recent messages</span>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {inboundMessages.map((message) => {
+              const text = message.metadata?.text || '[Non-text WhatsApp message]';
+              const draft = replyDrafts[message.id] || '';
+              return (
+                <div key={message.id} className="space-y-3 p-5">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="rounded-lg bg-emerald-50 p-2 text-emerald-700"><Mail size={17} /></div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900">+{message.recipient_phone}</p>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">{text}</p>
+                      </div>
+                    </div>
+                    <p className="shrink-0 text-xs text-slate-500">{formatDate(message.created_at)}</p>
+                  </div>
+                  <div className="flex flex-col gap-2 md:flex-row">
+                    <input
+                      value={draft}
+                      onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [message.id]: event.target.value }))}
+                      placeholder="Reply to this customer..."
+                      className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                    />
+                    <button
+                      disabled={saving || !draft.trim()}
+                      onClick={() => runAction({ action: 'reply_inbox', to: message.recipient_phone, text: draft }, 'WhatsApp reply sent')}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      <Send size={15} /> Reply
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {!inboundMessages.length && <p className="p-6 text-sm text-slate-500">No incoming WhatsApp messages yet.</p>}
+          </div>
+        </section>
       </div>
     </AdminLayout>
   );

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
-import { normalizeWhatsAppPhone, sendWhatsAppTemplate } from '@/lib/whatsapp/cloud-api';
+import { normalizeWhatsAppPhone, sendWhatsAppTemplate, sendWhatsAppText } from '@/lib/whatsapp/cloud-api';
 
 const SEND_LIMIT = Number(process.env.WHATSAPP_PROMOTION_SEND_LIMIT ?? 50);
 
@@ -25,7 +25,7 @@ function replaceTokens(template: unknown, lead: Record<string, any>) {
 }
 
 async function loadData(supabase: any) {
-  const [leadsResult, campaignsResult, recipientsResult] = await Promise.all([
+  const [leadsResult, campaignsResult, recipientsResult, inboundResult] = await Promise.all([
     supabase
       .from('promotion_leads')
       .select('*')
@@ -41,16 +41,24 @@ async function loadData(supabase: any) {
       .select('*, promotion_leads(name, mobile, business_name, city)')
       .order('created_at', { ascending: false })
       .limit(500),
+    supabase
+      .from('whatsapp_event_logs')
+      .select('*')
+      .eq('event_type', 'whatsapp_inbound_message')
+      .order('created_at', { ascending: false })
+      .limit(100),
   ]);
 
   if (leadsResult.error) throw new Error(leadsResult.error.message);
   if (campaignsResult.error) throw new Error(campaignsResult.error.message);
   if (recipientsResult.error) throw new Error(recipientsResult.error.message);
+  if (inboundResult.error) throw new Error(inboundResult.error.message);
 
   return {
     leads: leadsResult.data ?? [],
     campaigns: campaignsResult.data ?? [],
     recipients: recipientsResult.data ?? [],
+    inboundMessages: inboundResult.data ?? [],
   };
 }
 
@@ -211,6 +219,32 @@ export async function POST(request: NextRequest) {
         .eq('id', campaignId);
 
       return NextResponse.json({ success: true, sent, failed, ...(await loadData(auth.supabase)) });
+    }
+
+    if (action === 'reply_inbox') {
+      const to = normalizeWhatsAppPhone(body.to);
+      const text = clean(body.text);
+      if (!to || to.length < 11) return jsonError('A valid recipient phone number is required.');
+      if (!text) return jsonError('Reply text is required.');
+      if (text.length > 4096) return jsonError('Reply text must be 4096 characters or fewer.');
+
+      const result = await sendWhatsAppText({ to, text });
+      await auth.supabase.from('whatsapp_event_logs').insert({
+        user_id: auth.user.id,
+        event_type: 'whatsapp_admin_reply',
+        recipient_phone: to,
+        status: result.success ? 'sent' : 'failed',
+        message_id: result.messageId ?? null,
+        error: result.error ?? null,
+        metadata: {
+          whatsapp_status: result.status ?? null,
+          whatsapp_response: result.response ?? null,
+          text,
+        },
+      });
+
+      if (!result.success) return jsonError(result.error || 'WhatsApp reply failed', 502);
+      return NextResponse.json({ success: true, ...(await loadData(auth.supabase)) });
     }
 
     return jsonError('Invalid action.');
