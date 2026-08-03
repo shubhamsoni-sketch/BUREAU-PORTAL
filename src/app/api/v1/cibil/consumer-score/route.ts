@@ -138,8 +138,15 @@ export async function POST(request: NextRequest) {
       return jsonError(message, 502, requestId);
     }
 
+    const remainingCredits = Math.max(0, Number(client.credits || 0) - cost);
     store.clients = store.clients.map((item) => item.id === client.id
-      ? { ...item, credits: Math.max(0, Number(item.credits || 0) - cost), updated_at: new Date().toISOString() }
+      ? {
+        ...item,
+        credits: remainingCredits,
+        // Automatically suspend the client when the allocated credit balance is exhausted.
+        status: remainingCredits === 0 ? 'inactive' : item.status,
+        updated_at: new Date().toISOString(),
+      }
       : item);
     store.keys = store.keys.map((key) => key.id === keyRecord.id ? { ...key, last_used_at: new Date().toISOString() } : key);
     store.usage = [{
@@ -153,7 +160,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       request_id: requestId,
-      charged: { credits: cost },
+      charged: { credits: cost, balance: remainingCredits },
+      access: remainingCredits === 0 ? 'inactive' : 'active',
       data: response.data,
     });
   } catch (error) {
