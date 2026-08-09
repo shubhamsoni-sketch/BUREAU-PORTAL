@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { createClient } from '@/lib/supabase/client';
 import { Mail, Megaphone, RefreshCw, Send, Upload, Users, type LucideIcon } from 'lucide-react';
@@ -63,6 +63,8 @@ type InboundMessage = {
 
 type StatCard = [label: string, value: number, Icon: LucideIcon];
 
+const INBOX_REFRESH_MS = 10000;
+
 const sampleCsv = `name,mobile,email,city,business_name,source
 Rajesh Mehta,9876543210,rajesh@example.com,Indore,Mehta Finance,facebook
 Priya Sharma,9893332647,priya@example.com,Bhopal,Sharma Loans,manual`;
@@ -102,6 +104,8 @@ export default function AdminPromotionsPage() {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const refreshInFlight = useRef(false);
 
   const stats = useMemo(() => {
     const optedIn = leads.filter((lead) => lead.opt_in && lead.status === 'active').length;
@@ -116,9 +120,12 @@ export default function AdminPromotionsPage() {
     return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
   }
 
-  async function loadData() {
-    setLoading(true);
-    setError('');
+  async function loadData(options: { silent?: boolean } = {}) {
+    const silent = options.silent ?? false;
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
+    if (!silent) setLoading(true);
+    if (!silent) setError('');
     try {
       const res = await fetch('/api/admin-promotions', { headers: await authHeaders() });
       const json = await res.json();
@@ -127,10 +134,12 @@ export default function AdminPromotionsPage() {
       setCampaigns(json.campaigns || []);
       setRecipients(json.recipients || []);
       setInboundMessages(json.inboundMessages || []);
+      setLastUpdatedAt(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load promotions');
+      if (!silent) setError(err instanceof Error ? err.message : 'Unable to load promotions');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+      refreshInFlight.current = false;
     }
   }
 
@@ -160,6 +169,17 @@ export default function AdminPromotionsPage() {
 
   useEffect(() => {
     loadData();
+
+    const refresh = () => {
+      if (document.visibilityState === 'visible') loadData({ silent: true });
+    };
+    const interval = window.setInterval(refresh, INBOX_REFRESH_MS);
+    document.addEventListener('visibilitychange', refresh);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refresh);
+    };
   }, []);
 
   const importLeads = () => {
@@ -188,11 +208,16 @@ export default function AdminPromotionsPage() {
             <p className="text-sm text-slate-500 mt-1">Manage opted-in leads, approved templates, campaign sends, and WhatsApp logs.</p>
           </div>
           <button
-            onClick={loadData}
+            onClick={() => loadData()}
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
-            <RefreshCw size={16} /> Refresh
+            <RefreshCw size={16} className={loading ? 'animate-spin' : undefined} /> Refresh
           </button>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs font-medium text-slate-500" aria-live="polite">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          Live inbox sync · {lastUpdatedAt ? `updated ${lastUpdatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : 'connecting...'}
         </div>
 
         {notice && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{notice}</div>}
