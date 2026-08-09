@@ -3,7 +3,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { createClient } from '@/lib/supabase/client';
-import { Mail, Megaphone, RefreshCw, Send, Upload, Users, type LucideIcon } from 'lucide-react';
+import {
+  Check,
+  CheckCheck,
+  Mail,
+  Megaphone,
+  MessageCircle,
+  RefreshCw,
+  Search,
+  Send,
+  Upload,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
 
 type Lead = {
   id: string;
@@ -50,9 +62,11 @@ type Recipient = {
 
 type InboundMessage = {
   id: string;
+  event_type?: string | null;
   recipient_phone: string;
   status: string;
   message_id?: string | null;
+  error?: string | null;
   created_at: string;
   metadata?: {
     text?: string | null;
@@ -63,7 +77,7 @@ type InboundMessage = {
 
 type StatCard = [label: string, value: number, Icon: LucideIcon];
 
-const INBOX_REFRESH_MS = 10000;
+const INBOX_REFRESH_MS = 5000;
 
 const sampleCsv = `name,mobile,email,city,business_name,source
 Rajesh Mehta,9876543210,rajesh@example.com,Indore,Mehta Finance,facebook
@@ -106,6 +120,8 @@ export default function AdminPromotionsPage() {
   const [error, setError] = useState('');
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const refreshInFlight = useRef(false);
+  const [activePhone, setActivePhone] = useState('');
+  const [chatSearch, setChatSearch] = useState('');
 
   const stats = useMemo(() => {
     const optedIn = leads.filter((lead) => lead.opt_in && lead.status === 'active').length;
@@ -113,6 +129,37 @@ export default function AdminPromotionsPage() {
     const failed = campaigns.reduce((sum, campaign) => sum + Number(campaign.failed_count || 0), 0);
     return { optedIn, sent, failed };
   }, [campaigns, leads]);
+
+  const conversations = useMemo(() => {
+    const byPhone = new Map<string, InboundMessage[]>();
+    inboundMessages.forEach((message) => {
+      const phone = message.recipient_phone || 'unknown';
+      byPhone.set(phone, [...(byPhone.get(phone) || []), message]);
+    });
+
+    return [...byPhone.entries()]
+      .map(([phone, messages]) => {
+        const sorted = [...messages].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        const last = sorted[sorted.length - 1];
+        return { phone, messages: sorted, last };
+      })
+      .filter(({ phone, last }) => {
+        const query = chatSearch.trim().toLowerCase();
+        if (!query) return true;
+        return phone.includes(query) || (last.metadata?.text || '').toLowerCase().includes(query);
+      })
+      .sort((a, b) => new Date(b.last.created_at).getTime() - new Date(a.last.created_at).getTime());
+  }, [chatSearch, inboundMessages]);
+
+  const activeConversation = conversations.find((conversation) => conversation.phone === activePhone) || conversations[0];
+  const activeDraft = activeConversation ? replyDrafts[activeConversation.phone] || '' : '';
+
+  useEffect(() => {
+    if (!activePhone && conversations[0]) setActivePhone(conversations[0].phone);
+    if (activePhone && !conversations.some((conversation) => conversation.phone === activePhone)) {
+      setActivePhone(conversations[0]?.phone || '');
+    }
+  }, [activePhone, conversations]);
 
   async function authHeaders(): Promise<Record<string, string>> {
     const supabase = createClient();
@@ -388,49 +435,128 @@ export default function AdminPromotionsPage() {
           </section>
         </div>
 
-        <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-2 border-b border-slate-100 p-5 md:flex-row md:items-center md:justify-between">
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">WhatsApp Inbox</h2>
-              <p className="text-sm text-slate-500">Incoming customer messages received through the webhook.</p>
+              <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900"><MessageCircle size={19} className="text-emerald-600" /> WhatsApp Inbox</h2>
+              <p className="text-sm text-slate-500">Chat with incoming enquiries from one workspace.</p>
             </div>
-            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{inboundMessages.length} recent messages</span>
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{inboundMessages.length} messages</span>
           </div>
-          <div className="divide-y divide-slate-100">
-            {inboundMessages.map((message) => {
-              const text = message.metadata?.text || '[Non-text WhatsApp message]';
-              const draft = replyDrafts[message.id] || '';
-              return (
-                <div key={message.id} className="space-y-3 p-5">
-                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <div className="rounded-lg bg-emerald-50 p-2 text-emerald-700"><Mail size={17} /></div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-slate-900">+{message.recipient_phone}</p>
-                        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">{text}</p>
+
+          <div className="grid min-h-[560px] md:grid-cols-[280px_1fr]">
+            <aside className="border-b border-slate-100 bg-slate-50/70 md:border-b-0 md:border-r">
+              <div className="border-b border-slate-100 p-3">
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={chatSearch}
+                    onChange={(event) => setChatSearch(event.target.value)}
+                    placeholder="Search chats"
+                    className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+              <div className="max-h-[480px] overflow-y-auto">
+                {conversations.map((conversation) => {
+                  const preview = conversation.last.metadata?.text || '[Media message]';
+                  const isActive = activeConversation?.phone === conversation.phone;
+                  return (
+                    <button
+                      key={conversation.phone}
+                      type="button"
+                      onClick={() => setActivePhone(conversation.phone)}
+                      className={`flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition ${isActive ? 'bg-emerald-50' : 'bg-transparent hover:bg-white'}`}
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">{conversation.phone.slice(-2)}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="truncate text-sm font-bold text-slate-900">+{conversation.phone}</span>
+                          <span className="shrink-0 text-[10px] text-slate-400">{new Date(conversation.last.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </span>
+                        <span className="mt-1 block truncate text-xs text-slate-500">{preview}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+                {!conversations.length && <p className="p-6 text-center text-sm text-slate-500">No chats yet.</p>}
+              </div>
+            </aside>
+
+            <div className="flex min-h-[560px] flex-col bg-[#efeae2]">
+              {activeConversation ? (
+                <>
+                  <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">{activeConversation.phone.slice(-2)}</span>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">+{activeConversation.phone}</p>
+                        <p className="text-xs text-emerald-600">WhatsApp conversation</p>
                       </div>
                     </div>
-                    <p className="shrink-0 text-xs text-slate-500">{formatDate(message.created_at)}</p>
                   </div>
-                  <div className="flex flex-col gap-2 md:flex-row">
-                    <input
-                      value={draft}
-                      onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [message.id]: event.target.value }))}
-                      placeholder="Reply to this customer..."
-                      className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                    />
-                    <button
-                      disabled={saving || !draft.trim()}
-                      onClick={() => runAction({ action: 'reply_inbox', to: message.recipient_phone, text: draft }, 'WhatsApp reply sent')}
-                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
-                    >
-                      <Send size={15} /> Reply
-                    </button>
+
+                  <div className="flex-1 space-y-2 overflow-y-auto p-5">
+                    {activeConversation.messages.map((message) => {
+                      const outgoing = message.event_type !== 'whatsapp_inbound_message';
+                      const text = message.metadata?.text || '[Media message]';
+                      return (
+                        <div key={message.id} className={`flex ${outgoing ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[82%] rounded-lg px-3 py-2 shadow-sm ${outgoing ? 'rounded-tr-none bg-[#d9fdd3]' : 'rounded-tl-none bg-white'}`}>
+                            <p className="whitespace-pre-wrap break-words text-sm text-slate-800">{text}</p>
+                            <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-slate-500">
+                              <span>{new Date(message.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                              {outgoing && (message.status === 'sent' ? <CheckCheck size={13} className="text-blue-500" /> : <Check size={13} />)}
+                            </div>
+                            {message.error && <p className="mt-1 text-[10px] text-red-600">{message.error}</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
+
+                  <div className="border-t border-slate-200 bg-white p-3">
+                    <div className="flex items-end gap-2">
+                      <textarea
+                        value={activeDraft}
+                        onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [activeConversation.phone]: event.target.value }))}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault();
+                            if (activeDraft.trim() && !saving) {
+                              runAction({ action: 'reply_inbox', to: activeConversation.phone, text: activeDraft.trim() }, 'WhatsApp reply sent');
+                              setReplyDrafts((prev) => ({ ...prev, [activeConversation.phone]: '' }));
+                            }
+                          }
+                        }}
+                        rows={1}
+                        placeholder="Type a message"
+                        className="max-h-28 min-h-10 flex-1 resize-none rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
+                      />
+                      <button
+                        type="button"
+                        disabled={saving || !activeDraft.trim()}
+                        onClick={() => {
+                          runAction({ action: 'reply_inbox', to: activeConversation.phone, text: activeDraft.trim() }, 'WhatsApp reply sent');
+                          setReplyDrafts((prev) => ({ ...prev, [activeConversation.phone]: '' }));
+                        }}
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                        title="Send message"
+                      >
+                        <Send size={17} />
+                      </button>
+                    </div>
+                    <p className="mt-1 pl-1 text-[10px] text-slate-400">Enter to send · Shift + Enter for a new line</p>
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-slate-500">
+                  <MessageCircle size={42} className="mb-3 text-emerald-500" />
+                  <p className="font-semibold text-slate-700">Select a chat to start replying</p>
+                  <p className="mt-1 text-sm">Incoming WhatsApp messages will appear here automatically.</p>
                 </div>
-              );
-            })}
-            {!inboundMessages.length && <p className="p-6 text-sm text-slate-500">No incoming WhatsApp messages yet.</p>}
+              )}
+            </div>
           </div>
         </section>
       </div>

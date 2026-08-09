@@ -44,7 +44,7 @@ async function loadData(supabase: any) {
     supabase
       .from('whatsapp_event_logs')
       .select('*')
-      .eq('event_type', 'whatsapp_inbound_message')
+      .in('event_type', ['whatsapp_inbound_message', 'whatsapp_admin_reply', 'promotion_campaign'])
       .order('created_at', { ascending: false })
       .limit(100),
   ]);
