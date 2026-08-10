@@ -247,8 +247,8 @@ export default function AdminPromotionsPage() {
 
   return (
     <AdminLayout title="Promotions">
-      <div className="p-6 space-y-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-6 p-6">
+        <div className="order-1 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">WhatsApp Marketing</p>
             <h1 className="text-3xl font-bold text-slate-900">Promotions</h1>
@@ -262,15 +262,15 @@ export default function AdminPromotionsPage() {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-500" aria-live="polite">
+        <div className="order-1 flex items-center gap-2 text-xs font-medium text-slate-500" aria-live="polite">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
           Live inbox sync · {lastUpdatedAt ? `updated ${lastUpdatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : 'connecting...'}
         </div>
 
-        {notice && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{notice}</div>}
-        {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>}
+        {notice && <div className="order-1 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{notice}</div>}
+        {error && <div className="order-1 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>}
 
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="order-3 grid gap-4 md:grid-cols-4">
           {([
             ['Total leads', leads.length, Users],
             ['Opted-in leads', stats.optedIn, Users],
@@ -287,7 +287,7 @@ export default function AdminPromotionsPage() {
           ))}
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+        <div className="order-3 grid gap-6 xl:grid-cols-[1fr_0.9fr]">
           <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-5">
               <h2 className="text-lg font-bold text-slate-900">Import Leads</h2>
@@ -350,7 +350,7 @@ export default function AdminPromotionsPage() {
           </section>
         </div>
 
-        <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <section className="order-3 rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 p-5">
             <h2 className="text-lg font-bold text-slate-900">Campaigns</h2>
           </div>
@@ -395,7 +395,7 @@ export default function AdminPromotionsPage() {
           </div>
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className="order-3 grid gap-6 xl:grid-cols-2">
           <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-5"><h2 className="text-lg font-bold text-slate-900">Recent Leads</h2></div>
             <div className="divide-y divide-slate-100">
@@ -435,7 +435,7 @@ export default function AdminPromotionsPage() {
           </section>
         </div>
 
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <section className="order-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900"><MessageCircle size={19} className="text-emerald-600" /> WhatsApp Inbox</h2>
