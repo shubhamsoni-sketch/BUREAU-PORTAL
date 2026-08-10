@@ -435,8 +435,11 @@ export default function AdminPromotionsPage() {
           </section>
         </div>
 
-        <section className="order-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <section
+          className="order-2 flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+          style={{ height: 'clamp(520px, calc(100vh - 220px), 760px)' }}
+        >
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
             <div>
               <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900"><MessageCircle size={19} className="text-emerald-600" /> WhatsApp Inbox</h2>
               <p className="text-sm text-slate-500">Chat with incoming enquiries from one workspace.</p>
@@ -444,9 +447,9 @@ export default function AdminPromotionsPage() {
             <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{inboundMessages.length} messages</span>
           </div>
 
-          <div className="grid min-h-[560px] md:grid-cols-[280px_1fr]">
-            <aside className="border-b border-slate-100 bg-slate-50/70 md:border-b-0 md:border-r">
-              <div className="border-b border-slate-100 p-3">
+          <div className="grid min-h-0 flex-1 overflow-hidden md:grid-cols-[280px_1fr]">
+            <aside className="flex min-h-0 flex-col overflow-hidden border-b border-slate-100 bg-slate-50/70 md:border-b-0 md:border-r">
+              <div className="shrink-0 border-b border-slate-100 p-3">
                 <div className="relative">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
@@ -457,7 +460,7 @@ export default function AdminPromotionsPage() {
                   />
                 </div>
               </div>
-              <div className="max-h-[480px] overflow-y-auto">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 {conversations.map((conversation) => {
                   const preview = conversation.last.metadata?.text || '[Media message]';
                   const isActive = activeConversation?.phone === conversation.phone;
@@ -483,7 +486,7 @@ export default function AdminPromotionsPage() {
               </div>
             </aside>
 
-            <div className="flex min-h-[560px] flex-col bg-[#efeae2]">
+            <div className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-[#efeae2]">
               {activeConversation ? (
                 <>
                   <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
@@ -496,7 +499,7 @@ export default function AdminPromotionsPage() {
                     </div>
                   </div>
 
-                  <div className="flex-1 space-y-2 overflow-y-auto p-5">
+                  <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-5">
                     {activeConversation.messages.map((message) => {
                       const outgoing = message.event_type !== 'whatsapp_inbound_message';
                       const text = message.metadata?.text || '[Media message]';
