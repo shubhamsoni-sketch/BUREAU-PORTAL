@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
     if (submitting) return;
     if (!user) return;
     if (user.role === 'admin') {
-      router.replace('/admin-partners');
+      router.replace('/admin-dashboard');
     }
   }, [user, isLoading, submitting, router]);
 
@@ -57,7 +57,7 @@ export default function AdminLoginPage() {
       const metaRole = session.user.user_metadata?.role;
 
       if (appRole === 'admin' || metaRole === 'admin') {
-        router.replace('/admin-partners');
+        router.replace('/admin-dashboard');
         return;
       }
 
@@ -69,7 +69,7 @@ export default function AdminLoginPage() {
         .maybeSingle();
 
       if (profile?.role === 'admin') {
-        router.replace('/admin-partners');
+        router.replace('/admin-dashboard');
         return;
       }
 
@@ -82,7 +82,7 @@ export default function AdminLoginPage() {
       const verifyData = await verifyRes.json();
 
       if (verifyData.isAdmin) {
-        router.replace('/admin-partners');
+        router.replace('/admin-dashboard');
         return;
       }
 

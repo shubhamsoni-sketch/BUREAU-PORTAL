@@ -19,7 +19,7 @@ const navGroups = [
   {
     label: 'Partner Management',
     items: [
-      { label: 'Partners', href: '/admin-partners', icon: Users, badge: 3 },
+      { label: 'Partners', href: '/admin-partners', icon: Users },
       { label: 'Customer Master', href: '/admin-customer-master', icon: BookUser },
       { label: 'B2C Reports', href: '/admin-b2c-reports', icon: UserRoundCheck },
     ],
@@ -113,14 +113,6 @@ export default function AdminSidebar() {
                 >
                   <Icon size={17} className="flex-shrink-0" />
                   {!collapsed && <span className="truncate">{item?.label}</span>}
-                  {!collapsed && item?.badge && (
-                    <span className="ml-auto text-[10px] font-semibold bg-amber-500 text-white px-1.5 py-0.5 rounded-full">
-                      {item?.badge}
-                    </span>
-                  )}
-                  {collapsed && item?.badge && (
-                    <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-amber-500 rounded-full" />
-                  )}
                 </Link>
               );
             })}
