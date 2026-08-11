@@ -54,6 +54,7 @@ interface BureauPdfPayload {
   report_id: string;
   customer_name: string;
   created_at: string;
+  partner_id: string;
 }
 
 interface PartnerRates {
@@ -316,6 +317,7 @@ export default function PullBureauPage() {
         report_id: fetchedResult.reportId,
         customer_name: customerName,
         created_at: pulledAtIso,
+        partner_id: partnerId,
       });
       setSuccessMsg(`Bureau report fetched successfully! Rs. ${rate} credits deducted.`);
       setStep(3);

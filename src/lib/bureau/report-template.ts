@@ -3,6 +3,7 @@ export type BureauReportInput = {
   reportId?: string | null;
   fallbackName?: string | null;
   createdAt?: string | null;
+  providerLogoDataUrl?: string | null;
 };
 
 type AnyRecord = Record<string, any>;
@@ -155,7 +156,6 @@ export function generateBureauReportHtml(input: BureauReportInput): string {
   const accountSummary = asRecord(summary.accountSummary);
   const inquirySummary = asRecord(summary.inquirySummary);
   const reportId = clean(input.reportId)
-    || clean(credit.tuefHeader?.memberRefNo)
     || clean(asRecord(input.rawJson).data?.reportId)
     || clean(asRecord(input.rawJson).reportId)
     || `RPT-${Date.now()}`;
@@ -244,6 +244,8 @@ export function generateBureauReportHtml(input: BureauReportInput): string {
   *{box-sizing:border-box} body{margin:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:600}
   .page{width:1000px;margin:0 auto;padding:0}
   .top-space{height:65px}
+  .provider-brand{height:85px;display:flex;align-items:center;padding-top:10px}
+  .provider-brand img{display:block;width:300px;height:65px;object-fit:contain;object-position:left center}
   .yellow{height:30px;background:#ffdd00;font-size:18px;font-weight:500;padding:5px}
   .header{border-bottom:2px solid #00a6d6;padding:7px 0 10px;display:grid;grid-template-columns:1fr 360px;gap:20px}
   .blue{color:#00a3d7;font-weight:700}.muted{color:#777;font-style:italic;font-weight:700;margin-right:2px}
@@ -259,7 +261,9 @@ export function generateBureauReportHtml(input: BureauReportInput): string {
 </head>
 <body>
 <div class="page">
-  <div class="top-space"></div>
+  ${input.providerLogoDataUrl
+    ? `<div class="provider-brand"><img src="${esc(input.providerLogoDataUrl)}" alt="TransUnion CIBIL"></div>`
+    : '<div class="top-space"></div>'}
   <div class="yellow">CONSUMER CIR</div>
   <div class="header">
     <div><span class="blue">CONSUMER:</span> <b>${esc(customerName)}</b><br><span class="blue">REPORT ID:</span> <b>${esc(reportId)}</b></div>

@@ -1,4 +1,5 @@
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
+import path from 'path';
 import { generateBureauReportHtml, type BureauReportInput } from './report-template';
 
 async function getBrowserRuntime() {
@@ -28,7 +29,7 @@ async function getBrowserRuntime() {
 }
 
 export async function renderBureauReportPdf(input: BureauReportInput): Promise<Buffer> {
-  const html = generateBureauReportHtml(input);
+  const html = generateBureauReportHtml(withProviderLogo(input));
   const puppeteer = await import('puppeteer-core');
   const browserRuntime = await getBrowserRuntime();
 
@@ -62,5 +63,12 @@ export async function renderBureauReportPdf(input: BureauReportInput): Promise<B
 }
 
 export function renderBureauReportHtml(input: BureauReportInput) {
-  return generateBureauReportHtml(input);
+  return generateBureauReportHtml(withProviderLogo(input));
+}
+
+function withProviderLogo(input: BureauReportInput): BureauReportInput {
+  if (input.providerLogoDataUrl !== 'bundled') return input;
+  const logoPath = path.join(process.cwd(), 'public', 'transunion-cibil-logo.png');
+  const logo = readFileSync(logoPath).toString('base64');
+  return { ...input, providerLogoDataUrl: `data:image/png;base64,${logo}` };
 }

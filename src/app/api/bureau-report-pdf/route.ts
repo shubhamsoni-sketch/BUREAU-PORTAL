@@ -65,6 +65,26 @@ async function canAccessPartnerReport(
   return Boolean(teamMember);
 }
 
+async function usesViotalReportBranding(
+  auth: Exclude<Awaited<ReturnType<typeof requireUser>>, { error: string }>,
+  requestedPartnerId?: string | null
+) {
+  const metadataPartnerId =
+    auth.user.app_metadata?.crm_partner_id ||
+    auth.user.app_metadata?.partner_id ||
+    auth.user.user_metadata?.crm_partner_id ||
+    auth.user.user_metadata?.partner_id;
+  const partnerId = requestedPartnerId || metadataPartnerId;
+
+  let query = auth.supabase.from('partners').select('name,company_name');
+  query = partnerId
+    ? query.eq('id', partnerId)
+    : query.eq('user_id', auth.user.id);
+  const { data } = await query.maybeSingle();
+  const identity = `${data?.name || ''} ${data?.company_name || ''}`.toLowerCase();
+  return identity.includes('viotal');
+}
+
 async function loadReport(source: Source, id: string, auth: Exclude<Awaited<ReturnType<typeof requireUser>>, { error: string }>) {
   const supabase = auth.supabase;
   if (source === 'bureau_pulls') {
@@ -78,9 +98,10 @@ async function loadReport(source: Source, id: string, auth: Exclude<Awaited<Retu
     if (!(await canAccessPartnerReport(auth, data.partner_id))) return 'forbidden' as const;
     return {
       rawJson: pickRaw(data, source),
-      reportId: data.report_id || data.member_ref,
+      reportId: data.report_id || data.id,
       fallbackName: data.customer_name,
       createdAt: data.created_at,
+      partnerId: data.partner_id,
     };
   }
 
@@ -98,6 +119,7 @@ async function loadReport(source: Source, id: string, auth: Exclude<Awaited<Retu
       reportId: data.request_id || data.id,
       fallbackName: data.borrower_name,
       createdAt: data.created_at,
+      partnerId: data.partner_id,
     };
   }
 
@@ -112,9 +134,10 @@ async function loadReport(source: Source, id: string, auth: Exclude<Awaited<Retu
   if (!data) return null;
   return {
     rawJson: pickRaw(data, source),
-    reportId: data.report_id,
+    reportId: data.report_id || data.id,
     fallbackName: data.full_name,
     createdAt: data.created_at,
+    partnerId: null,
   };
 }
 
@@ -157,7 +180,10 @@ export async function GET(request: NextRequest) {
     }
 
     const input = await loadReport(source, id, auth);
-    return makeResponse(input, format);
+    const brandedInput = input && input !== 'forbidden' && await usesViotalReportBranding(auth, input.partnerId)
+      ? { ...input, providerLogoDataUrl: 'bundled' }
+      : input;
+    return makeResponse(brandedInput, format);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to generate bureau report PDF';
     console.error('[bureau-report-pdf] GET error:', error);
@@ -178,7 +204,13 @@ export async function POST(request: NextRequest) {
       reportId: body.report_id ?? body.reportId ?? null,
       fallbackName: body.customer_name ?? body.customerName ?? body.name ?? null,
       createdAt: body.created_at ?? body.createdAt ?? null,
+      partnerId: body.partner_id ?? body.partnerId ?? null,
+      providerLogoDataUrl: null as string | null,
     };
+    if (input.partnerId && !(await canAccessPartnerReport(auth, input.partnerId))) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+    if (await usesViotalReportBranding(auth, input.partnerId)) input.providerLogoDataUrl = 'bundled';
     return makeResponse(input, body.format || 'pdf');
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to generate bureau report PDF';
