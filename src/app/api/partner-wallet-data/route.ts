@@ -21,13 +21,29 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
     }
 
-    // 2. Get all wallet transactions
-    const { data: allTxns, error: txnError } = await supabaseAdmin
-      .from('wallet_transactions')
-      .select('id, created_at, type, amount, description, transaction_type, running_balance, status, metadata')
-      .eq('partner_id', partner.id)
-      .order('created_at', { ascending: false })
-      .limit(200);
+    // 2. Read the materialized wallet balance and recent transactions separately.
+    // Recent transactions are intentionally capped for the UI and must not be
+    // used to reconstruct the complete wallet balance.
+    const [walletResult, transactionsResult] = await Promise.all([
+      supabaseAdmin
+        .from('wallet_balances')
+        .select('balance, total_recharged, total_deducted')
+        .eq('partner_id', partner.id)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('wallet_transactions')
+        .select('id, created_at, type, amount, description, transaction_type, running_balance, status, metadata')
+        .eq('partner_id', partner.id)
+        .order('created_at', { ascending: false })
+        .limit(200),
+    ]);
+
+    const { data: walletBalance, error: walletError } = walletResult;
+    const { data: allTxns, error: txnError } = transactionsResult;
+
+    if (walletError) {
+      console.error('[partner-wallet-data] wallet balance fetch error:', walletError);
+    }
 
     if (txnError) {
       console.error('[partner-wallet-data] txn fetch error:', txnError);
@@ -35,19 +51,11 @@ export async function GET(req: NextRequest) {
 
     const txns = allTxns ?? [];
 
-    // 3. Calculate balance from confirmed transactions only
-    const confirmedBalance = txns.reduce((sum, t) => {
-      if (t.status === 'pending') return sum;
-      return t.type === 'credit' ? sum + Number(t.amount) : sum - Number(t.amount);
-    }, 0);
-
-    const totalRecharged = txns
-      .filter((t) => t.type === 'credit' && t.status !== 'pending')
-      .reduce((s, t) => s + Number(t.amount), 0);
-
-    const totalDeducted = txns
-      .filter((t) => t.type === 'debit')
-      .reduce((s, t) => s + Number(t.amount), 0);
+    // 3. wallet_balances is maintained from the complete ledger. Fall back to
+    // partners.wallet_balance for legacy partners without a materialized row.
+    const currentBalance = Number(walletBalance?.balance ?? partner.wallet_balance ?? 0);
+    const totalRecharged = Number(walletBalance?.total_recharged ?? 0);
+    const totalDeducted = Number(walletBalance?.total_deducted ?? 0);
 
     // 4. Get commercials
     const { data: comm } = await supabaseAdmin
@@ -94,7 +102,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       partnerId: partner.id,
-      balance: Math.max(0, confirmedBalance),
+      balance: Math.max(0, currentBalance),
       totalRecharged,
       totalDeducted,
       transactions: txns,
