@@ -112,6 +112,14 @@ function fmtDate(value: unknown): string {
   return raw;
 }
 
+function fmtGender(value: unknown): string {
+  const gender = clean(value).toUpperCase();
+  if (gender === '1' || gender === '01' || gender === 'F' || gender === 'FEMALE') return 'FEMALE';
+  if (gender === '2' || gender === '02' || gender === 'M' || gender === 'MALE') return 'MALE';
+  if (gender === '3' || gender === '03' || gender === 'T' || gender === 'TRANSGENDER') return 'TRANSGENDER';
+  return gender || 'NOT DISCLOSED';
+}
+
 function fmtMoney(value: unknown): string {
   const num = Number(value);
   if (!Number.isFinite(num)) return clean(value, 'Not Available');
@@ -271,7 +279,7 @@ export function generateBureauReportHtml(input: BureauReportInput): string {
   </div>
 
   <div class="title">CONSUMER INFORMATION:</div>
-  <table class="line"><tr><td>${infoLine('NAME', customerName)}<br>${infoLine('DATE OF BIRTH', fmtDate(name.birthDate))}</td><td></td></tr></table>
+  <table class="line"><tr><td>${infoLine('NAME', customerName)}<br>${infoLine('DATE OF BIRTH', fmtDate(name.birthDate))}<br>${infoLine('GENDER', fmtGender(name.gender))}</td><td></td></tr></table>
 
   <div class="title">CIBIL TRANSUNION SCORE(S):</div>
   <table><tr><th>SCORE NAME</th><th>SCORE</th><th>SCORING FACTORS</th></tr><tr class="shade"><td>${esc(clean(score.scoreName))}</td><td class="score">${esc(clean(score.score || asRecord(input.rawJson).data?.score))}</td><td>${asArray(score.reasonCodes).map((r) => esc(clean(r.reasonCodeValue))).join('<br>')}</td></tr></table>
