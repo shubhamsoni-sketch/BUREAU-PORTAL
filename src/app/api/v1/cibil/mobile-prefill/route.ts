@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getApiHubStore, hitMasterApi, saveApiHubStore, SimpleApiConfig } from '@/lib/api-hub/simple-store';
 import { hashApiKey, maskMobile, maskPan } from '@/lib/api-hub/keys';
 import { getStateName } from '@/lib/bureau/state-codes';
+import { appendApiUsageLedger, requestEvidence } from '@/lib/api-hub/usage-ledger';
 
 type CibilPayload = {
   firstName: string;
@@ -241,14 +242,59 @@ export async function POST(request: NextRequest) {
     if (!advancedApi) return jsonError('API key is not allowed for Bureau API Advanced', 403, requestId);
     if (!standardApi) return jsonError('Bureau API Standard is not configured', 500, requestId);
 
-    const cost = Math.max(1, Number(advancedApi.per_hit_credits || 1));
-    if (Number(client.credits || 0) < cost) return jsonError('Insufficient credits', 402, requestId);
+    let body: unknown = {};
+    let invalidJson = false;
+    try {
+      body = await request.json();
+    } catch {
+      invalidJson = true;
+    }
+    const bodyObject = isObject(body) ? body : {};
+    const mobile = digits(bodyObject.mobile_number || bodyObject.telephoneNumber || bodyObject.mobile).slice(-10);
 
-    const body = await request.json();
-    if (!isObject(body)) return jsonError('Request body must be a JSON object', 400, requestId);
-    if (body.consent !== true) return jsonError('consent must be true', 400, requestId);
-    const mobile = digits(body.mobile_number || body.telephoneNumber || body.mobile).slice(-10);
-    if (!/^\d{10}$/.test(mobile)) return jsonError('mobile_number must be 10 digits', 400, requestId);
+    const baseLog = {
+      id: crypto.randomUUID(),
+      request_id: requestId,
+      client_id: client.id,
+      api_id: advancedApi.id,
+      key_id: keyRecord.id,
+      masked_mobile: maskMobile(mobile),
+      created_at: new Date().toISOString(),
+    };
+    const apiCode = advancedApi.code;
+    const currentBalance = () => Number(client.credits || 0);
+
+    async function saveFailure(message: string, httpStatus: number, responseJson?: unknown, providerStatus?: number, pan?: string) {
+      const responseTime = Date.now() - startedAt;
+      const cachedLog = {
+        ...baseLog,
+        status: 'failed' as const,
+        credits_deducted: 0,
+        masked_pan: pan ? maskPan(pan) : undefined,
+        response_time_ms: responseTime,
+        error_message: message,
+      };
+      store.usage = [cachedLog, ...store.usage].slice(0, 200);
+      await saveApiHubStore(supabase, rowId, store);
+      await appendApiUsageLedger(supabase, {
+        ...cachedLog,
+        ...requestEvidence(request),
+        api_code: apiCode,
+        http_status: httpStatus,
+        provider_status: providerStatus,
+        balance_after: currentBalance(),
+        request_json: bodyObject,
+        response_json: responseJson,
+      });
+      return jsonError(message, httpStatus, requestId);
+    }
+
+    if (invalidJson) return saveFailure('Request body must be valid JSON', 400);
+    if (!isObject(body)) return saveFailure('Request body must be a JSON object', 400);
+    if (body.consent !== true) return saveFailure('consent must be true', 400);
+    if (!/^\d{10}$/.test(mobile)) return saveFailure('mobile_number must be 10 digits', 400);
+    const cost = Math.max(1, Number(advancedApi.per_hit_credits || 1));
+    if (Number(client.credits || 0) < cost) return saveFailure('Insufficient credits', 402);
 
     const prefillPayload = {
       mobile_number: mobile,
@@ -259,21 +305,7 @@ export async function POST(request: NextRequest) {
     const prefillResponse = await hitPrefillApi(advancedApi, prefillPayload, requestId);
     if (!prefillResponse.ok) {
       const message = `Mobile Prefill API failed with ${prefillResponse.status}`;
-      store.usage = [{
-        id: crypto.randomUUID(),
-        request_id: requestId,
-        client_id: client.id,
-        api_id: advancedApi.id,
-        key_id: keyRecord.id,
-        status: 'failed' as const,
-        credits_deducted: 0,
-        masked_mobile: maskMobile(mobile),
-        response_time_ms: Date.now() - startedAt,
-        error_message: message,
-        created_at: new Date().toISOString(),
-      }, ...store.usage].slice(0, 200);
-      await saveApiHubStore(supabase, rowId, store);
-      return jsonError(message, 502, requestId);
+      return saveFailure(message, 502, prefillResponse.data, prefillResponse.status);
     }
 
     const prefillCode = isObject(prefillResponse.data) && isObject(prefillResponse.data.data) ? cleanString(prefillResponse.data.data.code) : '';
@@ -281,12 +313,12 @@ export async function POST(request: NextRequest) {
       const message = isObject(prefillResponse.data) && isObject(prefillResponse.data.data)
         ? cleanString(prefillResponse.data.data.message) || 'Mobile Prefill did not return usable data'
         : 'Mobile Prefill did not return usable data';
-      return jsonError(message, prefillCode === '1004' ? 404 : 422, requestId);
+      return saveFailure(message, prefillCode === '1004' ? 404 : 422, prefillResponse.data, prefillResponse.status);
     }
 
     const cibilPayload = buildCibilPayload(prefillResponse.data, { ...body, mobile_number: mobile });
     const validationError = validatePayload(cibilPayload);
-    if (validationError) return jsonError(validationError, 422, requestId);
+    if (validationError) return saveFailure(validationError, 422, prefillResponse.data, prefillResponse.status, cibilPayload.pan);
 
     const bureauResponse = await hitMasterApi(standardApi, cibilPayload);
     const responseTime = Date.now() - startedAt;
@@ -294,26 +326,12 @@ export async function POST(request: NextRequest) {
       const message = typeof bureauResponse.data === 'object' && bureauResponse.data && 'error' in bureauResponse.data
         ? String((bureauResponse.data as { error: unknown }).error)
         : `Bureau API Standard failed with ${bureauResponse.status}`;
-      store.usage = [{
-        id: crypto.randomUUID(),
-        request_id: requestId,
-        client_id: client.id,
-        api_id: advancedApi.id,
-        key_id: keyRecord.id,
-        status: 'failed' as const,
-        credits_deducted: 0,
-        masked_pan: maskPan(cibilPayload.pan),
-        masked_mobile: maskMobile(mobile),
-        response_time_ms: responseTime,
-        error_message: message,
-        created_at: new Date().toISOString(),
-      }, ...store.usage].slice(0, 200);
-      await saveApiHubStore(supabase, rowId, store);
-      return jsonError(message, 502, requestId);
+      return saveFailure(message, 502, bureauResponse.data, bureauResponse.status, cibilPayload.pan);
     }
 
+    const remainingCredits = Math.max(0, Number(client.credits || 0) - cost);
     store.clients = store.clients.map((item) => item.id === client.id
-      ? { ...item, credits: Math.max(0, Number(item.credits || 0) - cost), updated_at: new Date().toISOString() }
+      ? { ...item, credits: remainingCredits, status: remainingCredits === 0 ? 'inactive' : item.status, updated_at: new Date().toISOString() }
       : item);
     store.keys = store.keys.map((key) => key.id === keyRecord.id ? { ...key, last_used_at: new Date().toISOString() } : key);
     store.usage = [{
@@ -330,12 +348,28 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
     }, ...store.usage].slice(0, 200);
     await saveApiHubStore(supabase, rowId, store);
+    await appendApiUsageLedger(supabase, {
+      ...baseLog,
+      ...requestEvidence(request),
+      api_code: advancedApi.code,
+      status: 'success',
+      http_status: 200,
+      provider_status: bureauResponse.status,
+      credits_deducted: cost,
+      balance_after: remainingCredits,
+      masked_pan: maskPan(cibilPayload.pan),
+      response_time_ms: responseTime,
+      request_json: body,
+      response_json: bureauResponse.data,
+      metadata: { prefill_response: prefillResponse.data },
+    });
 
     return NextResponse.json({
       success: true,
       request_id: requestId,
       api: advancedApi.code,
-      charged: { credits: cost },
+      charged: { credits: cost, balance: remainingCredits },
+      access: remainingCredits === 0 ? 'inactive' : 'active',
       data: bureauResponse.data,
     });
   } catch (error) {

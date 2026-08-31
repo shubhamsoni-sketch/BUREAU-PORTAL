@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { createClient } from '@/lib/supabase/client';
-import { Activity, Ban, BookOpen, Copy, KeyRound, Play, Plus, RefreshCw, Save, Server, ShieldCheck, WalletCards } from 'lucide-react';
+import { Activity, Ban, BookOpen, Copy, Download, KeyRound, Play, Plus, RefreshCw, Save, Server, ShieldCheck, WalletCards } from 'lucide-react';
 
 type ApiConfig = {
   id: string;
@@ -56,6 +56,8 @@ type UsageLog = {
   masked_mobile?: string;
   response_time_ms?: number;
   error_message?: string;
+  ip_address?: string;
+  balance_after?: number;
   created_at: string;
 };
 
@@ -161,6 +163,9 @@ export default function AdminApiHubPage() {
   const [notice, setNotice] = useState('');
   const [latestKey, setLatestKey] = useState('');
   const [testResponse, setTestResponse] = useState('');
+  const [usagePage, setUsagePage] = useState(1);
+  const [usageTotal, setUsageTotal] = useState(0);
+  const usagePageSize = 50;
 
   const [apiForm, setApiForm] = useState({
     api_id: 'bureau-api',
@@ -239,7 +244,7 @@ export default function AdminApiHubPage() {
       const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      const res = await fetch('/api/admin-api-hub', {
+      const res = await fetch(`/api/admin-api-hub?usage_page=${usagePage}&usage_page_size=${usagePageSize}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const json = await res.json();
@@ -251,6 +256,7 @@ export default function AdminApiHubPage() {
         usage: json.usage || [],
       };
       setData(nextData);
+      setUsageTotal(Number(json.usage_pagination?.total || nextData.usage.length));
       if (nextData.apis[0]) syncApiForm(nextData.apis[0]);
       setKeyForm((prev) => ({
         ...prev,
@@ -267,7 +273,7 @@ export default function AdminApiHubPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [usagePage]);
 
   const authPost = async (payload: Record<string, unknown>) => {
     setSaving(true);
@@ -294,6 +300,30 @@ export default function AdminApiHubPage() {
       return null;
     } finally {
       setSaving(false);
+    }
+  };
+
+  const exportUsage = async () => {
+    setError('');
+    try {
+      const supabase = createClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const response = await fetch('/api/admin-api-hub?usage_export=csv', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error('Unable to export API usage');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `credittrust-api-usage-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to export API usage');
     }
   };
 
@@ -562,8 +592,23 @@ export default function AdminApiHubPage() {
 
         {activeTab === 'Usage' && (
           <section className="rounded-lg border border-slate-200 bg-white p-5">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">Usage</h2>
+            <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Complete Usage Ledger</h2>
+                <p className="text-xs text-slate-500 mt-1">{usageTotal.toLocaleString('en-IN')} permanent request records</p>
+              </div>
+              <button type="button" onClick={exportUsage} className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                <Download size={14} /> Export complete ledger
+              </button>
+            </div>
             <UsageTable usage={data.usage} clientById={clientById} apiById={apiById} />
+            <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+              <p className="text-xs text-slate-500">Page {usagePage} of {Math.max(1, Math.ceil(usageTotal / usagePageSize))}</p>
+              <div className="flex gap-2">
+                <button type="button" disabled={usagePage === 1 || loading} onClick={() => setUsagePage((page) => Math.max(1, page - 1))} className="rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold disabled:opacity-40">Previous</button>
+                <button type="button" disabled={usagePage * usagePageSize >= usageTotal || loading} onClick={() => setUsagePage((page) => page + 1)} className="rounded-md border border-slate-200 px-3 py-2 text-xs font-semibold disabled:opacity-40">Next</button>
+              </div>
+            </div>
           </section>
         )}
 
@@ -726,7 +771,7 @@ function UsageTable({ usage, clientById, apiById }: { usage: UsageLog[]; clientB
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
-          <tr><th className="py-2 pr-4">Request</th><th className="py-2 pr-4">Client</th><th className="py-2 pr-4">API</th><th className="py-2 pr-4">Status</th><th className="py-2 pr-4">Credits</th><th className="py-2 pr-4">PAN</th><th className="py-2 pr-4">Mobile</th><th className="py-2">Time</th></tr>
+          <tr><th className="py-2 pr-4">Request</th><th className="py-2 pr-4">Client</th><th className="py-2 pr-4">API</th><th className="py-2 pr-4">Status</th><th className="py-2 pr-4">Credits</th><th className="py-2 pr-4">Balance</th><th className="py-2 pr-4">PAN</th><th className="py-2 pr-4">Mobile</th><th className="py-2 pr-4">IP</th><th className="py-2">Date / Time</th></tr>
         </thead>
         <tbody>
           {usage.map((log) => (
@@ -736,9 +781,11 @@ function UsageTable({ usage, clientById, apiById }: { usage: UsageLog[]; clientB
               <td className="py-3 pr-4 text-slate-700">{apiById.get(log.api_id)?.name || 'Unknown API'}</td>
               <td className="py-3 pr-4"><StatusPill value={log.status} /></td>
               <td className="py-3 pr-4 font-bold text-slate-900">{log.credits_deducted}</td>
+              <td className="py-3 pr-4 font-semibold text-slate-700">{log.balance_after ?? '-'}</td>
               <td className="py-3 pr-4 font-mono text-xs">{log.masked_pan || '-'}</td>
               <td className="py-3 pr-4 font-mono text-xs">{log.masked_mobile || '-'}</td>
-              <td className="py-3 text-slate-600"><div className="flex items-center gap-1"><Activity size={13} /><span>{log.response_time_ms ? `${log.response_time_ms}ms` : formatDate(log.created_at)}</span></div></td>
+              <td className="py-3 pr-4 font-mono text-xs">{log.ip_address || '-'}</td>
+              <td className="py-3 text-slate-600"><div className="flex items-center gap-1"><Activity size={13} /><span>{formatDate(log.created_at)}</span></div>{log.response_time_ms != null && <p className="mt-1 text-xs text-slate-400">{log.response_time_ms}ms</p>}</td>
             </tr>
           ))}
         </tbody>

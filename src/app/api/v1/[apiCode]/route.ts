@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getApiHubStore, hitMasterApi, saveApiHubStore } from '@/lib/api-hub/simple-store';
 import { hashApiKey, maskMobile, maskPan } from '@/lib/api-hub/keys';
+import { appendApiUsageLedger, requestEvidence } from '@/lib/api-hub/usage-ledger';
 
 function jsonError(message: string, status = 400, requestId?: string) {
   return NextResponse.json({ success: false, request_id: requestId, error: message }, { status });
@@ -101,14 +102,19 @@ export async function POST(
     if (!api) return jsonError('API is not active', 403, requestId);
     if (api.code !== apiCode && api.id !== apiCode) return jsonError('API key is not allowed for this API', 403, requestId);
 
-    const cost = Math.max(1, Number(api.per_hit_credits || 1));
-    if (Number(client.credits || 0) < cost) return jsonError('Insufficient credits', 402, requestId);
+    let payload: unknown = {};
+    let invalidJson = false;
+    try {
+      payload = await request.json();
+    } catch {
+      invalidJson = true;
+    }
+    const payloadObject = payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? payload as Record<string, unknown>
+      : {};
 
-    const payload = await request.json();
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return jsonError('Request body must be a JSON object', 400, requestId);
-
-    const pan = readMaskedValue(payload as Record<string, unknown>, ['idNumber', 'panNumber', 'pan', 'PAN']);
-    const mobile = readMaskedValue(payload as Record<string, unknown>, ['mobile_number', 'telephoneNumber', 'mobile', 'mobileNumber', 'phone']);
+    const pan = readMaskedValue(payloadObject, ['idNumber', 'panNumber', 'pan', 'PAN']);
+    const mobile = readMaskedValue(payloadObject, ['mobile_number', 'telephoneNumber', 'mobile', 'mobileNumber', 'phone']);
     const now = new Date().toISOString();
     const baseLog = {
       id: crypto.randomUUID(),
@@ -120,16 +126,47 @@ export async function POST(
       masked_mobile: mobile ? maskMobile(mobile) : undefined,
       created_at: now,
     };
+    const apiCodeValue = api.code;
+    const currentBalance = () => Number(client.credits || 0);
 
-    let upstreamPayload = payload as Record<string, unknown>;
+    async function saveFailure(message: string, httpStatus: number, responseJson?: unknown, providerStatus?: number) {
+      const responseTime = Date.now() - startedAt;
+      const cachedLog = {
+        ...baseLog,
+        status: 'failed' as const,
+        credits_deducted: 0,
+        response_time_ms: responseTime,
+        error_message: message,
+      };
+      store.usage = [cachedLog, ...store.usage].slice(0, 200);
+      await saveApiHubStore(supabase, rowId, store);
+      await appendApiUsageLedger(supabase, {
+        ...cachedLog,
+        ...requestEvidence(request),
+        api_code: apiCodeValue,
+        http_status: httpStatus,
+        provider_status: providerStatus,
+        balance_after: currentBalance(),
+        request_json: payloadObject,
+        response_json: responseJson,
+      });
+      return jsonError(message, httpStatus, requestId);
+    }
+
+    if (invalidJson) return saveFailure('Request body must be valid JSON', 400);
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return saveFailure('Request body must be a JSON object', 400);
+    const cost = Math.max(1, Number(api.per_hit_credits || 1));
+    if (Number(client.credits || 0) < cost) return saveFailure('Insufficient credits', 402);
+
+    let upstreamPayload = payloadObject;
     if (api.code === 'mobile-prefill') {
-      if ((payload as Record<string, unknown>).consent !== true) return jsonError('consent must be true', 400, requestId);
+      if (payloadObject.consent !== true) return saveFailure('consent must be true', 400);
       const mobileNumber = digits(mobile).slice(-10);
-      if (!/^\d{10}$/.test(mobileNumber)) return jsonError('mobile_number must be 10 digits', 400, requestId);
+      if (!/^\d{10}$/.test(mobileNumber)) return saveFailure('mobile_number must be 10 digits', 400);
       upstreamPayload = {
         mobile_number: mobileNumber,
-        first_name: cleanString((payload as Record<string, unknown>).first_name || (payload as Record<string, unknown>).firstName),
-        lastName: cleanString((payload as Record<string, unknown>).lastName || (payload as Record<string, unknown>).last_name),
+        first_name: cleanString(payloadObject.first_name || payloadObject.firstName),
+        lastName: cleanString(payloadObject.lastName || payloadObject.last_name),
         consent: 'Y',
       };
     }
@@ -143,19 +180,12 @@ export async function POST(
       const message = typeof response.data === 'object' && response.data && 'error' in response.data
         ? String((response.data as { error: unknown }).error)
         : `Master API failed with ${response.status}`;
-      store.usage = [{
-        ...baseLog,
-        status: 'failed' as const,
-        credits_deducted: 0,
-        response_time_ms: responseTime,
-        error_message: message,
-      }, ...store.usage].slice(0, 200);
-      await saveApiHubStore(supabase, rowId, store);
-      return jsonError(message, 502, requestId);
+      return saveFailure(message, 502, response.data, response.status);
     }
 
+    const remainingCredits = Math.max(0, Number(client.credits || 0) - cost);
     store.clients = store.clients.map((item) => item.id === client.id
-      ? { ...item, credits: Math.max(0, Number(item.credits || 0) - cost), updated_at: new Date().toISOString() }
+      ? { ...item, credits: remainingCredits, status: remainingCredits === 0 ? 'inactive' : item.status, updated_at: new Date().toISOString() }
       : item);
     store.keys = store.keys.map((key) => key.id === keyRecord.id ? { ...key, last_used_at: new Date().toISOString() } : key);
     store.usage = [{
@@ -165,12 +195,26 @@ export async function POST(
       response_time_ms: responseTime,
     }, ...store.usage].slice(0, 200);
     await saveApiHubStore(supabase, rowId, store);
+    await appendApiUsageLedger(supabase, {
+      ...baseLog,
+      ...requestEvidence(request),
+      api_code: api.code,
+      status: 'success',
+      http_status: 200,
+      provider_status: response.status,
+      credits_deducted: cost,
+      balance_after: remainingCredits,
+      response_time_ms: responseTime,
+      request_json: payloadObject,
+      response_json: response.data,
+    });
 
     return NextResponse.json({
       success: true,
       request_id: requestId,
       api: api.code,
-      charged: { credits: cost },
+      charged: { credits: cost, balance: remainingCredits },
+      access: remainingCredits === 0 ? 'inactive' : 'active',
       data: response.data,
     });
   } catch (error) {

@@ -10,6 +10,7 @@ import {
   SimpleApiConfig,
 } from '@/lib/api-hub/simple-store';
 import { getStateName } from '@/lib/bureau/state-codes';
+import { exportApiUsageLedger, listApiUsageLedger } from '@/lib/api-hub/usage-ledger';
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
@@ -259,13 +260,40 @@ export async function GET(request: NextRequest) {
 
     const { rowId, store } = await getApiHubStore(auth.supabase);
     await saveApiHubStore(auth.supabase, rowId, store);
+    if (request.nextUrl.searchParams.get('usage_export') === 'csv') {
+      const rows = await exportApiUsageLedger(auth.supabase);
+      const columns = ['request_id', 'client_id', 'api_id', 'key_id', 'api_code', 'environment', 'method', 'request_path', 'status', 'http_status', 'provider_status', 'credits_deducted', 'balance_after', 'masked_pan', 'masked_mobile', 'ip_address', 'user_agent', 'response_time_ms', 'provider_ref', 'error_message', 'request_json', 'response_json', 'metadata', 'created_at'];
+      const escape = (value: unknown) => {
+        const serialized = value && typeof value === 'object' ? JSON.stringify(value) : String(value ?? '');
+        return `"${serialized.replace(/"/g, '""')}"`;
+      };
+      const csv = [columns.join(','), ...rows.map((row) => columns.map((column) => escape(row[column])).join(','))].join('\n');
+      return new NextResponse(csv, {
+        headers: {
+          'content-type': 'text/csv; charset=utf-8',
+          'content-disposition': `attachment; filename="credittrust-api-usage-${new Date().toISOString().slice(0, 10)}.csv"`,
+          'cache-control': 'no-store',
+        },
+      });
+    }
+    const page = Math.max(1, Number(request.nextUrl.searchParams.get('usage_page') || 1));
+    const pageSize = Math.min(100, Math.max(10, Number(request.nextUrl.searchParams.get('usage_page_size') || 50)));
+    const clientId = request.nextUrl.searchParams.get('usage_client_id') || undefined;
+    const status = request.nextUrl.searchParams.get('usage_status') || undefined;
+    const ledger = await listApiUsageLedger(auth.supabase, { page, pageSize, clientId, status });
 
     return NextResponse.json({
       success: true,
       apis: store.apis.map(publicApi),
       clients: store.clients,
       keys: store.keys.map((key) => ({ ...key, key_hash: undefined })),
-      usage: store.usage.slice(0, 100),
+      usage: ledger.rows,
+      usage_pagination: {
+        page,
+        page_size: pageSize,
+        total: ledger.total,
+        total_pages: Math.max(1, Math.ceil(ledger.total / pageSize)),
+      },
     });
   } catch (error) {
     console.error('[admin-api-hub] GET failed:', error);

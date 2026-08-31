@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getApiHubStore, hitMasterApi, saveApiHubStore } from '@/lib/api-hub/simple-store';
 import { hashApiKey, maskMobile, maskPan } from '@/lib/api-hub/keys';
+import { appendApiUsageLedger, requestEvidence } from '@/lib/api-hub/usage-ledger';
 
 type JaadugarCibilPayload = {
   firstName: string;
@@ -89,8 +90,17 @@ export async function POST(request: NextRequest) {
       return jsonError('API key is not allowed for Bureau API Standard', 403, requestId);
     }
 
-    const body = await request.json();
-    const payload = normalizePayload(body || {});
+    let body: unknown = {};
+    let invalidJson = false;
+    try {
+      body = await request.json();
+    } catch {
+      invalidJson = true;
+    }
+    const requestBody = body && typeof body === 'object' && !Array.isArray(body)
+      ? body as Record<string, unknown>
+      : {};
+    const payload = normalizePayload(requestBody);
     const baseLog = {
       id: crypto.randomUUID(),
       request_id: requestId,
@@ -101,19 +111,38 @@ export async function POST(request: NextRequest) {
       masked_mobile: maskMobile(payload.mobile),
       created_at: new Date().toISOString(),
     };
+    const apiCode = api.code;
+    const currentBalance = () => Number(client.credits || 0);
 
-    async function saveFailure(message: string, status = 400) {
+    async function saveFailure(message: string, status = 400, responseJson?: unknown, providerStatus?: number) {
+      const responseTime = Date.now() - startedAt;
       store.usage = [{
         ...baseLog,
         status: 'failed' as const,
         credits_deducted: 0,
-        response_time_ms: Date.now() - startedAt,
+        response_time_ms: responseTime,
         error_message: message,
       }, ...store.usage].slice(0, 200);
       await saveApiHubStore(supabase, rowId, store);
+      await appendApiUsageLedger(supabase, {
+        ...baseLog,
+        ...requestEvidence(request),
+        api_code: apiCode,
+        status: 'failed',
+        http_status: status,
+        provider_status: providerStatus,
+        credits_deducted: 0,
+        balance_after: currentBalance(),
+        response_time_ms: responseTime,
+        error_message: message,
+        request_json: requestBody,
+        response_json: responseJson,
+        metadata: { normalized_provider_payload: payload },
+      });
       return jsonError(message, status, requestId);
     }
 
+    if (invalidJson) return saveFailure('Request body must be valid JSON', 400);
     const cost = Math.max(1, Number(api.per_hit_credits || 1));
     if (Number(client.credits || 0) < cost) return saveFailure('Insufficient credits', 402);
 
@@ -135,6 +164,21 @@ export async function POST(request: NextRequest) {
         error_message: message,
       }, ...store.usage].slice(0, 200);
       await saveApiHubStore(supabase, rowId, store);
+      await appendApiUsageLedger(supabase, {
+        ...baseLog,
+        ...requestEvidence(request),
+        api_code: api.code,
+        status: 'failed',
+        http_status: 502,
+        provider_status: response.status,
+        credits_deducted: 0,
+        balance_after: Number(client.credits || 0),
+        response_time_ms: responseTime,
+        error_message: message,
+        request_json: requestBody,
+        response_json: response.data,
+        metadata: { normalized_provider_payload: payload },
+      });
       return jsonError(message, 502, requestId);
     }
 
@@ -156,6 +200,20 @@ export async function POST(request: NextRequest) {
       response_time_ms: responseTime,
     }, ...store.usage].slice(0, 200);
     await saveApiHubStore(supabase, rowId, store);
+    await appendApiUsageLedger(supabase, {
+      ...baseLog,
+      ...requestEvidence(request),
+      api_code: api.code,
+      status: 'success',
+      http_status: 200,
+      provider_status: response.status,
+      credits_deducted: cost,
+      balance_after: remainingCredits,
+      response_time_ms: responseTime,
+      request_json: requestBody,
+      response_json: response.data,
+      metadata: { normalized_provider_payload: payload },
+    });
 
     return NextResponse.json({
       success: true,
