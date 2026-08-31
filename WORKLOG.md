@@ -2,6 +2,20 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-08-31 - Developer - Live B2C Financial Report Journey
+
+Summary:
+
+- Replaced the demo B2C report form with mobile consent, WhatsApp OTP, Cashfree payment, mobile prefill confirmation, live bureau generation and PDF download.
+- Added signed request sessions, OTP hashing/rate limits, payment verification, an atomic bureau-generation lock and complete consent/payment/download metadata.
+- Added Cashfree and WhatsApp OTP production configuration documentation.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed.
+- No paid bureau call was made during verification.
+
 ## 2026-06-26 - Developer - CRM User Login And Role Enforcement
 
 Summary:

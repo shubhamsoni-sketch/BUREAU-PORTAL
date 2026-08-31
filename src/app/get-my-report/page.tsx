@@ -1,574 +1,281 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useMemo, useState } from 'react';
-import Icon from '@/components/ui/AppIcon';
+import { useEffect, useState } from 'react';
 import AppLogo from '@/components/ui/AppLogo';
+import Icon from '@/components/ui/AppIcon';
 
-type Step = 'mobile' | 'otp' | 'educate' | 'details' | 'consent' | 'payment' | 'preparing' | 'report';
+type Step = 'mobile' | 'otp' | 'payment' | 'prefill' | 'generating' | 'report';
+type Profile = { full_name: string; dob: string; gender: string; pan: string; address: string; state: string; pincode: string };
+type CashfreeCheckout = (options: { paymentSessionId: string; redirectTarget: '_modal' }) => Promise<{ error?: { message?: string } }>;
 
-const states = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Delhi', 'Goa', 'Gujarat',
-  'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra',
-  'Odisha', 'Punjab', 'Rajasthan', 'Tamil Nadu', 'Telangana', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-];
-
-const educationCards = [
-  {
-    title: 'Know your credit score meaning',
-    desc: 'Understand whether your profile looks strong, average, or needs attention before you apply.',
-    icon: 'ChartBarIcon',
-  },
-  {
-    title: 'Check loan readiness',
-    desc: 'See signals that can influence approval conversations with lenders and advisors.',
-    icon: 'BanknotesIcon',
-  },
-  {
-    title: 'Spot repayment signals',
-    desc: 'Find patterns around missed payments, overdue behavior, and consistency.',
-    icon: 'CalendarDaysIcon',
-  },
-  {
-    title: 'Understand utilization',
-    desc: 'See whether credit usage and account mix are helping or hurting your profile.',
-    icon: 'ScaleIcon',
-  },
-  {
-    title: 'Review risk factors',
-    desc: 'Get a simple explanation of the issues that may need attention.',
-    icon: 'ShieldExclamationIcon',
-  },
-  {
-    title: 'Follow improvement actions',
-    desc: 'Walk away with practical next steps, not a confusing raw report.',
-    icon: 'SparklesIcon',
-  },
-];
-
-const reportIncludes = [
-  'Credit score interpretation',
-  'Loan readiness summary',
-  'Repayment behavior review',
-  'Risk factor analysis',
-  'Improvement roadmap',
-  'Secure report access',
-];
-
-const preparationSteps = [
-  'Verifying your secure request',
-  'Reading financial health signals',
-  'Calculating score indicators',
-  'Preparing recommendations',
-];
-
-type Details = {
-  firstName: string;
-  middleName: string;
-  lastName: string;
-  email: string;
-  pan: string;
-  dob: string;
-  gender: string;
-  address: string;
-  state: string;
-  pinCode: string;
-};
-
-const initialDetails: Details = {
-  firstName: '',
-  middleName: '',
-  lastName: '',
-  email: '',
-  pan: '',
-  dob: '',
-  gender: '',
-  address: '',
-  state: '',
-  pinCode: '',
-};
-
-const fieldClass =
-  'h-11 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3.5 text-sm text-fg outline-none transition-all placeholder:text-fg-subtle/70 focus:border-primary/50 focus:bg-white/[0.07] focus:ring-2 focus:ring-primary/10';
-
-const selectClass =
-  'h-11 w-full rounded-xl border border-white/10 bg-[#081625] px-3.5 text-sm text-fg outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10';
-
-const areaClass =
-  'h-20 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3.5 py-3 text-sm text-fg outline-none transition-all placeholder:text-fg-subtle/70 focus:border-primary/50 focus:bg-white/[0.07] focus:ring-2 focus:ring-primary/10';
-
-function StepPill({ active, done, label }: { active: boolean; done: boolean; label: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span
-        className={`h-2.5 w-2.5 rounded-full ${active || done ? 'bg-primary shadow-glow-sm' : 'bg-white/20'}`}
-      />
-      <span className={active || done ? 'text-fg text-xs font-semibold' : 'text-fg-subtle text-xs font-medium'}>{label}</span>
-    </div>
-  );
+declare global {
+  interface Window {
+    Cashfree?: (options: { mode: 'sandbox' | 'production' }) => { checkout: CashfreeCheckout };
+  }
 }
 
-function ReportPreview({ locked = true }: { locked?: boolean }) {
-  return (
-    <div className="glass-card rounded-4xl p-5 sm:p-6 relative overflow-hidden">
-      <div className={locked ? 'blur-[1.5px] select-none pointer-events-none' : ''}>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <p className="text-xs text-fg-subtle uppercase tracking-wider font-bold">Financial Health Report</p>
-            <h3 className="text-xl font-bold text-fg mt-1">Report snapshot</h3>
-          </div>
-          <span className="tag tag-primary">Score View</span>
-        </div>
-        <div className="grid grid-cols-3 gap-3 mb-5">
-          {[
-            ['742', 'Credit Score'],
-            ['Good', 'Loan Readiness'],
-            ['3', 'Action Points'],
-          ].map(([value, label]) => (
-            <div key={label} className="rounded-3xl p-4 text-center" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <p className="text-lg font-bold gradient-text-primary">{value}</p>
-              <p className="text-[11px] text-fg-muted mt-1">{label}</p>
-            </div>
-          ))}
-        </div>
-        <div className="space-y-3">
-          {[
-            ['Repayment consistency', '86%', 'primary'],
-            ['Utilization signal', '42%', 'accent'],
-            ['Risk review', '68%', 'primary'],
-          ].map(([label, width, tone]) => (
-            <div key={label} className="rounded-2xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.035)' }}>
-              <div className="flex justify-between text-xs mb-2">
-                <span className="text-fg-muted">{label}</span>
-                <span className={tone === 'accent' ? 'text-accent font-bold' : 'text-primary font-bold'}>{width}</span>
-              </div>
-              <div className="h-2 rounded-full overflow-hidden bg-white/10">
-                <div className="h-full rounded-full" style={{ width, background: tone === 'accent' ? '#F5A623' : '#00D4AA' }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      {locked && (
-        <div className="absolute inset-0 flex items-center justify-center bg-bg/35 backdrop-blur-[2px]">
-          <div className="text-center px-6">
-            <div className="h-12 w-12 rounded-2xl bg-primary text-bg flex items-center justify-center mx-auto mb-3">
-              <Icon name="LockClosedIcon" size={22} />
-            </div>
-            <p className="text-fg font-bold">Your full report preview is protected</p>
-            <p className="text-fg-muted text-xs mt-1">Continue the secure journey to view details</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+const steps = [
+  ['mobile', 'Mobile'],
+  ['otp', 'Verify'],
+  ['payment', 'Payment'],
+  ['prefill', 'Confirm'],
+  ['report', 'Report'],
+] as const;
+
+function loadCashfree() {
+  return new Promise<void>((resolve, reject) => {
+    if (window.Cashfree) return resolve();
+    const existing = document.querySelector<HTMLScriptElement>('script[data-cashfree-sdk]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error('Unable to load payment gateway.')), { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+    script.async = true;
+    script.dataset.cashfreeSdk = 'true';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Unable to load payment gateway.'));
+    document.head.appendChild(script);
+  });
+}
+
+async function api(path: string, body: Record<string, unknown>) {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.success) throw new Error(data.error || 'Something went wrong. Please try again.');
+  return data;
 }
 
 export default function GetMyReportPage() {
   const [step, setStep] = useState<Step>('mobile');
   const [mobile, setMobile] = useState('');
-  const [otp, setOtp] = useState('');
-  const [details, setDetails] = useState<Details>(initialDetails);
   const [consent, setConsent] = useState(false);
-  const [error, setError] = useState('');
-  const [orderId, setOrderId] = useState('');
+  const [otp, setOtp] = useState('');
   const [requestId, setRequestId] = useState('');
+  const [orderId, setOrderId] = useState('');
+  const [amount, setAmount] = useState<number | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [reportId, setReportId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const fullName = useMemo(
-    () => [details.firstName, details.middleName, details.lastName].filter(Boolean).join(' '),
-    [details.firstName, details.middleName, details.lastName],
-  );
+  useEffect(() => {
+    const saved = window.sessionStorage.getItem('ct_b2c_request_id');
+    const returnedOrder = new URLSearchParams(window.location.search).get('order_id');
+    if (!saved || !returnedOrder) return;
+    setRequestId(saved);
+    setOrderId(returnedOrder);
+    setStep('payment');
+    void verifyPayment(saved, returnedOrder);
+  }, []);
 
-  const stepIndex = ['mobile', 'otp', 'educate', 'details', 'consent', 'payment', 'preparing', 'report'].indexOf(step);
+  const activeIndex = step === 'generating' ? 4 : Math.max(0, steps.findIndex(([id]) => id === step));
 
-  async function saveRequest(stage: string, extra: Record<string, unknown> = {}) {
-    const res = await fetch('/api/customer-report/request', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        request_id: requestId || undefined,
-        mobile,
-        stage,
-        ...extra,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success) throw new Error(data.error ?? 'Unable to save request.');
-    if (data.request?.id) setRequestId(data.request.id);
-    return data.request;
+  async function start() {
+    setError('');
+    if (!/^[6-9]\d{9}$/.test(mobile.replace(/\D/g, '').slice(-10))) return setError('Enter a valid 10-digit mobile number.');
+    if (!consent) return setError('Please provide consent to continue.');
+    setLoading(true);
+    try {
+      const data = await api('/api/customer-report/start', { mobile, consent: true });
+      setRequestId(data.request_id);
+      window.sessionStorage.setItem('ct_b2c_request_id', data.request_id);
+      setStep('otp');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to send OTP.');
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const sendOtp = async () => {
+  async function verifyOtp() {
     setError('');
-    if (!/^[6-9]\d{9}$/.test(mobile.trim())) {
-      setError('Enter a valid 10-digit mobile number.');
-      return;
-    }
-    try {
-      await saveRequest('mobile_started');
-      setStep('otp');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to start request.');
-    }
-  };
-
-  const verifyOtp = async () => {
-    setError('');
-    if (otp.trim() !== '123456') {
-      setError('Enter the demo OTP 123456 to continue.');
-      return;
-    }
-    try {
-      await saveRequest('mobile_verified');
-      setStep('educate');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to verify request.');
-    }
-  };
-
-  const continueDetails = async () => {
-    setError('');
-    if (!details.firstName.trim() || !details.lastName.trim() || !details.email.trim() || !details.pan.trim() || !details.dob || !details.gender || !details.address.trim() || !details.state || !details.pinCode.trim()) {
-      setError('Please complete all required details.');
-      return;
-    }
-    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(details.pan.trim().toUpperCase())) {
-      setError('Enter a valid PAN format, for example ABCDE1234F.');
-      return;
-    }
-    if (!/^\d{6}$/.test(details.pinCode.trim())) {
-      setError('Enter a valid 6-digit PIN code.');
-      return;
-    }
-    try {
-      await saveRequest('details_submitted', {
-        first_name: details.firstName,
-        middle_name: details.middleName,
-        last_name: details.lastName,
-        email: details.email,
-        pan: details.pan,
-        dob: details.dob,
-        gender: details.gender,
-        address: details.address,
-        state: details.state,
-        pin_code: details.pinCode,
-      });
-      setStep('consent');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to save details.');
-    }
-  };
-
-  const createOrder = async () => {
-    setError('');
-    if (!consent) {
-      setError('Please provide consent to continue.');
-      return;
-    }
+    if (!/^\d{6}$/.test(otp)) return setError('Enter the 6-digit OTP sent on WhatsApp.');
     setLoading(true);
     try {
-      const saved = await saveRequest('consent_given', { consent_given: true });
-      const res = await fetch('/api/customer-report/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request_id: saved.id ?? requestId, mobile, name: fullName, pan: details.pan }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error ?? 'Unable to create payment order.');
-      setOrderId(data.order.order_id);
+      await api('/api/customer-report/verify-otp', { request_id: requestId, otp });
       setStep('payment');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to create payment order.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to verify OTP.');
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const completePayment = async () => {
-    setLoading(true);
+  async function pay() {
     setError('');
+    setLoading(true);
     try {
-      const res = await fetch('/api/customer-report/verify-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id: orderId, request_id: requestId }),
+      const order = await api('/api/customer-report/create-order', { request_id: requestId });
+      setOrderId(order.order_id);
+      setAmount(order.amount);
+      await loadCashfree();
+      if (!window.Cashfree) throw new Error('Payment gateway did not load.');
+      const result = await window.Cashfree({ mode: order.mode }).checkout({
+        paymentSessionId: order.payment_session_id,
+        redirectTarget: '_modal',
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error ?? 'Payment verification failed.');
-      setReportId(data.report_id);
-      setStep('preparing');
-      window.setTimeout(() => setStep('report'), 2600);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Payment verification failed.');
+      if (result?.error) throw new Error(result.error.message || 'Payment was not completed.');
+      await verifyPayment(requestId, order.order_id);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to complete payment.');
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const updateDetails = (key: keyof Details, value: string) => {
-    setDetails((prev) => ({ ...prev, [key]: key === 'pan' ? value.toUpperCase() : value }));
-  };
+  async function verifyPayment(id = requestId, order = orderId) {
+    setError('');
+    setLoading(true);
+    try {
+      await api('/api/customer-report/verify-payment', { request_id: id, order_id: order });
+      const data = await api('/api/customer-report/prefill', { request_id: id });
+      setProfile(data.profile);
+      setStep('prefill');
+      window.history.replaceState({}, '', '/get-my-report');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Payment verification is pending.');
+      setStep('payment');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function generate() {
+    setError('');
+    setStep('generating');
+    setLoading(true);
+    try {
+      const data = await api('/api/customer-report/generate', { request_id: requestId, confirm: true });
+      if (!data.ready) throw new Error('Your report is still being prepared. Please try again shortly.');
+      setReportId(data.report_id);
+      setStep('report');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to generate the report.');
+      setStep('prefill');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="landing-page min-h-screen bg-bg text-fg">
-      <div className="grain-overlay" aria-hidden />
-      <header className="border-b border-white/5 bg-bg/90 backdrop-blur-xl sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <AppLogo size={42} width={170} height={40} />
-          </Link>
-          <Link href="/" className="btn-ghost px-4 py-2 text-sm">Back Home</Link>
+    <main className="min-h-screen bg-bg text-fg">
+      <header className="border-b border-white/10 bg-bg/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8">
+          <Link href="/"><AppLogo /></Link>
+          <Link href="/" className="text-sm font-semibold text-fg-muted transition-colors hover:text-fg">Back to home</Link>
         </div>
       </header>
 
-      <main className="relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" aria-hidden style={{ background: 'radial-gradient(ellipse 90% 60% at 50% -10%, rgba(0,212,170,0.12), transparent 55%)' }} />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14 relative">
-          <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-8 lg:gap-10 items-start">
-            <aside className="space-y-6 lg:sticky lg:top-24">
-              <div>
-                <span className="tag tag-primary mb-5 inline-flex">Private Financial Health Journey</span>
-                <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-tight">
-                  Get clarity before your next financial decision.
-                </h1>
-                <p className="text-fg-muted mt-5 text-lg leading-relaxed">
-                  Verify your mobile, understand what the report can reveal, and add your details securely when you are ready.
-                </p>
-              </div>
-
-              <div className="glass-card rounded-4xl p-5">
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-4">
-                  {['Mobile', 'Benefits', 'Consent', 'Report'].map((label, index) => (
-                    <StepPill key={label} label={label} active={Math.min(stepIndex, 6) === index * 2 || (index === 1 && step === 'educate')} done={stepIndex > index * 2} />
-                  ))}
-                </div>
-              </div>
-
-              <ReportPreview locked={step !== 'report'} />
-            </aside>
-
-            <section className="glass-card rounded-3xl p-4 sm:p-6 lg:p-7 min-h-[520px]">
-              {error && (
-                <div className="mb-5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                  {error}
-                </div>
-              )}
-
-              {step === 'mobile' && (
-                <div className="space-y-5">
-                  <div>
-                    <span className="tag tag-accent mb-4 inline-flex">Step 1</span>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-fg">Start with mobile verification</h2>
-                    <p className="text-fg-muted mt-2 text-sm sm:text-base">We verify your number first so your report journey stays private and secure.</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-semibold text-fg">Mobile number</label>
-                    <div className="mt-2 flex h-12 rounded-xl border border-white/10 bg-white/[0.045] overflow-hidden transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10">
-                      <span className="flex items-center px-3.5 text-sm text-fg-muted border-r border-white/10">+91</span>
-                      <input
-                        value={mobile}
-                        onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                        placeholder="9876543210"
-                        className="flex-1 bg-transparent px-3.5 outline-none text-fg text-sm placeholder:text-fg-subtle/70"
-                      />
-                    </div>
-                  </div>
-                  <button onClick={sendOtp} className="btn-primary w-full justify-center py-3 text-sm">Send OTP</button>
-                  <div className="grid sm:grid-cols-3 gap-2.5">
-                    {['Private report journey', 'Secure mobile verification', 'Guided experience'].map((item) => (
-                      <div key={item} className="rounded-xl px-3 py-2.5 text-xs text-fg-muted border border-white/5 bg-white/[0.03]">{item}</div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {step === 'otp' && (
-                <div className="space-y-5">
-                  <div>
-                    <span className="tag tag-accent mb-4 inline-flex">Step 2</span>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-fg">Verify OTP</h2>
-                    <p className="text-fg-muted mt-2 text-sm sm:text-base">Enter the OTP sent to {mobile}. Demo OTP is <span className="text-primary font-bold">123456</span>.</p>
-                  </div>
-                  <input
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="Enter 6-digit OTP"
-                    className="h-12 w-full rounded-xl border border-white/10 bg-white/[0.045] px-4 text-center text-lg tracking-[0.32em] text-fg outline-none transition-all placeholder:tracking-normal placeholder:text-sm placeholder:text-fg-subtle/70 focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
-                  />
-                  <div className="grid sm:grid-cols-2 gap-2.5">
-                    <button onClick={() => setStep('mobile')} className="btn-ghost justify-center py-3 text-sm">Change Mobile</button>
-                    <button onClick={verifyOtp} className="btn-primary justify-center py-3 text-sm">Verify & Continue</button>
-                  </div>
-                </div>
-              )}
-
-              {step === 'educate' && (
-                <div className="space-y-7">
-                  <div>
-                    <span className="tag tag-primary mb-4 inline-flex">Your Report Benefits</span>
-                    <h2 className="text-3xl font-bold text-fg">Here is what your report helps you understand</h2>
-                    <p className="text-fg-muted mt-3">Understand the value first. Your full report details stay protected until the final step.</p>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    {educationCards.map((card) => (
-                      <div key={card.title} className="rounded-3xl p-5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                        <Icon name={card.icon} size={22} className="text-primary mb-4" />
-                        <h3 className="font-bold text-fg">{card.title}</h3>
-                        <p className="text-sm text-fg-muted mt-2 leading-relaxed">{card.desc}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <button onClick={() => setStep('details')} className="btn-primary w-full justify-center py-4">Continue Securely</button>
-                </div>
-              )}
-
-              {step === 'details' && (
-                <div className="space-y-5">
-                  <div>
-                    <span className="tag tag-accent mb-4 inline-flex">Secure Details</span>
-                    <h2 className="text-2xl sm:text-3xl font-bold text-fg">Prepare your report accurately</h2>
-                    <p className="text-fg-muted mt-2 text-sm sm:text-base">These details help prepare the correct financial health analysis for you.</p>
-                  </div>
-                  <div className="grid sm:grid-cols-3 gap-2.5">
-                    {[
-                      ['firstName', 'First name *'],
-                      ['middleName', 'Middle name'],
-                      ['lastName', 'Last name *'],
-                    ].map(([key, label]) => (
-                      <input key={key} value={details[key as keyof Details]} onChange={(e) => updateDetails(key as keyof Details, e.target.value)} placeholder={label} className={fieldClass} />
-                    ))}
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-2.5">
-                    <input value={details.email} onChange={(e) => updateDetails('email', e.target.value)} placeholder="Email address *" className={fieldClass} />
-                    <input value={details.pan} onChange={(e) => updateDetails('pan', e.target.value)} placeholder="PAN number *" maxLength={10} className={`${fieldClass} uppercase`} />
-                    <input type="date" value={details.dob} onChange={(e) => updateDetails('dob', e.target.value)} className={fieldClass} />
-                    <select value={details.gender} onChange={(e) => updateDetails('gender', e.target.value)} className={selectClass}>
-                      <option value="">Gender *</option>
-                      <option>Male</option>
-                      <option>Female</option>
-                      <option>Other</option>
-                    </select>
-                  </div>
-                  <textarea value={details.address} onChange={(e) => updateDetails('address', e.target.value)} placeholder="Current address *" rows={2} className={`${areaClass} resize-none`} />
-                  <div className="grid sm:grid-cols-2 gap-2.5">
-                    <select value={details.state} onChange={(e) => updateDetails('state', e.target.value)} className={selectClass}>
-                      <option value="">State *</option>
-                      {states.map((state) => <option key={state}>{state}</option>)}
-                    </select>
-                    <input value={details.pinCode} onChange={(e) => updateDetails('pinCode', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="PIN code *" className={fieldClass} />
-                  </div>
-                  <button onClick={continueDetails} className="btn-primary w-full justify-center py-3 text-sm">Review Consent</button>
-                </div>
-              )}
-
-              {step === 'consent' && (
-                <div className="space-y-7">
-                  <div>
-                    <span className="tag tag-primary mb-4 inline-flex">Consent & Privacy</span>
-                    <h2 className="text-3xl font-bold text-fg">What you are authorizing</h2>
-                    <p className="text-fg-muted mt-3">We will process your details only to prepare your financial health analysis report.</p>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    {reportIncludes.map((item) => (
-                      <div key={item} className="flex items-center gap-3 rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                        <Icon name="CheckCircleIcon" size={18} className="text-primary shrink-0" />
-                        <span className="text-sm text-fg-muted">{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <label className="flex items-start gap-3 rounded-3xl p-5 cursor-pointer" style={{ background: 'rgba(0,212,170,0.08)', border: '1px solid rgba(0,212,170,0.18)' }}>
-                    <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1" />
-                    <span className="text-sm text-fg-muted leading-relaxed">
-                      I authorize Credit Trust to process my details and generate my Financial Health Report. I understand my data will not be sold or shared for marketing.
-                    </span>
-                  </label>
-                  <button onClick={createOrder} disabled={loading} className="btn-primary w-full justify-center py-4">
-                    {loading ? 'Preparing next step...' : 'Continue'}
-                  </button>
-                </div>
-              )}
-
-              {step === 'payment' && (
-                <div className="space-y-7">
-                  <div>
-                    <span className="tag tag-accent mb-4 inline-flex">Secure Payment</span>
-                    <h2 className="text-3xl font-bold text-fg">Unlock your full report</h2>
-                    <p className="text-fg-muted mt-3">Your report request is ready. Pay securely to generate and view your full report.</p>
-                  </div>
-                  <div className="rounded-4xl p-6" style={{ background: 'linear-gradient(135deg, rgba(0,212,170,0.12), rgba(245,166,35,0.07))', border: '1px solid rgba(0,212,170,0.18)' }}>
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-fg font-bold text-xl">Financial Health Report</p>
-                        <p className="text-fg-muted text-sm mt-2">One-time secure report generation</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-4xl font-bold gradient-text-primary">₹199</p>
-                        <p className="text-xs text-fg-subtle mt-1">incl. report access</p>
-                      </div>
-                    </div>
-                    <div className="grid sm:grid-cols-2 gap-3 mt-6">
-                      {reportIncludes.slice(0, 4).map((item) => (
-                        <div key={item} className="flex items-center gap-2 text-sm text-fg-muted">
-                          <Icon name="CheckCircleIcon" size={16} className="text-primary" />
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <button onClick={completePayment} disabled={loading} className="btn-primary w-full justify-center py-4">
-                    {loading ? 'Opening secure checkout...' : 'Pay ₹199 Securely'}
-                  </button>
-                  <p className="text-center text-xs text-fg-subtle">Cashfree checkout ready. Demo mode completes payment safely when keys are not configured.</p>
-                </div>
-              )}
-
-              {step === 'preparing' && (
-                <div className="space-y-7 text-center py-8">
-                  <div className="w-20 h-20 rounded-full border-4 border-primary/20 border-t-primary animate-spin mx-auto" />
-                  <div>
-                    <h2 className="text-3xl font-bold text-fg">Preparing your report</h2>
-                    <p className="text-fg-muted mt-3">This takes a few seconds in demo mode.</p>
-                  </div>
-                  <div className="max-w-md mx-auto space-y-3 text-left">
-                    {preparationSteps.map((item) => (
-                      <div key={item} className="flex items-center gap-3 rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                        <Icon name="CheckCircleIcon" size={18} className="text-primary" />
-                        <span className="text-sm text-fg-muted">{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {step === 'report' && (
-                <div className="space-y-7">
-                  <div>
-                    <span className="tag tag-primary mb-4 inline-flex">Report Ready</span>
-                    <h2 className="text-3xl font-bold text-fg">Your Financial Health Report is ready</h2>
-                    <p className="text-fg-muted mt-3">Report ID: {reportId || 'RPT_DEMO'}</p>
-                  </div>
-                  <ReportPreview locked={false} />
-                  <div className="grid sm:grid-cols-3 gap-3">
-                    {[
-                      ['Loan Readiness', 'Good'],
-                      ['Risk Level', 'Moderate'],
-                      ['Next Action', 'Reduce utilization'],
-                    ].map(([label, value]) => (
-                      <div key={label} className="rounded-3xl p-5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                        <p className="text-xs text-fg-subtle">{label}</p>
-                        <p className="text-lg font-bold text-fg mt-1">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <button onClick={() => window.print()} className="btn-primary w-full justify-center py-4">Download / Print Report</button>
-                </div>
-              )}
-            </section>
-          </div>
+      <section className="mx-auto max-w-5xl px-5 py-10 sm:py-14 lg:px-8">
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="tag tag-primary">Secure Financial Report</span>
+          <h1 className="mt-5 text-3xl font-bold sm:text-5xl">Get your financial health report</h1>
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-fg-muted sm:text-base">
+            Verify your mobile, complete the secure payment, confirm your profile and download your report.
+          </p>
         </div>
-      </main>
-    </div>
+
+        <div className="mx-auto mt-8 flex max-w-2xl items-center justify-between gap-2">
+          {steps.map(([id, label], index) => (
+            <div key={id} className="flex min-w-0 flex-1 items-center last:flex-none">
+              <div className="flex flex-col items-center gap-2">
+                <span className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${index <= activeIndex ? 'bg-primary text-bg' : 'bg-white/10 text-fg-subtle'}`}>
+                  {index < activeIndex ? <Icon name="CheckIcon" size={16} /> : index + 1}
+                </span>
+                <span className={`hidden text-[11px] font-semibold sm:block ${index <= activeIndex ? 'text-fg' : 'text-fg-subtle'}`}>{label}</span>
+              </div>
+              {index < steps.length - 1 && <span className={`mx-2 mb-5 h-px flex-1 sm:mx-4 ${index < activeIndex ? 'bg-primary' : 'bg-white/15'}`} />}
+            </div>
+          ))}
+        </div>
+
+        <div className="glass-card mx-auto mt-8 max-w-2xl rounded-4xl p-6 sm:p-9">
+          {error && <div className="mb-6 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error}</div>}
+
+          {step === 'mobile' && (
+            <div>
+              <div className="mb-7 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary"><Icon name="DevicePhoneMobileIcon" size={24} /></div>
+              <h2 className="text-2xl font-bold">Start with your mobile number</h2>
+              <p className="mt-2 text-sm text-fg-muted">We will send a one-time password on WhatsApp.</p>
+              <label className="mt-6 block text-sm font-semibold">Mobile number</label>
+              <div className="mt-2 flex h-12 overflow-hidden rounded-xl border border-white/10 bg-white/[0.045] focus-within:border-primary/50">
+                <span className="flex items-center border-r border-white/10 px-4 text-sm text-fg-muted">+91</span>
+                <input value={mobile} onChange={(event) => setMobile(event.target.value.replace(/\D/g, '').slice(0, 10))} inputMode="numeric" placeholder="10-digit mobile number" className="min-w-0 flex-1 bg-transparent px-4 outline-none" />
+              </div>
+              <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-5 text-fg-muted">
+                <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
+                <span>I authorize CreditTrust to retrieve my financial profile and bureau information for generating this report.</span>
+              </label>
+              <button onClick={start} disabled={loading} className="btn-primary mt-6 w-full justify-center">{loading ? 'Sending OTP...' : 'Send WhatsApp OTP'}</button>
+            </div>
+          )}
+
+          {step === 'otp' && (
+            <div>
+              <div className="mb-7 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary"><Icon name="ChatBubbleLeftRightIcon" size={24} /></div>
+              <h2 className="text-2xl font-bold">Verify your mobile</h2>
+              <p className="mt-2 text-sm text-fg-muted">Enter the OTP sent to WhatsApp number +91 {mobile}.</p>
+              <input value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="6-digit OTP" className="mt-6 h-14 w-full rounded-xl border border-white/10 bg-white/[0.045] px-4 text-center text-xl font-bold tracking-[0.35em] outline-none focus:border-primary/50" />
+              <button onClick={verifyOtp} disabled={loading} className="btn-primary mt-6 w-full justify-center">{loading ? 'Verifying...' : 'Verify OTP'}</button>
+            </div>
+          )}
+
+          {step === 'payment' && (
+            <div className="text-center">
+              <div className="mx-auto mb-7 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary"><Icon name="CreditCardIcon" size={28} /></div>
+              <h2 className="text-2xl font-bold">Complete secure payment</h2>
+              <p className="mt-2 text-sm text-fg-muted">Your profile will be fetched only after successful payment verification.</p>
+              <div className="my-7 rounded-2xl border border-white/10 bg-white/[0.035] p-5">
+                <div className="flex items-center justify-between text-sm"><span className="text-fg-muted">Financial health report</span><strong className="text-xl">₹{amount || Number(process.env.NEXT_PUBLIC_B2C_REPORT_PRICE || 199)}</strong></div>
+              </div>
+              <button onClick={orderId ? () => verifyPayment() : pay} disabled={loading} className="btn-primary w-full justify-center">{loading ? 'Checking payment...' : orderId ? 'Verify payment' : 'Pay securely'}</button>
+            </div>
+          )}
+
+          {step === 'prefill' && profile && (
+            <div>
+              <div className="mb-7 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary"><Icon name="IdentificationIcon" size={24} /></div>
+              <h2 className="text-2xl font-bold">Confirm your profile</h2>
+              <p className="mt-2 text-sm text-fg-muted">Please confirm that the retrieved information belongs to you.</p>
+              <dl className="mt-6 divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.03] px-5">
+                {[
+                  ['Name', profile.full_name], ['Date of birth', profile.dob], ['Gender', profile.gender], ['PAN', profile.pan],
+                  ['Address', profile.address], ['State & PIN', `${profile.state} - ${profile.pincode}`],
+                ].map(([label, value]) => <div key={label} className="grid gap-1 py-3 sm:grid-cols-[140px_1fr]"><dt className="text-xs font-semibold uppercase text-fg-subtle">{label}</dt><dd className="text-sm font-medium capitalize">{value}</dd></div>)}
+              </dl>
+              <button onClick={generate} disabled={loading} className="btn-primary mt-6 w-full justify-center">Confirm and generate report</button>
+            </div>
+          )}
+
+          {step === 'generating' && (
+            <div className="py-10 text-center">
+              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-primary" />
+              <h2 className="mt-6 text-2xl font-bold">Preparing your report</h2>
+              <p className="mt-2 text-sm text-fg-muted">Please keep this page open. This can take a few moments.</p>
+            </div>
+          )}
+
+          {step === 'report' && (
+            <div className="py-4 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 text-primary"><Icon name="CheckCircleIcon" size={34} /></div>
+              <h2 className="mt-6 text-2xl font-bold">Your report is ready</h2>
+              <p className="mt-2 text-sm text-fg-muted">Report reference: <span className="font-semibold text-fg">{reportId}</span></p>
+              <a href={`/api/customer-report/download?request_id=${encodeURIComponent(requestId)}`} className="btn-primary mt-7 w-full justify-center"><Icon name="ArrowDownTrayIcon" size={18} /> Download PDF report</a>
+            </div>
+          )}
+        </div>
+
+        <div className="mx-auto mt-5 flex max-w-2xl items-center justify-center gap-2 text-xs text-fg-subtle"><Icon name="LockClosedIcon" size={14} /> Secure payment and encrypted report access</div>
+      </section>
+    </main>
   );
 }

@@ -18,9 +18,9 @@ type TemplateComponent =
     }
   | {
       type: 'button';
-      sub_type: 'url';
+      sub_type: 'url' | 'copy_code';
       index: string;
-      parameters: Array<{ type: 'text'; text: string }>;
+      parameters: Array<{ type: 'text'; text: string } | { type: 'coupon_code'; coupon_code: string }>;
     };
 
 const DEFAULT_API_VERSION = 'v23.0';
@@ -64,6 +64,7 @@ export async function sendWhatsAppTemplate(input: {
   languageCode?: string;
   bodyValues?: unknown[];
   urlButtonValues?: unknown[];
+  copyCodeButtonValues?: unknown[];
 }): Promise<WhatsAppSendResult> {
   const config = getWhatsAppConfig();
   if (!config.accessToken || !config.phoneNumberId) {
@@ -89,6 +90,15 @@ export async function sendWhatsAppTemplate(input: {
       sub_type: 'url',
       index: String(index),
       parameters: [toTextParameter(value)],
+    });
+  });
+
+  input.copyCodeButtonValues?.forEach((value, index) => {
+    components.push({
+      type: 'button',
+      sub_type: 'copy_code',
+      index: String(index),
+      parameters: [{ type: 'coupon_code', coupon_code: String(value ?? '').trim() }],
     });
   });
 
