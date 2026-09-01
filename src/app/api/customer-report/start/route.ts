@@ -8,6 +8,15 @@ export const runtime = 'nodejs';
 
 const CONSENT_VERSION = 'b2c-financial-report-v1';
 
+function whatsappFailureDetail(error: string | undefined, response: unknown) {
+  const metaError = response && typeof response === 'object'
+    ? (response as { error?: { error_data?: { details?: unknown } } }).error
+    : undefined;
+  const details = metaError?.error_data?.details;
+  return [error, typeof details === 'string' ? details : ''].filter(Boolean).join(' | ')
+    || 'WhatsApp template send failed';
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -73,9 +82,14 @@ export async function POST(request: NextRequest) {
       ...(buttonType === 'url' ? { urlButtonValues: [otp] } : {}),
     });
     if (!sent.success) {
+      const failureDetail = whatsappFailureDetail(sent.error, sent.response);
+      console.error('[customer-report/start] WhatsApp OTP failed', {
+        status: sent.status,
+        error: failureDetail,
+      });
       await Promise.all([
         supabase.from('b2c_otp_challenges').update({ status: 'failed', updated_at: new Date().toISOString() }).eq('id', challenge.id),
-        supabase.from('b2c_report_requests').update({ status: 'otp_failed', api_error: sent.error, updated_at: new Date().toISOString() }).eq('id', reportRequest.id),
+        supabase.from('b2c_report_requests').update({ status: 'otp_failed', api_error: failureDetail, updated_at: new Date().toISOString() }).eq('id', reportRequest.id),
       ]);
       return NextResponse.json({ success: false, error: 'Unable to send OTP on WhatsApp. Please try again.' }, { status: 502 });
     }
