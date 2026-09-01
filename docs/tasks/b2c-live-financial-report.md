@@ -27,14 +27,14 @@ Provide a paid self-service financial report journey at `/get-my-report` without
 
 ## WhatsApp OTP Setup
 
-In Meta WhatsApp Manager, create an `Authentication` template named `credittrust_report_otp`:
+The approved Meta `Authentication` template is `loginotp` (template ID `3050280611828976`):
 
-- Language: English (`en`)
+- Language: English (US) (`en_US`)
 - Body: one OTP variable
 - Button: `Copy Code`
 - Expiry: 10 minutes
 
-After Meta approves the template, configure `WHATSAPP_B2C_OTP_TEMPLATE=credittrust_report_otp`. Existing `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` are used to send it.
+Configure `WHATSAPP_B2C_OTP_TEMPLATE=loginotp`. Existing `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` are used to send it. Meta's Cloud API sends templates by name and language; the template ID is retained only as an administrative reference.
 
 ## Production Environment
 
@@ -45,7 +45,7 @@ After Meta approves the template, configure `WHATSAPP_B2C_OTP_TEMPLATE=credittru
 - `NEXT_PUBLIC_B2C_REPORT_PRICE`
 - `B2C_SESSION_SECRET`
 - `WHATSAPP_B2C_OTP_TEMPLATE`
-- `WHATSAPP_B2C_OTP_LANGUAGE=en`
+- `WHATSAPP_B2C_OTP_LANGUAGE=en_US`
 - `WHATSAPP_B2C_OTP_BUTTON_TYPE=copy_code`
 
 ## Verification
