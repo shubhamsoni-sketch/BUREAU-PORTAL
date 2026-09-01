@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       to: mobile,
       templateName,
       languageCode: process.env.WHATSAPP_B2C_OTP_LANGUAGE || undefined,
-      bodyValues: [otp, otp],
+      bodyValues: [otp, 'CreditTrust financial report verification'],
       ...(buttonType === 'copy_code' ? { copyCodeButtonValues: [otp] } : {}),
       ...(buttonType === 'url' ? { urlButtonValues: [otp] } : {}),
     });
