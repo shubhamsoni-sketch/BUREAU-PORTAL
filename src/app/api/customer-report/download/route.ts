@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireB2cSession } from '@/lib/b2c/security';
-import { renderBureauReportPdf } from '@/lib/bureau/report-pdf';
+import { renderFinancialAnalysisPdf } from '@/lib/b2c/financial-report-pdf';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+function hasDownloadableReport(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  if (Array.isArray(value)) return value.some(hasDownloadableReport);
+  const data = value as Record<string, unknown>;
+  if (String(data.status ?? '').toLowerCase() === 'no_hit') return true;
+  if (data.consumerCreditData) return true;
+  return Object.values(data).some(hasDownloadableReport);
+}
 
 function fileName(name: string | null, reportId: string | null) {
   const value = `${name || 'financial-report'}-${reportId || Date.now()}`
@@ -31,8 +40,11 @@ export async function GET(request: NextRequest) {
     if (!data || data.status !== 'report_generated' || !data.report_json) {
       return NextResponse.json({ success: false, error: 'Report is not ready for download.' }, { status: 409 });
     }
+    if (!hasDownloadableReport(data.report_json)) {
+      return NextResponse.json({ success: false, error: 'The bureau response did not contain a downloadable report.' }, { status: 409 });
+    }
 
-    const pdf = await renderBureauReportPdf({
+    const pdf = await renderFinancialAnalysisPdf({
       rawJson: data.report_json,
       reportId: data.report_id || data.id,
       fallbackName: data.full_name,

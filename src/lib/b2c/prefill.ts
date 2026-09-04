@@ -96,6 +96,24 @@ function normalizeDob(value: string) {
   return indian ? `${indian[1].padStart(2, '0')}/${indian[2].padStart(2, '0')}/${indian[3]}` : value;
 }
 
+function normalizeCibilAddress(value: string, state: string, pincode: string) {
+  const stateCode = state.trim().toUpperCase();
+  let address = value
+    .toUpperCase()
+    .replace(/[^A-Z0-9 /.,#-]/g, ' ')
+    .replace(new RegExp(`\\b${pincode}\\b`, 'g'), ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (stateCode) {
+    address = address.replace(new RegExp(`\\s+${stateCode.replace(/\s+/g, '\\s+')}\\s*$`), '').trim();
+  }
+
+  if (address.length <= 40) return address;
+  const shortened = address.slice(0, 40);
+  return shortened.replace(/\s+\S*$/, '').trim() || shortened.trim();
+}
+
 export function buildCibilPayload(prefill: unknown, mobile: string): CibilPayload {
   const info = personalData(prefill).map((data) => data.personal_information).find(object) || {};
   const fullName = text(info.full_name || info.fullName || info.name) || firstByKey(prefill, ['full_name', 'fullName', 'customer_name']);
@@ -105,6 +123,8 @@ export function buildCibilPayload(prefill: unknown, mobile: string): CibilPayloa
   const dob = text(info.date_of_birth || info.dateOfBirth || info.dob) || firstByKey(prefill, ['date_of_birth', 'dateOfBirth', 'dob']);
   const gender = text(info.gender || info.sex) || firstByKey(prefill, ['gender', 'sex']);
 
+  const addressLine = normalizeCibilAddress(address?.address || '', address?.state || '', address?.pincode || '');
+
   return {
     firstName: names[0] || firstByKey(prefill, ['first_name', 'firstName']),
     lastName: names.length > 1 ? names[names.length - 1] : firstByKey(prefill, ['last_name', 'lastName']),
@@ -112,7 +132,7 @@ export function buildCibilPayload(prefill: unknown, mobile: string): CibilPayloa
     gender: normalizeGender(gender),
     pan: pan.toUpperCase(),
     mobile: digits(mobile).slice(-10),
-    address: address?.address || '',
+    address: addressLine,
     state: getStateName(address?.state || ''),
     pincode: address?.pincode || '',
   };

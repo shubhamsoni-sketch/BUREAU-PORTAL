@@ -30,6 +30,10 @@ async function getBrowserRuntime() {
 
 export async function renderBureauReportPdf(input: BureauReportInput): Promise<Buffer> {
   const html = generateBureauReportHtml(withProviderLogo(input));
+  return renderHtmlPdf(html, { scale: 0.94 });
+}
+
+export async function renderHtmlPdf(html: string, options?: { scale?: number; format?: 'letter' | 'A4' }): Promise<Buffer> {
   const puppeteer = await import('puppeteer-core');
   const browserRuntime = await getBrowserRuntime();
 
@@ -45,7 +49,7 @@ export async function renderBureauReportPdf(input: BureauReportInput): Promise<B
     await new Promise((resolve) => setTimeout(resolve, 500));
     await page.setContent(html, { waitUntil: 'domcontentloaded' });
     const pdf = await page.pdf({
-      format: 'letter',
+      format: options?.format || 'letter',
       printBackground: true,
       displayHeaderFooter: false,
       margin: {
@@ -54,7 +58,7 @@ export async function renderBureauReportPdf(input: BureauReportInput): Promise<B
         bottom: '0.18in',
         left: '0.25in',
       },
-      scale: 0.94,
+      scale: options?.scale ?? 0.94,
     });
     return Buffer.from(pdf);
   } finally {

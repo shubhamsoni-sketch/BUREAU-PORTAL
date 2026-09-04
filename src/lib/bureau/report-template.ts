@@ -109,6 +109,8 @@ function fmtDate(value: unknown): string {
   if (!raw) return '';
   if (/^\d{8}$/.test(raw)) return `${raw.slice(0, 2)}-${raw.slice(2, 4)}-${raw.slice(4)}`;
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return `${raw.slice(8)}-${raw.slice(5, 7)}-${raw.slice(0, 4)}`;
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  if (iso) return `${iso[3]}-${iso[2]}-${iso[1]}`;
   return raw;
 }
 

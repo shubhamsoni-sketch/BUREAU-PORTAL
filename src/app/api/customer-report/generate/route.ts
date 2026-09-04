@@ -7,6 +7,36 @@ import { createAdminClient } from '@/lib/supabase/admin';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+type AnyRecord = Record<string, unknown>;
+
+function record(value: unknown): AnyRecord {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as AnyRecord : {};
+}
+
+function providerResult(raw: unknown) {
+  const response = record(raw);
+  const normalized = record(response.data);
+  const body = record(record(response.raw).body);
+  const control = record(body.controlData);
+  const errors = Array.isArray(control.errorResponseArray) ? control.errorResponseArray.map(record) : [];
+  const status = String(normalized.status ?? '').trim().toLowerCase();
+  const providerError = errors.map((item) => String(item.errorMessage ?? '').trim()).find(Boolean);
+  const providerCode = errors.map((item) => String(item.errorCode ?? '').trim()).find(Boolean);
+
+  if (status === 'provider_error' || control.success === false) {
+    return {
+      accepted: false,
+      error: [providerCode, providerError].filter(Boolean).join(': ') || 'Bureau provider rejected the request',
+    };
+  }
+
+  if (status === 'no_hit') return { accepted: true, error: null };
+  if (status === 'success' && body.consumerCreditData) return { accepted: true, error: null };
+  if (body.consumerCreditData) return { accepted: true, error: null };
+
+  return { accepted: false, error: 'Bureau provider response did not include report data' };
+}
+
 function scoreFrom(raw: unknown): number | null {
   const seen = new Set<unknown>();
   const visit = (value: unknown): number | null => {
@@ -83,15 +113,18 @@ export async function POST(request: NextRequest) {
 
     const payload = existing.prefill_payload as CibilPayload;
     const result = await hitMasterApi(bureau, payload);
-    if (!result.ok) {
+    const provider = providerResult(result.data);
+    if (!result.ok || !provider.accepted) {
+      const apiError = provider.error || 'Bureau provider could not generate the report';
       await supabase.from('b2c_report_requests').update({
         status: 'report_failed',
         api_request_json: payload,
         api_response_json: result.data,
         api_status: String(result.status),
-        api_error: 'Bureau provider could not generate the report',
+        api_error: apiError,
         updated_at: new Date().toISOString(),
       }).eq('id', requestId);
+      console.error('[customer-report/generate] provider rejected request', { requestId, apiError });
       return NextResponse.json({ success: false, error: 'Your report could not be generated right now. Please try again.' }, { status: 502 });
     }
 
