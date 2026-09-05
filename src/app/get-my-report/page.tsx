@@ -269,7 +269,10 @@ export default function GetMyReportPage() {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 text-primary"><Icon name="CheckCircleIcon" size={34} /></div>
               <h2 className="mt-6 text-2xl font-bold">Your report is ready</h2>
               <p className="mt-2 text-sm text-fg-muted">Report reference: <span className="font-semibold text-fg">{reportId}</span></p>
-              <a href={`/api/customer-report/download?request_id=${encodeURIComponent(requestId)}`} className="btn-primary mt-7 w-full justify-center"><Icon name="ArrowDownTrayIcon" size={18} /> Download PDF report</a>
+              <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                <a href={`/credit-intelligence?request_id=${encodeURIComponent(requestId)}`} className="btn-secondary w-full justify-center"><Icon name="ChartBarIcon" size={18} /> Open Credit Intelligence</a>
+                <a href={`/api/customer-report/download?request_id=${encodeURIComponent(requestId)}`} className="btn-primary w-full justify-center"><Icon name="ArrowDownTrayIcon" size={18} /> Download PDF report</a>
+              </div>
             </div>
           )}
         </div>

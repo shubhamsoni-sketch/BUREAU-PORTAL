@@ -2,6 +2,21 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-09-05 - Developer - B2C Credit Intelligence Dashboard
+
+Summary:
+
+- Added a session-protected Credit Intelligence experience for each completed B2C report.
+- Added a server-side analytics layer that derives score factors, account performance, DPD history, utilisation, enquiries, risk flags, insights, and action plans from the saved raw bureau JSON.
+- Kept sensitive customer values masked in the customer dashboard while preserving the complete raw provider response in the existing B2C request record.
+- Added a direct handoff from the report-success screen to the new intelligence dashboard, without changing OTP, payment, bureau generation, or PDF download flows.
+
+Verification:
+
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder SUPABASE_SERVICE_ROLE_KEY=placeholder NEXT_TELEMETRY_DISABLED=1 npm run build` passed.
+- `npm run type-check -- --pretty false` passed.
+- No OTP, payment, prefill, or live bureau request was made during verification.
+
 ## 2026-08-31 - Developer - Live B2C Financial Report Journey
 
 Summary:
