@@ -272,12 +272,13 @@ function CreditIntelligenceApp() {
           cache: 'no-store',
         });
         const json = await response.json().catch(() => null);
-        if (!response.ok || !json?.report) {
+        const report = json?.report ?? json?.intelligence;
+        if (!response.ok || !report) {
           throw new Error(json?.message || 'Unable to open this report');
         }
         if (!mounted) return;
         setPayload({
-          report: json.report,
+          report,
           history: Array.isArray(json.history) ? json.history : [],
         });
       } catch (loadError) {
