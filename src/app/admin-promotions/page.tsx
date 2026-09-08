@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
 import { createClient } from '@/lib/supabase/client';
 import {
+  BarChart3,
   Check,
   CheckCheck,
   Mail,
@@ -266,6 +268,25 @@ export default function AdminPromotionsPage() {
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : undefined} /> Refresh
           </button>
+        </div>
+
+        <div className="order-1 overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 p-5 text-white shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Meta Marketing Automation</p>
+              <h2 className="mt-1 text-2xl font-bold">Facebook, Instagram aur Click-to-WhatsApp campaigns yahin se track honge.</h2>
+              <p className="mt-2 text-sm leading-6 text-blue-100">
+                Promotions tab existing approved WhatsApp template sender hai. Naya command center campaign codes, Meta ads, report link tracking,
+                WhatsApp leads, spend, clicks, replies aur automation rules ko campaign-wise connect karta hai.
+              </p>
+            </div>
+            <Link
+              href="/admin-meta-marketing"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-black text-slate-950 shadow-sm hover:bg-blue-50"
+            >
+              <BarChart3 size={17} /> Open Meta Command Center
+            </Link>
+          </div>
         </div>
 
         <div className="order-1 flex items-center gap-2 text-xs font-medium text-slate-500" aria-live="polite">

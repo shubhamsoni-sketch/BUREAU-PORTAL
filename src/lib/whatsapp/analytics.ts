@@ -227,6 +227,24 @@ export async function logWhatsAppTemplateSend(params: WhatsAppAnalyticsInput) {
       : await builder.insert(row).select('id').single();
 
     if (result.error) throw new Error(result.error.message);
+    await supabase.from('whatsapp_messages').upsert({
+      customer_id: params.customerId ?? null,
+      phone_number: phoneNumber,
+      direction: 'outbound',
+      whatsapp_message_id: params.whatsappMessageId ?? null,
+      template_name: templateName,
+      message_type: 'template',
+      status: currentStatus,
+      sent_at: sentAt,
+      failed_at: failedAt,
+      failure_reason: params.failureReason ?? null,
+      raw_payload_json: {
+        campaign_name: campaignName,
+        campaign_type: campaignType,
+        source_campaign_id: params.sourceCampaignId ?? null,
+        report_request_id: params.reportRequestId ?? null,
+      },
+    }, { onConflict: 'whatsapp_message_id', ignoreDuplicates: false });
     return result.data as { id: string } | null;
   } catch (error) {
     console.warn('[whatsapp-analytics] template send log failed:', error instanceof Error ? error.message : error);
@@ -315,6 +333,18 @@ export async function updateWhatsAppMessageStatus(params: WhatsAppStatusUpdateIn
     if (updateError) throw new Error(updateError.message);
 
     await supabase
+      .from('whatsapp_messages')
+      .update({
+        status,
+        ...(status === 'sent' ? { sent_at: eventAt } : {}),
+        ...(status === 'delivered' ? { delivered_at: eventAt } : {}),
+        ...(status === 'read' ? { read_at: eventAt } : {}),
+        ...(status === 'failed' ? { failed_at: eventAt, failure_reason: params.failureReason ?? null } : {}),
+        raw_payload_json: jsonObject(params.rawStatus),
+      })
+      .eq('whatsapp_message_id', whatsappMessageId);
+
+    await supabase
       .from('promotion_campaign_recipients')
       .update({
         status,
@@ -385,6 +415,18 @@ export async function logWhatsAppIncomingMessage(params: WhatsAppIncomingMessage
       : await builder.insert(row).select('id').single();
 
     if (result.error) throw new Error(result.error.message);
+    await supabase.from('whatsapp_messages').upsert({
+      customer_id: related.customer_id ?? null,
+      phone_number: phoneNumber,
+      direction: 'inbound',
+      whatsapp_message_id: params.whatsappMessageId ?? null,
+      template_name: related.template_name ?? null,
+      message_type: params.messageType ?? null,
+      message_text: params.messageText ?? null,
+      status: 'received',
+      raw_payload_json: jsonObject(params.rawMessage),
+      created_at: eventTime(params.timestamp),
+    }, { onConflict: 'whatsapp_message_id', ignoreDuplicates: true });
     return result.data as { id: string } | null;
   } catch (error) {
     console.warn('[whatsapp-analytics] incoming message log failed:', error instanceof Error ? error.message : error);

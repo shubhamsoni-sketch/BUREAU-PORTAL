@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/marketing/insights/sync",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/marketing/automation/evaluate",
+      "schedule": "*/30 * * * *"
+    }
+  ]
+}

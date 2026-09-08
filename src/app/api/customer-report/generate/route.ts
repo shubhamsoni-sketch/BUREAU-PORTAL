@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiHubStore, hitMasterApi } from '@/lib/api-hub/simple-store';
 import { findB2cApis, type CibilPayload } from '@/lib/b2c/prefill';
 import { requireB2cSession, setB2cSession } from '@/lib/b2c/security';
+import { createReportTrackingLink, buildTrackingUrl } from '@/lib/marketing/report-tracking';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   buildB2cReportRedirectUrl,
-  buildWhatsAppTrackingUrl,
-  createWhatsAppTrackingToken,
 } from '@/lib/whatsapp/analytics';
 import { sendWhatsAppTemplate } from '@/lib/whatsapp/cloud-api';
 
@@ -103,8 +102,16 @@ async function sendReportReadyWhatsApp(params: {
   const templateName = process.env.WHATSAPP_B2C_REPORT_READY_TEMPLATE || '';
   if (!templateName || !params.mobile) return;
 
-  const trackingToken = createWhatsAppTrackingToken('rpt');
-  const trackingUrl = buildWhatsAppTrackingUrl(trackingToken);
+  const trackingLink = await createReportTrackingLink({
+    supabase: params.supabase,
+    customerId: params.requestId,
+    reportRequestId: params.requestId,
+    reportId: params.reportId,
+    destinationUrl: buildB2cReportRedirectUrl(params.requestId),
+    tokenPrefix: 'rpt',
+  });
+  const trackingToken = trackingLink.tracking_token;
+  const trackingUrl = buildTrackingUrl(trackingToken);
   const urlButtonMode = (process.env.WHATSAPP_B2C_REPORT_READY_URL_BUTTON_MODE || 'token').toLowerCase();
   const urlButtonValue = urlButtonMode === 'full_url' ? trackingUrl : trackingToken;
   const includeUrlButton = urlButtonMode !== 'none';
@@ -228,6 +235,8 @@ export async function POST(request: NextRequest) {
       mobile: existing.mobile,
       fullName: existing.full_name,
       reportId,
+    }).catch((error) => {
+      console.warn('[customer-report/generate] report-ready WhatsApp skipped:', error instanceof Error ? error.message : error);
     });
 
     const response = NextResponse.json({ success: true, request_id: requestId, report_id: reportId, ready: true });

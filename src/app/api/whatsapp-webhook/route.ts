@@ -6,6 +6,10 @@ import {
   updateWhatsAppMessageStatus,
   type SupabaseLike,
 } from '@/lib/whatsapp/analytics';
+import {
+  updateTrackedWhatsAppMessageStatus,
+  upsertWhatsAppLeadFromInbound,
+} from '@/lib/marketing/attribution';
 
 type WhatsAppMessage = {
   from?: string;
@@ -14,6 +18,7 @@ type WhatsAppMessage = {
   type?: string;
   text?: { body?: string };
   button?: { text?: string; payload?: string };
+  referral?: unknown;
   interactive?: {
     button_reply?: { id?: string; title?: string };
     list_reply?: { id?: string; title?: string; description?: string };
@@ -97,11 +102,13 @@ export async function POST(request: NextRequest) {
       for (const change of changes) {
         const value = change?.value ?? {};
         const metadata = value?.metadata ?? {};
+        const contacts = Array.isArray(value?.contacts) ? value.contacts : [];
         const messages: WhatsAppMessage[] = Array.isArray(value?.messages) ? value.messages : [];
         const statuses: WhatsAppStatus[] = Array.isArray(value?.statuses) ? value.statuses : [];
 
         for (const message of messages) {
           const from = normalizeWhatsAppPhone(message.from);
+          const contact = contacts.find((item: any) => normalizeWhatsAppPhone(item?.wa_id) === from);
           await insertLog(supabase, {
             event_type: 'whatsapp_inbound_message',
             recipient_phone: from || 'unknown',
@@ -136,6 +143,15 @@ export async function POST(request: NextRequest) {
               display_phone_number: metadata?.display_phone_number ?? null,
             },
           });
+          await upsertWhatsAppLeadFromInbound({
+            supabase,
+            phoneNumber: from,
+            waId: message.from ?? null,
+            profileName: contact?.profile?.name ?? null,
+            message: message as any,
+          }).catch((error) => {
+            console.warn('[whatsapp-webhook] marketing attribution failed:', error instanceof Error ? error.message : error);
+          });
           logged += 1;
         }
 
@@ -168,6 +184,16 @@ export async function POST(request: NextRequest) {
             timestamp: status.timestamp ?? null,
             failureReason,
             rawStatus: status,
+          });
+          await updateTrackedWhatsAppMessageStatus({
+            supabase,
+            whatsappMessageId: status.id ?? null,
+            status: status.status ?? null,
+            timestamp: status.timestamp ?? null,
+            failureReason,
+            rawStatus: status,
+          }).catch((error) => {
+            console.warn('[whatsapp-webhook] tracked status update failed:', error instanceof Error ? error.message : error);
           });
           logged += 1;
         }

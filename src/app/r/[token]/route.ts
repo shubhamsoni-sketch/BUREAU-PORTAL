@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requestIp, setB2cSession } from '@/lib/b2c/security';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
+  logReportTrackingEvent,
+  resolveReportTrackingLink,
+} from '@/lib/marketing/report-tracking';
+import {
   buildB2cReportRedirectUrl,
   logWhatsAppTrackingClick,
 } from '@/lib/whatsapp/analytics';
@@ -57,6 +61,30 @@ export async function GET(
 
   try {
     const supabase = createAdminClient();
+    const link = await resolveReportTrackingLink(supabase, cleanToken).catch(() => null);
+    if (link) {
+      const logged = await logReportTrackingEvent({
+        supabase,
+        link,
+        eventType: 'click',
+        userAgent: request.headers.get('user-agent'),
+        ipAddress: requestIp(request),
+        referer: request.headers.get('referer') || request.headers.get('referrer'),
+      });
+
+      if (logged.expired) {
+        return NextResponse.redirect(new URL('/get-my-report?link=expired', request.url), 302);
+      }
+
+      const response = NextResponse.redirect(
+        safeRedirectUrl(request, link.destination_url, link.report_request_id),
+        302,
+      );
+      response.headers.set('Cache-Control', 'private, no-store');
+      if (link.report_request_id) setB2cSession(response, link.report_request_id);
+      return response;
+    }
+
     const { send } = await logWhatsAppTrackingClick({
       supabase,
       token: cleanToken,
