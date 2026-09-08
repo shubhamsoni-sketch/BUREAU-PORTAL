@@ -76,6 +76,7 @@ Do not expose access tokens, app secret, webhook tokens, or cron secrets in fron
 8. Report links use `/r/{tracking_token}` and log every click/open before redirect.
 9. Insights sync stores spend, reach, impressions, clicks, CTR, CPC, CPM, frequency, and cost per result.
 10. Automation rules evaluate on cron and can pause/resume/update budget when execute mode is enabled.
+11. Vercel Hobby deployments can only run daily cron schedules, so production cron is daily-safe. On Pro, use more frequent schedules such as 6-hour insights sync and 30-minute automation evaluation.
 
 ## Testing Checklist
 

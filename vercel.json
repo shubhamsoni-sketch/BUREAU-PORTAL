@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/marketing/insights/sync",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/marketing/automation/evaluate",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }
