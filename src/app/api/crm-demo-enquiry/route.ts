@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendTransactionalEmail } from '@/lib/email/transactional';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { sendConfiguredTemplate } from '@/lib/whatsapp/cloud-api';
 
 const SUPPORT_EMAIL = process.env.CRM_DEMO_ENQUIRY_EMAIL || process.env.SUPPORT_EMAIL || 'support@credittrust.in';
@@ -173,7 +174,15 @@ export async function POST(request: NextRequest) {
       console.warn('[crm-demo-enquiry] thank-you email failed:', thankYouResult.error);
     }
 
+    let supabase: ReturnType<typeof createAdminClient> | null = null;
+    try {
+      supabase = createAdminClient();
+    } catch {
+      supabase = null;
+    }
+
     const whatsappResult = await sendConfiguredTemplate({
+      supabase,
       eventType: 'crm_demo_thank_you',
       templateEnv: 'WHATSAPP_DEMO_THANK_YOU_TEMPLATE',
       to: String(mobile).trim(),

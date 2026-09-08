@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiHubStore, hitMasterApi } from '@/lib/api-hub/simple-store';
 import { findB2cApis, type CibilPayload } from '@/lib/b2c/prefill';
-import { requireB2cSession } from '@/lib/b2c/security';
+import { requireB2cSession, setB2cSession } from '@/lib/b2c/security';
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  buildB2cReportRedirectUrl,
+  buildWhatsAppTrackingUrl,
+  createWhatsAppTrackingToken,
+} from '@/lib/whatsapp/analytics';
+import { sendWhatsAppTemplate } from '@/lib/whatsapp/cloud-api';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -69,6 +75,74 @@ function reportReference() {
   return `CTF-${date}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 }
 
+function reportReadyBodyValues(input: {
+  fullName?: string | null;
+  reportId: string;
+  trackingUrl: string;
+}) {
+  const raw = process.env.WHATSAPP_B2C_REPORT_READY_BODY_VALUES || '';
+  if (!raw.trim()) return [];
+  return raw
+    .split('|')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => value
+      .replace(/\{name\}/gi, input.fullName || 'Customer')
+      .replace(/\{report_id\}/gi, input.reportId)
+      .replace(/\{tracking_url\}/gi, input.trackingUrl)
+      .replace(/\{link\}/gi, input.trackingUrl));
+}
+
+async function sendReportReadyWhatsApp(params: {
+  supabase: ReturnType<typeof createAdminClient>;
+  requestId: string;
+  mobile?: string | null;
+  fullName?: string | null;
+  reportId: string;
+}) {
+  const templateName = process.env.WHATSAPP_B2C_REPORT_READY_TEMPLATE || '';
+  if (!templateName || !params.mobile) return;
+
+  const trackingToken = createWhatsAppTrackingToken('rpt');
+  const trackingUrl = buildWhatsAppTrackingUrl(trackingToken);
+  const urlButtonMode = (process.env.WHATSAPP_B2C_REPORT_READY_URL_BUTTON_MODE || 'token').toLowerCase();
+  const urlButtonValue = urlButtonMode === 'full_url' ? trackingUrl : trackingToken;
+  const includeUrlButton = urlButtonMode !== 'none';
+
+  const result = await sendWhatsAppTemplate({
+    to: params.mobile,
+    templateName,
+    languageCode: process.env.WHATSAPP_B2C_REPORT_READY_LANGUAGE || undefined,
+    bodyValues: reportReadyBodyValues({
+      fullName: params.fullName,
+      reportId: params.reportId,
+      trackingUrl,
+    }),
+    ...(includeUrlButton ? { urlButtonValues: [urlButtonValue] } : {}),
+    analytics: {
+      supabase: params.supabase,
+      customerId: params.requestId,
+      customerSource: 'b2c_report_requests',
+      reportRequestId: params.requestId,
+      campaignName: 'b2c_report_ready',
+      campaignType: 'utility',
+      trackingToken,
+      redirectUrl: buildB2cReportRedirectUrl(params.requestId),
+      metadata: {
+        source: 'customer_report_generate',
+        report_id: params.reportId,
+      },
+    },
+  });
+
+  if (!result.success) {
+    console.warn('[customer-report/generate] report-ready WhatsApp failed:', {
+      status: result.status,
+      error: result.error,
+    });
+  }
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const requestId = String(body.request_id ?? '').trim();
@@ -80,7 +154,7 @@ export async function POST(request: NextRequest) {
   try {
     const { data: existing, error: readError } = await supabase
       .from('b2c_report_requests')
-      .select('id,status,report_id,report_json,consent_given,otp_verified_at,payment_verified_at,prefill_payload')
+      .select('id,status,full_name,mobile,report_id,report_json,consent_given,otp_verified_at,payment_verified_at,prefill_payload')
       .eq('id', requestId)
       .maybeSingle();
     if (readError) throw readError;
@@ -88,10 +162,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Complete consent, OTP, payment and profile verification first.' }, { status: 409 });
     }
     if (existing.status === 'report_generated' && existing.report_json) {
-      return NextResponse.json({ success: true, report_id: existing.report_id, ready: true });
+      const response = NextResponse.json({ success: true, request_id: requestId, report_id: existing.report_id, ready: true });
+      setB2cSession(response, requestId);
+      return response;
     }
     if (existing.status === 'report_generating') {
-      return NextResponse.json({ success: true, ready: false, processing: true }, { status: 202 });
+      const response = NextResponse.json({ success: true, request_id: requestId, ready: false, processing: true }, { status: 202 });
+      setB2cSession(response, requestId);
+      return response;
     }
 
     const now = new Date().toISOString();
@@ -125,7 +203,9 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       }).eq('id', requestId);
       console.error('[customer-report/generate] provider rejected request', { requestId, apiError });
-      return NextResponse.json({ success: false, error: 'Your report could not be generated right now. Please try again.' }, { status: 502 });
+      const response = NextResponse.json({ success: false, request_id: requestId, error: 'Your report could not be generated right now. Please try again.' }, { status: 502 });
+      setB2cSession(response, requestId);
+      return response;
     }
 
     const reportId = reportReference();
@@ -142,7 +222,17 @@ export async function POST(request: NextRequest) {
     }).eq('id', requestId);
     if (saveError) throw saveError;
 
-    return NextResponse.json({ success: true, report_id: reportId, ready: true });
+    await sendReportReadyWhatsApp({
+      supabase,
+      requestId,
+      mobile: existing.mobile,
+      fullName: existing.full_name,
+      reportId,
+    });
+
+    const response = NextResponse.json({ success: true, request_id: requestId, report_id: reportId, ready: true });
+    setB2cSession(response, requestId);
+    return response;
   } catch (error) {
     console.error('[customer-report/generate]', error);
     await supabase.from('b2c_report_requests').update({

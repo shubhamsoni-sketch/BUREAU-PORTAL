@@ -1,6 +1,8 @@
-type SupabaseLike = {
-  from: (table: string) => any;
-};
+import {
+  logWhatsAppTemplateSend,
+  type SupabaseLike,
+  type WhatsAppAnalyticsInput,
+} from '@/lib/whatsapp/analytics';
 
 type WhatsAppSendResult = {
   success: boolean;
@@ -22,6 +24,19 @@ type TemplateComponent =
       index: string;
       parameters: Array<{ type: 'text'; text: string } | { type: 'coupon_code'; coupon_code: string }>;
     };
+
+type TemplateSendAnalytics = Omit<
+  WhatsAppAnalyticsInput,
+  | 'phoneNumber'
+  | 'templateName'
+  | 'languageCode'
+  | 'whatsappMessageId'
+  | 'sentAt'
+  | 'currentStatus'
+  | 'failureReason'
+  | 'providerStatus'
+  | 'providerResponse'
+>;
 
 const DEFAULT_API_VERSION = 'v23.0';
 const DEFAULT_LANGUAGE = 'en';
@@ -65,15 +80,36 @@ export async function sendWhatsAppTemplate(input: {
   bodyValues?: unknown[];
   urlButtonValues?: unknown[];
   copyCodeButtonValues?: unknown[];
+  analytics?: TemplateSendAnalytics;
 }): Promise<WhatsAppSendResult> {
   const config = getWhatsAppConfig();
+
+  async function withAnalytics(result: WhatsAppSendResult, normalizedTo?: string) {
+    if (input.analytics?.supabase) {
+      await logWhatsAppTemplateSend({
+        ...input.analytics,
+        phoneNumber: normalizedTo || input.to,
+        templateName: input.templateName,
+        languageCode: input.languageCode || config.templateLanguage,
+        whatsappMessageId: result.messageId ?? null,
+        sentAt: result.success ? new Date().toISOString() : null,
+        currentStatus: result.success ? 'sent' : 'failed',
+        failureReason: result.success ? null : result.error ?? null,
+        providerStatus: result.status ?? null,
+        providerResponse: result.response ?? {},
+      });
+    }
+
+    return result;
+  }
+
   if (!config.accessToken || !config.phoneNumberId) {
-    return { success: false, error: 'WhatsApp Cloud API env is missing' };
+    return withAnalytics({ success: false, error: 'WhatsApp Cloud API env is missing' });
   }
 
   const to = normalizeWhatsAppPhone(input.to);
   if (!to || to.length < 11) {
-    return { success: false, error: 'Invalid WhatsApp recipient phone number' };
+    return withAnalytics({ success: false, error: 'Invalid WhatsApp recipient phone number' }, to);
   }
 
   const components: TemplateComponent[] = [];
@@ -128,16 +164,16 @@ export async function sendWhatsAppTemplate(input: {
 
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    return {
+    return withAnalytics({
       success: false,
       status: response.status,
       error: data?.error?.message || 'WhatsApp template send failed',
       response: data,
-    };
+    }, to);
   }
 
   const messageId = data?.messages?.[0]?.id as string | undefined;
-  return { success: true, messageId, wamid: messageId, status: response.status, response: data };
+  return withAnalytics({ success: true, messageId, wamid: messageId, status: response.status, response: data }, to);
 }
 
 export async function sendWhatsAppText(input: {
@@ -254,6 +290,19 @@ export async function sendConfiguredTemplate(params: {
     to: params.to,
     templateName,
     bodyValues: params.bodyValues,
+    analytics: {
+      supabase: params.supabase,
+      campaignName: params.eventType,
+      campaignType: 'utility',
+      customerId: params.partnerId ?? params.userId ?? null,
+      customerSource: params.partnerId ? 'partners' : params.userId ? 'user_profiles' : null,
+      createdBy: params.userId ?? null,
+      metadata: {
+        source: params.eventType,
+        template_env: params.templateEnv,
+        ...(params.metadata ?? {}),
+      },
+    },
   });
 
   await logWhatsAppEvent({

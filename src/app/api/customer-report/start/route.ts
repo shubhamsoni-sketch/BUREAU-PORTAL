@@ -80,6 +80,19 @@ export async function POST(request: NextRequest) {
       bodyValues: [otp, 'CreditTrust'],
       ...(buttonType === 'copy_code' ? { copyCodeButtonValues: [otp] } : {}),
       ...(buttonType === 'url' ? { urlButtonValues: [otp] } : {}),
+      analytics: {
+        supabase,
+        customerId: reportRequest.id,
+        customerSource: 'b2c_report_requests',
+        reportRequestId: reportRequest.id,
+        campaignName: 'b2c_report_otp',
+        campaignType: 'authentication',
+        metadata: {
+          source: 'customer_report_start',
+          challenge_id: challenge.id,
+          purpose: 'otp',
+        },
+      },
     });
     if (!sent.success) {
       const failureDetail = whatsappFailureDetail(sent.error, sent.response);

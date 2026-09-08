@@ -175,6 +175,20 @@ export async function POST(request: NextRequest) {
           templateName: campaign.template_name,
           languageCode: campaign.language_code || 'en',
           bodyValues,
+          analytics: {
+            supabase: auth.supabase,
+            customerId: lead.id,
+            customerSource: 'promotion_leads',
+            campaignName: campaign.name,
+            campaignType: 'promotion',
+            sourceCampaignId: campaignId,
+            createdBy: auth.user.id,
+            metadata: {
+              source: 'admin_promotions',
+              promotion_campaign_id: campaignId,
+              lead_id: lead.id,
+            },
+          },
         });
 
         if (result.success) sent += 1;

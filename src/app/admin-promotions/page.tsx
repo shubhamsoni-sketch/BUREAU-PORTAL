@@ -101,6 +101,12 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+function recipientStatusClass(status: string) {
+  if (['sent', 'delivered', 'read'].includes(status)) return 'bg-emerald-50 text-emerald-700';
+  if (status === 'failed') return 'bg-red-50 text-red-700';
+  return 'bg-amber-50 text-amber-700';
+}
+
 export default function AdminPromotionsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -423,7 +429,7 @@ export default function AdminPromotionsPage() {
                       <p className="font-semibold text-slate-900 truncate">{recipient.promotion_leads?.name || 'Lead'}</p>
                       <p className="text-xs text-slate-500 truncate">{recipient.promotion_leads?.mobile || '-'} · {formatDate(recipient.sent_at || recipient.created_at)}</p>
                     </div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${recipient.status === 'sent' ? 'bg-emerald-50 text-emerald-700' : recipient.status === 'failed' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${recipientStatusClass(recipient.status)}`}>
                       {recipient.status}
                     </span>
                   </div>

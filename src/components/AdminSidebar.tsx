@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
-import { LayoutDashboard, Users, BookUser, Wallet, CreditCard, FileText, Plug, ScrollText, ChevronLeft, ChevronRight, LogOut, Shield, Receipt, UserRoundCheck, Network, FileSpreadsheet, Megaphone } from 'lucide-react';
+import { LayoutDashboard, Users, BookUser, Wallet, CreditCard, FileText, Plug, ScrollText, ChevronLeft, ChevronRight, LogOut, Shield, Receipt, UserRoundCheck, Network, FileSpreadsheet, Megaphone, BarChart3 } from 'lucide-react';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 
@@ -43,6 +43,7 @@ const navGroups = [
     label: 'Marketing',
     items: [
       { label: 'Promotions', href: '/admin-promotions', icon: Megaphone },
+      { label: 'WhatsApp Analytics', href: '/admin-whatsapp-analytics', icon: BarChart3 },
     ],
   },
   {

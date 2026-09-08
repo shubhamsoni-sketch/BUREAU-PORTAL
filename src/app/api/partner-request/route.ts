@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
             { status: 500 }
           );
         }
-        await sendPartnerEnquiryEmail({ name, company_name, mobile, email, address, state, pin_code, gst, business_type, service_type });
+        await sendPartnerEnquiryEmail({ name, company_name, mobile, email, address, state, pin_code, gst, business_type, service_type }, supabaseAdmin);
         return NextResponse.json({ success: true }, { status: 200 });
       }
       console.error('Partner request insert error:', error);
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await sendPartnerEnquiryEmail({ name, company_name, mobile, email, address, state, pin_code, gst, business_type, service_type });
+    await sendPartnerEnquiryEmail({ name, company_name, mobile, email, address, state, pin_code, gst, business_type, service_type }, supabaseAdmin);
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err) {
     console.error('Partner request API error:', err);
@@ -123,7 +123,7 @@ async function sendPartnerEnquiryEmail(body: {
   gst?: string;
   business_type: string;
   service_type: string;
-}) {
+}, supabaseAdmin?: { from: (table: string) => any }) {
   const to = process.env.PARTNER_ENQUIRY_EMAIL || process.env.SUPPORT_EMAIL || 'support@credittrust.in';
   const submittedAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
 
@@ -151,6 +151,7 @@ async function sendPartnerEnquiryEmail(body: {
   }
 
   const whatsappResult = await sendConfiguredTemplate({
+    supabase: supabaseAdmin,
     eventType: 'partner_enquiry_received',
     templateEnv: 'WHATSAPP_PARTNER_ENQUIRY_TEMPLATE',
     to: body.mobile,

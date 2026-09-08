@@ -38,6 +38,16 @@ export async function POST(request: NextRequest) {
       templateName,
       languageCode,
       bodyValues,
+      analytics: {
+        supabase: auth.supabase,
+        customerSource: 'admin_test',
+        campaignName: 'admin_test_template',
+        campaignType: 'utility',
+        createdBy: auth.user.id,
+        metadata: {
+          source: 'admin_whatsapp_test',
+        },
+      },
     });
 
     await logWhatsAppEvent({
