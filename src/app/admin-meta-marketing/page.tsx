@@ -90,6 +90,8 @@ const defaultRules = JSON.stringify([
   { type: 'stop_at_end_date', enabled: true },
 ], null, 2);
 
+const adEnquiryWhatsAppNumber = '8109276589';
+
 function formatCurrency(value: number | null | undefined) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0));
 }
@@ -126,7 +128,7 @@ export default function AdminMetaMarketingPage() {
     platform: 'whatsapp_ads',
     content_text: 'Check your Credit Trust financial health report and understand your credit profile insights.',
     media_url: '',
-    whatsapp_number: '8109276589',
+    whatsapp_number: adEnquiryWhatsAppNumber,
     budget_type: 'daily',
     daily_budget: '1000',
     lifetime_budget: '',

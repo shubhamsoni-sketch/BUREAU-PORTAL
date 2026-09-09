@@ -14,6 +14,7 @@ export type MetaConfig = {
   whatsappBusinessAccountId: string;
   whatsappPhoneNumberId: string;
   whatsappDisplayNumber: string;
+  whatsappAdEnquiryNumber: string;
   instagramUserId: string;
   appSecret: string;
   specialAdCategories: string[];
@@ -26,12 +27,38 @@ export type MetaFetchResult<T = any> = {
   error?: string;
 };
 
+export const CREDIT_TRUST_CLOUD_API_WHATSAPP_NUMBER = '9893332647';
+export const CREDIT_TRUST_AD_ENQUIRY_WHATSAPP_NUMBER = '8109276589';
+
 function clean(value: unknown) {
   return String(value ?? '').trim();
 }
 
 function list(value: string) {
   return value.split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+export function normalizeCreditTrustWhatsAppNumber(
+  value: unknown,
+  fallback: string,
+) {
+  const digits = clean(value).replace(/\D/g, '');
+  const fallbackDigits = clean(fallback).replace(/\D/g, '') || fallback;
+  const localDigits = digits.startsWith('91') && digits.length === 12 ? digits.slice(2) : digits;
+  const fallbackLocalDigits = fallbackDigits.startsWith('91') && fallbackDigits.length === 12
+    ? fallbackDigits.slice(2)
+    : fallbackDigits;
+
+  if (!digits) return fallbackLocalDigits;
+  return localDigits.length === 10 ? localDigits : digits;
+}
+
+export function resolveCreditTrustCloudWhatsAppNumber(value: unknown) {
+  return normalizeCreditTrustWhatsAppNumber(value, CREDIT_TRUST_CLOUD_API_WHATSAPP_NUMBER);
+}
+
+export function resolveCreditTrustAdEnquiryWhatsAppNumber(value: unknown, fallback = CREDIT_TRUST_AD_ENQUIRY_WHATSAPP_NUMBER) {
+  return normalizeCreditTrustWhatsAppNumber(value, fallback);
 }
 
 export function getMetaConfig(): MetaConfig {
@@ -48,9 +75,12 @@ export function getMetaConfig(): MetaConfig {
     pageId: clean(process.env.META_PAGE_ID),
     adAccountId: clean(process.env.META_AD_ACCOUNT_ID).replace(/^act_/, ''),
     businessId: clean(process.env.META_BUSINESS_ID),
-    whatsappBusinessAccountId: clean(process.env.META_WHATSAPP_BUSINESS_ACCOUNT_ID),
+    whatsappBusinessAccountId: clean(process.env.META_WHATSAPP_BUSINESS_ACCOUNT_ID) || clean(process.env.WHATSAPP_BUSINESS_ACCOUNT_ID),
     whatsappPhoneNumberId: clean(process.env.META_WHATSAPP_PHONE_NUMBER_ID) || clean(process.env.WHATSAPP_PHONE_NUMBER_ID),
-    whatsappDisplayNumber: clean(process.env.META_WHATSAPP_DISPLAY_NUMBER) || '8109276589',
+    whatsappDisplayNumber: resolveCreditTrustCloudWhatsAppNumber(process.env.META_WHATSAPP_DISPLAY_NUMBER),
+    whatsappAdEnquiryNumber: resolveCreditTrustAdEnquiryWhatsAppNumber(
+      clean(process.env.META_AD_WHATSAPP_NUMBER) || clean(process.env.WHATSAPP_AD_ENQUIRY_NUMBER),
+    ),
     instagramUserId: clean(process.env.META_INSTAGRAM_USER_ID),
     appSecret: clean(process.env.META_APP_SECRET),
     specialAdCategories: list(clean(process.env.META_SPECIAL_AD_CATEGORIES) || 'CREDIT'),

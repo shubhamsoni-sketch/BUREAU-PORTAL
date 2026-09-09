@@ -10,14 +10,18 @@ Add these in Vercel production environment:
 WHATSAPP_API_VERSION=v23.0
 WHATSAPP_ACCESS_TOKEN=
 WHATSAPP_PHONE_NUMBER_ID=
+WHATSAPP_BUSINESS_ACCOUNT_ID=1410697734305817
+WHATSAPP_AD_ENQUIRY_NUMBER=8109276589
 WHATSAPP_DEFAULT_COUNTRY_CODE=91
 WHATSAPP_TEMPLATE_LANGUAGE=en
 ```
 
 Where to find:
 
-- `WHATSAPP_PHONE_NUMBER_ID`: Meta Business Suite / WhatsApp Manager phone number details.
+- `WHATSAPP_PHONE_NUMBER_ID`: Meta Business Suite / WhatsApp Manager phone number details for `+91 98933 32647`.
 - `WHATSAPP_ACCESS_TOKEN`: Meta Developer app access token or system user permanent token with WhatsApp messaging permissions.
+- Cloud API OTP/template number: `+91 98933 32647`.
+- Click-to-WhatsApp ad enquiry number: `+91 81092 76589`.
 
 ## Optional Template Events
 

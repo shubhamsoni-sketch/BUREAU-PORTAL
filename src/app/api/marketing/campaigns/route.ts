@@ -6,7 +6,12 @@ import {
   generateTrackingToken,
 } from '@/lib/marketing/codes';
 import { clean, jsonError, numberValue, requireMarketingAdmin } from '@/lib/marketing/api';
-import { ensureMetaAdAccountRecord, missingMetaConfig, validateMetaPermissions } from '@/lib/marketing/meta-auth';
+import {
+  ensureMetaAdAccountRecord,
+  missingMetaConfig,
+  resolveCreditTrustAdEnquiryWhatsAppNumber,
+  validateMetaPermissions,
+} from '@/lib/marketing/meta-auth';
 
 function parseJsonObject(value: unknown, fallback: Record<string, unknown> | unknown[] = {}) {
   if (!value) return fallback;
@@ -121,7 +126,7 @@ export async function POST(request: NextRequest) {
       source: 'meta',
       content_text: clean(body.content_text) || null,
       cta_type: clean(body.cta_type) || 'WHATSAPP_MESSAGE',
-      whatsapp_number: clean(body.whatsapp_number) || '8109276589',
+      whatsapp_number: resolveCreditTrustAdEnquiryWhatsAppNumber(body.whatsapp_number),
       prefilled_message: prefilledMessage,
       tracking_token: trackingToken,
       start_at: clean(body.start_at) || null,

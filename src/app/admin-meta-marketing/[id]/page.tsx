@@ -7,6 +7,8 @@ import AdminLayout from '@/components/AdminLayout';
 import { authFetch } from '@/lib/supabase/auth-fetch';
 import { ArrowLeft, BarChart3, CheckCheck, MessageCircle, MousePointerClick, RefreshCw, Wallet } from 'lucide-react';
 
+const adEnquiryWhatsAppNumber = '8109276589';
+
 type DetailResponse = {
   success: boolean;
   campaign?: any;
@@ -121,7 +123,7 @@ export default function CampaignDetailPage() {
             <div className="mt-4 grid gap-3 text-sm">
               <p><span className="font-semibold text-slate-500">Status:</span> <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(campaign?.status)}`}>{campaign?.status || '-'}</span></p>
               <p><span className="font-semibold text-slate-500">Platform:</span> {campaign?.platform || '-'}</p>
-              <p><span className="font-semibold text-slate-500">WhatsApp:</span> {campaign?.whatsapp_number || '8109276589'}</p>
+              <p><span className="font-semibold text-slate-500">WhatsApp:</span> {campaign?.whatsapp_number || adEnquiryWhatsAppNumber}</p>
               <p><span className="font-semibold text-slate-500">Prefill:</span> {campaign?.prefilled_message || '-'}</p>
               <p><span className="font-semibold text-slate-500">Meta Campaign ID:</span> <span className="font-mono text-xs">{meta?.meta_campaign_id || '-'}</span></p>
               <p><span className="font-semibold text-slate-500">Meta Ad ID:</span> <span className="font-mono text-xs">{meta?.meta_ad_id || '-'}</span></p>

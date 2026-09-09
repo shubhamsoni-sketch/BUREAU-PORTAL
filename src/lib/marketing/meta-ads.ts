@@ -1,5 +1,5 @@
 import { campaignPrefilledMessage, whatsappDeepLink } from './codes';
-import { assertMetaConfig, getMetaConfig, metaGraphFetch } from './meta-auth';
+import { assertMetaConfig, getMetaConfig, metaGraphFetch, resolveCreditTrustAdEnquiryWhatsAppNumber } from './meta-auth';
 
 type SupabaseLike = {
   from: (table: string) => any;
@@ -75,7 +75,8 @@ export async function createClickToWhatsAppAd(params: {
   const adAccountPath = `act_${config.adAccountId}`;
   const now = new Date().toISOString();
   const prefilledMessage = campaign.prefilled_message || campaignPrefilledMessage(campaign.campaign_code);
-  const waLink = whatsappDeepLink(campaign.whatsapp_number || config.whatsappDisplayNumber, prefilledMessage);
+  const waNumber = resolveCreditTrustAdEnquiryWhatsAppNumber(campaign.whatsapp_number, config.whatsappAdEnquiryNumber);
+  const waLink = whatsappDeepLink(waNumber, prefilledMessage);
   const budget = campaign.budget_type === 'lifetime'
     ? moneyToMinor(campaign.lifetime_budget)
     : moneyToMinor(campaign.daily_budget);

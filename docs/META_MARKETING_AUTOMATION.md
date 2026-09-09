@@ -35,9 +35,12 @@ Instagram permissions are only required when Instagram publishing is enabled.
 - `META_AD_ACCOUNT_ID`
 - `META_PAGE_ID`
 - `META_INSTAGRAM_USER_ID`
+- `WHATSAPP_BUSINESS_ACCOUNT_ID=1410697734305817`
+- `WHATSAPP_AD_ENQUIRY_NUMBER=8109276589`
 - `META_WHATSAPP_BUSINESS_ACCOUNT_ID`
 - `META_WHATSAPP_PHONE_NUMBER_ID`
-- `META_WHATSAPP_DISPLAY_NUMBER=8109276589`
+- `META_WHATSAPP_DISPLAY_NUMBER=9893332647`
+- `META_AD_WHATSAPP_NUMBER=8109276589`
 - `META_SPECIAL_AD_CATEGORIES=CREDIT`
 - `MARKETING_CRON_SECRET`
 - `CRON_SECRET`
@@ -53,7 +56,7 @@ Do not expose access tokens, app secret, webhook tokens, or cron secrets in fron
 
 1. Connect the Credit Trust Facebook Page and ad account to the Meta app.
 2. Connect Instagram account if Instagram publishing is needed.
-3. Connect WhatsApp Business Account and phone number `8109276589`.
+3. Connect WhatsApp Business Account `1410697734305817` and primary Cloud API phone number `+91 98933 32647`.
 4. Add the app permissions listed above and complete review where required.
 5. Configure webhook callback:
    - Meta webhook: `https://credittrust.in/api/meta/webhook`
@@ -63,6 +66,8 @@ Do not expose access tokens, app secret, webhook tokens, or cron secrets in fron
 7. Subscribe to Page/Instagram fields for comments/reactions where permissions allow.
 8. Subscribe WhatsApp webhook to message and status updates.
 9. Keep ad campaigns in `CREDIT` special ad category unless legal/compliance approves another setting.
+
+Cloud API OTP/template number is `+91 98933 32647`. Click-to-WhatsApp ad enquiries use `+91 81092 76589` because Meta does not allow the Cloud API number to be used for that ad flow in this setup.
 
 ## Campaign Flow
 
