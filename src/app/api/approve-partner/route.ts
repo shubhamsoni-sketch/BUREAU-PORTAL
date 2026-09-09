@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
           tempPassword: password,
           loginUrl: process.env.NEXT_PUBLIC_PORTAL_URL
             ? `${process.env.NEXT_PUBLIC_PORTAL_URL.replace(/\/$/, '')}/partner-login`
-            : 'https://portal.credittrust.in/partner-login',
+            : 'https://credittrust.in/partner-login',
         }),
       });
     } catch (emailErr) {
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
     try {
       const loginUrl = process.env.NEXT_PUBLIC_PORTAL_URL
         ? `${process.env.NEXT_PUBLIC_PORTAL_URL.replace(/\/$/, '')}/partner-login`
-        : 'https://portal.credittrust.in/partner-login';
+        : 'https://credittrust.in/partner-login';
       const whatsappResult = await sendConfiguredTemplate({
         supabase: adminClient,
         eventType: 'partner_welcome',

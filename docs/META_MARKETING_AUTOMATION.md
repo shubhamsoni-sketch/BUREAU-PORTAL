@@ -56,8 +56,9 @@ Do not expose access tokens, app secret, webhook tokens, or cron secrets in fron
 3. Connect WhatsApp Business Account and phone number `8109276589`.
 4. Add the app permissions listed above and complete review where required.
 5. Configure webhook callback:
-   - Meta webhook: `https://portal.credittrust.in/api/meta/webhook`
-   - WhatsApp webhook: `https://portal.credittrust.in/api/whatsapp-webhook`
+   - Meta webhook: `https://credittrust.in/api/meta/webhook`
+   - WhatsApp webhook: `https://credittrust.in/api/whatsapp-webhook`
+   - Legacy portal webhook URLs on `portal.credittrust.in` remain valid for backward compatibility.
 6. Use the verify tokens from Vercel env variables.
 7. Subscribe to Page/Instagram fields for comments/reactions where permissions allow.
 8. Subscribe WhatsApp webhook to message and status updates.

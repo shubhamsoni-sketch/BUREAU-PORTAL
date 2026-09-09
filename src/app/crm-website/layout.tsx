@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://credittrust.in'),
+  metadataBase: new URL('https://crm.credittrust.in'),
   title: {
     default: 'CreditTrust CRM - Loan Lead & File Management',
     template: '%s',
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'CreditTrust CRM',
     description: 'Loan lead management, eligibility checking, and file routing for loan teams',
-    url: 'https://credittrust.in',
+    url: 'https://crm.credittrust.in',
     siteName: 'CreditTrust',
     type: 'website',
     images: [

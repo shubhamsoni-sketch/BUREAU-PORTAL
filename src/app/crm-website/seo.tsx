@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-export const siteUrl = 'https://credittrust.in';
+export const siteUrl = 'https://crm.credittrust.in';
 export const ogImage = '/assets/images/app_logo.png';
 
 type Schema = Record<string, unknown>;

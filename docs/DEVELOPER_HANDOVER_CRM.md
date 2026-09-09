@@ -8,9 +8,10 @@ Repo: `https://github.com/shubhamsoni-sketch/BUREAU-PORTAL.git`
 
 Production:
 
-- Website: `https://credittrust.in`
-- CRM: `https://credittrust.in/crm`
-- CRM login: `https://credittrust.in/crm/sign-up-login-screen`
+- Main portal: `https://credittrust.in`
+- CRM website: `https://crm.credittrust.in`
+- CRM app: `https://crm.credittrust.in/crm`
+- CRM login: `https://crm.credittrust.in/login`
 
 Primary product direction:
 
@@ -434,7 +435,7 @@ Read this handover first:
 docs/DEVELOPER_HANDOVER_CRM.md
 
 Production:
-https://credittrust.in/crm
+https://crm.credittrust.in/crm
 
 Current state:
 - CRM production schema exists in Supabase.
@@ -457,7 +458,7 @@ Rules:
 - Keep CreditTrust branding.
 - Preserve partner-scoped data.
 - Run npm run type-check before finishing.
-- If deploying, use Vercel production and verify https://credittrust.in/crm returns 200.
+- If deploying, use Vercel production and verify https://crm.credittrust.in and https://crm.credittrust.in/login return 200.
 ```
 
 ## 18. Security Notes

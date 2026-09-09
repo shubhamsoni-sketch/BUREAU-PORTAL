@@ -8,7 +8,8 @@ export function middleware(request: NextRequest) {
   const hostname = host.split(':')[0];
   const isApiConsoleHost = hostname === 'api.credittrust.in';
   const isCrmHost = hostname === 'crm.credittrust.in';
-  const isMarketingHost = hostname === 'credittrust.in' || hostname === 'www.credittrust.in';
+  const isMainPortalHost = hostname === 'credittrust.in';
+  const isWwwHost = hostname === 'www.credittrust.in';
   const isAsset = pathname.startsWith('/_next') || pathname.includes('.');
   const isApiRoute = pathname.startsWith('/api/');
   const marketingPaths = new Set([
@@ -22,6 +23,17 @@ export function middleware(request: NextRequest) {
     '/terms-and-conditions',
   ]);
 
+  const withSearch = (targetPathname: string, origin: string) => {
+    const target = new URL(targetPathname, origin);
+    target.search = request.nextUrl.search;
+    return target;
+  };
+
+  const crmWebsitePath = () => {
+    const marketingPath = normalizedPathname.replace(/^\/crm-website/, '') || '/';
+    return marketingPath === '' ? '/' : marketingPath;
+  };
+
   if (isApiConsoleHost && normalizedPathname === '/') {
     return NextResponse.rewrite(new URL('/api-console', request.url));
   }
@@ -30,13 +42,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.rewrite(new URL('/api-console', request.url));
   }
 
-  if (isCrmHost && (normalizedPathname === '/' || normalizedPathname === '/login')) {
+  if (isCrmHost && normalizedPathname === '/login') {
     return NextResponse.rewrite(new URL('/crm/sign-up-login-screen', request.url));
   }
 
   if (isCrmHost && normalizedPathname.startsWith('/crm-website')) {
-    const marketingPath = normalizedPathname.replace(/^\/crm-website/, '') || '/';
-    return NextResponse.redirect(new URL(marketingPath, 'https://credittrust.in'));
+    return NextResponse.redirect(withSearch(crmWebsitePath(), 'https://crm.credittrust.in'));
+  }
+
+  if (isCrmHost && !isAsset && !isApiRoute && marketingPaths.has(normalizedPathname)) {
+    return NextResponse.rewrite(new URL(normalizedPathname === '/' ? '/crm-website' : `/crm-website${normalizedPathname}`, request.url));
   }
 
   if (
@@ -45,19 +60,19 @@ export function middleware(request: NextRequest) {
     !isApiRoute &&
     !normalizedPathname.startsWith('/crm')
   ) {
-    return NextResponse.redirect(new URL(normalizedPathname, 'https://credittrust.in'));
+    return NextResponse.redirect(withSearch(normalizedPathname, 'https://credittrust.in'));
   }
 
-  if (isMarketingHost && normalizedPathname.startsWith('/crm')) {
-    return NextResponse.redirect(new URL(normalizedPathname, 'https://crm.credittrust.in'));
+  if (isWwwHost) {
+    return NextResponse.redirect(withSearch(normalizedPathname, 'https://credittrust.in'));
   }
 
-  if (isMarketingHost && !isAsset && !isApiRoute && marketingPaths.has(normalizedPathname)) {
-    return NextResponse.rewrite(new URL(normalizedPathname === '/' ? '/crm-website' : `/crm-website${normalizedPathname}`, request.url));
+  if (isMainPortalHost && normalizedPathname.startsWith('/crm-website')) {
+    return NextResponse.redirect(withSearch(crmWebsitePath(), 'https://crm.credittrust.in'));
   }
 
-  if (isMarketingHost && !isAsset && !isApiRoute && !normalizedPathname.startsWith('/crm-website')) {
-    return NextResponse.redirect(new URL(normalizedPathname, 'https://portal.credittrust.in'));
+  if (isMainPortalHost && normalizedPathname.startsWith('/crm')) {
+    return NextResponse.redirect(withSearch(normalizedPathname, 'https://crm.credittrust.in'));
   }
 
   return NextResponse.next();

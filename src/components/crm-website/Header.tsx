@@ -62,7 +62,7 @@ export default function Header() {
         {/* Desktop CTAs */}
         <div className="hidden md:flex items-center gap-3">
           <a
-            href="https://crm.credittrust.in"
+            href="https://crm.credittrust.in/login"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm font-semibold text-primary hover:text-accent transition-colors px-4 py-2"
@@ -79,7 +79,7 @@ export default function Header() {
 
         <div className="md:hidden flex items-center gap-2">
           <a
-            href="https://crm.credittrust.in"
+            href="https://crm.credittrust.in/login"
             className="rounded-lg border border-primary/15 px-3 py-2 text-sm font-bold text-primary"
           >
             Login
@@ -116,7 +116,7 @@ export default function Header() {
           ))}
           <div className="pt-6 flex flex-col gap-3">
             <a
-              href="https://crm.credittrust.in"
+              href="https://crm.credittrust.in/login"
               target="_blank"
               rel="noopener noreferrer"
               className="w-full text-center text-base font-bold border border-primary/20 text-primary px-6 py-3.5 rounded-lg hover:bg-primary/5 transition-colors"

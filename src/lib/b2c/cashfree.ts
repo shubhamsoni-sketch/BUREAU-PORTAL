@@ -59,7 +59,7 @@ export function createCashfreeOrder(input: {
         customer_phone: input.mobile,
       },
       order_meta: {
-        return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://portal.credittrust.in'}/get-my-report?order_id={order_id}`,
+        return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://credittrust.in'}/get-my-report?request_id=${encodeURIComponent(input.requestId)}&order_id={order_id}`,
       },
       order_note: `CreditTrust financial report ${input.requestId}`,
     }),

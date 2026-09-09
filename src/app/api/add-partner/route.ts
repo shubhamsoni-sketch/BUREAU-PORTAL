@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
     try {
       const loginUrl = process.env.NEXT_PUBLIC_PORTAL_URL
         ? `${process.env.NEXT_PUBLIC_PORTAL_URL.replace(/\/$/, '')}/partner-login`
-        : 'https://portal.credittrust.in/partner-login';
+        : 'https://credittrust.in/partner-login';
       const mailResponse = await fetch(
         `${supabaseUrl}/functions/v1/send-partner-credentials`,
         {
@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
 
     const loginUrl = process.env.NEXT_PUBLIC_PORTAL_URL
       ? `${process.env.NEXT_PUBLIC_PORTAL_URL.replace(/\/$/, '')}/partner-login`
-      : 'https://portal.credittrust.in/partner-login';
+      : 'https://credittrust.in/partner-login';
     const whatsappResult = await sendConfiguredTemplate({
       supabase: adminClient,
       eventType: 'partner_welcome',
