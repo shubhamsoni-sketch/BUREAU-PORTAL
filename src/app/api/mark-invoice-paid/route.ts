@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { sendWalletRechargeSuccessEmail } from '@/lib/email/wallet-events';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+import { createAdminClient } from '@/lib/supabase/admin';
 
 async function sendRechargeEmailForInvoice(invoiceId: string, transactionId?: string | null) {
   try {
+    const supabaseAdmin = createAdminClient();
     const { data: invoice, error: invoiceError } = await supabaseAdmin
       .from('invoices')
       .select('id, invoice_number, partner_id, amount, credits_added, partner_name, partner_email')
@@ -42,6 +37,7 @@ async function sendRechargeEmailForInvoice(invoiceId: string, transactionId?: st
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = createAdminClient();
     const body = await req.json();
     const { invoice_id, payment_mode, utr_number, recorded_by } = body;
 
