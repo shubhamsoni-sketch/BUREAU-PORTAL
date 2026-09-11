@@ -42,7 +42,7 @@ import styles from './credittrust-preview.module.css';
 
 type Language = 'en' | 'hi';
 
-const SAMPLE_REPORT_URL = '/credit-intelligence?request_id=shakti-demo';
+const SAMPLE_REPORT_URL = '/sample-report?request_id=shakti-demo';
 
 const copy = {
   en: {

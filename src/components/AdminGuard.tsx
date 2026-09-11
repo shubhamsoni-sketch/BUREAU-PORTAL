@@ -44,6 +44,7 @@ const PUBLIC_PATHS = [
   '/crm-website',
   '/partner-program',
   '/partner-login',
+  '/sample-report',
   '/privacy-policy',
   '/refund-policy',
   '/usage-policy',
