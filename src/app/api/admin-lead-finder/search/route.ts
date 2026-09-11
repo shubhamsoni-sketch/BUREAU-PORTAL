@@ -43,7 +43,7 @@ async function createRun(supabase: any, userId: string | undefined, body: any) {
 async function freshCoverage(supabase: any, city: string, state: string, keyword: string) {
   const { data, error } = await supabase
     .from('dsa_search_coverage')
-    .select('id,place_ids_count,next_refresh_at,status,dsa_search_coverage_places(place_id,rank)')
+    .select('id,place_ids_count,next_refresh_at,status')
     .eq('city', city)
     .eq('state', state)
     .eq('keyword', keyword)
@@ -52,7 +52,13 @@ async function freshCoverage(supabase: any, city: string, state: string, keyword
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  return data;
+  const { data: places, error: placesError } = await supabase
+    .from('dsa_search_coverage_places')
+    .select('place_id,rank')
+    .eq('coverage_id', data.id)
+    .order('rank', { ascending: true });
+  if (placesError) throw placesError;
+  return { ...data, place_ids: (places || []).map((row: any) => row.place_id) };
 }
 
 async function upsertCoverage(
@@ -129,16 +135,16 @@ export async function POST(request: NextRequest) {
 
     for (const keyword of keywords) {
       let ids: string[] = [];
+      let coverageFound = false;
       if (!forceRefresh) {
         const coverage = await freshCoverage(auth.supabase, city, state, keyword);
         if (coverage) {
+          coverageFound = true;
           coverageHits += 1;
-          ids = (coverage.dsa_search_coverage_places || [])
-            .sort((a: any, b: any) => Number(a.rank || 0) - Number(b.rank || 0))
-            .map((row: any) => row.place_id);
+          ids = coverage.place_ids || [];
         }
       }
-      if (!ids.length) {
+      if (!coverageFound) {
         coverageMisses += 1;
         ids = await searchPlaceIds(`${keyword} in ${city}, ${state}, India`, Math.min(20, count));
         textSearchCalls += 1;
