@@ -1,5 +1,5 @@
-import LandingPage from '@/components/landing/LandingPage';
+import CreditTrustPreview from '@/app/home/credittrust-preview/CreditTrustPreview';
 
 export default function RootPage() {
-  return <LandingPage />;
+  return <CreditTrustPreview />;
 }
