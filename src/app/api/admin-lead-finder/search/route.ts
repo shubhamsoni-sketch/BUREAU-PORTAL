@@ -40,13 +40,7 @@ async function createRun(supabase: any, userId: string | undefined, body: any) {
   return data.id as string;
 }
 
-async function freshCoverage(
-  supabase: any,
-  city: string,
-  state: string,
-  keyword: string,
-  count: number
-) {
+async function freshCoverage(supabase: any, city: string, state: string, keyword: string) {
   const { data, error } = await supabase
     .from('dsa_search_coverage')
     .select('id,place_ids_count,next_refresh_at,status,dsa_search_coverage_places(place_id,rank)')
@@ -57,7 +51,7 @@ async function freshCoverage(
     .gt('next_refresh_at', new Date().toISOString())
     .maybeSingle();
   if (error) throw error;
-  if (!data || Number(data.place_ids_count || 0) < count) return null;
+  if (!data) return null;
   return data;
 }
 
@@ -136,13 +130,7 @@ export async function POST(request: NextRequest) {
     for (const keyword of keywords) {
       let ids: string[] = [];
       if (!forceRefresh) {
-        const coverage = await freshCoverage(
-          auth.supabase,
-          city,
-          state,
-          keyword,
-          Math.min(count, 20)
-        );
+        const coverage = await freshCoverage(auth.supabase, city, state, keyword);
         if (coverage) {
           coverageHits += 1;
           ids = (coverage.dsa_search_coverage_places || [])
