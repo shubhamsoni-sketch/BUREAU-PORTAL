@@ -34,6 +34,15 @@ export function middleware(request: NextRequest) {
     return marketingPath === '' ? '/' : marketingPath;
   };
 
+  if (
+    normalizedPathname === '/credit-intelligence' &&
+    request.nextUrl.searchParams.get('request_id') === 'shakti-demo'
+  ) {
+    const sampleReportUrl = new URL('/sample-report', request.url);
+    sampleReportUrl.searchParams.set('request_id', 'shakti-demo');
+    return NextResponse.redirect(sampleReportUrl);
+  }
+
   if (isApiConsoleHost && normalizedPathname === '/') {
     return NextResponse.rewrite(new URL('/api-console', request.url));
   }
