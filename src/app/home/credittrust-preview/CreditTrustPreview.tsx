@@ -42,6 +42,8 @@ import styles from './credittrust-preview.module.css';
 
 type Language = 'en' | 'hi';
 
+const SAMPLE_REPORT_URL = '/credit-intelligence?request_id=shakti-demo';
+
 const copy = {
   en: {
     nav: ['How It Works', "What You'll Learn", 'Sample Report', 'For Partners'],
@@ -314,7 +316,7 @@ export default function CreditTrustPreview() {
           <nav className={styles.desktopNav} aria-label="Main navigation">
             <Link href="#how-it-works">{t.nav[0]}</Link>
             <Link href="#learn">{t.nav[1]}</Link>
-            <Link href="#report">{t.nav[2]}</Link>
+            <Link href={SAMPLE_REPORT_URL}>{t.nav[2]}</Link>
             <Link href="/partner-program">{t.nav[3]}</Link>
           </nav>
 
@@ -334,7 +336,7 @@ export default function CreditTrustPreview() {
         </div>
         {mobileOpen && (
           <div className={styles.mobileNav}>
-            {t.nav.map((item, index) => <Link key={item} href={index === 0 ? '#how-it-works' : index === 1 ? '#learn' : index === 2 ? '#report' : '/partner-program'} onClick={() => setMobileOpen(false)}>{item}</Link>)}
+            {t.nav.map((item, index) => <Link key={item} href={index === 0 ? '#how-it-works' : index === 1 ? '#learn' : index === 2 ? SAMPLE_REPORT_URL : '/partner-program'} onClick={() => setMobileOpen(false)}>{item}</Link>)}
             <div className={styles.mobileLanguage}>
               <button onClick={() => switchLanguage('en')} type="button">English</button>
               <button onClick={() => switchLanguage('hi')} type="button">हिंदी</button>
@@ -361,7 +363,7 @@ export default function CreditTrustPreview() {
                 </div>
                 <div className={styles.heroButtons}>
                   <button type="button" className={styles.primaryButton} onClick={openDemo}>{t.heroCta} <b>— ₹999</b><ArrowRight size={19} /></button>
-                  <Link href="#report" className={styles.secondaryButton}>{t.sample}</Link>
+                  <Link href={SAMPLE_REPORT_URL} className={styles.secondaryButton}>{t.sample}</Link>
                 </div>
                 <div className={styles.assurances}>
                   {[ShieldCheck, CreditCard, FileCheck2, Ban].map((Icon, index) => (
@@ -498,7 +500,7 @@ export default function CreditTrustPreview() {
               <div className={styles.logo}><Image src="/assets/images/credit-trust-mark.svg" alt="" width={28} height={28} /><span>Credit<span>Trust</span></span></div>
               <p>{t.footerLine}</p>
             </div>
-            <div className={styles.footerLinks}>{t.footerLinks.map((item, index) => <Link href={index === 3 ? '/partner-program' : '#top'} key={item}>{item}</Link>)}</div>
+            <div className={styles.footerLinks}>{t.footerLinks.map((item, index) => <Link href={index === 2 ? SAMPLE_REPORT_URL : index === 3 ? '/partner-program' : '#top'} key={item}>{item}</Link>)}</div>
             <div className={styles.footerLanguage}><Globe2 size={16} /><button onClick={() => switchLanguage('en')} type="button">English</button><span>|</span><button onClick={() => switchLanguage('hi')} type="button">हिंदी</button></div>
           </div>
           <div className={styles.footerBottom}><span>© 2026 CreditTrust. All rights reserved.</span><div>{t.legal.map((item) => <Link href="#top" key={item}>{item}</Link>)}</div></div>
