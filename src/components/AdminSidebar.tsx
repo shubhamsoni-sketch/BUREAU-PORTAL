@@ -4,17 +4,34 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
-import { LayoutDashboard, Users, BookUser, Wallet, CreditCard, FileText, Plug, ScrollText, ChevronLeft, ChevronRight, LogOut, Shield, Receipt, UserRoundCheck, Network, FileSpreadsheet, Megaphone, BarChart3 } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Users,
+  BookUser,
+  Wallet,
+  CreditCard,
+  FileText,
+  Plug,
+  ScrollText,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  Shield,
+  Receipt,
+  UserRoundCheck,
+  Network,
+  FileSpreadsheet,
+  Megaphone,
+  BarChart3,
+  SearchCheck,
+} from 'lucide-react';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
-
 
 const navGroups = [
   {
     label: 'Overview',
-    items: [
-      { label: 'Dashboard', href: '/admin-dashboard', icon: LayoutDashboard },
-    ],
+    items: [{ label: 'Dashboard', href: '/admin-dashboard', icon: LayoutDashboard }],
   },
   {
     label: 'Partner Management',
@@ -45,13 +62,12 @@ const navGroups = [
       { label: 'Meta Marketing', href: '/admin-meta-marketing', icon: BarChart3 },
       { label: 'Promotions', href: '/admin-promotions', icon: Megaphone },
       { label: 'WhatsApp Analytics', href: '/admin-whatsapp-analytics', icon: BarChart3 },
+      { label: 'Lead Finder', href: '/admin-lead-finder', icon: SearchCheck },
     ],
   },
   {
     label: 'Documents',
-    items: [
-      { label: 'Agreements', href: '/admin-agreements', icon: FileText },
-    ],
+    items: [{ label: 'Agreements', href: '/admin-agreements', icon: FileText }],
   },
   {
     label: 'System',
@@ -76,8 +92,15 @@ export default function AdminSidebar() {
       `}
     >
       {/* Logo */}
-      <div className={`flex items-center h-16 px-4 border-b border-slate-700/60 ${collapsed ? 'justify-center' : 'gap-3'}`}>
-        <AppLogo variant={collapsed ? 'mark' : 'dark'} size={collapsed ? 28 : 40} width={collapsed ? 34 : 150} height={collapsed ? 28 : 42} />
+      <div
+        className={`flex items-center h-16 px-4 border-b border-slate-700/60 ${collapsed ? 'justify-center' : 'gap-3'}`}
+      >
+        <AppLogo
+          variant={collapsed ? 'mark' : 'dark'}
+          size={collapsed ? 28 : 40}
+          width={collapsed ? 34 : 150}
+          height={collapsed ? 28 : 42}
+        />
       </div>
       {/* Role Badge */}
       {!collapsed && (
@@ -106,9 +129,10 @@ export default function AdminSidebar() {
                   className={`
                     relative flex items-center gap-3 px-2.5 py-2 rounded-lg mb-0.5
                     text-sm font-medium transition-all duration-150
-                    ${isActive
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                    ${
+                      isActive
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                     }
                     ${collapsed ? 'justify-center' : ''}
                   `}
@@ -123,18 +147,27 @@ export default function AdminSidebar() {
       </nav>
       {/* Bottom */}
       <div className="border-t border-slate-700/60 p-2">
-        <div className={`flex items-center gap-3 px-2.5 py-2 rounded-lg ${collapsed ? 'justify-center' : ''}`}>
+        <div
+          className={`flex items-center gap-3 px-2.5 py-2 rounded-lg ${collapsed ? 'justify-center' : ''}`}
+        >
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
             SA
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-white truncate">{user?.name ?? 'Super Admin'}</p>
-              <p className="text-[10px] text-slate-400 truncate">{user?.email ?? 'admin@credittrust.in'}</p>
+              <p className="text-xs font-semibold text-white truncate">
+                {user?.name ?? 'Super Admin'}
+              </p>
+              <p className="text-[10px] text-slate-400 truncate">
+                {user?.email ?? 'admin@credittrust.in'}
+              </p>
             </div>
           )}
           {!collapsed && (
-            <button onClick={() => logout()} className="text-slate-500 hover:text-white transition-colors">
+            <button
+              onClick={() => logout()}
+              className="text-slate-500 hover:text-white transition-colors"
+            >
               <LogOut size={15} />
             </button>
           )}

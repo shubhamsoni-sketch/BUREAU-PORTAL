@@ -16,6 +16,7 @@ const ADMIN_ONLY_PATHS = [
   '/admin-meta-marketing',
   '/admin-promotions',
   '/admin-whatsapp-analytics',
+  '/admin-lead-finder',
   '/admin-audit-logs',
   '/admin-invoices',
   '/admin-customer-master',
@@ -105,8 +106,14 @@ export default function AdminGuard({ children }: AdminGuardProps) {
             <Shield size={28} className="text-red-500" />
           </div>
           <h2 className="text-xl font-bold text-slate-800 mb-2">Access Denied</h2>
-          <p className="text-slate-500 text-sm mb-4">You do not have permission to access this page. This area is restricted to administrators only.</p>
-          <a href="/partner-dashboard" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+          <p className="text-slate-500 text-sm mb-4">
+            You do not have permission to access this page. This area is restricted to
+            administrators only.
+          </p>
+          <a
+            href="/partner-dashboard"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+          >
             Go to Dashboard
           </a>
         </div>

@@ -1,0 +1,72 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
+import { classifyProspect } from '@/lib/lead-finder/classifyProspect';
+import { checkLeadFinderTables, prospectToRow, summarizeProspects } from '@/lib/lead-finder/db';
+
+export async function POST(request: NextRequest) {
+  const auth = await requireAdmin(bearerToken(request));
+  if ('error' in auth)
+    return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+
+  try {
+    const ready = await checkLeadFinderTables(auth.supabase);
+    if (!ready.ready)
+      return NextResponse.json({ success: false, error: ready.warning }, { status: 400 });
+
+    const body = await request.json().catch(() => ({}));
+    const overwriteManual = Boolean(body.overwriteManual);
+    let query = auth.supabase
+      .from('dsa_prospect_master')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5000);
+    if (!overwriteManual) query = query.neq('classification_source', 'manual');
+    const { data: rows, error } = await query;
+    if (error) throw error;
+
+    const updates = (rows || []).map((row) => {
+      const classified = classifyProspect({
+        place_id: row.place_id,
+        business_name: row.business_name,
+        raw_phone: row.raw_phone,
+        website: row.website,
+        google_maps_url: row.google_maps_url,
+        formatted_address: row.formatted_address,
+        searched_city: row.searched_city,
+        detected_city: row.detected_city,
+        rating: row.rating,
+        review_count: row.review_count,
+        google_types: row.google_types || [],
+        matched_keywords: row.matched_keywords || [],
+        latitude: row.latitude,
+        longitude: row.longitude,
+      });
+      return prospectToRow(classified, row.source_run_id);
+    });
+
+    if (updates.length) {
+      const { error: upsertError } = await auth.supabase
+        .from('dsa_prospect_master')
+        .upsert(updates, { onConflict: 'place_id' });
+      if (upsertError) throw upsertError;
+    }
+    const { data: allRows } = await auth.supabase
+      .from('dsa_prospect_master')
+      .select('phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone');
+    return NextResponse.json({
+      success: true,
+      message: `Reclassified ${updates.length} prospects with zero Google API calls`,
+      googleCalls: { textSearch: 0, placeDetails: 0 },
+      summary: summarizeProspects(allRows || [], {
+        actual_text_search_calls: 0,
+        actual_place_details_calls: 0,
+      }),
+    });
+  } catch (error) {
+    console.error('[lead-finder/reclassify] error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Unable to reclassify existing data' },
+      { status: 500 }
+    );
+  }
+}
