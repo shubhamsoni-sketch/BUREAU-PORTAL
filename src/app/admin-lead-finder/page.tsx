@@ -149,6 +149,7 @@ export default function AdminLeadFinderPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [why, setWhy] = useState<Prospect | null>(null);
+  const [lastDataRefreshAt, setLastDataRefreshAt] = useState<Date | null>(null);
 
   const keywords = useMemo(
     () =>
@@ -171,6 +172,7 @@ export default function AdminLeadFinderPage() {
         throw new Error(json.error || 'Unable to load Lead Finder');
       setSummary(json.summary || emptySummary);
       setProspects(json.prospects || []);
+      setLastDataRefreshAt(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load Lead Finder');
     } finally {
@@ -222,6 +224,9 @@ export default function AdminLeadFinderPage() {
       });
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(json.error || 'Search failed');
+      if (json.summary) setSummary(json.summary);
+      if (json.prospects) setProspects(json.prospects);
+      setLastDataRefreshAt(new Date());
       setView('sales_ready');
       setTab('data');
       setNotice(
@@ -275,6 +280,7 @@ export default function AdminLeadFinderPage() {
     { label: 'Approx API Cost', value: formatMoney(summary.estimatedCostUsd), icon: WalletCards },
   ];
   const costPreview = Math.min(Number(count || 100), 1000) * 0.006;
+  const latestRun = runs[0];
 
   return (
     <AdminLayout title="DSA Lead Finder">
@@ -313,6 +319,57 @@ export default function AdminLeadFinderPage() {
                   </div>
                 );
               })}
+            </div>
+
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 shadow-sm">
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <p className="text-xs font-900 uppercase tracking-[0.18em] text-blue-700">
+                    Data tab refreshed
+                  </p>
+                  <p className="mt-1 text-sm font-800 text-slate-700">
+                    {lastDataRefreshAt
+                      ? new Intl.DateTimeFormat('en-IN', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        }).format(lastDataRefreshAt)
+                      : 'Not refreshed yet'}
+                  </p>
+                </div>
+                {latestRun ? (
+                  <div className="grid flex-1 grid-cols-2 gap-3 text-sm md:grid-cols-4 xl:max-w-4xl">
+                    <div>
+                      <p className="text-xs font-800 text-slate-500">Latest run</p>
+                      <p className="font-950 text-slate-950">
+                        {latestRun.searched_city} {latestRun.searched_state}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-800 text-slate-500">Raw / Unique</p>
+                      <p className="font-950 text-slate-950">
+                        {formatNumber(latestRun.raw_results_count)} /{' '}
+                        {formatNumber(latestRun.unique_businesses_count)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-800 text-slate-500">Google calls</p>
+                      <p className="font-950 text-slate-950">
+                        Text {formatNumber(latestRun.actual_text_search_calls)} · Details{' '}
+                        {formatNumber(latestRun.actual_place_details_calls)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-800 text-slate-500">Cost / Cache</p>
+                      <p className="font-950 text-slate-950">
+                        {formatMoney(latestRun.estimated_cost_usd)} · saved{' '}
+                        {formatNumber(latestRun.cached_records_reused)}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm font-800 text-slate-600">No run history loaded yet.</p>
+                )}
+              </div>
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
