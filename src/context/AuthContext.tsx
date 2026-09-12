@@ -152,10 +152,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Immediately check for an existing session on mount
     const supabase = createClient();
     let cancelled = false;
+    const initTimeout = window.setTimeout(() => {
+      if (cancelled) return;
+      console.warn('[AuthContext] Initial auth check timed out; showing signed-out state.');
+      setUser(null);
+      setIsLoading(false);
+      resolvingRef.current = false;
+    }, 5000);
 
     const loadInitialSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await withAuthTimeout(
+          supabase.auth.getSession(),
+          { data: { session: null }, error: null }
+        );
         if (cancelled) return;
 
         if (session?.user) {
@@ -170,7 +180,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
         }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          window.clearTimeout(initTimeout);
+          setIsLoading(false);
+        }
       }
     };
 
@@ -253,6 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(initTimeout);
       subscription.unsubscribe();
     };
   }, []);
