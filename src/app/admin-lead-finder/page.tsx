@@ -637,7 +637,7 @@ function Header({
   const tabs = [
     ['dsa', 'DSA Data'],
     ['fintech', 'Fintech Data'],
-    ['universal', 'Universal Finder'],
+    ['universal', 'AI Finder'],
     ['library', 'Lead Library'],
     ['settings', 'Runs & Cost'],
   ] as const;
@@ -664,6 +664,9 @@ function Header({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 font-800 text-violet-700">
+          <Zap size={14} /> AI Finder live
+        </span>
         <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-800 text-emerald-700">
           <Clock3 size={14} /> 30-day cache active
         </span>
@@ -749,7 +752,7 @@ function UniversalFinderPreview() {
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(json.error || 'Universal run failed');
       setMessage(
-        `Run complete. Records ${formatNumber(json.metrics?.recordsFound || 0)}, Text calls ${formatNumber(json.metrics?.textSearchCalls || 0)}, Details ${formatNumber(json.metrics?.placeDetailsCalls || 0)}, Cost ≈₹${formatNumber(json.metrics?.estimatedCostInr || 0)}.`
+        `AI run complete. Records ${formatNumber(json.metrics?.recordsFound || 0)}, Text calls ${formatNumber(json.metrics?.textSearchCalls || 0)}, Details ${formatNumber(json.metrics?.placeDetailsCalls || 0)}, Cost ≈₹${formatNumber(json.metrics?.estimatedCostInr || 0)}. Check Lead Library / matching data tab for saved records.`
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Universal run failed');
@@ -769,6 +772,31 @@ function UniversalFinderPreview() {
 
   return (
     <section className="space-y-5">
+      <div className="rounded-3xl border border-violet-100 bg-gradient-to-r from-violet-50 via-white to-blue-50 p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-950 uppercase tracking-[0.2em] text-violet-700">AI Finder</p>
+            <h2 className="mt-2 text-2xl font-950 text-slate-950">
+              Describe any audience. AI prepares the cities, keywords, cost and run plan.
+            </h2>
+            <p className="mt-2 max-w-4xl text-sm font-700 leading-6 text-slate-600">
+              Nothing is charged while planning. Google Places starts only after you approve the
+              final run. Existing database and 30-day coverage are reused first.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white bg-white/80 px-4 py-3 shadow-sm">
+            <p className="text-xs font-900 uppercase tracking-wide text-slate-500">AI model</p>
+            <p className="mt-1 text-lg font-950 text-slate-950">
+              {planSource === 'gemini'
+                ? 'Gemini active'
+                : planSource === 'fallback'
+                  ? 'Rules fallback'
+                  : 'Ready'}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-4 xl:grid-cols-4">
         <StatusCard
           tone={schemaReady ? 'green' : 'amber'}
@@ -792,11 +820,13 @@ function UniversalFinderPreview() {
           note="Google keys are not exposed in the browser."
         />
         <StatusCard
-          tone="slate"
-          icon={<WalletCards size={18} />}
-          label="Run control"
-          value="Approval only"
-          note="Google calls start only from the final run button."
+          tone={planSource === 'gemini' ? 'green' : 'slate'}
+          icon={<Zap size={18} />}
+          label="AI planner"
+          value={
+            planSource === 'gemini' ? 'Gemini' : planSource === 'fallback' ? 'Fallback' : 'Ready'
+          }
+          note="Gemini prepares the plan when available; fallback keeps planning usable."
         />
       </div>
 
@@ -808,7 +838,9 @@ function UniversalFinderPreview() {
                 <AlertTriangle size={22} />
               </div>
               <div>
-                <h3 className="text-base font-950 text-amber-950">Setup required before live runs</h3>
+                <h3 className="text-base font-950 text-amber-950">
+                  Setup required before live runs
+                </h3>
                 <p className="mt-1 max-w-3xl text-sm font-700 leading-6 text-amber-800">
                   The master lead database migration is still pending. You can prepare and review a
                   search, but paid Google Places runs are disabled until the database is active.
@@ -826,12 +858,12 @@ function UniversalFinderPreview() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-              <Search size={20} />
+              <Zap size={20} />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-xl font-950 text-slate-950">Universal Finder</h2>
+              <h2 className="text-xl font-950 text-slate-950">AI Finder prompt</h2>
               <p className="text-sm font-700 text-slate-500">
-                Set the target, check cost, then start the approved run.
+                Tell the AI what audience you want. It will create the search plan first.
               </p>
             </div>
             <span className="hidden rounded-full border border-slate-200 px-3 py-1.5 text-xs font-900 text-slate-600 md:inline-flex">
@@ -851,13 +883,13 @@ function UniversalFinderPreview() {
           )}
           <label className="block">
             <span className="text-xs font-900 uppercase tracking-wide text-slate-500">
-              Lead requirement
+              Audience prompt
             </span>
-          <textarea
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
+            <textarea
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
               className="mt-2 min-h-[160px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-700 leading-6 text-slate-700 outline-none focus:border-blue-400 focus:bg-white"
-          />
+            />
           </label>
           <p className="mt-2 text-xs font-700 text-slate-500">
             Example: Find loan DSAs working with Andromeda and RU Loans in MP and Gujarat. Exclude
@@ -897,7 +929,7 @@ function UniversalFinderPreview() {
               onClick={approveAndRun}
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-600 px-5 py-3 text-sm font-950 text-white hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-500"
             >
-              <Play size={17} /> {running ? 'Running...' : 'Start Approved Run'}
+              <Play size={17} /> {running ? 'Running...' : 'Start Approved AI Run'}
             </button>
           </div>
         </div>
@@ -905,7 +937,7 @@ function UniversalFinderPreview() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-950 text-slate-950">Review Before Run</h2>
+              <h2 className="text-xl font-950 text-slate-950">AI Plan & Cost</h2>
               <p className="text-sm font-700 text-slate-500">Nothing is charged at this step.</p>
             </div>
             <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-950 uppercase tracking-wide text-slate-600">
@@ -915,9 +947,17 @@ function UniversalFinderPreview() {
           {!plan ? (
             <div className="space-y-3">
               {[
-                ['1', 'Prepare search', 'AI converts the brief into cities, keywords, and exclusions.'],
+                [
+                  '1',
+                  'Prepare search',
+                  'AI converts the brief into cities, keywords, and exclusions.',
+                ],
                 ['2', 'Check saved data', 'Existing records and fresh coverage are reused first.'],
-                ['3', 'Approve run', 'Google Places calls stay locked until the final approval button.'],
+                [
+                  '3',
+                  'Approve run',
+                  'Google Places calls stay locked until the final approval button.',
+                ],
               ].map(([step, title, body]) => (
                 <div
                   key={step}
