@@ -341,7 +341,7 @@ export async function forecastUniversalRun(supabase: any, plan: UniversalLeadPla
     confidence: freshCoverageMatches || existingDbMatches ? 'medium' : 'low',
     recommendation:
       approxCostInr > 100
-        ? 'Cost higher hai; pehle smaller count run karke quality validate karo.'
-        : 'Cost controlled hai; approve karke run kar sakte ho.',
+        ? 'Estimated cost is high. Start with a smaller test run and validate lead quality first.'
+        : 'Estimated cost is within the safe range. You can approve and start the run.',
   } satisfies UniversalYieldForecast;
 }

@@ -665,10 +665,10 @@ function Header({
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-800 text-emerald-700">
-          <Clock3 size={14} /> 30-day cache Active
+          <Clock3 size={14} /> 30-day cache active
         </span>
         <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 font-800 text-blue-700">
-          <ShieldCheck size={14} /> Server key Connected
+          <ShieldCheck size={14} /> Server key connected
         </span>
         <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 font-800 text-slate-600">
           <Zap size={14} /> Duplicate-safe
@@ -680,7 +680,7 @@ function Header({
 
 function UniversalFinderPreview() {
   const [prompt, setPrompt] = useState(
-    'Mujhe Indore, Bhopal, Ahmedabad, Surat me loan distribution fintech / DSA partners chahiye. Irrelevant software, payment app, stock broker remove karo.'
+    'Find loan distribution fintech and DSA partners in Indore, Bhopal, Ahmedabad, and Surat. Exclude software companies, payment apps, and stock brokers.'
   );
   const [plan, setPlan] = useState<UniversalPlan | null>(null);
   const [forecast, setForecast] = useState<UniversalForecast | null>(null);
@@ -765,15 +765,15 @@ function UniversalFinderPreview() {
               Universal Finder
             </p>
             <h2 className="mt-2 text-3xl font-950 text-slate-950">
-              Jo audience chahiye, plain language mein bolo.
+              Find the right business leads in any city.
             </h2>
             <p className="mt-3 text-sm font-700 leading-6 text-slate-600">
-              Gemini pehle search plan banayega: lead type, cities, keywords, exclusions, expected
-              yield aur approx cost. Google Places run sirf approval ke baad chalega.
+              Describe the leads you need. Review the search setup, estimated results, and cost
+              before starting any paid Google Places run.
             </p>
           </div>
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-900 text-emerald-800">
-            Cost locked until approval
+            Paid search requires approval
           </div>
         </div>
       </div>
@@ -785,9 +785,9 @@ function UniversalFinderPreview() {
               <Search size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-950 text-slate-950">Prompt to Plan</h3>
+              <h3 className="text-lg font-950 text-slate-950">Search Setup</h3>
               <p className="text-sm text-slate-500">
-                Example: “MP Gujarat me Andromeda aur RU Loans ke DSA nikaalo”
+                Example: Find loan DSAs working with Andromeda and RU Loans in MP and Gujarat.
               </p>
             </div>
           </div>
@@ -825,7 +825,7 @@ function UniversalFinderPreview() {
               onClick={generatePlan}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-950 text-white hover:bg-blue-700 disabled:opacity-60"
             >
-              <Zap size={17} /> {loadingPlan ? 'Generating...' : 'Generate AI Plan'}
+              <Zap size={17} /> {loadingPlan ? 'Preparing...' : 'Prepare Search'}
             </button>
             <button
               type="button"
@@ -833,21 +833,21 @@ function UniversalFinderPreview() {
               onClick={approveAndRun}
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-600 px-5 py-3 text-sm font-950 text-white hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-500"
             >
-              <Play size={17} /> {running ? 'Running...' : 'Approve & Run'}
+              <Play size={17} /> {running ? 'Running...' : 'Start Approved Run'}
             </button>
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="text-lg font-950 text-slate-950">Plan + Cost Preview</h3>
+          <h3 className="text-lg font-950 text-slate-950">Review Before Run</h3>
           {!plan ? (
             <div className="mt-4 space-y-3">
               {[
-                ['1', 'AI plan banega', 'lead type, keywords, city list, exclude rules'],
-                ['2', 'DB coverage check', 'fresh 30-day coverage = zero Google calls'],
-                ['3', 'Yield forecast', 'expected raw, unique, valid mobile, high confidence'],
-                ['4', 'Cost preview', 'INR estimate before paid run'],
-                ['5', 'Approve & Run', 'only then Google Places can spend'],
+                ['1', 'Prepare search', 'lead category, keywords, locations, and exclusions'],
+                ['2', 'Check saved data', 'reuse fresh 30-day coverage before calling Google'],
+                ['3', 'Estimate results', 'expected raw leads, unique leads, and valid mobile numbers'],
+                ['4', 'Estimate cost', 'approximate Google API cost in Indian Rupees'],
+                ['5', 'Start run', 'paid Google calls start only after approval'],
               ].map(([step, title, body]) => (
                 <div
                   key={step}
@@ -895,7 +895,8 @@ function UniversalFinderPreview() {
                 </div>
               ) : (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-800 text-amber-800">
-                  Master DB migration pending hai, isliye approval run locked hai.
+                  Master database setup is pending. Paid runs are locked until the migration is
+                  complete.
                 </div>
               )}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
