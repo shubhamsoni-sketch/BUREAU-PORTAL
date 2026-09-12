@@ -36,6 +36,7 @@ type Summary = {
   missingPhone: number;
   duplicateDetailsCallsAvoided: number;
   estimatedCostUsd: number;
+  estimatedCostInr?: number;
 };
 
 type Prospect = {
@@ -96,6 +97,7 @@ const emptySummary: Summary = {
   missingPhone: 0,
   duplicateDetailsCallsAvoided: 0,
   estimatedCostUsd: 0,
+  estimatedCostInr: 0,
 };
 
 const views = [
@@ -120,6 +122,15 @@ function formatMoney(value: number) {
   return `≈₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(inr)}`;
 }
 
+function formatApiCost(summary: Summary) {
+  const inr = Number(summary.estimatedCostInr || 0);
+  if (inr > 0) {
+    if (inr < 1) return `≈₹${inr.toFixed(2)}`;
+    return `≈₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(inr)}`;
+  }
+  return formatMoney(summary.estimatedCostUsd || 0);
+}
+
 function formatDateTime(value: string | null) {
   if (!value) return '-';
   return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(
@@ -142,7 +153,7 @@ function prospectEmail(prospect: Prospect) {
 }
 
 export default function AdminLeadFinderPage() {
-  const [tab, setTab] = useState<'dsa' | 'fintech' | 'settings'>('dsa');
+  const [tab, setTab] = useState<'dsa' | 'fintech' | 'universal' | 'library' | 'settings'>('dsa');
   const [city, setCity] = useState('Indore');
   const [state, setState] = useState('Madhya Pradesh');
   const [count, setCount] = useState('100');
@@ -175,10 +186,13 @@ export default function AdminLeadFinderPage() {
     setLoading(true);
     setError('');
     try {
-      const leadType = tab === 'fintech' ? 'fintech' : 'dsa';
-      const res = await authFetch(`/api/admin-lead-finder/results?view=${nextView}&leadType=${leadType}`, {
-        cache: 'no-store',
-      });
+      const leadType = tab === 'library' ? 'all' : tab === 'fintech' ? 'fintech' : 'dsa';
+      const res = await authFetch(
+        `/api/admin-lead-finder/results?view=${nextView}&leadType=${leadType}`,
+        {
+          cache: 'no-store',
+        }
+      );
       const json = await res.json();
       if (!res.ok || json.success === false)
         throw new Error(json.error || 'Unable to load Lead Finder');
@@ -213,7 +227,7 @@ export default function AdminLeadFinderPage() {
   }, []);
 
   useEffect(() => {
-    if (tab === 'dsa' || tab === 'fintech') {
+    if (tab === 'dsa' || tab === 'fintech' || tab === 'library') {
       loadResults(view);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -292,18 +306,31 @@ export default function AdminLeadFinderPage() {
   }
 
   const kpis = [
-    { label: tab === 'fintech' ? 'Total Fintech' : 'Total DSA', value: summary.rawResults, icon: Database },
+    {
+      label: tab === 'fintech' ? 'Total Fintech' : 'Total DSA',
+      value: summary.rawResults,
+      icon: Database,
+    },
     { label: 'Unique Businesses', value: summary.uniqueBusinesses, icon: BarChart3 },
     { label: 'Sales Ready', value: summary.salesReady, icon: Target },
     { label: 'Priority A', value: summary.priorityA, icon: Zap },
     { label: 'Priority B', value: summary.priorityB, icon: Zap },
-    { label: tab === 'fintech' ? 'Emails Found' : 'Valid Mobile', value: tab === 'fintech' ? summary.emailsFound : summary.validMobile, icon: tab === 'fintech' ? CheckCircle2 : Phone },
-    { label: tab === 'fintech' ? 'Valid Mobile' : 'Google Calls Saved', value: tab === 'fintech' ? summary.validMobile : summary.duplicateDetailsCallsAvoided, icon: ShieldCheck },
-    { label: 'Approx API Cost', value: formatMoney(summary.estimatedCostUsd), icon: WalletCards },
+    {
+      label: tab === 'fintech' ? 'Emails Found' : 'Valid Mobile',
+      value: tab === 'fintech' ? summary.emailsFound : summary.validMobile,
+      icon: tab === 'fintech' ? CheckCircle2 : Phone,
+    },
+    {
+      label: tab === 'fintech' ? 'Valid Mobile' : 'Google Calls Saved',
+      value: tab === 'fintech' ? summary.validMobile : summary.duplicateDetailsCallsAvoided,
+      icon: ShieldCheck,
+    },
+    { label: 'Approx API Cost', value: formatApiCost(summary), icon: WalletCards },
   ];
   const latestRun = runs.find((run) => {
     const isFintechRun =
-      (run.keywords || []).includes('Fintech Lead') || (run.keywords || []).includes('fintech_import');
+      (run.keywords || []).includes('Fintech Lead') ||
+      (run.keywords || []).includes('fintech_import');
     return tab === 'fintech' ? isFintechRun : !isFintechRun;
   });
 
@@ -320,7 +347,7 @@ export default function AdminLeadFinderPage() {
           </div>
         )}
 
-        {tab === 'dsa' || tab === 'fintech' ? (
+        {tab === 'dsa' || tab === 'fintech' || tab === 'library' ? (
           <section className="space-y-5">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               {kpis.map((item) => {
@@ -401,7 +428,11 @@ export default function AdminLeadFinderPage() {
               <div className="flex flex-col gap-3 border-b border-slate-200 p-4 xl:flex-row xl:items-center">
                 <div>
                   <h2 className="text-lg font-900 text-slate-950">
-                    {tab === 'fintech' ? 'Fintech Results' : 'DSA Results'}
+                    {tab === 'library'
+                      ? 'Lead Library'
+                      : tab === 'fintech'
+                        ? 'Fintech Results'
+                        : 'DSA Results'}
                   </h2>
                   <p className="text-xs font-700 text-slate-500">
                     Showing {prospects.length ? `1-${Math.min(prospects.length, 500)}` : '0'}{' '}
@@ -447,9 +478,16 @@ export default function AdminLeadFinderPage() {
                   ))}
                 </div>
               </div>
-              <LeadTable loading={loading} prospects={prospects} onWhy={setWhy} leadType={tab} />
+              <LeadTable
+                loading={loading}
+                prospects={prospects}
+                onWhy={setWhy}
+                leadType={tab === 'fintech' ? 'fintech' : 'dsa'}
+              />
             </div>
           </section>
+        ) : tab === 'universal' ? (
+          <UniversalFinderPreview />
         ) : (
           <section className="space-y-5">
             <div className="grid grid-cols-1 gap-5">
@@ -560,9 +598,17 @@ function Header({
   tab,
   setTab,
 }: {
-  tab: 'dsa' | 'fintech' | 'settings';
-  setTab: (tab: 'dsa' | 'fintech' | 'settings') => void;
+  tab: 'dsa' | 'fintech' | 'universal' | 'library' | 'settings';
+  setTab: (tab: 'dsa' | 'fintech' | 'universal' | 'library' | 'settings') => void;
 }) {
+  const tabs = [
+    ['dsa', 'DSA Data'],
+    ['fintech', 'Fintech Data'],
+    ['universal', 'Universal Finder'],
+    ['library', 'Lead Library'],
+    ['settings', 'Runs & Cost'],
+  ] as const;
+
   return (
     <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
       <div className="flex flex-wrap items-center gap-4">
@@ -571,25 +617,16 @@ function Header({
         </div>
         <div>
           <h1 className="text-3xl font-900 text-slate-950">Lead Finder</h1>
-          <div className="mt-3 inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-            <button
-              onClick={() => setTab('dsa')}
-              className={`rounded-lg px-5 py-2 text-sm font-900 ${tab === 'dsa' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-            >
-              DSA Data
-            </button>
-            <button
-              onClick={() => setTab('fintech')}
-              className={`rounded-lg px-5 py-2 text-sm font-900 ${tab === 'fintech' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-            >
-              Fintech Data
-            </button>
-            <button
-              onClick={() => setTab('settings')}
-              className={`rounded-lg px-5 py-2 text-sm font-900 ${tab === 'settings' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-            >
-              Find & Settings
-            </button>
+          <div className="mt-3 flex flex-wrap rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+            {tabs.map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`rounded-lg px-4 py-2 text-sm font-900 ${tab === key ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -605,6 +642,93 @@ function Header({
         </span>
       </div>
     </div>
+  );
+}
+
+function UniversalFinderPreview() {
+  return (
+    <section className="space-y-5">
+      <div className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-emerald-50 p-6 shadow-sm">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-xs font-950 uppercase tracking-[0.22em] text-blue-700">
+              Universal Finder
+            </p>
+            <h2 className="mt-2 text-3xl font-950 text-slate-950">
+              Jo audience chahiye, plain language mein bolo.
+            </h2>
+            <p className="mt-3 text-sm font-700 leading-6 text-slate-600">
+              Gemini pehle search plan banayega: lead type, cities, keywords, exclusions, expected
+              yield aur approx cost. Google Places run sirf approval ke baad chalega.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-900 text-emerald-800">
+            Cost locked until approval
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+              <Search size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-950 text-slate-950">Prompt to Plan</h3>
+              <p className="text-sm text-slate-500">
+                Example: “MP Gujarat me Andromeda aur RU Loans ke DSA nikaalo”
+              </p>
+            </div>
+          </div>
+          <textarea
+            disabled
+            value={
+              'Mujhe Indore, Bhopal, Ahmedabad, Surat me loan distribution fintech / DSA partners chahiye. Irrelevant software, payment app, stock broker remove karo.'
+            }
+            className="min-h-[170px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600 outline-none"
+          />
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-5 py-3 text-sm font-950 text-slate-500"
+            >
+              <Zap size={17} /> Generate AI Plan
+            </button>
+            <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-800 text-amber-800">
+              Phase 2 backend: Gemini plan + yield forecast
+            </span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="text-lg font-950 text-slate-950">Approved redesign flow</h3>
+          <div className="mt-4 space-y-3">
+            {[
+              ['1', 'AI plan banega', 'lead type, keywords, city list, exclude rules'],
+              ['2', 'DB coverage check', 'fresh 30-day coverage = zero Google calls'],
+              ['3', 'Yield forecast', 'expected raw, unique, valid mobile, high confidence'],
+              ['4', 'Cost preview', 'INR estimate before paid run'],
+              ['5', 'Approve & Run', 'only then Google Places can spend'],
+            ].map(([step, title, body]) => (
+              <div
+                key={step}
+                className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-950 text-white">
+                  {step}
+                </div>
+                <div>
+                  <p className="font-950 text-slate-900">{title}</p>
+                  <p className="text-sm text-slate-500">{body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

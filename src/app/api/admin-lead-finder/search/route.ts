@@ -4,6 +4,8 @@ import { classifyProspect } from '@/lib/lead-finder/classifyProspect';
 import {
   checkLeadFinderTables,
   fetchAllProspectSummaryRows,
+  hasLeadFinderMasterTable,
+  prospectToMasterRow,
   prospectToRow,
   summarizeProspects,
 } from '@/lib/lead-finder/db';
@@ -173,6 +175,27 @@ export async function POST(request: NextRequest) {
       keywords,
       forceRefresh,
     });
+    let masterRunId: string | null = null;
+    if (await hasLeadFinderMasterTable(auth.supabase)) {
+      const { data: masterRun, error: masterRunError } = await auth.supabase
+        .from('lead_finder_runs')
+        .insert({
+          legacy_dsa_run_id: runId,
+          user_prompt: `${city}, ${state}`,
+          lead_type: 'dsa',
+          search_intent: 'loan_dsa',
+          locations: [{ city, state }],
+          keywords,
+          requested_count: count,
+          budget_cap_inr: Number((runBudgetUsd * 83).toFixed(2)),
+          status: 'running',
+          created_by: auth.user?.id || null,
+        })
+        .select('id')
+        .single();
+      if (masterRunError) throw masterRunError;
+      masterRunId = masterRun.id;
+    }
 
     let textSearchCalls = 0;
     let placeDetailsCalls = 0;
@@ -275,6 +298,20 @@ export async function POST(request: NextRequest) {
         { onConflict: 'place_id' }
       );
       if (upsertError) throw upsertError;
+
+      if (await hasLeadFinderMasterTable(auth.supabase)) {
+        const { error: masterUpsertError } = await auth.supabase.from('lead_finder_master').upsert(
+          detailProspects.map((prospect) =>
+            prospectToMasterRow(prospect, masterRunId, {
+              leadType: 'dsa',
+              searchIntent: 'loan_dsa',
+              searchPrompt: `${city}, ${state}`,
+            })
+          ),
+          { onConflict: 'place_id' }
+        );
+        if (masterUpsertError) throw masterUpsertError;
+      }
     }
 
     const cachedRecordsReused = placeIds.filter((placeId) => existingById.has(placeId)).length;
@@ -303,6 +340,30 @@ export async function POST(request: NextRequest) {
         completed_at: new Date().toISOString(),
       })
       .eq('id', runId);
+
+    if (masterRunId) {
+      await auth.supabase
+        .from('lead_finder_runs')
+        .update({
+          records_found: placeIds.length,
+          new_records: Math.max(placeIds.length - cachedRecordsReused, 0),
+          reused_records: cachedRecordsReused,
+          duplicates_skipped: duplicatesSkipped,
+          estimated_cost_inr: Number((estimatedCostUsd * 83).toFixed(2)),
+          text_search_calls: textSearchCalls,
+          place_details_calls: placeDetailsCalls,
+          status:
+            budgetStoppedBeforeDetails && !placeDetailsCalls && !cachedRecordsReused
+              ? 'stopped_by_budget'
+              : 'complete',
+          error_message: budgetStoppedBeforeDetails
+            ? 'Stopped by Lead Finder Google API budget guardrail'
+            : null,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', masterRunId);
+    }
 
     const allRows = await fetchAllProspectSummaryRows(auth.supabase);
     const { data: prospects } = await auth.supabase

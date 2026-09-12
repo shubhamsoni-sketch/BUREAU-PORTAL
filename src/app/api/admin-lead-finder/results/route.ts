@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 import {
   checkLeadFinderTables,
+  fetchAllMasterSummaryRows,
   fetchAllProspectSummaryRows,
+  hasLeadFinderMasterTable,
+  masterRowToLegacyProspect,
+  summarizeMasterProspects,
   summarizeProspects,
 } from '@/lib/lead-finder/db';
 
@@ -24,7 +28,115 @@ export async function GET(request: NextRequest) {
 
     const view = request.nextUrl.searchParams.get('view') || 'sales_ready';
     const requestedLeadType = request.nextUrl.searchParams.get('leadType');
-    const leadType = requestedLeadType === 'fintech' ? 'fintech' : 'dsa';
+    const leadType =
+      requestedLeadType === 'fintech' ? 'fintech' : requestedLeadType === 'all' ? 'all' : 'dsa';
+    const useMaster = await hasLeadFinderMasterTable(auth.supabase);
+
+    if (useMaster) {
+      const prospectRows: any[] = [];
+      const pageSize = 1000;
+      let prospectError: any = null;
+      for (let from = 0; ; from += pageSize) {
+        let query = auth.supabase
+          .from('lead_finder_master')
+          .select(
+            'id,place_id,business_name,phone,phone_type,is_valid_mobile,email,email_source,website,google_maps_url,address,searched_city,detected_city,city,city_match,rating,review_count,matched_keywords,segment,parent_brand,matched_aggregator,is_corporate_branch,score,score_reasons,status,confidence,target_fit,updated_at,last_seen_at,last_fetched_at'
+          )
+          .neq('status', 'hidden')
+          .order('score', { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (leadType !== 'all') query = query.eq('lead_type', leadType);
+        const { data, error } = await query;
+        if (error) {
+          prospectError = error;
+          break;
+        }
+        prospectRows.push(...(data || []));
+        if (!data || data.length < pageSize) break;
+      }
+
+      if (prospectError) throw prospectError;
+
+      let prospects = prospectRows.map(masterRowToLegacyProspect);
+      if (view === 'sales_ready') prospects = prospects.filter((row) => row.sales_ready);
+      else if (view === 'priority_a')
+        prospects = prospects.filter((row) => row.sales_priority === 'A');
+      else if (view === 'priority_b')
+        prospects = prospects.filter((row) => row.sales_priority === 'B');
+      else if (view === 'enterprise')
+        prospects = prospects.filter((row) => row.business_segment === 'enterprise_dsa_aggregator');
+      else if (view === 'bank_lender')
+        prospects = prospects.filter((row) =>
+          ['bank', 'lender_nbfc', 'housing_finance', 'gold_loan_lender'].includes(
+            row.business_segment
+          )
+        );
+      else if (view === 'irrelevant')
+        prospects = prospects.filter((row) =>
+          [
+            'ca_accounting',
+            'stock_broker_investment',
+            'recruitment_hr',
+            'education',
+            'unrelated',
+          ].includes(row.business_segment)
+        );
+      else if (view === 'review')
+        prospects = prospects.filter(
+          (row) => row.sales_priority === 'review' || row.business_segment === 'unknown'
+        );
+
+      const [allRows, { data: runRows, error: runError }] = await Promise.all([
+        fetchAllMasterSummaryRows(auth.supabase, leadType),
+        (() => {
+          let query = auth.supabase
+            .from('lead_finder_runs')
+            .select(
+              'lead_type,records_found,new_records,reused_records,duplicates_skipped,estimated_cost_inr,text_search_calls,place_details_calls,status'
+            )
+            .order('created_at', { ascending: false })
+            .limit(1000);
+          if (leadType !== 'all') query = query.eq('lead_type', leadType);
+          return query;
+        })(),
+      ]);
+      if (runError) throw runError;
+      const completedRuns = (runRows || []).filter((run: any) => run.status === 'complete');
+      const aggregateRun = {
+        records_found: allRows?.length || 0,
+        reused_records: completedRuns.reduce(
+          (total: number, run: any) => total + Number(run.reused_records || 0),
+          0
+        ),
+        duplicates_skipped: completedRuns.reduce(
+          (total: number, run: any) => total + Number(run.duplicates_skipped || 0),
+          0
+        ),
+        estimated_cost_inr: completedRuns.reduce(
+          (total: number, run: any) => total + Number(run.estimated_cost_inr || 0),
+          0
+        ),
+        text_search_calls: completedRuns.reduce(
+          (total: number, run: any) => total + Number(run.text_search_calls || 0),
+          0
+        ),
+        place_details_calls: completedRuns.reduce(
+          (total: number, run: any) => total + Number(run.place_details_calls || 0),
+          0
+        ),
+      };
+
+      return NextResponse.json({
+        success: true,
+        schemaReady: true,
+        source: 'lead_finder_master',
+        summary: summarizeMasterProspects(allRows || [], aggregateRun),
+        prospects: prospects
+          .sort((a, b) => Number(b.prospect_score || 0) - Number(a.prospect_score || 0))
+          .slice(0, 500),
+      });
+    }
+
     const prospectRows: any[] = [];
     const pageSize = 1000;
     let prospectError: any = null;
@@ -55,8 +167,10 @@ export async function GET(request: NextRequest) {
     };
     let prospects = prospectRows.filter(isRequestedLeadType);
     if (view === 'sales_ready') prospects = prospects.filter((row) => row.sales_ready);
-    else if (view === 'priority_a') prospects = prospects.filter((row) => row.sales_priority === 'A');
-    else if (view === 'priority_b') prospects = prospects.filter((row) => row.sales_priority === 'B');
+    else if (view === 'priority_a')
+      prospects = prospects.filter((row) => row.sales_priority === 'A');
+    else if (view === 'priority_b')
+      prospects = prospects.filter((row) => row.sales_priority === 'B');
     else if (view === 'enterprise')
       prospects = prospects.filter((row) => row.business_segment === 'enterprise_dsa_aggregator');
     else if (view === 'bank_lender')
@@ -67,9 +181,13 @@ export async function GET(request: NextRequest) {
       );
     else if (view === 'irrelevant')
       prospects = prospects.filter((row) =>
-        ['ca_accounting', 'stock_broker_investment', 'recruitment_hr', 'education', 'unrelated'].includes(
-          row.business_segment
-        )
+        [
+          'ca_accounting',
+          'stock_broker_investment',
+          'recruitment_hr',
+          'education',
+          'unrelated',
+        ].includes(row.business_segment)
       );
     else if (view === 'review')
       prospects = prospects.filter(
@@ -79,17 +197,16 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => Number(b.prospect_score || 0) - Number(a.prospect_score || 0))
       .slice(0, 500);
 
-    const [allRows, { data: runRows, error: runError }] =
-      await Promise.all([
-        fetchAllProspectSummaryRows(auth.supabase, leadType),
-        auth.supabase
-          .from('dsa_extraction_runs')
-          .select(
-            'keywords,raw_results_count,unique_businesses_count,cached_records_reused,duplicates_skipped,estimated_cost_usd,actual_text_search_calls,actual_place_details_calls,status'
-          )
-          .order('created_at', { ascending: false })
-          .limit(1000),
-      ]);
+    const [allRows, { data: runRows, error: runError }] = await Promise.all([
+      fetchAllProspectSummaryRows(auth.supabase, leadType === 'fintech' ? 'fintech' : 'dsa'),
+      auth.supabase
+        .from('dsa_extraction_runs')
+        .select(
+          'keywords,raw_results_count,unique_businesses_count,cached_records_reused,duplicates_skipped,estimated_cost_usd,actual_text_search_calls,actual_place_details_calls,status'
+        )
+        .order('created_at', { ascending: false })
+        .limit(1000),
+    ]);
 
     if (prospectError || runError) throw prospectError || runError;
     const completedRuns = (runRows || []).filter((run: any) => {
