@@ -25,43 +25,58 @@ export async function GET(request: NextRequest) {
     const view = request.nextUrl.searchParams.get('view') || 'sales_ready';
     const requestedLeadType = request.nextUrl.searchParams.get('leadType');
     const leadType = requestedLeadType === 'fintech' ? 'fintech' : 'dsa';
-    let query = auth.supabase
-      .from('dsa_prospect_master')
-      .select(
-        'id,place_id,business_name,raw_phone,e164_phone,national_phone,phone_type,is_valid_phone,website,google_maps_url,formatted_address,searched_city,detected_city,city_match,rating,review_count,matched_keywords,business_segment,parent_brand,is_corporate_branch,prospect_score,score_reasons,sales_ready,sales_priority,classification_source,classified_at,last_seen_at,last_fetched_at'
-      )
-      .order('prospect_score', { ascending: false })
-      .limit(500);
+    const prospectRows: any[] = [];
+    const pageSize = 1000;
+    let prospectError: any = null;
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await auth.supabase
+        .from('dsa_prospect_master')
+        .select(
+          'id,place_id,business_name,raw_phone,e164_phone,national_phone,phone_type,is_valid_phone,website,google_maps_url,formatted_address,searched_city,detected_city,city_match,rating,review_count,matched_keywords,business_segment,parent_brand,is_corporate_branch,prospect_score,score_reasons,sales_ready,sales_priority,classification_source,classified_at,last_seen_at,last_fetched_at'
+        )
+        .order('prospect_score', { ascending: false })
+        .range(from, from + pageSize - 1);
+      if (error) {
+        prospectError = error;
+        break;
+      }
+      prospectRows.push(...(data || []));
+      if (!data || data.length < pageSize) break;
+    }
 
-    if (leadType === 'fintech') query = query.contains('matched_keywords', ['Fintech Lead']);
-    else query = query.not('matched_keywords', 'cs', '["Fintech Lead"]');
-
-    if (view === 'sales_ready') query = query.eq('sales_ready', true);
-    else if (view === 'priority_a') query = query.eq('sales_priority', 'A');
-    else if (view === 'priority_b') query = query.eq('sales_priority', 'B');
+    const isRequestedLeadType = (row: any) => {
+      const keywords = Array.isArray(row.matched_keywords) ? row.matched_keywords : [];
+      const isFintech = keywords.includes('Fintech Lead');
+      return leadType === 'fintech' ? isFintech : !isFintech;
+    };
+    let prospects = prospectRows.filter(isRequestedLeadType);
+    if (view === 'sales_ready') prospects = prospects.filter((row) => row.sales_ready);
+    else if (view === 'priority_a') prospects = prospects.filter((row) => row.sales_priority === 'A');
+    else if (view === 'priority_b') prospects = prospects.filter((row) => row.sales_priority === 'B');
     else if (view === 'enterprise')
-      query = query.eq('business_segment', 'enterprise_dsa_aggregator');
+      prospects = prospects.filter((row) => row.business_segment === 'enterprise_dsa_aggregator');
     else if (view === 'bank_lender')
-      query = query.in('business_segment', [
-        'bank',
-        'lender_nbfc',
-        'housing_finance',
-        'gold_loan_lender',
-      ]);
+      prospects = prospects.filter((row) =>
+        ['bank', 'lender_nbfc', 'housing_finance', 'gold_loan_lender'].includes(
+          row.business_segment
+        )
+      );
     else if (view === 'irrelevant')
-      query = query.in('business_segment', [
-        'ca_accounting',
-        'stock_broker_investment',
-        'recruitment_hr',
-        'education',
-        'unrelated',
-      ]);
+      prospects = prospects.filter((row) =>
+        ['ca_accounting', 'stock_broker_investment', 'recruitment_hr', 'education', 'unrelated'].includes(
+          row.business_segment
+        )
+      );
     else if (view === 'review')
-      query = query.or('sales_priority.eq.review,business_segment.eq.unknown');
+      prospects = prospects.filter(
+        (row) => row.sales_priority === 'review' || row.business_segment === 'unknown'
+      );
+    prospects = prospects
+      .sort((a, b) => Number(b.prospect_score || 0) - Number(a.prospect_score || 0))
+      .slice(0, 500);
 
-    const [{ data: prospects, error }, allRows, { data: runRows, error: runError }] =
+    const [allRows, { data: runRows, error: runError }] =
       await Promise.all([
-        query,
         fetchAllProspectSummaryRows(auth.supabase, leadType),
         auth.supabase
           .from('dsa_extraction_runs')
@@ -72,7 +87,7 @@ export async function GET(request: NextRequest) {
           .limit(1000),
       ]);
 
-    if (error || runError) throw error || runError;
+    if (prospectError || runError) throw prospectError || runError;
     const completedRuns = (runRows || []).filter((run: any) => run.status === 'complete');
     const aggregateRun = {
       raw_results_count: allRows?.length || 0,
