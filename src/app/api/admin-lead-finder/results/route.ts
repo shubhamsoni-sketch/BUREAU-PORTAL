@@ -81,14 +81,18 @@ export async function GET(request: NextRequest) {
         auth.supabase
           .from('dsa_extraction_runs')
           .select(
-            'raw_results_count,unique_businesses_count,cached_records_reused,duplicates_skipped,estimated_cost_usd,actual_text_search_calls,actual_place_details_calls,status'
+            'keywords,raw_results_count,unique_businesses_count,cached_records_reused,duplicates_skipped,estimated_cost_usd,actual_text_search_calls,actual_place_details_calls,status'
           )
           .order('created_at', { ascending: false })
           .limit(1000),
       ]);
 
     if (prospectError || runError) throw prospectError || runError;
-    const completedRuns = (runRows || []).filter((run: any) => run.status === 'complete');
+    const completedRuns = (runRows || []).filter((run: any) => {
+      const keywords = Array.isArray(run.keywords) ? run.keywords : [];
+      const isFintechRun = keywords.includes('Fintech Lead') || keywords.includes('fintech_import');
+      return run.status === 'complete' && (leadType === 'fintech' ? isFintechRun : !isFintechRun);
+    });
     const aggregateRun = {
       raw_results_count: allRows?.length || 0,
       unique_businesses_count: allRows?.length || 0,

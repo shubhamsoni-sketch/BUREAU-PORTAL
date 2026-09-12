@@ -301,7 +301,11 @@ export default function AdminLeadFinderPage() {
     { label: tab === 'fintech' ? 'Valid Mobile' : 'Google Calls Saved', value: tab === 'fintech' ? summary.validMobile : summary.duplicateDetailsCallsAvoided, icon: ShieldCheck },
     { label: 'Approx API Cost', value: formatMoney(summary.estimatedCostUsd), icon: WalletCards },
   ];
-  const latestRun = runs[0];
+  const latestRun = runs.find((run) => {
+    const isFintechRun =
+      (run.keywords || []).includes('Fintech Lead') || (run.keywords || []).includes('fintech_import');
+    return tab === 'fintech' ? isFintechRun : !isFintechRun;
+  });
 
   return (
     <AdminLayout title="Lead Finder">
