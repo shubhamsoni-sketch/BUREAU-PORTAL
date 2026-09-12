@@ -40,6 +40,39 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-background text-foreground antialiased">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                var KEY = 'bureau-portal-root-chunk-reload-attempted';
+                function isChunkFailure(value) {
+                  var text = '';
+                  try {
+                    text = String(value && (value.message || value.reason && value.reason.message || value.filename || value.target && value.target.src) || value || '');
+                  } catch (e) {}
+                  return text.indexOf('ChunkLoadError') !== -1 ||
+                    text.indexOf('Loading chunk') !== -1 ||
+                    text.indexOf('/_next/static/chunks/') !== -1;
+                }
+                function recover(event) {
+                  if (!isChunkFailure(event && (event.error || event.reason || event))) return;
+                  try {
+                    if (window.sessionStorage.getItem(KEY) === '1') return;
+                    window.sessionStorage.setItem(KEY, '1');
+                  } catch (e) {}
+                  var url = new URL(window.location.href);
+                  url.searchParams.set('_reload', String(Date.now()));
+                  window.location.replace(url.toString());
+                }
+                window.addEventListener('error', recover, true);
+                window.addEventListener('unhandledrejection', recover, true);
+                window.setTimeout(function () {
+                  try { window.sessionStorage.removeItem(KEY); } catch (e) {}
+                }, 8000);
+              })();
+            `,
+          }}
+        />
         <GoogleAnalytics />
         <MetaPixel />
         <ErrorBoundary label="App Root">
