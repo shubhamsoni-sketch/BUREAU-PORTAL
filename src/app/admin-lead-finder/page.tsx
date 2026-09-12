@@ -764,70 +764,32 @@ function UniversalFinderPreview() {
   const setupComplete = setupChecked && schemaReady && Boolean(forecast);
   const canRun = Boolean(plan) && setupComplete && !running && !loadingPlan;
   const setupStatus = !setupChecked ? 'Check required' : schemaReady ? 'Ready' : 'Setup required';
-  const setupNote = !setupChecked
-    ? 'Prepare a search to check the live database.'
-    : schemaReady
-      ? 'Runs can save to the master library.'
-      : 'Paid runs remain locked.';
 
   return (
-    <section className="space-y-5">
-      <div className="rounded-3xl border border-violet-100 bg-gradient-to-r from-violet-50 via-white to-blue-50 p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-950 uppercase tracking-[0.2em] text-violet-700">AI Finder</p>
-            <h2 className="mt-2 text-2xl font-950 text-slate-950">
-              Describe any audience. AI prepares the cities, keywords, cost and run plan.
-            </h2>
-            <p className="mt-2 max-w-4xl text-sm font-700 leading-6 text-slate-600">
-              Nothing is charged while planning. Google Places starts only after you approve the
-              final run. Existing database and 30-day coverage are reused first.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-white bg-white/80 px-4 py-3 shadow-sm">
-            <p className="text-xs font-900 uppercase tracking-wide text-slate-500">AI model</p>
-            <p className="mt-1 text-lg font-950 text-slate-950">
-              {planSource === 'gemini'
-                ? 'Gemini active'
-                : planSource === 'fallback'
-                  ? 'Rules fallback'
-                  : 'Ready'}
-            </p>
-          </div>
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+        <div>
+          <h2 className="text-2xl font-950 text-slate-950">AI Finder</h2>
+          <p className="mt-1 text-sm font-700 text-slate-500">
+            Enter requirement, review cost, then approve run.
+          </p>
         </div>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-4">
-        <StatusCard
-          tone={schemaReady ? 'green' : 'amber'}
-          icon={<Database size={18} />}
-          label="Master database"
-          value={setupStatus}
-          note={setupNote}
-        />
-        <StatusCard
-          tone="blue"
-          icon={<Clock3 size={18} />}
-          label="Duplicate control"
-          value="30-day cache"
-          note="Fresh city, state, and keyword searches reuse saved results."
-        />
-        <StatusCard
-          tone="green"
-          icon={<ShieldCheck size={18} />}
-          label="API key"
-          value="Server-side"
-          note="Google keys are not exposed in the browser."
-        />
-        <StatusCard
-          tone={planSource === 'gemini' ? 'green' : 'slate'}
-          icon={<Zap size={18} />}
-          label="AI planner"
-          value={
-            planSource === 'gemini' ? 'Gemini' : planSource === 'fallback' ? 'Fallback' : 'Ready'
-          }
-          note="Gemini prepares the plan when available; fallback keeps planning usable."
-        />
+        <div className="flex flex-wrap gap-2 text-xs font-950">
+          <span className="rounded-full bg-slate-100 px-3 py-2 text-slate-700">
+            DB: {setupStatus}
+          </span>
+          <span
+            className={`rounded-full px-3 py-2 ${
+              planSource === 'gemini'
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-amber-50 text-amber-700'
+            }`}
+          >
+            Planner:{' '}
+            {planSource === 'gemini' ? 'Gemini' : planSource === 'fallback' ? 'Fallback' : 'Ready'}
+          </span>
+          <span className="rounded-full bg-blue-50 px-3 py-2 text-blue-700">30-day cache</span>
+        </div>
       </div>
 
       {setupChecked && !schemaReady && (
@@ -854,22 +816,9 @@ function UniversalFinderPreview() {
         </div>
       )}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-              <Zap size={20} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xl font-950 text-slate-950">AI Finder prompt</h2>
-              <p className="text-sm font-700 text-slate-500">
-                Tell the AI what audience you want. It will create the search plan first.
-              </p>
-            </div>
-            <span className="hidden rounded-full border border-slate-200 px-3 py-1.5 text-xs font-900 text-slate-600 md:inline-flex">
-              Step 1 of 3
-            </span>
-          </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.82fr)]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-base font-950 text-slate-950">Search brief</h3>
           {(error || message) && (
             <div
               className={`mb-4 rounded-xl border px-4 py-3 text-sm font-800 ${
@@ -882,24 +831,16 @@ function UniversalFinderPreview() {
             </div>
           )}
           <label className="block">
-            <span className="text-xs font-900 uppercase tracking-wide text-slate-500">
-              Audience prompt
-            </span>
             <textarea
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
-              className="mt-2 min-h-[160px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-700 leading-6 text-slate-700 outline-none focus:border-blue-400 focus:bg-white"
+              placeholder="Example: Find loan DSAs working with Andromeda and RU Loans in MP and Gujarat. Exclude software companies and payment apps."
+              className="min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-700 leading-6 text-slate-800 outline-none focus:border-blue-400"
             />
           </label>
-          <p className="mt-2 text-xs font-700 text-slate-500">
-            Example: Find loan DSAs working with Andromeda and RU Loans in MP and Gujarat. Exclude
-            software companies and payment apps.
-          </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px]">
+          <div className="mt-3 grid gap-3 md:grid-cols-[160px_170px_1fr] md:items-end">
             <div>
-              <span className="text-xs font-900 uppercase tracking-wide text-slate-500">
-                Approved count
-              </span>
+              <span className="text-xs font-900 uppercase tracking-wide text-slate-500">Count</span>
               <input
                 value={count}
                 onChange={(event) => setCount(event.target.value)}
@@ -907,97 +848,64 @@ function UniversalFinderPreview() {
               />
             </div>
             <Toggle label="Force Refresh" checked={forceRefresh} onChange={setForceRefresh} />
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <button
+                type="button"
+                disabled={loadingPlan || running}
+                onClick={generatePlan}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-950 text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                <Zap size={17} /> {loadingPlan ? 'Preparing...' : 'Prepare'}
+              </button>
+              <button
+                type="button"
+                disabled={!canRun}
+                onClick={approveAndRun}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-950 text-white hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-500"
+              >
+                <Play size={17} /> {running ? 'Running...' : 'Run'}
+              </button>
+            </div>
           </div>
           {forceRefresh && (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-800 text-amber-800">
-              Force refresh can create fresh Google API cost. Use it only when old coverage should
-              be ignored.
+              Force refresh ignores cache and can create Google API cost.
             </div>
           )}
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={loadingPlan || running}
-              onClick={generatePlan}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-950 text-white hover:bg-blue-700 disabled:opacity-60"
-            >
-              <Zap size={17} /> {loadingPlan ? 'Preparing...' : 'Prepare Search'}
-            </button>
-            <button
-              type="button"
-              disabled={!canRun}
-              onClick={approveAndRun}
-              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-600 px-5 py-3 text-sm font-950 text-white hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-500"
-            >
-              <Play size={17} /> {running ? 'Running...' : 'Start Approved AI Run'}
-            </button>
-          </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-950 text-slate-950">AI Plan & Cost</h2>
-              <p className="text-sm font-700 text-slate-500">Nothing is charged at this step.</p>
-            </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-950 uppercase tracking-wide text-slate-600">
-              Preview
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-base font-950 text-slate-950">Plan & cost</h3>
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-950 text-slate-600">
+              No charge until Run
             </span>
           </div>
           {!plan ? (
-            <div className="space-y-3">
-              {[
-                [
-                  '1',
-                  'Prepare search',
-                  'AI converts the brief into cities, keywords, and exclusions.',
-                ],
-                ['2', 'Check saved data', 'Existing records and fresh coverage are reused first.'],
-                [
-                  '3',
-                  'Approve run',
-                  'Google Places calls stay locked until the final approval button.',
-                ],
-              ].map(([step, title, body]) => (
-                <div
-                  key={step}
-                  className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-950 text-white">
-                    {step}
-                  </div>
-                  <div>
-                    <p className="font-950 text-slate-900">{title}</p>
-                    <p className="text-sm text-slate-500">{body}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="flex min-h-[174px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
+              <div>
+                <Search className="mx-auto text-slate-400" size={28} />
+                <p className="mt-2 text-sm font-900 text-slate-600">
+                  Click Prepare to estimate leads, calls and cost.
+                </p>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="grid gap-3 md:grid-cols-2">
-                <InfoBox label="Lead Type" value={plan.lead_type} />
-                <InfoBox label="Plan Source" value={planSource || '-'} />
-                <InfoBox
-                  label="Locations"
-                  value={plan.locations.map((item) => `${item.city}, ${item.state}`).join(' · ')}
-                />
-                <InfoBox label="Keywords" value={plan.keywords.join(' · ')} />
-              </div>
               {forecast ? (
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <MetricBox
-                    label="Expected unique leads"
+                    label="Unique leads"
                     value={`${formatNumber(forecast.estimated_unique_leads_min)}-${formatNumber(forecast.estimated_unique_leads_max)}`}
                     tone="blue"
                   />
                   <MetricBox
-                    label="Valid mobile estimate"
+                    label="Valid mobile"
                     value={`${formatNumber(forecast.estimated_valid_mobile_min)}-${formatNumber(forecast.estimated_valid_mobile_max)}`}
                     tone="green"
                   />
                   <MetricBox
-                    label="Google calls needed"
+                    label="Google calls"
                     value={`Text ${formatNumber(forecast.fresh_google_text_search_calls_needed)} · Details ${formatNumber(forecast.worst_case_place_details_calls)}`}
                     tone="slate"
                   />
@@ -1016,13 +924,21 @@ function UniversalFinderPreview() {
                   </p>
                 </div>
               )}
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-900 uppercase tracking-wide text-slate-500">
-                  Recommendation
-                </p>
-                <p className="mt-1 text-sm font-800 text-slate-700">
-                  {forecast?.recommendation || plan.recommendation}
-                </p>
+              <div className="rounded-xl border border-slate-200">
+                <div className="grid grid-cols-[110px_1fr] border-b border-slate-100 px-3 py-2 text-sm">
+                  <span className="font-900 text-slate-500">Type</span>
+                  <span className="font-800 text-slate-800">{plan.lead_type}</span>
+                </div>
+                <div className="grid grid-cols-[110px_1fr] border-b border-slate-100 px-3 py-2 text-sm">
+                  <span className="font-900 text-slate-500">Cities</span>
+                  <span className="font-800 text-slate-800">
+                    {plan.locations.map((item) => item.city).join(', ')}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[110px_1fr] px-3 py-2 text-sm">
+                  <span className="font-900 text-slate-500">Keywords</span>
+                  <span className="font-800 text-slate-800">{plan.keywords.join(', ')}</span>
+                </div>
               </div>
             </div>
           )}
