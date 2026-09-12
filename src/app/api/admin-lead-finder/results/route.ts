@@ -1,22 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
-import { checkLeadFinderTables, summarizeProspects } from '@/lib/lead-finder/db';
-
-async function fetchAllProspectSummaryRows(supabase: any) {
-  const rows: any[] = [];
-  const pageSize = 1000;
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from('dsa_prospect_master')
-      .select('phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone')
-      .range(from, from + pageSize - 1);
-
-    if (error) throw error;
-    rows.push(...(data || []));
-    if (!data || data.length < pageSize) break;
-  }
-  return rows;
-}
+import {
+  checkLeadFinderTables,
+  fetchAllProspectSummaryRows,
+  summarizeProspects,
+} from '@/lib/lead-finder/db';
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(bearerToken(request));

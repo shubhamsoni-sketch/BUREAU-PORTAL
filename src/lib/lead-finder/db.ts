@@ -59,6 +59,24 @@ export function prospectToRow(prospect: ClassifiedProspect, runId?: string | nul
   };
 }
 
+export async function fetchAllProspectSummaryRows(supabase: SupabaseClient) {
+  const rows: any[] = [];
+  const pageSize = 1000;
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from('dsa_prospect_master')
+      .select('phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone')
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+
+  return rows;
+}
+
 export function summarizeProspects(rows: any[], run?: any) {
   const bankSegments = new Set(['bank', 'lender_nbfc', 'housing_finance', 'gold_loan_lender']);
   const irrelevantSegments = new Set([

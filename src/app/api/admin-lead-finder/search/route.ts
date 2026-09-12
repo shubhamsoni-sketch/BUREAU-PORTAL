@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 import { classifyProspect } from '@/lib/lead-finder/classifyProspect';
-import { checkLeadFinderTables, prospectToRow, summarizeProspects } from '@/lib/lead-finder/db';
+import {
+  checkLeadFinderTables,
+  fetchAllProspectSummaryRows,
+  prospectToRow,
+  summarizeProspects,
+} from '@/lib/lead-finder/db';
 import { searchPlaceIds, fetchPlaceDetails } from '@/lib/lead-finder/googlePlacesClient';
 import { estimateGoogleCost, pricingConfig } from '@/lib/lead-finder/googlePlacesPricing';
 
@@ -299,9 +304,7 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', runId);
 
-    const { data: allRows } = await auth.supabase
-      .from('dsa_prospect_master')
-      .select('phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone');
+    const allRows = await fetchAllProspectSummaryRows(auth.supabase);
     const { data: prospects } = await auth.supabase
       .from('dsa_prospect_master')
       .select(

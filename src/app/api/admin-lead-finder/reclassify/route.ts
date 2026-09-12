@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 import { classifyProspect } from '@/lib/lead-finder/classifyProspect';
-import { checkLeadFinderTables, prospectToRow, summarizeProspects } from '@/lib/lead-finder/db';
+import {
+  checkLeadFinderTables,
+  fetchAllProspectSummaryRows,
+  prospectToRow,
+  summarizeProspects,
+} from '@/lib/lead-finder/db';
 
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(bearerToken(request));
@@ -50,9 +55,7 @@ export async function POST(request: NextRequest) {
         .upsert(updates, { onConflict: 'place_id' });
       if (upsertError) throw upsertError;
     }
-    const { data: allRows } = await auth.supabase
-      .from('dsa_prospect_master')
-      .select('phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone');
+    const allRows = await fetchAllProspectSummaryRows(auth.supabase);
     return NextResponse.json({
       success: true,
       message: `Reclassified ${updates.length} prospects with zero Google API calls`,

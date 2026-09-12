@@ -145,7 +145,8 @@ export default function AdminLeadFinderPage() {
   const [runs, setRuns] = useState<RunHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [runsLoading, setRunsLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [runningSearch, setRunningSearch] = useState(false);
+  const [reclassifying, setReclassifying] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [why, setWhy] = useState<Prospect | null>(null);
@@ -201,12 +202,13 @@ export default function AdminLeadFinderPage() {
   }, []);
 
   async function runSearch() {
+    if (runningSearch || reclassifying) return;
     if (
       forceRefresh &&
       !window.confirm('Force Refresh bypasses cache and can create new Google API cost. Continue?')
     )
       return;
-    setSaving(true);
+    setRunningSearch(true);
     setError('');
     setNotice('');
     try {
@@ -238,12 +240,13 @@ export default function AdminLeadFinderPage() {
       setError(err instanceof Error ? err.message : 'Search failed');
       await loadRuns();
     } finally {
-      setSaving(false);
+      setRunningSearch(false);
     }
   }
 
   async function reclassify() {
-    setSaving(true);
+    if (runningSearch || reclassifying) return;
+    setReclassifying(true);
     setError('');
     setNotice('');
     try {
@@ -254,13 +257,14 @@ export default function AdminLeadFinderPage() {
       });
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(json.error || 'Reclassify failed');
+      if (json.summary) setSummary(json.summary);
       setNotice(json.message || 'Reclassified with zero Google API calls');
       await loadResults('sales_ready');
       setView('sales_ready');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Reclassify failed');
     } finally {
-      setSaving(false);
+      setReclassifying(false);
     }
   }
 
@@ -481,18 +485,21 @@ export default function AdminLeadFinderPage() {
                 )}
                 <div className="mt-5 flex flex-wrap gap-3">
                   <button
-                    disabled={saving}
+                    type="button"
+                    disabled={runningSearch || reclassifying}
                     onClick={runSearch}
                     className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-950 text-white hover:bg-blue-700 disabled:opacity-60"
                   >
-                    <Play size={17} /> {saving ? 'Running...' : 'Start Find Run'}
+                    <Play size={17} /> {runningSearch ? 'Running...' : 'Start Find Run'}
                   </button>
                   <button
-                    disabled={saving}
+                    type="button"
+                    disabled={runningSearch || reclassifying}
                     onClick={reclassify}
                     className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-6 py-3 text-sm font-900 text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                   >
-                    <Settings2 size={17} /> Reclassify Existing Data
+                    <Settings2 size={17} />{' '}
+                    {reclassifying ? 'Reclassifying...' : 'Reclassify Existing Data'}
                   </button>
                 </div>
               </div>
