@@ -5,9 +5,23 @@ import { checkLeadFinderTables, prospectToRow, summarizeProspects } from '@/lib/
 
 type ImportRow = Record<string, unknown>;
 
+function normalizedRow(row: ImportRow) {
+  return Object.fromEntries(
+    Object.entries(row).map(([key, value]) => [
+      key
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, ''),
+      value,
+    ])
+  ) as ImportRow;
+}
+
 function text(row: ImportRow, ...keys: string[]) {
+  const normalized = normalizedRow(row);
   for (const key of keys) {
-    const value = row[key];
+    const value = row[key] ?? normalized[key];
     if (value != null && String(value).trim()) return String(value).trim();
   }
   return null;
@@ -43,6 +57,7 @@ export async function POST(request: NextRequest) {
     const rows = Array.isArray(body.rows) ? (body.rows as ImportRow[]) : [];
     const city = String(body.city || 'Indore');
     const state = String(body.state || 'Madhya Pradesh');
+    const leadType = body.leadType === 'fintech' ? 'fintech' : 'dsa';
     if (!rows.length)
       return NextResponse.json(
         { success: false, error: 'No rows supplied for import' },
@@ -74,24 +89,50 @@ export async function POST(request: NextRequest) {
       .map((row) => {
         const placeId = text(row, 'place_id', 'google_place_id', 'id');
         if (!placeId) return null;
-        return classifyProspect({
+        const matchedKeywords = arrayValue(row, 'matched_keywords', 'searched_keyword', 'matched_keyword');
+        const classified = classifyProspect({
           place_id: placeId,
           business_name: text(row, 'business_name', 'name'),
           raw_phone: text(row, 'phone', 'raw_phone', 'normalized_phone', 'international_phone'),
           website: text(row, 'website'),
           google_maps_url: text(row, 'google_maps_url', 'maps_url'),
           formatted_address: text(row, 'address', 'formatted_address'),
-          searched_city: text(row, 'searched_city') || city,
-          searched_state: text(row, 'searched_state') || state,
+          searched_city: text(row, 'searched_city', 'city') || city,
+          searched_state: text(row, 'searched_state', 'state') || state,
           detected_city: text(row, 'city', 'detected_city'),
           rating: numberValue(row, 'rating'),
           review_count: numberValue(row, 'review_count', 'reviews'),
-          google_types: arrayValue(row, 'google_types'),
-          matched_keywords: arrayValue(row, 'matched_keywords', 'searched_keyword'),
+          google_types: arrayValue(row, 'google_types', 'category_types'),
+          matched_keywords:
+            leadType === 'fintech'
+              ? Array.from(new Set([...matchedKeywords, 'Fintech Lead']))
+              : matchedKeywords,
           latitude: numberValue(row, 'latitude'),
           longitude: numberValue(row, 'longitude'),
           category: text(row, 'category'),
         });
+        if (leadType === 'fintech') {
+          classified.business_segment = 'adjacent_fintech';
+          const email = text(row, 'email', 'contact_email');
+          const emailSource = text(row, 'email_source');
+          if (email && email.toLowerCase() !== 'not found') {
+            classified.score_reasons = [
+              ...classified.score_reasons,
+              { type: 'neutral', label: `Email: ${email}`, points: 0 },
+            ];
+          }
+          if (emailSource) {
+            classified.score_reasons = [
+              ...classified.score_reasons,
+              { type: 'neutral', label: `Email source: ${emailSource}`, points: 0 },
+            ];
+          }
+          classified.sales_ready = true;
+          if (classified.prospect_score < 65) classified.prospect_score = 65;
+          if (classified.sales_priority === 'review' || classified.sales_priority === 'exclude')
+            classified.sales_priority = 'B';
+        }
+        return classified;
       })
       .filter(Boolean);
 

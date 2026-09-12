@@ -30,6 +30,7 @@ type Summary = {
   salesReady: number;
   priorityA: number;
   priorityB: number;
+  emailsFound: number;
   validMobile: number;
   fixedLine: number;
   missingPhone: number;
@@ -41,6 +42,7 @@ type Prospect = {
   id: string;
   business_name: string | null;
   raw_phone: string | null;
+  website: string | null;
   phone_type: string;
   business_segment: string;
   prospect_score: number;
@@ -88,6 +90,7 @@ const emptySummary: Summary = {
   salesReady: 0,
   priorityA: 0,
   priorityB: 0,
+  emailsFound: 0,
   validMobile: 0,
   fixedLine: 0,
   missingPhone: 0,
@@ -131,8 +134,15 @@ function priorityClass(priority: string) {
   return 'bg-blue-50 text-blue-700';
 }
 
+function prospectEmail(prospect: Prospect) {
+  return (prospect.score_reasons || [])
+    .map((reason) => reason.label || '')
+    .find((label) => label.startsWith('Email: '))
+    ?.replace('Email: ', '');
+}
+
 export default function AdminLeadFinderPage() {
-  const [tab, setTab] = useState<'data' | 'settings'>('data');
+  const [tab, setTab] = useState<'dsa' | 'fintech' | 'settings'>('dsa');
   const [city, setCity] = useState('Indore');
   const [state, setState] = useState('Madhya Pradesh');
   const [count, setCount] = useState('100');
@@ -165,7 +175,8 @@ export default function AdminLeadFinderPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await authFetch(`/api/admin-lead-finder/results?view=${nextView}`, {
+      const leadType = tab === 'fintech' ? 'fintech' : 'dsa';
+      const res = await authFetch(`/api/admin-lead-finder/results?view=${nextView}&leadType=${leadType}`, {
         cache: 'no-store',
       });
       const json = await res.json();
@@ -201,6 +212,13 @@ export default function AdminLeadFinderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (tab === 'dsa' || tab === 'fintech') {
+      loadResults(view);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
   async function runSearch() {
     if (runningSearch || reclassifying) return;
     if (
@@ -230,7 +248,7 @@ export default function AdminLeadFinderPage() {
       if (json.prospects) setProspects(json.prospects);
       setLastDataRefreshAt(new Date());
       setView('sales_ready');
-      setTab('data');
+      setTab('dsa');
       setNotice(
         `Run complete. Text ${json.summary?.textSearchCalls || 0}, Details ${json.summary?.placeDetailsCalls || 0}, Cost ${formatMoney(json.summary?.estimatedCostUsd || 0)}.`
       );
@@ -274,19 +292,19 @@ export default function AdminLeadFinderPage() {
   }
 
   const kpis = [
-    { label: 'Total Prospects', value: summary.rawResults, icon: Database },
+    { label: tab === 'fintech' ? 'Total Fintech' : 'Total DSA', value: summary.rawResults, icon: Database },
     { label: 'Unique Businesses', value: summary.uniqueBusinesses, icon: BarChart3 },
     { label: 'Sales Ready', value: summary.salesReady, icon: Target },
     { label: 'Priority A', value: summary.priorityA, icon: Zap },
     { label: 'Priority B', value: summary.priorityB, icon: Zap },
-    { label: 'Valid Mobile', value: summary.validMobile, icon: Phone },
-    { label: 'Google Calls Saved', value: summary.duplicateDetailsCallsAvoided, icon: ShieldCheck },
+    { label: tab === 'fintech' ? 'Emails Found' : 'Valid Mobile', value: tab === 'fintech' ? summary.emailsFound : summary.validMobile, icon: tab === 'fintech' ? CheckCircle2 : Phone },
+    { label: tab === 'fintech' ? 'Valid Mobile' : 'Google Calls Saved', value: tab === 'fintech' ? summary.validMobile : summary.duplicateDetailsCallsAvoided, icon: ShieldCheck },
     { label: 'Approx API Cost', value: formatMoney(summary.estimatedCostUsd), icon: WalletCards },
   ];
   const latestRun = runs[0];
 
   return (
-    <AdminLayout title="DSA Lead Finder">
+    <AdminLayout title="Lead Finder">
       <div className="mx-auto max-w-screen-2xl px-4 py-6 lg:px-6 xl:px-8">
         <Header tab={tab} setTab={setTab} />
 
@@ -298,7 +316,7 @@ export default function AdminLeadFinderPage() {
           </div>
         )}
 
-        {tab === 'data' ? (
+        {tab === 'dsa' || tab === 'fintech' ? (
           <section className="space-y-5">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               {kpis.map((item) => {
@@ -378,7 +396,9 @@ export default function AdminLeadFinderPage() {
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-col gap-3 border-b border-slate-200 p-4 xl:flex-row xl:items-center">
                 <div>
-                  <h2 className="text-lg font-900 text-slate-950">Results</h2>
+                  <h2 className="text-lg font-900 text-slate-950">
+                    {tab === 'fintech' ? 'Fintech Results' : 'DSA Results'}
+                  </h2>
                   <p className="text-xs font-700 text-slate-500">
                     Showing {prospects.length ? `1-${Math.min(prospects.length, 500)}` : '0'}{' '}
                     records
@@ -400,8 +420,8 @@ export default function AdminLeadFinderPage() {
                   <button
                     onClick={() =>
                       downloadAuthenticatedFile(
-                        '/api/admin-lead-finder/export?sales_ready=true',
-                        'dsa-sales-ready.csv'
+                        `/api/admin-lead-finder/export?sales_ready=true&leadType=${tab === 'fintech' ? 'fintech' : 'dsa'}`,
+                        `${tab === 'fintech' ? 'fintech' : 'dsa'}-sales-ready.csv`
                       )
                     }
                     className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-900 text-white hover:bg-blue-700"
@@ -423,7 +443,7 @@ export default function AdminLeadFinderPage() {
                   ))}
                 </div>
               </div>
-              <LeadTable loading={loading} prospects={prospects} onWhy={setWhy} />
+              <LeadTable loading={loading} prospects={prospects} onWhy={setWhy} leadType={tab} />
             </div>
           </section>
         ) : (
@@ -536,8 +556,8 @@ function Header({
   tab,
   setTab,
 }: {
-  tab: 'data' | 'settings';
-  setTab: (tab: 'data' | 'settings') => void;
+  tab: 'dsa' | 'fintech' | 'settings';
+  setTab: (tab: 'dsa' | 'fintech' | 'settings') => void;
 }) {
   return (
     <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -549,10 +569,16 @@ function Header({
           <h1 className="text-3xl font-900 text-slate-950">Lead Finder</h1>
           <div className="mt-3 inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
             <button
-              onClick={() => setTab('data')}
-              className={`rounded-lg px-5 py-2 text-sm font-900 ${tab === 'data' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+              onClick={() => setTab('dsa')}
+              className={`rounded-lg px-5 py-2 text-sm font-900 ${tab === 'dsa' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
             >
-              Data
+              DSA Data
+            </button>
+            <button
+              onClick={() => setTab('fintech')}
+              className={`rounded-lg px-5 py-2 text-sm font-900 ${tab === 'fintech' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              Fintech Data
             </button>
             <button
               onClick={() => setTab('settings')}
@@ -624,28 +650,47 @@ function LeadTable({
   loading,
   prospects,
   onWhy,
+  leadType,
 }: {
   loading: boolean;
   prospects: Prospect[];
   onWhy: (prospect: Prospect) => void;
+  leadType: 'dsa' | 'fintech';
 }) {
+  const heads =
+    leadType === 'fintech'
+      ? [
+          'Business',
+          'Map',
+          'Phone',
+          'Email',
+          'Website',
+          'Segment',
+          'Score',
+          'Priority',
+          'City',
+          'Rating',
+          'Keywords',
+          'Why',
+        ]
+      : [
+          'Business',
+          'Map',
+          'Phone',
+          'Segment',
+          'Score',
+          'Priority',
+          'City',
+          'Rating',
+          'Keywords',
+          'Why',
+        ];
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
           <tr>
-            {[
-              'Business',
-              'Map',
-              'Phone',
-              'Segment',
-              'Score',
-              'Priority',
-              'City',
-              'Rating',
-              'Keywords',
-              'Why',
-            ].map((head) => (
+            {heads.map((head) => (
               <th key={head} className="px-4 py-3 text-left font-900">
                 {head}
               </th>
@@ -655,13 +700,13 @@ function LeadTable({
         <tbody className="divide-y divide-slate-100">
           {loading ? (
             <tr>
-              <td colSpan={10} className="px-4 py-10 text-center text-slate-500">
+              <td colSpan={heads.length} className="px-4 py-10 text-center text-slate-500">
                 Loading...
               </td>
             </tr>
           ) : prospects.length === 0 ? (
             <tr>
-              <td colSpan={10} className="px-4 py-10 text-center text-slate-500">
+              <td colSpan={heads.length} className="px-4 py-10 text-center text-slate-500">
                 No records in this view yet.
               </td>
             </tr>
@@ -686,6 +731,27 @@ function LeadTable({
                   )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">{prospect.raw_phone || '-'}</td>
+                {leadType === 'fintech' && (
+                  <>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      {prospectEmail(prospect) || '-'}
+                    </td>
+                    <td className="max-w-[220px] truncate px-4 py-3">
+                      {prospect.website ? (
+                        <a
+                          href={prospect.website}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-800 text-blue-700 hover:underline"
+                        >
+                          {prospect.website.replace(/^https?:\/\//, '')}
+                        </a>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                  </>
+                )}
                 <td className="px-4 py-3">
                   <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-900 text-blue-700">
                     {prospect.business_segment}

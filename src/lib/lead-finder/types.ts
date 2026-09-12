@@ -54,6 +54,10 @@ export type ProspectInput = {
 };
 
 export type ClassifiedProspect = ProspectInput & {
+  lead_type?: 'dsa' | 'fintech';
+  contact_email?: string | null;
+  email_status?: string | null;
+  email_source?: string | null;
   raw_phone: string | null;
   e164_phone: string | null;
   national_phone: string | null;
@@ -77,6 +81,7 @@ export type LeadFinderSummary = {
   salesReady: number;
   priorityA: number;
   priorityB: number;
+  emailsFound: number;
   enterpriseDsa: number;
   bankNbfcLender: number;
   irrelevant: number;

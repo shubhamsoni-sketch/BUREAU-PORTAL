@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
       });
 
     const view = request.nextUrl.searchParams.get('view') || 'sales_ready';
+    const requestedLeadType = request.nextUrl.searchParams.get('leadType');
+    const leadType = requestedLeadType === 'fintech' ? 'fintech' : 'dsa';
     let query = auth.supabase
       .from('dsa_prospect_master')
       .select(
@@ -30,6 +32,9 @@ export async function GET(request: NextRequest) {
       )
       .order('prospect_score', { ascending: false })
       .limit(500);
+
+    if (leadType === 'fintech') query = query.contains('matched_keywords', ['Fintech Lead']);
+    else query = query.not('matched_keywords', 'cs', '["Fintech Lead"]');
 
     if (view === 'sales_ready') query = query.eq('sales_ready', true);
     else if (view === 'priority_a') query = query.eq('sales_priority', 'A');
@@ -57,7 +62,7 @@ export async function GET(request: NextRequest) {
     const [{ data: prospects, error }, allRows, { data: runRows, error: runError }] =
       await Promise.all([
         query,
-        fetchAllProspectSummaryRows(auth.supabase),
+        fetchAllProspectSummaryRows(auth.supabase, leadType),
         auth.supabase
           .from('dsa_extraction_runs')
           .select(

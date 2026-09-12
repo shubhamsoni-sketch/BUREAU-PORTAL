@@ -59,14 +59,19 @@ export function prospectToRow(prospect: ClassifiedProspect, runId?: string | nul
   };
 }
 
-export async function fetchAllProspectSummaryRows(supabase: SupabaseClient) {
+export async function fetchAllProspectSummaryRows(
+  supabase: SupabaseClient,
+  leadType: 'dsa' | 'fintech' = 'dsa'
+) {
   const rows: any[] = [];
   const pageSize = 1000;
 
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
       .from('dsa_prospect_master')
-      .select('phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone')
+      .select(
+        'phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone,matched_keywords,score_reasons'
+      )
       .range(from, from + pageSize - 1);
 
     if (error) throw error;
@@ -74,7 +79,11 @@ export async function fetchAllProspectSummaryRows(supabase: SupabaseClient) {
     if (!data || data.length < pageSize) break;
   }
 
-  return rows;
+  return rows.filter((row) => {
+    const keywords = Array.isArray(row.matched_keywords) ? row.matched_keywords : [];
+    const isFintech = keywords.includes('Fintech Lead');
+    return leadType === 'fintech' ? isFintech : !isFintech;
+  });
 }
 
 export function summarizeProspects(rows: any[], run?: any) {
@@ -92,6 +101,11 @@ export function summarizeProspects(rows: any[], run?: any) {
     salesReady: rows.filter((row) => row.sales_ready).length,
     priorityA: rows.filter((row) => row.sales_priority === 'A').length,
     priorityB: rows.filter((row) => row.sales_priority === 'B').length,
+    emailsFound: rows.filter((row) =>
+      (Array.isArray(row.score_reasons) ? row.score_reasons : []).some((reason: any) =>
+        String(reason?.label || '').startsWith('Email: ')
+      )
+    ).length,
     enterpriseDsa: rows.filter((row) => row.business_segment === 'enterprise_dsa_aggregator')
       .length,
     bankNbfcLender: rows.filter((row) => bankSegments.has(row.business_segment)).length,
