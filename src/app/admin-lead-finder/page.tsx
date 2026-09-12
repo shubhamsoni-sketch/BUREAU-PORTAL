@@ -205,6 +205,7 @@ export default function AdminLeadFinderPage() {
   const [notice, setNotice] = useState('');
   const [why, setWhy] = useState<Prospect | null>(null);
   const [lastDataRefreshAt, setLastDataRefreshAt] = useState<Date | null>(null);
+  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
 
   const keywords = useMemo(
     () =>
@@ -370,7 +371,7 @@ export default function AdminLeadFinderPage() {
   return (
     <AdminLayout title="Lead Finder">
       <div className="mx-auto max-w-screen-2xl px-4 py-6 lg:px-6 xl:px-8">
-        <Header tab={tab} setTab={setTab} />
+        <Header tab={tab} setTab={setTab} onOpenAi={() => setAiDrawerOpen(true)} />
 
         {(error || notice) && (
           <div
@@ -519,8 +520,6 @@ export default function AdminLeadFinderPage() {
               />
             </div>
           </section>
-        ) : tab === 'universal' ? (
-          <UniversalFinderPreview />
         ) : (
           <section className="space-y-5">
             <div className="grid grid-cols-1 gap-5">
@@ -622,6 +621,16 @@ export default function AdminLeadFinderPage() {
         )}
 
         {why && <WhyDrawer prospect={why} onClose={() => setWhy(null)} />}
+        <AIFinderDrawer
+          open={aiDrawerOpen}
+          onClose={() => setAiDrawerOpen(false)}
+          onRunComplete={async () => {
+            setTab('library');
+            setView('sales_ready');
+            await loadResults('sales_ready');
+            await loadRuns();
+          }}
+        />
       </div>
     </AdminLayout>
   );
@@ -630,14 +639,15 @@ export default function AdminLeadFinderPage() {
 function Header({
   tab,
   setTab,
+  onOpenAi,
 }: {
   tab: 'dsa' | 'fintech' | 'universal' | 'library' | 'settings';
   setTab: (tab: 'dsa' | 'fintech' | 'universal' | 'library' | 'settings') => void;
+  onOpenAi: () => void;
 }) {
   const tabs = [
     ['dsa', 'DSA Data'],
     ['fintech', 'Fintech Data'],
-    ['universal', 'AI Finder'],
     ['library', 'Lead Library'],
     ['settings', 'Runs & Cost'],
   ] as const;
@@ -664,24 +674,33 @@ function Header({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 font-800 text-violet-700">
-          <Zap size={14} /> AI Finder live
+        <button
+          type="button"
+          onClick={onOpenAi}
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-950 text-white shadow-sm hover:bg-blue-700"
+        >
+          <Zap size={17} /> Find with AI
+        </button>
+        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 font-800 text-emerald-700">
+          <Clock3 size={14} /> 30-day cache
         </span>
-        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-800 text-emerald-700">
-          <Clock3 size={14} /> 30-day cache active
-        </span>
-        <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 font-800 text-blue-700">
-          <ShieldCheck size={14} /> Server key connected
-        </span>
-        <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 font-800 text-slate-600">
-          <Zap size={14} /> Duplicate-safe
+        <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-2 font-800 text-blue-700">
+          <ShieldCheck size={14} /> Server key
         </span>
       </div>
     </div>
   );
 }
 
-function UniversalFinderPreview() {
+function AIFinderDrawer({
+  open,
+  onClose,
+  onRunComplete,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onRunComplete: () => Promise<void> | void;
+}) {
   const [prompt, setPrompt] = useState(
     'Find loan distribution fintech and DSA partners in Indore, Bhopal, Ahmedabad, and Surat. Exclude software companies, payment apps, and stock brokers.'
   );
@@ -696,6 +715,8 @@ function UniversalFinderPreview() {
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  if (!open) return null;
 
   async function generatePlan() {
     setLoadingPlan(true);
@@ -752,8 +773,9 @@ function UniversalFinderPreview() {
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(json.error || 'Universal run failed');
       setMessage(
-        `AI run complete. Records ${formatNumber(json.metrics?.recordsFound || 0)}, Text calls ${formatNumber(json.metrics?.textSearchCalls || 0)}, Details ${formatNumber(json.metrics?.placeDetailsCalls || 0)}, Cost ≈₹${formatNumber(json.metrics?.estimatedCostInr || 0)}. Check Lead Library / matching data tab for saved records.`
+        `Run complete. Records ${formatNumber(json.metrics?.recordsFound || 0)}, Text ${formatNumber(json.metrics?.textSearchCalls || 0)}, Details ${formatNumber(json.metrics?.placeDetailsCalls || 0)}, Cost ≈₹${formatNumber(json.metrics?.estimatedCostInr || 0)}.`
       );
+      await onRunComplete();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Universal run failed');
     } finally {
@@ -766,185 +788,215 @@ function UniversalFinderPreview() {
   const setupStatus = !setupChecked ? 'Check required' : schemaReady ? 'Ready' : 'Setup required';
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-        <div>
-          <h2 className="text-2xl font-950 text-slate-950">AI Finder</h2>
-          <p className="mt-1 text-sm font-700 text-slate-500">
-            Enter requirement, review cost, then approve run.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 text-xs font-950">
-          <span className="rounded-full bg-slate-100 px-3 py-2 text-slate-700">
-            DB: {setupStatus}
-          </span>
-          <span
-            className={`rounded-full px-3 py-2 ${
-              planSource === 'gemini'
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-amber-50 text-amber-700'
-            }`}
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-slate-950/30 backdrop-blur-[1px]"
+      onClick={onClose}
+    >
+      <aside
+        className="h-full w-full max-w-xl overflow-y-auto bg-white shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
+          <div>
+            <h2 className="text-xl font-950 text-slate-950">Find with AI</h2>
+            <p className="text-sm font-700 text-slate-500">Plan first. Run only after approval.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-900 text-slate-600 hover:bg-slate-50"
           >
-            Planner:{' '}
-            {planSource === 'gemini' ? 'Gemini' : planSource === 'fallback' ? 'Fallback' : 'Ready'}
-          </span>
-          <span className="rounded-full bg-blue-50 px-3 py-2 text-blue-700">30-day cache</span>
+            Close
+          </button>
         </div>
-      </div>
-
-      {setupChecked && !schemaReady && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div className="flex gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-                <AlertTriangle size={22} />
-              </div>
-              <div>
-                <h3 className="text-base font-950 text-amber-950">
-                  Setup required before live runs
-                </h3>
-                <p className="mt-1 max-w-3xl text-sm font-700 leading-6 text-amber-800">
-                  The master lead database migration is still pending. You can prepare and review a
-                  search, but paid Google Places runs are disabled until the database is active.
-                </p>
-              </div>
-            </div>
-            <span className="rounded-full bg-white px-3 py-1.5 text-xs font-950 uppercase tracking-wide text-amber-700">
-              Run locked
-            </span>
-          </div>
-        </div>
-      )}
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.82fr)]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="mb-3 text-base font-950 text-slate-950">Search brief</h3>
-          {(error || message) && (
-            <div
-              className={`mb-4 rounded-xl border px-4 py-3 text-sm font-800 ${
-                error
-                  ? 'border-red-200 bg-red-50 text-red-700'
-                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              }`}
-            >
-              {error || message}
-            </div>
-          )}
-          <label className="block">
-            <textarea
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              placeholder="Example: Find loan DSAs working with Andromeda and RU Loans in MP and Gujarat. Exclude software companies and payment apps."
-              className="min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-700 leading-6 text-slate-800 outline-none focus:border-blue-400"
-            />
-          </label>
-          <div className="mt-3 grid gap-3 md:grid-cols-[160px_170px_1fr] md:items-end">
+        <div className="space-y-4 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <div>
-              <span className="text-xs font-900 uppercase tracking-wide text-slate-500">Count</span>
-              <input
-                value={count}
-                onChange={(event) => setCount(event.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
-              />
+              <h2 className="text-2xl font-950 text-slate-950">AI Finder</h2>
+              <p className="mt-1 text-sm font-700 text-slate-500">
+                Enter requirement, review cost, then approve run.
+              </p>
             </div>
-            <Toggle label="Force Refresh" checked={forceRefresh} onChange={setForceRefresh} />
-            <div className="flex flex-wrap gap-2 md:justify-end">
-              <button
-                type="button"
-                disabled={loadingPlan || running}
-                onClick={generatePlan}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-950 text-white hover:bg-blue-700 disabled:opacity-60"
+            <div className="flex flex-wrap gap-2 text-xs font-950">
+              <span className="rounded-full bg-slate-100 px-3 py-2 text-slate-700">
+                DB: {setupStatus}
+              </span>
+              <span
+                className={`rounded-full px-3 py-2 ${
+                  planSource === 'gemini'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-amber-50 text-amber-700'
+                }`}
               >
-                <Zap size={17} /> {loadingPlan ? 'Preparing...' : 'Prepare'}
-              </button>
-              <button
-                type="button"
-                disabled={!canRun}
-                onClick={approveAndRun}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-950 text-white hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-500"
-              >
-                <Play size={17} /> {running ? 'Running...' : 'Run'}
-              </button>
+                Planner:{' '}
+                {planSource === 'gemini'
+                  ? 'Gemini'
+                  : planSource === 'fallback'
+                    ? 'Fallback'
+                    : 'Ready'}
+              </span>
+              <span className="rounded-full bg-blue-50 px-3 py-2 text-blue-700">30-day cache</span>
             </div>
           </div>
-          {forceRefresh && (
-            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-800 text-amber-800">
-              Force refresh ignores cache and can create Google API cost.
-            </div>
-          )}
-        </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-base font-950 text-slate-950">Plan & cost</h3>
-            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-950 text-slate-600">
-              No charge until Run
-            </span>
-          </div>
-          {!plan ? (
-            <div className="flex min-h-[174px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
-              <div>
-                <Search className="mx-auto text-slate-400" size={28} />
-                <p className="mt-2 text-sm font-900 text-slate-600">
-                  Click Prepare to estimate leads, calls and cost.
-                </p>
+          {setupChecked && !schemaReady && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div className="flex gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                    <AlertTriangle size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-950 text-amber-950">
+                      Setup required before live runs
+                    </h3>
+                    <p className="mt-1 max-w-3xl text-sm font-700 leading-6 text-amber-800">
+                      The master lead database migration is still pending. You can prepare and
+                      review a search, but paid Google Places runs are disabled until the database
+                      is active.
+                    </p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1.5 text-xs font-950 uppercase tracking-wide text-amber-700">
+                  Run locked
+                </span>
               </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {forecast ? (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <MetricBox
-                    label="Unique leads"
-                    value={`${formatNumber(forecast.estimated_unique_leads_min)}-${formatNumber(forecast.estimated_unique_leads_max)}`}
-                    tone="blue"
-                  />
-                  <MetricBox
-                    label="Valid mobile"
-                    value={`${formatNumber(forecast.estimated_valid_mobile_min)}-${formatNumber(forecast.estimated_valid_mobile_max)}`}
-                    tone="green"
-                  />
-                  <MetricBox
-                    label="Google calls"
-                    value={`Text ${formatNumber(forecast.fresh_google_text_search_calls_needed)} · Details ${formatNumber(forecast.worst_case_place_details_calls)}`}
-                    tone="slate"
-                  />
-                  <MetricBox
-                    label="Worst-case cost"
-                    value={`≈₹${formatNumber(forecast.approx_cost_inr)}`}
-                    tone="amber"
-                  />
-                </div>
-              ) : (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                  <p className="text-sm font-950 text-amber-950">Setup required</p>
-                  <p className="mt-1 text-sm font-700 leading-6 text-amber-800">
-                    The search setup can be reviewed now, but the run button stays disabled until
-                    the master database migration is applied.
-                  </p>
+          )}
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.82fr)]">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="mb-3 text-base font-950 text-slate-950">Search brief</h3>
+              {(error || message) && (
+                <div
+                  className={`mb-4 rounded-xl border px-4 py-3 text-sm font-800 ${
+                    error
+                      ? 'border-red-200 bg-red-50 text-red-700'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  }`}
+                >
+                  {error || message}
                 </div>
               )}
-              <div className="rounded-xl border border-slate-200">
-                <div className="grid grid-cols-[110px_1fr] border-b border-slate-100 px-3 py-2 text-sm">
-                  <span className="font-900 text-slate-500">Type</span>
-                  <span className="font-800 text-slate-800">{plan.lead_type}</span>
-                </div>
-                <div className="grid grid-cols-[110px_1fr] border-b border-slate-100 px-3 py-2 text-sm">
-                  <span className="font-900 text-slate-500">Cities</span>
-                  <span className="font-800 text-slate-800">
-                    {plan.locations.map((item) => item.city).join(', ')}
+              <label className="block">
+                <textarea
+                  value={prompt}
+                  onChange={(event) => setPrompt(event.target.value)}
+                  placeholder="Example: Find loan DSAs working with Andromeda and RU Loans in MP and Gujarat. Exclude software companies and payment apps."
+                  className="min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-700 leading-6 text-slate-800 outline-none focus:border-blue-400"
+                />
+              </label>
+              <div className="mt-3 grid gap-3 md:grid-cols-[160px_170px_1fr] md:items-end">
+                <div>
+                  <span className="text-xs font-900 uppercase tracking-wide text-slate-500">
+                    Count
                   </span>
+                  <input
+                    value={count}
+                    onChange={(event) => setCount(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
+                  />
                 </div>
-                <div className="grid grid-cols-[110px_1fr] px-3 py-2 text-sm">
-                  <span className="font-900 text-slate-500">Keywords</span>
-                  <span className="font-800 text-slate-800">{plan.keywords.join(', ')}</span>
+                <Toggle label="Force Refresh" checked={forceRefresh} onChange={setForceRefresh} />
+                <div className="flex flex-wrap gap-2 md:justify-end">
+                  <button
+                    type="button"
+                    disabled={loadingPlan || running}
+                    onClick={generatePlan}
+                    className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-950 text-white hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    <Zap size={17} /> {loadingPlan ? 'Preparing...' : 'Prepare'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canRun}
+                    onClick={approveAndRun}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-950 text-white hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-500"
+                  >
+                    <Play size={17} /> {running ? 'Running...' : 'Run'}
+                  </button>
                 </div>
               </div>
+              {forceRefresh && (
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-800 text-amber-800">
+                  Force refresh ignores cache and can create Google API cost.
+                </div>
+              )}
             </div>
-          )}
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-base font-950 text-slate-950">Plan & cost</h3>
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-950 text-slate-600">
+                  No charge until Run
+                </span>
+              </div>
+              {!plan ? (
+                <div className="flex min-h-[174px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
+                  <div>
+                    <Search className="mx-auto text-slate-400" size={28} />
+                    <p className="mt-2 text-sm font-900 text-slate-600">
+                      Click Prepare to estimate leads, calls and cost.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {forecast ? (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <MetricBox
+                        label="Unique leads"
+                        value={`${formatNumber(forecast.estimated_unique_leads_min)}-${formatNumber(forecast.estimated_unique_leads_max)}`}
+                        tone="blue"
+                      />
+                      <MetricBox
+                        label="Valid mobile"
+                        value={`${formatNumber(forecast.estimated_valid_mobile_min)}-${formatNumber(forecast.estimated_valid_mobile_max)}`}
+                        tone="green"
+                      />
+                      <MetricBox
+                        label="Google calls"
+                        value={`Text ${formatNumber(forecast.fresh_google_text_search_calls_needed)} · Details ${formatNumber(forecast.worst_case_place_details_calls)}`}
+                        tone="slate"
+                      />
+                      <MetricBox
+                        label="Worst-case cost"
+                        value={`≈₹${formatNumber(forecast.approx_cost_inr)}`}
+                        tone="amber"
+                      />
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-sm font-950 text-amber-950">Setup required</p>
+                      <p className="mt-1 text-sm font-700 leading-6 text-amber-800">
+                        The search setup can be reviewed now, but the run button stays disabled
+                        until the master database migration is applied.
+                      </p>
+                    </div>
+                  )}
+                  <div className="rounded-xl border border-slate-200">
+                    <div className="grid grid-cols-[110px_1fr] border-b border-slate-100 px-3 py-2 text-sm">
+                      <span className="font-900 text-slate-500">Type</span>
+                      <span className="font-800 text-slate-800">{plan.lead_type}</span>
+                    </div>
+                    <div className="grid grid-cols-[110px_1fr] border-b border-slate-100 px-3 py-2 text-sm">
+                      <span className="font-900 text-slate-500">Cities</span>
+                      <span className="font-800 text-slate-800">
+                        {plan.locations.map((item) => item.city).join(', ')}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-[110px_1fr] px-3 py-2 text-sm">
+                      <span className="font-900 text-slate-500">Keywords</span>
+                      <span className="font-800 text-slate-800">{plan.keywords.join(', ')}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
+      </aside>
+    </div>
   );
 }
 
