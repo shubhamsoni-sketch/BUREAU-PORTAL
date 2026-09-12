@@ -114,7 +114,10 @@ function formatNumber(value: number) {
 }
 
 function formatMoney(value: number) {
-  return `$${Number(value || 0).toFixed(4)}`;
+  const usd = Number(value || 0);
+  const inr = usd * 83;
+  if (inr > 0 && inr < 1) return `≈₹${inr.toFixed(2)}`;
+  return `≈₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(inr)}`;
 }
 
 function formatDateTime(value: string | null) {
@@ -222,13 +225,12 @@ export default function AdminLeadFinderPage() {
       });
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(json.error || 'Search failed');
-      setSummary(json.summary || emptySummary);
-      setProspects(json.prospects || []);
       setView('sales_ready');
       setTab('data');
       setNotice(
         `Run complete. Text ${json.summary?.textSearchCalls || 0}, Details ${json.summary?.placeDetailsCalls || 0}, Cost ${formatMoney(json.summary?.estimatedCostUsd || 0)}.`
       );
+      await loadResults('sales_ready');
       await loadRuns();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed');
@@ -273,7 +275,7 @@ export default function AdminLeadFinderPage() {
     { label: 'Priority B', value: summary.priorityB, icon: Zap },
     { label: 'Valid Mobile', value: summary.validMobile, icon: Phone },
     { label: 'Google Calls Saved', value: summary.duplicateDetailsCallsAvoided, icon: ShieldCheck },
-    { label: 'Estimated Cost', value: formatMoney(summary.estimatedCostUsd), icon: WalletCards },
+    { label: 'Approx API Cost', value: formatMoney(summary.estimatedCostUsd), icon: WalletCards },
   ];
   const costPreview = Math.min(Number(count || 100), 1000) * 0.006;
 
@@ -732,7 +734,7 @@ function RunHistoryTable({ loading, runs }: { loading: boolean; runs: RunHistory
               'Raw',
               'Unique',
               'Google Calls',
-              'API Cost',
+              'API Cost (approx)',
               'Cache Saved',
               'Status',
               'Actions',

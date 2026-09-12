@@ -50,29 +50,55 @@ export async function GET(request: NextRequest) {
     else if (view === 'review')
       query = query.or('sales_priority.eq.review,business_segment.eq.unknown');
 
-    const [{ data: prospects, error }, { data: allRows, error: allError }, { data: latestRun }] =
-      await Promise.all([
-        query,
-        auth.supabase
-          .from('dsa_prospect_master')
-          .select(
-            'phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone'
-          ),
-        auth.supabase
-          .from('dsa_extraction_runs')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+    const [
+      { data: prospects, error },
+      { data: allRows, error: allError },
+      { data: runRows, error: runError },
+    ] = await Promise.all([
+      query,
+      auth.supabase
+        .from('dsa_prospect_master')
+        .select('phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone'),
+      auth.supabase
+        .from('dsa_extraction_runs')
+        .select(
+          'raw_results_count,unique_businesses_count,cached_records_reused,duplicates_skipped,estimated_cost_usd,actual_text_search_calls,actual_place_details_calls,status'
+        )
+        .order('created_at', { ascending: false })
+        .limit(1000),
+    ]);
 
-    if (error || allError) throw error || allError;
+    if (error || allError || runError) throw error || allError || runError;
+    const completedRuns = (runRows || []).filter((run: any) => run.status === 'complete');
+    const aggregateRun = {
+      raw_results_count: allRows?.length || 0,
+      unique_businesses_count: allRows?.length || 0,
+      cached_records_reused: completedRuns.reduce(
+        (total: number, run: any) => total + Number(run.cached_records_reused || 0),
+        0
+      ),
+      duplicates_skipped: completedRuns.reduce(
+        (total: number, run: any) => total + Number(run.duplicates_skipped || 0),
+        0
+      ),
+      estimated_cost_usd: completedRuns.reduce(
+        (total: number, run: any) => total + Number(run.estimated_cost_usd || 0),
+        0
+      ),
+      actual_text_search_calls: completedRuns.reduce(
+        (total: number, run: any) => total + Number(run.actual_text_search_calls || 0),
+        0
+      ),
+      actual_place_details_calls: completedRuns.reduce(
+        (total: number, run: any) => total + Number(run.actual_place_details_calls || 0),
+        0
+      ),
+    };
     return NextResponse.json({
       success: true,
       schemaReady: true,
-      summary: summarizeProspects(allRows || [], latestRun),
+      summary: summarizeProspects(allRows || [], aggregateRun),
       prospects: prospects || [],
-      latestRun,
     });
   } catch (error) {
     console.error('[lead-finder/results] error:', error);
