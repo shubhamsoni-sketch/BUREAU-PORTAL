@@ -810,35 +810,6 @@ function AIFinderDrawer({
           </button>
         </div>
         <div className="space-y-4 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-            <div>
-              <h2 className="text-2xl font-950 text-slate-950">AI Finder</h2>
-              <p className="mt-1 text-sm font-700 text-slate-500">
-                Enter requirement, review cost, then approve run.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs font-950">
-              <span className="rounded-full bg-slate-100 px-3 py-2 text-slate-700">
-                DB: {setupStatus}
-              </span>
-              <span
-                className={`rounded-full px-3 py-2 ${
-                  planSource === 'gemini'
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : 'bg-amber-50 text-amber-700'
-                }`}
-              >
-                Planner:{' '}
-                {planSource === 'gemini'
-                  ? 'Gemini'
-                  : planSource === 'fallback'
-                    ? 'Fallback'
-                    : 'Ready'}
-              </span>
-              <span className="rounded-full bg-blue-50 px-3 py-2 text-blue-700">30-day cache</span>
-            </div>
-          </div>
-
           {setupChecked && !schemaReady && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -864,7 +835,7 @@ function AIFinderDrawer({
             </div>
           )}
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.82fr)]">
+          <div className="space-y-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <h3 className="mb-3 text-base font-950 text-slate-950">Search brief</h3>
               {(error || message) && (
@@ -886,7 +857,7 @@ function AIFinderDrawer({
                   className="min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-700 leading-6 text-slate-800 outline-none focus:border-blue-400"
                 />
               </label>
-              <div className="mt-3 grid gap-3 md:grid-cols-[160px_170px_1fr] md:items-end">
+              <div className="mt-3 grid gap-3 sm:grid-cols-[120px_150px_1fr] sm:items-end">
                 <div>
                   <span className="text-xs font-900 uppercase tracking-wide text-slate-500">
                     Count
@@ -898,7 +869,7 @@ function AIFinderDrawer({
                   />
                 </div>
                 <Toggle label="Force Refresh" checked={forceRefresh} onChange={setForceRefresh} />
-                <div className="flex flex-wrap gap-2 md:justify-end">
+                <div className="flex flex-wrap gap-2 sm:justify-end">
                   <button
                     type="button"
                     disabled={loadingPlan || running}
