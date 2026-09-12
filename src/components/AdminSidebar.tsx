@@ -27,6 +27,11 @@ import {
   Brain,
   Route,
   BadgeIndianRupee,
+  Rocket,
+  DatabaseZap,
+  SlidersHorizontal,
+  ClipboardList,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -65,6 +70,24 @@ const navGroups = [
       { label: 'Promotions', href: '/admin-promotions', icon: Megaphone },
       { label: 'WhatsApp Analytics', href: '/admin-whatsapp-analytics', icon: BarChart3 },
       { label: 'Lead Finder', href: '/admin-lead-finder', icon: SearchCheck },
+    ],
+  },
+  {
+    label: 'Growth Engine',
+    items: [
+      { label: 'Growth Engine', href: '/admin-growth-engine', icon: Rocket },
+      { label: 'Audience Master', href: '/admin-growth-engine/audience-master', icon: DatabaseZap },
+      {
+        label: 'Audience Builder',
+        href: '/admin-growth-engine/audience-builder',
+        icon: SlidersHorizontal,
+      },
+      {
+        label: 'Audience Orders',
+        href: '/admin-growth-engine/audience-orders',
+        icon: ClipboardList,
+      },
+      { label: 'CIBIL Enrichment', href: '/admin-growth-engine/cibil-enrichment', icon: Sparkles },
     ],
   },
   {
