@@ -3,10 +3,13 @@ import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 import { classifyProspect } from '@/lib/lead-finder/classifyProspect';
 import {
   checkLeadFinderTables,
+  fetchAllMasterSummaryRows,
   fetchAllProspectSummaryRows,
   hasLeadFinderMasterTable,
+  masterRowToLegacyProspect,
   prospectToMasterRow,
   prospectToRow,
+  summarizeMasterProspects,
   summarizeProspects,
 } from '@/lib/lead-finder/db';
 import { searchPlaceIds, fetchPlaceDetails } from '@/lib/lead-finder/googlePlacesClient';
@@ -131,6 +134,85 @@ async function upsertCoverage(
   }
 }
 
+async function getTodaysMasterSpendInr(supabase: any) {
+  const since = new Date();
+  since.setHours(0, 0, 0, 0);
+  const { data, error } = await supabase
+    .from('lead_finder_runs')
+    .select('estimated_cost_inr,status')
+    .gte('created_at', since.toISOString())
+    .in('status', ['running', 'complete']);
+  if (error) throw error;
+  return (data || []).reduce(
+    (sum: number, run: any) => sum + Number(run.estimated_cost_inr || 0),
+    0
+  );
+}
+
+async function freshMasterCoverage(supabase: any, city: string, state: string, keyword: string) {
+  const { data, error } = await supabase
+    .from('lead_search_coverage')
+    .select('id,place_ids_count,next_refresh_at,status')
+    .eq('city', city)
+    .eq('state', state)
+    .eq('lead_type', 'dsa')
+    .eq('keyword', keyword)
+    .eq('status', 'complete')
+    .gt('next_refresh_at', new Date().toISOString())
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const { data: places, error: placesError } = await supabase
+    .from('lead_search_coverage_places')
+    .select('place_id,rank')
+    .eq('coverage_id', data.id)
+    .order('rank', { ascending: true });
+  if (placesError) throw placesError;
+  return { ...data, place_ids: (places || []).map((row: any) => row.place_id) };
+}
+
+async function upsertMasterCoverage(
+  supabase: any,
+  city: string,
+  state: string,
+  keyword: string,
+  runId: string,
+  placeIds: string[]
+) {
+  const now = new Date();
+  const { data, error } = await supabase
+    .from('lead_search_coverage')
+    .upsert(
+      {
+        city,
+        state,
+        lead_type: 'dsa',
+        keyword,
+        last_search_at: now.toISOString(),
+        next_refresh_at: new Date(now.getTime() + 30 * DAY_MS).toISOString(),
+        place_ids_count: placeIds.length,
+        status: 'complete',
+        source_run_id: runId,
+        updated_at: now.toISOString(),
+      },
+      { onConflict: 'city,state,lead_type,keyword' }
+    )
+    .select('id')
+    .single();
+  if (error) throw error;
+  if (!placeIds.length) return;
+  const rows = placeIds.map((place_id, index) => ({
+    coverage_id: data.id,
+    place_id,
+    rank: index + 1,
+    last_seen_at: now.toISOString(),
+  }));
+  const { error: placesError } = await supabase
+    .from('lead_search_coverage_places')
+    .upsert(rows, { onConflict: 'coverage_id,place_id' });
+  if (placesError) throw placesError;
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(bearerToken(request));
   if ('error' in auth)
@@ -149,6 +231,192 @@ export async function POST(request: NextRequest) {
     const keywords = cleanKeywords(payload.keywords);
     const forceRefresh = Boolean(payload.forceRefresh);
     const refreshExisting = Boolean(payload.refreshExisting);
+    const useMaster = await hasLeadFinderMasterTable(auth.supabase);
+
+    if (useMaster) {
+      const runBudgetUsd = budgetNumber(
+        process.env.DSA_LEAD_FINDER_RUN_BUDGET_USD,
+        DEFAULT_RUN_BUDGET_USD
+      );
+      const runBudgetInr = Number((runBudgetUsd * 83).toFixed(2));
+      const dailyBudgetUsd = budgetNumber(
+        process.env.DSA_LEAD_FINDER_DAILY_BUDGET_USD,
+        DEFAULT_DAILY_BUDGET_USD
+      );
+      const dailyBudgetInr = Number((dailyBudgetUsd * 83).toFixed(2));
+      const spendTodayInr = await getTodaysMasterSpendInr(auth.supabase);
+      if (spendTodayInr >= dailyBudgetInr && (forceRefresh || refreshExisting)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              'Daily Lead Finder Google API budget is already used. Cached results are still available.',
+          },
+          { status: 429 }
+        );
+      }
+
+      const { data: masterRun, error: masterRunError } = await auth.supabase
+        .from('lead_finder_runs')
+        .insert({
+          user_prompt: `${city}, ${state}`,
+          lead_type: 'dsa',
+          search_intent: 'loan_dsa',
+          locations: [{ city, state }],
+          keywords,
+          requested_count: count,
+          budget_cap_inr: runBudgetInr,
+          status: 'running',
+          created_by: auth.user?.id || null,
+        })
+        .select('id')
+        .single();
+      if (masterRunError) throw masterRunError;
+      runId = masterRun.id;
+      const activeRunId = masterRun.id as string;
+
+      let textSearchCalls = 0;
+      let placeDetailsCalls = 0;
+      let coverageHits = 0;
+      let coverageMisses = 0;
+      const placeKeywordMap = new Map<string, Set<string>>();
+
+      for (const keyword of keywords) {
+        let ids: string[] = [];
+        const coverage = !forceRefresh
+          ? await freshMasterCoverage(auth.supabase, city, state, keyword)
+          : null;
+        if (coverage) {
+          coverageHits += 1;
+          ids = coverage.place_ids || [];
+        } else {
+          coverageMisses += 1;
+          ids = await searchPlaceIds(`${keyword} in ${city}, ${state}, India`, Math.min(20, count));
+          textSearchCalls += 1;
+          await upsertMasterCoverage(auth.supabase, city, state, keyword, activeRunId, ids);
+        }
+        for (const id of ids) {
+          if (!placeKeywordMap.has(id)) placeKeywordMap.set(id, new Set());
+          placeKeywordMap.get(id)?.add(keyword);
+          if (placeKeywordMap.size >= count) break;
+        }
+        if (placeKeywordMap.size >= count) break;
+      }
+
+      const placeIds = Array.from(placeKeywordMap.keys()).slice(0, count);
+      const { data: existing, error: existingError } = placeIds.length
+        ? await auth.supabase.from('lead_finder_master').select('*').in('place_id', placeIds)
+        : { data: [], error: null };
+      if (existingError) throw existingError;
+
+      const existingById = new Map((existing || []).map((row: any) => [row.place_id, row]));
+      const staleCutoff = Date.now() - 30 * DAY_MS;
+      const detailProspects = [];
+      let budgetStoppedBeforeDetails = false;
+
+      for (const placeId of placeIds) {
+        const row = existingById.get(placeId);
+        const stale =
+          !row?.last_fetched_at || new Date(row.last_fetched_at).getTime() < staleCutoff;
+        if (row && !refreshExisting && !stale) continue;
+        const projectedCostInr = Number(
+          (estimateGoogleCost(textSearchCalls, placeDetailsCalls + 1) * 83).toFixed(2)
+        );
+        if (projectedCostInr > runBudgetInr || spendTodayInr + projectedCostInr > dailyBudgetInr) {
+          budgetStoppedBeforeDetails = true;
+          break;
+        }
+        const details = await fetchPlaceDetails(
+          placeId,
+          city,
+          state,
+          Array.from(placeKeywordMap.get(placeId) || [])
+        );
+        placeDetailsCalls += 1;
+        detailProspects.push(classifyProspect(details));
+      }
+
+      if (detailProspects.length) {
+        const { error: masterUpsertError } = await auth.supabase.from('lead_finder_master').upsert(
+          detailProspects.map((prospect) =>
+            prospectToMasterRow(prospect, activeRunId, {
+              leadType: 'dsa',
+              searchIntent: 'loan_dsa',
+              searchPrompt: `${city}, ${state}`,
+              searchKeyword: prospect.matched_keywords?.[0] || keywords[0],
+            })
+          ),
+          { onConflict: 'place_id' }
+        );
+        if (masterUpsertError) throw masterUpsertError;
+      }
+
+      const cachedRecordsReused = placeIds.filter((placeId) => existingById.has(placeId)).length;
+      const estimatedCostInr = Number(
+        (estimateGoogleCost(textSearchCalls, placeDetailsCalls) * 83).toFixed(2)
+      );
+      const runStatus =
+        budgetStoppedBeforeDetails && !placeDetailsCalls && !cachedRecordsReused
+          ? 'stopped_by_budget'
+          : 'complete';
+
+      await auth.supabase
+        .from('lead_finder_runs')
+        .update({
+          records_found: placeIds.length,
+          new_records: Math.max(placeIds.length - cachedRecordsReused, 0),
+          reused_records: cachedRecordsReused,
+          duplicates_skipped: cachedRecordsReused,
+          estimated_cost_inr: estimatedCostInr,
+          text_search_calls: textSearchCalls,
+          place_details_calls: placeDetailsCalls,
+          status: runStatus,
+          error_message: budgetStoppedBeforeDetails
+            ? 'Stopped by Lead Finder Google API budget guardrail'
+            : null,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', activeRunId);
+
+      if (runStatus === 'stopped_by_budget') {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              'Lead Finder Google API budget guardrail stopped this run before new paid Place Details calls.',
+          },
+          { status: 429 }
+        );
+      }
+
+      const allRows = await fetchAllMasterSummaryRows(auth.supabase, 'dsa');
+      const { data: prospectRows, error: prospectError } = await auth.supabase
+        .from('lead_finder_master')
+        .select(
+          'id,place_id,business_name,phone,phone_type,is_valid_mobile,email,email_source,website,google_maps_url,address,searched_city,detected_city,city,city_match,rating,review_count,matched_keywords,segment,parent_brand,matched_aggregator,is_corporate_branch,score,score_reasons,status,confidence,target_fit,updated_at,last_seen_at,last_fetched_at'
+        )
+        .eq('lead_type', 'dsa')
+        .eq('status', 'ready')
+        .order('score', { ascending: false })
+        .limit(500);
+      if (prospectError) throw prospectError;
+
+      return NextResponse.json({
+        success: true,
+        runId: activeRunId,
+        summary: summarizeMasterProspects(allRows || [], {
+          records_found: allRows?.length || 0,
+          reused_records: cachedRecordsReused,
+          duplicates_skipped: cachedRecordsReused,
+          estimated_cost_inr: estimatedCostInr,
+          text_search_calls: textSearchCalls,
+          place_details_calls: placeDetailsCalls,
+        }),
+        prospects: (prospectRows || []).map(masterRowToLegacyProspect),
+      });
+    }
+
     const dailyBudgetUsd = budgetNumber(
       process.env.DSA_LEAD_FINDER_DAILY_BUDGET_USD,
       DEFAULT_DAILY_BUDGET_USD
@@ -391,14 +659,30 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[lead-finder/search] error:', error);
     if (runId) {
-      await auth.supabase
-        .from('dsa_extraction_runs')
-        .update({
-          status: 'failed',
-          error_message: error instanceof Error ? error.message : 'Search failed',
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', runId);
+      const errorMessage = error instanceof Error ? error.message : 'Search failed';
+      try {
+        const { error: masterUpdateError } = await auth.supabase
+          .from('lead_finder_runs')
+          .update({
+            status: 'failed',
+            error_message: errorMessage,
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', runId);
+        if (masterUpdateError) {
+          await auth.supabase
+            .from('dsa_extraction_runs')
+            .update({
+              status: 'failed',
+              error_message: errorMessage,
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', runId);
+        }
+      } catch {
+        // Best-effort status update only; keep the API error response stable.
+      }
     }
     return NextResponse.json(
       {
