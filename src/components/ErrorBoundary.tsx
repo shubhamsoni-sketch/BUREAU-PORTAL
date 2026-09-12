@@ -11,29 +11,75 @@ interface ErrorBoundaryProps {
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  retryingChunkLoad: boolean;
 }
 
 export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, retryingChunkLoad: false };
+  }
+
+  componentDidMount() {
+    window.setTimeout(() => {
+      if (!this.state.hasError) {
+        try {
+          window.sessionStorage.removeItem('bureau-portal-chunk-reload-attempted');
+        } catch {
+          // Ignore storage cleanup failures.
+        }
+      }
+    }, 5000);
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
+    return { hasError: true, error, retryingChunkLoad: false };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error(`[ErrorBoundary${this.props.label ? ` — ${this.props.label}` : ''}] Runtime crash:`, error);
     console.error('[ErrorBoundary] Component stack:', info.componentStack);
+
+    const message = `${error?.name ?? ''} ${error?.message ?? ''}`;
+    const isChunkLoadError =
+      message.includes('ChunkLoadError') ||
+      message.includes('Loading chunk') ||
+      message.includes('/_next/static/chunks/');
+
+    if (isChunkLoadError && typeof window !== 'undefined') {
+      const retryKey = 'bureau-portal-chunk-reload-attempted';
+      const alreadyRetried = window.sessionStorage.getItem(retryKey) === '1';
+
+      if (!alreadyRetried) {
+        window.sessionStorage.setItem(retryKey, '1');
+        this.setState({ retryingChunkLoad: true });
+
+        const url = new URL(window.location.href);
+        url.searchParams.set('_reload', Date.now().toString());
+        window.location.replace(url.toString());
+      }
+    }
   }
 
   handleReset = () => {
     this.setState({ hasError: false, error: null });
+    try {
+      window.sessionStorage.removeItem('bureau-portal-chunk-reload-attempted');
+    } catch {
+      // Ignore storage cleanup failures.
+    }
   };
 
   render() {
     if (this.state.hasError) {
+      if (this.state.retryingChunkLoad) {
+        return (
+          <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        );
+      }
+
       if (this.props.fallback) return this.props.fallback;
 
       return (
