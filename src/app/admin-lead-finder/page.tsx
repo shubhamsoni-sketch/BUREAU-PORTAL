@@ -270,7 +270,7 @@ export default function AdminLeadFinderPage() {
   }
 
   const kpis = [
-    { label: 'Raw Results', value: summary.rawResults, icon: Database },
+    { label: 'Total Prospects', value: summary.rawResults, icon: Database },
     { label: 'Unique Businesses', value: summary.uniqueBusinesses, icon: BarChart3 },
     { label: 'Sales Ready', value: summary.salesReady, icon: Target },
     { label: 'Priority A', value: summary.priorityA, icon: Zap },

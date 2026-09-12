@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 import { checkLeadFinderTables, summarizeProspects } from '@/lib/lead-finder/db';
 
+async function fetchAllProspectSummaryRows(supabase: any) {
+  const rows: any[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from('dsa_prospect_master')
+      .select('phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone')
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(bearerToken(request));
   if ('error' in auth)
@@ -50,26 +66,20 @@ export async function GET(request: NextRequest) {
     else if (view === 'review')
       query = query.or('sales_priority.eq.review,business_segment.eq.unknown');
 
-    const [
-      { data: prospects, error },
-      { data: allRows, error: allError },
-      { data: runRows, error: runError },
-    ] = await Promise.all([
-      query,
-      auth.supabase
-        .from('dsa_prospect_master')
-        .select('phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone')
-        .limit(10000),
-      auth.supabase
-        .from('dsa_extraction_runs')
-        .select(
-          'raw_results_count,unique_businesses_count,cached_records_reused,duplicates_skipped,estimated_cost_usd,actual_text_search_calls,actual_place_details_calls,status'
-        )
-        .order('created_at', { ascending: false })
-        .limit(1000),
-    ]);
+    const [{ data: prospects, error }, allRows, { data: runRows, error: runError }] =
+      await Promise.all([
+        query,
+        fetchAllProspectSummaryRows(auth.supabase),
+        auth.supabase
+          .from('dsa_extraction_runs')
+          .select(
+            'raw_results_count,unique_businesses_count,cached_records_reused,duplicates_skipped,estimated_cost_usd,actual_text_search_calls,actual_place_details_calls,status'
+          )
+          .order('created_at', { ascending: false })
+          .limit(1000),
+      ]);
 
-    if (error || allError || runError) throw error || allError || runError;
+    if (error || runError) throw error || runError;
     const completedRuns = (runRows || []).filter((run: any) => run.status === 'complete');
     const aggregateRun = {
       raw_results_count: allRows?.length || 0,
