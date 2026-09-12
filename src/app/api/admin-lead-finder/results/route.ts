@@ -58,7 +58,8 @@ export async function GET(request: NextRequest) {
       query,
       auth.supabase
         .from('dsa_prospect_master')
-        .select('phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone'),
+        .select('phone_type,is_valid_phone,business_segment,sales_ready,sales_priority,raw_phone')
+        .limit(10000),
       auth.supabase
         .from('dsa_extraction_runs')
         .select(
