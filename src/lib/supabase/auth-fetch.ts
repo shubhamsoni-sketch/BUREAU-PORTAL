@@ -14,7 +14,25 @@ export async function getAuthHeaders(extraHeaders: HeadersInit = {}) {
 
 export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const headers = await getAuthHeaders(init.headers);
-  return fetch(input, { ...init, headers });
+  const response = await fetch(input, { ...init, headers });
+
+  if (
+    typeof window !== 'undefined' &&
+    (response.status === 401 || response.status === 403)
+  ) {
+    const supabase = createClient();
+    await supabase.auth.signOut().catch(() => undefined);
+    try {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    } catch {
+      // Storage may be unavailable in restricted browser contexts.
+    }
+    const path = window.location.pathname;
+    window.location.href = path.startsWith('/admin') ? '/admin' : '/partner-login';
+  }
+
+  return response;
 }
 
 export async function downloadAuthenticatedFile(url: string, filename: string) {
