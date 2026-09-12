@@ -6,6 +6,8 @@ import { searchPlaceIds, fetchPlaceDetails } from '@/lib/lead-finder/googlePlace
 import { estimateGoogleCost, pricingConfig } from '@/lib/lead-finder/googlePlacesPricing';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_DAILY_BUDGET_USD = 1;
+const DEFAULT_RUN_BUDGET_USD = 0.35;
 const DEFAULT_KEYWORDS = [
   'Loan Agent',
   'Loan DSA',
@@ -18,6 +20,26 @@ function cleanKeywords(value: unknown) {
   if (!Array.isArray(value)) return DEFAULT_KEYWORDS;
   const list = value.map((item) => String(item || '').trim()).filter(Boolean);
   return list.length ? list.slice(0, 12) : DEFAULT_KEYWORDS;
+}
+
+function budgetNumber(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+async function getTodaysLeadFinderSpend(supabase: any) {
+  const since = new Date();
+  since.setHours(0, 0, 0, 0);
+  const { data, error } = await supabase
+    .from('dsa_extraction_runs')
+    .select('estimated_cost_usd,status')
+    .gte('created_at', since.toISOString())
+    .in('status', ['running', 'complete']);
+  if (error) throw error;
+  return (data || []).reduce(
+    (sum: number, run: any) => sum + Number(run.estimated_cost_usd || 0),
+    0
+  );
 }
 
 async function createRun(supabase: any, userId: string | undefined, body: any) {
@@ -119,6 +141,25 @@ export async function POST(request: NextRequest) {
     const keywords = cleanKeywords(payload.keywords);
     const forceRefresh = Boolean(payload.forceRefresh);
     const refreshExisting = Boolean(payload.refreshExisting);
+    const dailyBudgetUsd = budgetNumber(
+      process.env.DSA_LEAD_FINDER_DAILY_BUDGET_USD,
+      DEFAULT_DAILY_BUDGET_USD
+    );
+    const runBudgetUsd = budgetNumber(
+      process.env.DSA_LEAD_FINDER_RUN_BUDGET_USD,
+      DEFAULT_RUN_BUDGET_USD
+    );
+    const spendTodayUsd = await getTodaysLeadFinderSpend(auth.supabase);
+    if (spendTodayUsd >= dailyBudgetUsd && (forceRefresh || refreshExisting)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'Daily Lead Finder Google API budget is already used. Cached results are still available.',
+        },
+        { status: 429 }
+      );
+    }
     runId = await createRun(auth.supabase, auth.user?.id, {
       city,
       state,
@@ -172,6 +213,34 @@ export async function POST(request: NextRequest) {
       const row = existingById.get(placeId);
       const stale = !row?.last_fetched_at || new Date(row.last_fetched_at).getTime() < staleCutoff;
       if (row && !refreshExisting && !stale) continue;
+      const projectedCost = estimateGoogleCost(textSearchCalls, placeDetailsCalls + 1);
+      if (projectedCost > runBudgetUsd || spendTodayUsd + projectedCost > dailyBudgetUsd) {
+        if (!detailProspects.length && placeDetailsCalls === 0) {
+          await auth.supabase
+            .from('dsa_extraction_runs')
+            .update({
+              status: 'failed',
+              error_message: 'Stopped by Lead Finder Google API budget guardrail',
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', runId);
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                'Lead Finder Google API budget guardrail stopped this run before new paid Place Details calls.',
+              budget: {
+                runBudgetUsd,
+                dailyBudgetUsd,
+                spendTodayUsd: Number(spendTodayUsd.toFixed(4)),
+                projectedCostUsd: projectedCost,
+              },
+            },
+            { status: 429 }
+          );
+        }
+        break;
+      }
       const details = await fetchPlaceDetails(
         placeId,
         city,
