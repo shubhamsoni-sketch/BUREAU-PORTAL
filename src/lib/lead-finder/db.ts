@@ -17,14 +17,19 @@ export function isMissingTableError(error: { code?: string; message?: string } |
 export async function checkLeadFinderTables(
   supabase: SupabaseClient
 ): Promise<LeadFinderTablesReady> {
-  const { error } = await supabase.from('dsa_prospect_master').select('id').limit(1);
-  if (isMissingTableError(error)) {
+  const master = await supabase.from('lead_finder_master').select('id').limit(1);
+  if (!master.error) return { ready: true };
+  if (!isMissingTableError(master.error)) throw master.error;
+
+  const legacy = await supabase.from('dsa_prospect_master').select('id').limit(1);
+  if (isMissingTableError(legacy.error)) {
     return {
       ready: false,
-      warning: 'Lead Finder tables are not available yet. Run the DSA Lead Finder migration first.',
+      warning:
+        'Lead Finder tables are not available yet. Run the Universal Lead Finder master migration first.',
     };
   }
-  if (error) throw error;
+  if (legacy.error) throw legacy.error;
   return { ready: true };
 }
 
