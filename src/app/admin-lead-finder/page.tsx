@@ -279,7 +279,6 @@ export default function AdminLeadFinderPage() {
     { label: 'Google Calls Saved', value: summary.duplicateDetailsCallsAvoided, icon: ShieldCheck },
     { label: 'Approx API Cost', value: formatMoney(summary.estimatedCostUsd), icon: WalletCards },
   ];
-  const costPreview = Math.min(Number(count || 100), 1000) * 0.006;
   const latestRun = runs[0];
 
   return (
@@ -425,7 +424,7 @@ export default function AdminLeadFinderPage() {
           </section>
         ) : (
           <section className="space-y-5">
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_440px]">
+            <div className="grid grid-cols-1 gap-5">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-5 flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -495,46 +494,6 @@ export default function AdminLeadFinderPage() {
                   >
                     <Settings2 size={17} /> Reclassify Existing Data
                   </button>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-5 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                    <ShieldCheck size={20} />
-                  </div>
-                  <h2 className="text-lg font-900 text-slate-950">Cost Guardrails</h2>
-                </div>
-                <div className="space-y-4">
-                  <Guardrail
-                    icon={Clock3}
-                    title="30-day TTL"
-                    text="Fresh city + state + keyword coverage reuses DB results."
-                    status="Active"
-                  />
-                  <Guardrail
-                    icon={ShieldCheck}
-                    title="Server-side Google key"
-                    text="Google keys are never exposed in browser code."
-                    status="Secure"
-                  />
-                  <Guardrail
-                    icon={Zap}
-                    title="Duplicate-safe"
-                    text="Existing place_id records skip paid Details calls."
-                    status="Enabled"
-                  />
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="text-xs font-900 uppercase text-amber-700">
-                      Worst-case Place Details estimate
-                    </p>
-                    <p className="mt-1 text-2xl font-950 text-slate-950">
-                      {formatMoney(costPreview)}
-                    </p>
-                    <p className="mt-1 text-xs text-amber-700">
-                      Backend budget cap stops runs before excess paid calls.
-                    </p>
-                  </div>
                 </div>
               </div>
             </div>
@@ -651,31 +610,6 @@ function Toggle({
         onChange={(event) => onChange(event.target.checked)}
       />
     </label>
-  );
-}
-
-function Guardrail({
-  icon: Icon,
-  title,
-  text,
-  status,
-}: {
-  icon: typeof ShieldCheck;
-  title: string;
-  text: string;
-  status: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-xl border border-slate-100 p-3">
-      <Icon className="mt-0.5 text-emerald-600" size={18} />
-      <div className="min-w-0 flex-1">
-        <p className="font-900 text-slate-900">{title}</p>
-        <p className="text-xs text-slate-500">{text}</p>
-      </div>
-      <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-900 text-emerald-700">
-        {status}
-      </span>
-    </div>
   );
 }
 
