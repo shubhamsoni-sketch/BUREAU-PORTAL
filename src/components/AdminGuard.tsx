@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Shield } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { AUTH_STORAGE_KEY } from '@/lib/supabase/client';
 
 const ADMIN_ONLY_PATHS = [
   '/admin-partners',
@@ -62,9 +63,18 @@ export default function AdminGuard({ children }: AdminGuardProps) {
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const [timedOut, setTimedOut] = useState(false);
+  const [hasStoredSession, setHasStoredSession] = useState(false);
 
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
   const isAdminRoute = ADMIN_ONLY_PATHS.some((p) => pathname.startsWith(p));
+
+  useEffect(() => {
+    try {
+      setHasStoredSession(Boolean(window.localStorage.getItem(AUTH_STORAGE_KEY)));
+    } catch {
+      setHasStoredSession(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isLoading) return;
@@ -74,13 +84,14 @@ export default function AdminGuard({ children }: AdminGuardProps) {
 
   useEffect(() => {
     if (isPublicPath || user || (isLoading && !timedOut)) return;
+    if (hasStoredSession && !timedOut) return;
     router.replace(isAdminRoute ? '/admin' : '/partner-login');
-  }, [isAdminRoute, isLoading, isPublicPath, router, timedOut, user]);
+  }, [hasStoredSession, isAdminRoute, isLoading, isPublicPath, router, timedOut, user]);
 
   // Public paths never need auth, render immediately with no spinner.
   if (isPublicPath) return <>{children}</>;
 
-  const stillLoading = isLoading && !timedOut;
+  const stillLoading = (isLoading || (hasStoredSession && !user)) && !timedOut;
 
   if (stillLoading) {
     return (

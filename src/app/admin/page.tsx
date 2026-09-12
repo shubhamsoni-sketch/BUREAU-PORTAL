@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { createClient } from '@/lib/supabase/client';
@@ -15,12 +15,14 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const redirectedRef = useRef(false);
 
   useEffect(() => {
     if (isLoading) return;
     if (submitting) return;
-    if (!user) return;
+    if (!user || redirectedRef.current) return;
     if (user.role === 'admin') {
+      redirectedRef.current = true;
       router.replace('/admin-dashboard');
     }
   }, [user, isLoading, submitting, router]);
