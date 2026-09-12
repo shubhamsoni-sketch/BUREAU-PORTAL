@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         plan,
         forecast: null,
         warning:
-          'Universal Finder master database is not active yet. Run the lead_finder_master migration before approving paid runs.',
+          'Setup required: the master lead database is not active yet. Paid runs are locked until setup is complete.',
       });
     }
 

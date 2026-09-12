@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error:
-            'Universal Finder master database is not active yet. Run the lead_finder_master migration first.',
+            'Setup required: the master lead database is not active yet. Paid runs are locked until setup is complete.',
         },
         { status: 400 }
       );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { authFetch, downloadAuthenticatedFile } from '@/lib/supabase/auth-fetch';
 import {
@@ -685,7 +685,8 @@ function UniversalFinderPreview() {
   const [plan, setPlan] = useState<UniversalPlan | null>(null);
   const [forecast, setForecast] = useState<UniversalForecast | null>(null);
   const [planSource, setPlanSource] = useState<'gemini' | 'fallback' | null>(null);
-  const [schemaReady, setSchemaReady] = useState(true);
+  const [schemaReady, setSchemaReady] = useState(false);
+  const [setupChecked, setSetupChecked] = useState(false);
   const [count, setCount] = useState('100');
   const [forceRefresh, setForceRefresh] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState(false);
@@ -710,8 +711,9 @@ function UniversalFinderPreview() {
       setForecast(json.forecast || null);
       setPlanSource(json.source || 'fallback');
       setSchemaReady(json.schemaReady !== false);
+      setSetupChecked(true);
       setCount(String(json.plan?.recommended_count || 100));
-      if (json.warning) setMessage(json.warning);
+      if (json.warning) setMessage('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to generate plan');
     } finally {
@@ -756,40 +758,85 @@ function UniversalFinderPreview() {
     }
   }
 
+  const setupComplete = setupChecked && schemaReady && Boolean(forecast);
+  const canRun = Boolean(plan) && setupComplete && !running && !loadingPlan;
+  const setupStatus = !setupChecked ? 'Check required' : schemaReady ? 'Ready' : 'Setup required';
+  const setupNote = !setupChecked
+    ? 'Prepare a search to check the live database.'
+    : schemaReady
+      ? 'Runs can save to the master library.'
+      : 'Paid runs remain locked.';
+
   return (
     <section className="space-y-5">
-      <div className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-emerald-50 p-6 shadow-sm">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-xs font-950 uppercase tracking-[0.22em] text-blue-700">
-              Universal Finder
-            </p>
-            <h2 className="mt-2 text-3xl font-950 text-slate-950">
-              Find the right business leads in any city.
-            </h2>
-            <p className="mt-3 text-sm font-700 leading-6 text-slate-600">
-              Describe the leads you need. Review the search setup, estimated results, and cost
-              before starting any paid Google Places run.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-900 text-emerald-800">
-            Paid search requires approval
-          </div>
-        </div>
+      <div className="grid gap-4 xl:grid-cols-4">
+        <StatusCard
+          tone={schemaReady ? 'green' : 'amber'}
+          icon={<Database size={18} />}
+          label="Master database"
+          value={setupStatus}
+          note={setupNote}
+        />
+        <StatusCard
+          tone="blue"
+          icon={<Clock3 size={18} />}
+          label="Duplicate control"
+          value="30-day cache"
+          note="Fresh city, state, and keyword searches reuse saved results."
+        />
+        <StatusCard
+          tone="green"
+          icon={<ShieldCheck size={18} />}
+          label="API key"
+          value="Server-side"
+          note="Google keys are not exposed in the browser."
+        />
+        <StatusCard
+          tone="slate"
+          icon={<WalletCards size={18} />}
+          label="Run control"
+          value="Approval only"
+          note="Google calls start only from the final run button."
+        />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      {setupChecked && !schemaReady && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="flex gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h3 className="text-base font-950 text-amber-950">Setup required before live runs</h3>
+                <p className="mt-1 max-w-3xl text-sm font-700 leading-6 text-amber-800">
+                  The master lead database migration is still pending. You can prepare and review a
+                  search, but paid Google Places runs are disabled until the database is active.
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full bg-white px-3 py-1.5 text-xs font-950 uppercase tracking-wide text-amber-700">
+              Run locked
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-3">
+          <div className="mb-5 flex items-center justify-between gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
               <Search size={20} />
             </div>
-            <div>
-              <h3 className="text-lg font-950 text-slate-950">Search Setup</h3>
-              <p className="text-sm text-slate-500">
-                Example: Find loan DSAs working with Andromeda and RU Loans in MP and Gujarat.
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl font-950 text-slate-950">Universal Finder</h2>
+              <p className="text-sm font-700 text-slate-500">
+                Set the target, check cost, then start the approved run.
               </p>
             </div>
+            <span className="hidden rounded-full border border-slate-200 px-3 py-1.5 text-xs font-900 text-slate-600 md:inline-flex">
+              Step 1 of 3
+            </span>
           </div>
           {(error || message) && (
             <div
@@ -802,14 +849,25 @@ function UniversalFinderPreview() {
               {error || message}
             </div>
           )}
+          <label className="block">
+            <span className="text-xs font-900 uppercase tracking-wide text-slate-500">
+              Lead requirement
+            </span>
           <textarea
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            className="min-h-[170px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600 outline-none"
+              className="mt-2 min-h-[160px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-700 leading-6 text-slate-700 outline-none focus:border-blue-400 focus:bg-white"
           />
+          </label>
+          <p className="mt-2 text-xs font-700 text-slate-500">
+            Example: Find loan DSAs working with Andromeda and RU Loans in MP and Gujarat. Exclude
+            software companies and payment apps.
+          </p>
           <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px]">
             <div>
-              <span className="text-xs font-800 text-slate-500">Approved Count</span>
+              <span className="text-xs font-900 uppercase tracking-wide text-slate-500">
+                Approved count
+              </span>
               <input
                 value={count}
                 onChange={(event) => setCount(event.target.value)}
@@ -818,6 +876,12 @@ function UniversalFinderPreview() {
             </div>
             <Toggle label="Force Refresh" checked={forceRefresh} onChange={setForceRefresh} />
           </div>
+          {forceRefresh && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-800 text-amber-800">
+              Force refresh can create fresh Google API cost. Use it only when old coverage should
+              be ignored.
+            </div>
+          )}
           <div className="mt-4 flex flex-wrap gap-3">
             <button
               type="button"
@@ -829,7 +893,7 @@ function UniversalFinderPreview() {
             </button>
             <button
               type="button"
-              disabled={!plan || !schemaReady || running || loadingPlan}
+              disabled={!canRun}
               onClick={approveAndRun}
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-600 px-5 py-3 text-sm font-950 text-white hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-500"
             >
@@ -839,15 +903,21 @@ function UniversalFinderPreview() {
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="text-lg font-950 text-slate-950">Review Before Run</h3>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-950 text-slate-950">Review Before Run</h2>
+              <p className="text-sm font-700 text-slate-500">Nothing is charged at this step.</p>
+            </div>
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-950 uppercase tracking-wide text-slate-600">
+              Preview
+            </span>
+          </div>
           {!plan ? (
-            <div className="mt-4 space-y-3">
+            <div className="space-y-3">
               {[
-                ['1', 'Prepare search', 'lead category, keywords, locations, and exclusions'],
-                ['2', 'Check saved data', 'reuse fresh 30-day coverage before calling Google'],
-                ['3', 'Estimate results', 'expected raw leads, unique leads, and valid mobile numbers'],
-                ['4', 'Estimate cost', 'approximate Google API cost in Indian Rupees'],
-                ['5', 'Start run', 'paid Google calls start only after approval'],
+                ['1', 'Prepare search', 'AI converts the brief into cities, keywords, and exclusions.'],
+                ['2', 'Check saved data', 'Existing records and fresh coverage are reused first.'],
+                ['3', 'Approve run', 'Google Places calls stay locked until the final approval button.'],
               ].map(([step, title, body]) => (
                 <div
                   key={step}
@@ -864,7 +934,7 @@ function UniversalFinderPreview() {
               ))}
             </div>
           ) : (
-            <div className="mt-4 space-y-4">
+            <div className="space-y-4">
               <div className="grid gap-3 md:grid-cols-2">
                 <InfoBox label="Lead Type" value={plan.lead_type} />
                 <InfoBox label="Plan Source" value={planSource || '-'} />
@@ -876,27 +946,34 @@ function UniversalFinderPreview() {
               </div>
               {forecast ? (
                 <div className="grid gap-3 md:grid-cols-2">
-                  <InfoBox
-                    label="Expected Unique"
+                  <MetricBox
+                    label="Expected unique leads"
                     value={`${formatNumber(forecast.estimated_unique_leads_min)}-${formatNumber(forecast.estimated_unique_leads_max)}`}
+                    tone="blue"
                   />
-                  <InfoBox
-                    label="Valid Mobile"
+                  <MetricBox
+                    label="Valid mobile estimate"
                     value={`${formatNumber(forecast.estimated_valid_mobile_min)}-${formatNumber(forecast.estimated_valid_mobile_max)}`}
+                    tone="green"
                   />
-                  <InfoBox
-                    label="Google Calls Needed"
+                  <MetricBox
+                    label="Google calls needed"
                     value={`Text ${formatNumber(forecast.fresh_google_text_search_calls_needed)} · Details ${formatNumber(forecast.worst_case_place_details_calls)}`}
+                    tone="slate"
                   />
-                  <InfoBox
-                    label="Worst-case Cost"
+                  <MetricBox
+                    label="Worst-case cost"
                     value={`≈₹${formatNumber(forecast.approx_cost_inr)}`}
+                    tone="amber"
                   />
                 </div>
               ) : (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-800 text-amber-800">
-                  Master database setup is pending. Paid runs are locked until the migration is
-                  complete.
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-950 text-amber-950">Setup required</p>
+                  <p className="mt-1 text-sm font-700 leading-6 text-amber-800">
+                    The search setup can be reviewed now, but the run button stays disabled until
+                    the master database migration is applied.
+                  </p>
                 </div>
               )}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -912,6 +989,60 @@ function UniversalFinderPreview() {
         </div>
       </div>
     </section>
+  );
+}
+
+function StatusCard({
+  icon,
+  label,
+  value,
+  note,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  note: string;
+  tone: 'green' | 'blue' | 'amber' | 'slate';
+}) {
+  const tones = {
+    green: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    blue: 'border-blue-200 bg-blue-50 text-blue-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-700',
+    slate: 'border-slate-200 bg-white text-slate-700',
+  };
+  return (
+    <div className={`rounded-2xl border p-4 shadow-sm ${tones[tone]}`}>
+      <div className="mb-3 flex items-center gap-2 text-xs font-950 uppercase tracking-wide">
+        {icon}
+        {label}
+      </div>
+      <p className="text-xl font-950 text-slate-950">{value}</p>
+      <p className="mt-1 text-sm font-700 leading-5 text-slate-600">{note}</p>
+    </div>
+  );
+}
+
+function MetricBox({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: 'green' | 'blue' | 'amber' | 'slate';
+}) {
+  const tones = {
+    green: 'border-emerald-100 bg-emerald-50',
+    blue: 'border-blue-100 bg-blue-50',
+    amber: 'border-amber-100 bg-amber-50',
+    slate: 'border-slate-100 bg-slate-50',
+  };
+  return (
+    <div className={`rounded-xl border p-4 ${tones[tone]}`}>
+      <p className="text-xs font-900 uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-2 text-lg font-950 text-slate-950">{value || '-'}</p>
+    </div>
   );
 }
 
