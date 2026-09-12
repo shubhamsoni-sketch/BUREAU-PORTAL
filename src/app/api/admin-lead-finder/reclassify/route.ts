@@ -8,6 +8,28 @@ import {
   summarizeProspects,
 } from '@/lib/lead-finder/db';
 
+async function fetchAllRowsForReclassify(supabase: any, overwriteManual: boolean) {
+  const rows: any[] = [];
+  const pageSize = 1000;
+
+  for (let from = 0; ; from += pageSize) {
+    let query = supabase
+      .from('dsa_prospect_master')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1);
+
+    if (!overwriteManual) query = query.neq('classification_source', 'manual');
+
+    const { data, error } = await query;
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+
+  return rows;
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(bearerToken(request));
   if ('error' in auth)
@@ -20,14 +42,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}));
     const overwriteManual = Boolean(body.overwriteManual);
-    let query = auth.supabase
-      .from('dsa_prospect_master')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(5000);
-    if (!overwriteManual) query = query.neq('classification_source', 'manual');
-    const { data: rows, error } = await query;
-    if (error) throw error;
+    const rows = await fetchAllRowsForReclassify(auth.supabase, overwriteManual);
 
     const updates = (rows || []).map((row) => {
       const classified = classifyProspect({
@@ -49,10 +64,10 @@ export async function POST(request: NextRequest) {
       return prospectToRow(classified, row.source_run_id);
     });
 
-    if (updates.length) {
+    for (let start = 0; start < updates.length; start += 500) {
       const { error: upsertError } = await auth.supabase
         .from('dsa_prospect_master')
-        .upsert(updates, { onConflict: 'place_id' });
+        .upsert(updates.slice(start, start + 500), { onConflict: 'place_id' });
       if (upsertError) throw upsertError;
     }
     const allRows = await fetchAllProspectSummaryRows(auth.supabase);
