@@ -68,21 +68,18 @@ type RunHistory = {
   actual_text_search_calls: number;
   actual_place_details_calls: number;
   force_refresh: boolean;
-  status: 'running' | 'complete' | 'failed';
+  status: 'running' | 'complete' | 'failed' | 'stopped_by_budget';
   created_at: string;
   error_message: string | null;
 };
 
 const defaultKeywords = [
-  'Loan Agent',
   'Loan DSA',
-  'Loan Consultant',
+  'Loan Agent',
   'Personal Loan Agent',
   'Business Loan Agent',
   'Home Loan Agent',
   'Mortgage Consultant',
-  'Financial Consultant',
-  'Finance Services',
 ];
 
 const emptySummary: Summary = {
@@ -641,6 +638,7 @@ function LeadTable({
           <tr>
             {[
               'Business',
+              'Map',
               'Phone',
               'Segment',
               'Score',
@@ -659,13 +657,13 @@ function LeadTable({
         <tbody className="divide-y divide-slate-100">
           {loading ? (
             <tr>
-              <td colSpan={9} className="px-4 py-10 text-center text-slate-500">
+              <td colSpan={10} className="px-4 py-10 text-center text-slate-500">
                 Loading...
               </td>
             </tr>
           ) : prospects.length === 0 ? (
             <tr>
-              <td colSpan={9} className="px-4 py-10 text-center text-slate-500">
+              <td colSpan={10} className="px-4 py-10 text-center text-slate-500">
                 No records in this view yet.
               </td>
             </tr>
@@ -674,9 +672,20 @@ function LeadTable({
               <tr key={prospect.id} className="hover:bg-slate-50">
                 <td className="min-w-[260px] px-4 py-3">
                   <p className="font-900 text-slate-900">{prospect.business_name || '-'}</p>
-                  <p className="max-w-xs truncate text-xs text-slate-500">
-                    {prospect.google_maps_url}
-                  </p>
+                </td>
+                <td className="whitespace-nowrap px-4 py-3">
+                  {prospect.google_maps_url ? (
+                    <a
+                      href={prospect.google_maps_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-900 text-blue-700 hover:bg-blue-50"
+                    >
+                      Open Map
+                    </a>
+                  ) : (
+                    '-'
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">{prospect.raw_phone || '-'}</td>
                 <td className="px-4 py-3">
@@ -790,7 +799,9 @@ function RunHistoryTable({ loading, runs }: { loading: boolean; runs: RunHistory
                     run.actual_text_search_calls === 0 &&
                     run.actual_place_details_calls === 0
                       ? 'Cached'
-                      : run.status}
+                      : run.status === 'stopped_by_budget'
+                        ? 'Budget stopped'
+                        : run.status}
                   </span>
                 </td>
                 <td className="px-4 py-3">

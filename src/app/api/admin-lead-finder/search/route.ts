@@ -9,11 +9,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DAILY_BUDGET_USD = 1;
 const DEFAULT_RUN_BUDGET_USD = 0.35;
 const DEFAULT_KEYWORDS = [
-  'Loan Agent',
   'Loan DSA',
-  'Loan Consultant',
+  'Loan Agent',
   'Personal Loan Agent',
   'Business Loan Agent',
+  'Home Loan Agent',
+  'Mortgage Consultant',
 ];
 
 function cleanKeywords(value: unknown) {
@@ -221,7 +222,17 @@ export async function POST(request: NextRequest) {
           await auth.supabase
             .from('dsa_extraction_runs')
             .update({
-              status: 'failed',
+              raw_results_count: placeIds.length,
+              unique_businesses_count: placeIds.length,
+              new_details_calls: placeDetailsCalls,
+              cached_records_reused: 0,
+              duplicates_skipped: 0,
+              estimated_cost_usd: estimateGoogleCost(textSearchCalls, placeDetailsCalls),
+              actual_text_search_calls: textSearchCalls,
+              actual_place_details_calls: placeDetailsCalls,
+              coverage_hits: coverageHits,
+              coverage_misses: coverageMisses,
+              status: 'stopped_by_budget',
               error_message: 'Stopped by Lead Finder Google API budget guardrail',
               completed_at: new Date().toISOString(),
             })
@@ -279,8 +290,11 @@ export async function POST(request: NextRequest) {
         coverage_misses: coverageMisses,
         status:
           budgetStoppedBeforeDetails && !placeDetailsCalls && !cachedRecordsReused
-            ? 'failed'
+            ? 'stopped_by_budget'
             : 'complete',
+        error_message: budgetStoppedBeforeDetails
+          ? 'Stopped by Lead Finder Google API budget guardrail'
+          : null,
         completed_at: new Date().toISOString(),
       })
       .eq('id', runId);
