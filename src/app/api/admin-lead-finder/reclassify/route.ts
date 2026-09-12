@@ -68,7 +68,9 @@ export async function POST(request: NextRequest) {
     const overwriteManual = Boolean(body.overwriteManual);
 
     if (await hasLeadFinderMasterTable(auth.supabase)) {
-      const rows = await fetchAllMasterRowsForReclassify(auth.supabase);
+      const rows = (await fetchAllMasterRowsForReclassify(auth.supabase)).filter(
+        (row) => (row.lead_type || 'dsa') === 'dsa'
+      );
       const updates = (rows || []).map((row) => {
         const classified = classifyProspect({
           place_id: row.place_id,
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest) {
       const allRows = await fetchAllMasterSummaryRows(auth.supabase, 'all');
       return NextResponse.json({
         success: true,
-        message: `Reclassified ${updates.length} prospects with zero Google API calls`,
+        message: `Reclassified ${updates.length} DSA prospects with zero Google API calls. Fintech/imported datasets were preserved.`,
         googleCalls: { textSearch: 0, placeDetails: 0 },
         summary: summarizeMasterProspects(allRows || [], {
           text_search_calls: 0,
