@@ -208,6 +208,7 @@ export async function POST(request: NextRequest) {
     const existingById = new Map((existing || []).map((row: any) => [row.place_id, row]));
     const staleCutoff = Date.now() - 30 * DAY_MS;
     const detailProspects = [];
+    let budgetStoppedBeforeDetails = false;
 
     for (const placeId of placeIds) {
       const row = existingById.get(placeId);
@@ -215,7 +216,8 @@ export async function POST(request: NextRequest) {
       if (row && !refreshExisting && !stale) continue;
       const projectedCost = estimateGoogleCost(textSearchCalls, placeDetailsCalls + 1);
       if (projectedCost > runBudgetUsd || spendTodayUsd + projectedCost > dailyBudgetUsd) {
-        if (!detailProspects.length && placeDetailsCalls === 0) {
+        budgetStoppedBeforeDetails = true;
+        if (!detailProspects.length && placeDetailsCalls === 0 && !existingById.size) {
           await auth.supabase
             .from('dsa_extraction_runs')
             .update({
@@ -259,7 +261,7 @@ export async function POST(request: NextRequest) {
       if (upsertError) throw upsertError;
     }
 
-    const cachedRecordsReused = placeIds.length - detailProspects.length;
+    const cachedRecordsReused = placeIds.filter((placeId) => existingById.has(placeId)).length;
     const duplicatesSkipped = cachedRecordsReused;
     const estimatedCostUsd = estimateGoogleCost(textSearchCalls, placeDetailsCalls);
     await auth.supabase
@@ -275,7 +277,10 @@ export async function POST(request: NextRequest) {
         actual_place_details_calls: placeDetailsCalls,
         coverage_hits: coverageHits,
         coverage_misses: coverageMisses,
-        status: 'complete',
+        status:
+          budgetStoppedBeforeDetails && !placeDetailsCalls && !cachedRecordsReused
+            ? 'failed'
+            : 'complete',
         completed_at: new Date().toISOString(),
       })
       .eq('id', runId);
