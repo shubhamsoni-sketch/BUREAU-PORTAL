@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 import { classifyProspect } from '@/lib/lead-finder/classifyProspect';
-import { checkLeadFinderTables, prospectToRow, summarizeProspects } from '@/lib/lead-finder/db';
+import {
+  checkLeadFinderTables,
+  hasLeadFinderMasterTable,
+  prospectToMasterRow,
+  prospectToRow,
+  summarizeProspects,
+} from '@/lib/lead-finder/db';
 
 type ImportRow = Record<string, unknown>;
 
@@ -57,7 +63,11 @@ export async function POST(request: NextRequest) {
     const rows = Array.isArray(body.rows) ? (body.rows as ImportRow[]) : [];
     const city = String(body.city || 'Indore');
     const state = String(body.state || 'Madhya Pradesh');
-    const leadType = body.leadType === 'fintech' ? 'fintech' : 'dsa';
+    const leadType = String(body.leadType || '').match(/^[a-z][a-z0-9_]{1,60}$/)
+      ? String(body.leadType)
+      : body.leadType === 'fintech'
+        ? 'fintech'
+        : 'dsa';
     if (!rows.length)
       return NextResponse.json(
         { success: false, error: 'No rows supplied for import' },
@@ -89,7 +99,12 @@ export async function POST(request: NextRequest) {
       .map((row) => {
         const placeId = text(row, 'place_id', 'google_place_id', 'id');
         if (!placeId) return null;
-        const matchedKeywords = arrayValue(row, 'matched_keywords', 'searched_keyword', 'matched_keyword');
+        const matchedKeywords = arrayValue(
+          row,
+          'matched_keywords',
+          'searched_keyword',
+          'matched_keyword'
+        );
         const classified = classifyProspect({
           place_id: placeId,
           business_name: text(row, 'business_name', 'name'),
@@ -142,6 +157,43 @@ export async function POST(request: NextRequest) {
         { onConflict: 'place_id' }
       );
       if (upsertError) throw upsertError;
+
+      if (await hasLeadFinderMasterTable(auth.supabase)) {
+        const { data: masterRun, error: masterRunError } = await auth.supabase
+          .from('lead_finder_runs')
+          .insert({
+            legacy_dsa_run_id: run.id,
+            user_prompt: 'Backend/manual import',
+            lead_type: leadType,
+            search_intent: `${leadType}_import`,
+            locations: [{ city, state }],
+            keywords: ['backend_import'],
+            requested_count: rows.length,
+            records_found: classified.length,
+            new_records: classified.length,
+            estimated_cost_inr: 0,
+            status: 'complete',
+            created_by: auth.user?.id || null,
+            completed_at: new Date().toISOString(),
+          })
+          .select('id')
+          .single();
+        if (masterRunError) throw masterRunError;
+
+        const { error: masterUpsertError } = await auth.supabase.from('lead_finder_master').upsert(
+          classified.map((prospect) =>
+            prospectToMasterRow(prospect!, masterRun.id, {
+              leadType,
+              searchIntent: `${leadType}_import`,
+              searchPrompt: 'Backend/manual import',
+              searchKeyword: 'backend_import',
+              dataSourceQuality: 'imported_sheet',
+            })
+          ),
+          { onConflict: 'place_id' }
+        );
+        if (masterUpsertError) throw masterUpsertError;
+      }
     }
 
     await auth.supabase

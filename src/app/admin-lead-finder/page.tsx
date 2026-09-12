@@ -76,6 +76,39 @@ type RunHistory = {
   error_message: string | null;
 };
 
+type UniversalPlan = {
+  lead_type: string;
+  search_intent: string;
+  locations: Array<{ city: string; state: string }>;
+  keywords: string[];
+  required_fields: string[];
+  exclude_rules: string[];
+  confidence_rules: string[];
+  score_rules: string[];
+  recommended_count: number;
+  risk_warnings: string[];
+  recommendation: string;
+};
+
+type UniversalForecast = {
+  existing_db_matches: number;
+  fresh_coverage_matches: number;
+  estimated_raw_results_min: number;
+  estimated_raw_results_max: number;
+  estimated_unique_leads_min: number;
+  estimated_unique_leads_max: number;
+  estimated_valid_mobile_min: number;
+  estimated_valid_mobile_max: number;
+  estimated_high_confidence_min: number;
+  estimated_high_confidence_max: number;
+  duplicate_risk: 'low' | 'medium' | 'high';
+  fresh_google_text_search_calls_needed: number;
+  worst_case_place_details_calls: number;
+  approx_cost_inr: number;
+  confidence: 'low' | 'medium' | 'high';
+  recommendation: string;
+};
+
 const defaultKeywords = [
   'Loan DSA',
   'Loan Agent',
@@ -646,6 +679,83 @@ function Header({
 }
 
 function UniversalFinderPreview() {
+  const [prompt, setPrompt] = useState(
+    'Mujhe Indore, Bhopal, Ahmedabad, Surat me loan distribution fintech / DSA partners chahiye. Irrelevant software, payment app, stock broker remove karo.'
+  );
+  const [plan, setPlan] = useState<UniversalPlan | null>(null);
+  const [forecast, setForecast] = useState<UniversalForecast | null>(null);
+  const [planSource, setPlanSource] = useState<'gemini' | 'fallback' | null>(null);
+  const [schemaReady, setSchemaReady] = useState(true);
+  const [count, setCount] = useState('100');
+  const [forceRefresh, setForceRefresh] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  async function generatePlan() {
+    setLoadingPlan(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await authFetch('/api/admin-lead-finder/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false)
+        throw new Error(json.error || 'Unable to generate plan');
+      setPlan(json.plan);
+      setForecast(json.forecast || null);
+      setPlanSource(json.source || 'fallback');
+      setSchemaReady(json.schemaReady !== false);
+      setCount(String(json.plan?.recommended_count || 100));
+      if (json.warning) setMessage(json.warning);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to generate plan');
+    } finally {
+      setLoadingPlan(false);
+    }
+  }
+
+  async function approveAndRun() {
+    if (!plan || running) return;
+    if (
+      forceRefresh &&
+      !window.confirm(
+        'Force Refresh bypasses fresh coverage and can create Google API cost. Continue?'
+      )
+    )
+      return;
+    setRunning(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await authFetch('/api/admin-lead-finder/universal-run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          plan,
+          approvedPlan: plan,
+          planSource,
+          count: Number(count || plan.recommended_count || 100),
+          forceRefresh,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) throw new Error(json.error || 'Universal run failed');
+      setMessage(
+        `Run complete. Records ${formatNumber(json.metrics?.recordsFound || 0)}, Text calls ${formatNumber(json.metrics?.textSearchCalls || 0)}, Details ${formatNumber(json.metrics?.placeDetailsCalls || 0)}, Cost ≈₹${formatNumber(json.metrics?.estimatedCostInr || 0)}.`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Universal run failed');
+    } finally {
+      setRunning(false);
+    }
+  }
+
   return (
     <section className="space-y-5">
       <div className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-emerald-50 p-6 shadow-sm">
@@ -681,54 +791,135 @@ function UniversalFinderPreview() {
               </p>
             </div>
           </div>
+          {(error || message) && (
+            <div
+              className={`mb-4 rounded-xl border px-4 py-3 text-sm font-800 ${
+                error
+                  ? 'border-red-200 bg-red-50 text-red-700'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              }`}
+            >
+              {error || message}
+            </div>
+          )}
           <textarea
-            disabled
-            value={
-              'Mujhe Indore, Bhopal, Ahmedabad, Surat me loan distribution fintech / DSA partners chahiye. Irrelevant software, payment app, stock broker remove karo.'
-            }
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
             className="min-h-[170px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600 outline-none"
           />
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px]">
+            <div>
+              <span className="text-xs font-800 text-slate-500">Approved Count</span>
+              <input
+                value={count}
+                onChange={(event) => setCount(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
+              />
+            </div>
+            <Toggle label="Force Refresh" checked={forceRefresh} onChange={setForceRefresh} />
+          </div>
           <div className="mt-4 flex flex-wrap gap-3">
             <button
               type="button"
-              disabled
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-5 py-3 text-sm font-950 text-slate-500"
+              disabled={loadingPlan || running}
+              onClick={generatePlan}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-950 text-white hover:bg-blue-700 disabled:opacity-60"
             >
-              <Zap size={17} /> Generate AI Plan
+              <Zap size={17} /> {loadingPlan ? 'Generating...' : 'Generate AI Plan'}
             </button>
-            <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-800 text-amber-800">
-              Phase 2 backend: Gemini plan + yield forecast
-            </span>
+            <button
+              type="button"
+              disabled={!plan || !schemaReady || running || loadingPlan}
+              onClick={approveAndRun}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-600 px-5 py-3 text-sm font-950 text-white hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-500"
+            >
+              <Play size={17} /> {running ? 'Running...' : 'Approve & Run'}
+            </button>
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="text-lg font-950 text-slate-950">Approved redesign flow</h3>
-          <div className="mt-4 space-y-3">
-            {[
-              ['1', 'AI plan banega', 'lead type, keywords, city list, exclude rules'],
-              ['2', 'DB coverage check', 'fresh 30-day coverage = zero Google calls'],
-              ['3', 'Yield forecast', 'expected raw, unique, valid mobile, high confidence'],
-              ['4', 'Cost preview', 'INR estimate before paid run'],
-              ['5', 'Approve & Run', 'only then Google Places can spend'],
-            ].map(([step, title, body]) => (
-              <div
-                key={step}
-                className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-950 text-white">
-                  {step}
+          <h3 className="text-lg font-950 text-slate-950">Plan + Cost Preview</h3>
+          {!plan ? (
+            <div className="mt-4 space-y-3">
+              {[
+                ['1', 'AI plan banega', 'lead type, keywords, city list, exclude rules'],
+                ['2', 'DB coverage check', 'fresh 30-day coverage = zero Google calls'],
+                ['3', 'Yield forecast', 'expected raw, unique, valid mobile, high confidence'],
+                ['4', 'Cost preview', 'INR estimate before paid run'],
+                ['5', 'Approve & Run', 'only then Google Places can spend'],
+              ].map(([step, title, body]) => (
+                <div
+                  key={step}
+                  className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-950 text-white">
+                    {step}
+                  </div>
+                  <div>
+                    <p className="font-950 text-slate-900">{title}</p>
+                    <p className="text-sm text-slate-500">{body}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-950 text-slate-900">{title}</p>
-                  <p className="text-sm text-slate-500">{body}</p>
-                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <InfoBox label="Lead Type" value={plan.lead_type} />
+                <InfoBox label="Plan Source" value={planSource || '-'} />
+                <InfoBox
+                  label="Locations"
+                  value={plan.locations.map((item) => `${item.city}, ${item.state}`).join(' · ')}
+                />
+                <InfoBox label="Keywords" value={plan.keywords.join(' · ')} />
               </div>
-            ))}
-          </div>
+              {forecast ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <InfoBox
+                    label="Expected Unique"
+                    value={`${formatNumber(forecast.estimated_unique_leads_min)}-${formatNumber(forecast.estimated_unique_leads_max)}`}
+                  />
+                  <InfoBox
+                    label="Valid Mobile"
+                    value={`${formatNumber(forecast.estimated_valid_mobile_min)}-${formatNumber(forecast.estimated_valid_mobile_max)}`}
+                  />
+                  <InfoBox
+                    label="Google Calls Needed"
+                    value={`Text ${formatNumber(forecast.fresh_google_text_search_calls_needed)} · Details ${formatNumber(forecast.worst_case_place_details_calls)}`}
+                  />
+                  <InfoBox
+                    label="Worst-case Cost"
+                    value={`≈₹${formatNumber(forecast.approx_cost_inr)}`}
+                  />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-800 text-amber-800">
+                  Master DB migration pending hai, isliye approval run locked hai.
+                </div>
+              )}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-900 uppercase tracking-wide text-slate-500">
+                  Recommendation
+                </p>
+                <p className="mt-1 text-sm font-800 text-slate-700">
+                  {forecast?.recommendation || plan.recommendation}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>
+  );
+}
+
+function InfoBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+      <p className="text-xs font-900 uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-900 text-slate-900">{value || '-'}</p>
+    </div>
   );
 }
 
