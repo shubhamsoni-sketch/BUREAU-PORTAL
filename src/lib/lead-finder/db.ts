@@ -81,8 +81,12 @@ export async function fetchAllProspectSummaryRows(
 
   return rows.filter((row) => {
     const keywords = Array.isArray(row.matched_keywords) ? row.matched_keywords : [];
-    const isFintech = keywords.includes('Fintech Lead');
-    return leadType === 'fintech' ? isFintech : !isFintech;
+    const isActiveFintech = keywords.includes('Fintech Lead');
+    const isFintechFamily =
+      isActiveFintech ||
+      keywords.includes('fintech_import') ||
+      keywords.includes('Fintech Excluded - not loan distribution');
+    return leadType === 'fintech' ? isActiveFintech : !isFintechFamily;
   });
 }
 

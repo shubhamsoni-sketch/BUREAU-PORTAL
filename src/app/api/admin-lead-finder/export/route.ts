@@ -21,7 +21,11 @@ export async function GET(request: NextRequest) {
     .order('prospect_score', { ascending: false })
     .limit(5000);
   if (leadType === 'fintech') query = query.contains('matched_keywords', ['Fintech Lead']);
-  else query = query.not('matched_keywords', 'cs', '["Fintech Lead"]');
+  else
+    query = query
+      .not('matched_keywords', 'cs', '["Fintech Lead"]')
+      .not('matched_keywords', 'cs', '["fintech_import"]')
+      .not('matched_keywords', 'cs', '["Fintech Excluded - not loan distribution"]');
   if (salesReadyOnly) query = query.eq('sales_ready', true);
   const { data, error } = await query;
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
