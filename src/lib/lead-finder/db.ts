@@ -4,7 +4,14 @@ import type { ClassifiedProspect } from './types';
 export type LeadFinderTablesReady = { ready: true } | { ready: false; warning: string };
 
 export function isMissingTableError(error: { code?: string; message?: string } | null | undefined) {
-  return error?.code === '42P01' || Boolean(error?.message?.includes('does not exist'));
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    error?.code === '42P01' ||
+    error?.code === 'PGRST205' ||
+    message.includes('does not exist') ||
+    message.includes('could not find the table') ||
+    message.includes('schema cache')
+  );
 }
 
 export async function checkLeadFinderTables(
