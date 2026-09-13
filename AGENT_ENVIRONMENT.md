@@ -11,7 +11,7 @@ Use this file first before doing any BUREAU-PORTAL work. It exists to avoid depl
 
 ## Correct Vercel production target
 
-Do not deploy this app to `creditanalytics-universal` or `creditanalytics-universal-xi`. That is the wrong project for this portal.
+Deploy this app only to the target below.
 
 - Vercel team/scope: `shubhamsoni-8129s-projects`
 - Vercel project name: `bureau-portal`
@@ -143,11 +143,3 @@ After deploy, verify:
 ## Known authentication note
 
 Directly opening `/admin-lead-finder` may redirect to `/admin` if the browser session is not authenticated on `credittrust.in`. That does not by itself mean deployment failed. Verify with an authenticated admin session or by checking the served bundle.
-
-## Do-not-use targets
-
-These were used earlier by mistake and should not be used for BUREAU-PORTAL production:
-
-- `creditanalytics-universal`
-- `creditanalytics-universal-xi.vercel.app`
-- `ketavpipaliya-7793s-projects` for this portal deployment
