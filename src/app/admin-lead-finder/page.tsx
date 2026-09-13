@@ -323,6 +323,14 @@ export default function AdminLeadFinderPage() {
   }, []);
 
   useEffect(() => {
+    const retry = window.setTimeout(() => {
+      loadResults('sales_ready', 'all', '');
+    }, 6500);
+    return () => window.clearTimeout(retry);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (tab === 'library') {
       loadResults(view);
     }
