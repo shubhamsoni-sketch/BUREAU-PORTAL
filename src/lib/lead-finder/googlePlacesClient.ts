@@ -8,7 +8,7 @@ function apiKey() {
     process.env.GOOGLE_MAPS_API_KEY ||
     process.env.GOOGLE_PLACES_API_KEY ||
     process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  if (!key) throw new Error('Google Places API key is missing on the server');
+  if (!key) throw new Error('Data provider key is missing on the server');
   return key;
 }
 
@@ -25,7 +25,7 @@ export async function searchPlaceIds(query: string, maxResultCount = 20) {
       maxResultCount: Math.max(1, Math.min(20, maxResultCount)),
     }),
   });
-  if (!response.ok) throw new Error(`Google Text Search failed: ${response.status}`);
+  if (!response.ok) throw new Error(`Data search failed: ${response.status}`);
   const json = await response.json();
   return (json.places || []).map((place: { id?: string }) => place.id).filter(Boolean) as string[];
 }
@@ -57,7 +57,7 @@ export async function fetchPlaceDetails(
       'X-Goog-FieldMask': fieldMask,
     },
   });
-  if (!response.ok) throw new Error(`Google Place Details failed: ${response.status}`);
+  if (!response.ok) throw new Error(`Data detail fetch failed: ${response.status}`);
   const place = await response.json();
   return {
     place_id: place.id || placeId,

@@ -341,7 +341,9 @@ export default function AdminLeadFinderPage() {
     if (runningSearch || reclassifying) return;
     if (
       forceRefresh &&
-      !window.confirm('Force Refresh bypasses cache and can create new Google API cost. Continue?')
+      !window.confirm(
+        'Force Refresh bypasses cache and can create new data-provider cost. Continue?'
+      )
     )
       return;
     setRunningSearch(true);
@@ -394,7 +396,7 @@ export default function AdminLeadFinderPage() {
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(json.error || 'Reclassify failed');
       if (json.summary) setSummary(json.summary);
-      setNotice(json.message || 'Reclassified with zero Google API calls');
+      setNotice(json.message || 'Reclassified with zero external API calls');
       await loadResults('sales_ready');
       setView('sales_ready');
     } catch (err) {
@@ -446,7 +448,11 @@ export default function AdminLeadFinderPage() {
     { label: 'Missing Phone', value: summary.missingPhone, icon: AlertTriangle },
     { label: 'Irrelevant', value: summary.irrelevant || 0, icon: AlertTriangle },
     { label: 'Needs Review', value: summary.needsReview || 0, icon: Eye },
-    { label: 'Google Calls Saved', value: summary.duplicateDetailsCallsAvoided, icon: ShieldCheck },
+    {
+      label: 'External Calls Saved',
+      value: summary.duplicateDetailsCallsAvoided,
+      icon: ShieldCheck,
+    },
     { label: 'Approx API Cost', value: formatApiCost(summary), icon: WalletCards },
   ];
   const latestRun = runs.find((run) =>
@@ -549,7 +555,7 @@ export default function AdminLeadFinderPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs font-800 text-slate-500">Google calls</p>
+                      <p className="text-xs font-800 text-slate-500">External calls</p>
                       <p className="font-950 text-slate-950">
                         Text {formatNumber(latestRun.actual_text_search_calls)} · Details{' '}
                         {formatNumber(latestRun.actual_place_details_calls)}
@@ -832,7 +838,7 @@ function Header({
           <Clock3 size={14} /> 30-day cache
         </span>
         <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-2 font-800 text-blue-700">
-          <ShieldCheck size={14} /> Server key
+          <ShieldCheck size={14} /> Secure backend
         </span>
       </div>
     </div>
@@ -907,7 +913,7 @@ function AIFinderDrawer({
     if (
       forceRefresh &&
       !window.confirm(
-        'Force Refresh bypasses fresh coverage and can create Google API cost. Continue?'
+        'Force Refresh bypasses fresh coverage and can create new data-provider cost. Continue?'
       )
     )
       return;
@@ -988,7 +994,7 @@ function AIFinderDrawer({
                     </h3>
                     <p className="mt-1 max-w-3xl text-sm font-700 leading-6 text-amber-800">
                       The master lead database migration is still pending. You can prepare and
-                      review a search, but paid Google Places runs are disabled until the database
+                      review a search, but paid external data runs are disabled until the database
                       is active.
                     </p>
                   </div>
@@ -1060,7 +1066,7 @@ function AIFinderDrawer({
               </div>
               {forceRefresh && (
                 <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-800 text-amber-800">
-                  Force refresh ignores cache and can create Google API cost.
+                  Force refresh ignores cache and can create data-provider cost.
                 </div>
               )}
             </div>
@@ -1104,7 +1110,7 @@ function AIFinderDrawer({
                         tone="green"
                       />
                       <MetricBox
-                        label="Google calls"
+                        label="External calls"
                         value={`Text ${formatNumber(forecast.fresh_google_text_search_calls_needed)} · Details ${formatNumber(forecast.worst_case_place_details_calls)}`}
                         tone="slate"
                       />
@@ -1276,7 +1282,7 @@ function PreparingPlanCard() {
         <h4 className="text-lg font-950 text-slate-950">Preparing your AI search plan</h4>
         <p className="mt-2 max-w-sm text-sm font-800 leading-6 text-slate-600">
           AI is turning your brief into cities, keywords, duplicate checks and an estimated run
-          cost. No Google Places charge yet.
+          cost. No external data charge yet.
         </p>
         <div className="mt-5 grid w-full gap-2 sm:grid-cols-2">
           {steps.map((step, index) => (
@@ -1379,7 +1385,7 @@ function RunningPlanCard({
         </div>
 
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-800 leading-6 text-amber-800">
-          Paid Google Places calls may be running now. Please wait for completion instead of
+          Paid external data calls may be running now. Please wait for completion instead of
           pressing Run again.
         </div>
       </div>
@@ -1954,7 +1960,7 @@ function RunHistoryTable({
               'Requested',
               'Raw',
               'Unique',
-              'Google Calls',
+              'External Calls',
               'API Cost (approx)',
               'Cache Saved',
               'Status',

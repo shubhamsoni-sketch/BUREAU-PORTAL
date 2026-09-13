@@ -125,7 +125,7 @@ function csvResponse(data: any[], leadType: string, salesReadyOnly: boolean, mas
     'email',
     'email_status',
     'email_source',
-    'google_maps_url',
+    'map_url',
     'rating',
     'review_count',
     'matched_keywords',

@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
           {
             success: false,
             error:
-              'Daily Lead Finder Google API budget is already used. Cached results are still available.',
+              'Daily Lead Finder data-provider budget is already used. Cached results are still available.',
           },
           { status: 429 }
         );
@@ -372,7 +372,7 @@ export async function POST(request: NextRequest) {
           place_details_calls: placeDetailsCalls,
           status: runStatus,
           error_message: budgetStoppedBeforeDetails
-            ? 'Stopped by Lead Finder Google API budget guardrail'
+            ? 'Stopped by Lead Finder data-provider budget guardrail'
             : null,
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -384,7 +384,7 @@ export async function POST(request: NextRequest) {
           {
             success: false,
             error:
-              'Lead Finder Google API budget guardrail stopped this run before new paid Place Details calls.',
+              'Lead Finder data-provider budget guardrail stopped this run before new paid detail calls.',
           },
           { status: 429 }
         );
@@ -431,7 +431,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error:
-            'Daily Lead Finder Google API budget is already used. Cached results are still available.',
+            'Daily Lead Finder data-provider budget is already used. Cached results are still available.',
         },
         { status: 429 }
       );
@@ -529,7 +529,7 @@ export async function POST(request: NextRequest) {
               coverage_hits: coverageHits,
               coverage_misses: coverageMisses,
               status: 'stopped_by_budget',
-              error_message: 'Stopped by Lead Finder Google API budget guardrail',
+              error_message: 'Stopped by Lead Finder data-provider budget guardrail',
               completed_at: new Date().toISOString(),
             })
             .eq('id', runId);
@@ -537,7 +537,7 @@ export async function POST(request: NextRequest) {
             {
               success: false,
               error:
-                'Lead Finder Google API budget guardrail stopped this run before new paid Place Details calls.',
+                'Lead Finder data-provider budget guardrail stopped this run before new paid detail calls.',
               budget: {
                 runBudgetUsd,
                 dailyBudgetUsd,
@@ -603,7 +603,7 @@ export async function POST(request: NextRequest) {
             ? 'stopped_by_budget'
             : 'complete',
         error_message: budgetStoppedBeforeDetails
-          ? 'Stopped by Lead Finder Google API budget guardrail'
+          ? 'Stopped by Lead Finder data-provider budget guardrail'
           : null,
         completed_at: new Date().toISOString(),
       })
@@ -625,7 +625,7 @@ export async function POST(request: NextRequest) {
               ? 'stopped_by_budget'
               : 'complete',
           error_message: budgetStoppedBeforeDetails
-            ? 'Stopped by Lead Finder Google API budget guardrail'
+            ? 'Stopped by Lead Finder data-provider budget guardrail'
             : null,
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),

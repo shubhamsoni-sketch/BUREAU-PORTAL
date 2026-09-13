@@ -2,8 +2,8 @@ export const pricingConfig = {
   version: '2026-09-v1',
   currency: 'USD',
   skus: {
-    textSearchIdsOnly: { sku: 'Places API Text Search IDs Only', perThousand: 0 },
-    placeDetailsEnterprise: { sku: 'Places API Place Details Enterprise', perThousand: 6 },
+    textSearchIdsOnly: { sku: 'External Search IDs Only', perThousand: 0 },
+    placeDetailsEnterprise: { sku: 'External Detail Fetch', perThousand: 6 },
   },
 };
 

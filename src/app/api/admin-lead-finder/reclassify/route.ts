@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       const allRows = await fetchAllMasterSummaryRows(auth.supabase, 'all');
       return NextResponse.json({
         success: true,
-        message: `Reclassified ${updates.length} DSA prospects with zero Google API calls. Fintech/imported datasets were preserved.`,
+        message: `Reclassified ${updates.length} DSA prospects with zero external API calls. Fintech/imported datasets were preserved.`,
         googleCalls: { textSearch: 0, placeDetails: 0 },
         summary: summarizeMasterProspects(allRows || [], {
           text_search_calls: 0,
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     const allRows = await fetchAllProspectSummaryRows(auth.supabase);
     return NextResponse.json({
       success: true,
-      message: `Reclassified ${updates.length} prospects with zero Google API calls`,
+      message: `Reclassified ${updates.length} prospects with zero external API calls`,
       googleCalls: { textSearch: 0, placeDetails: 0 },
       summary: summarizeProspects(allRows || [], {
         actual_text_search_calls: 0,

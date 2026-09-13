@@ -186,7 +186,7 @@ export function fallbackUniversalPlan(prompt: string): UniversalLeadPlan {
     ],
     recommended_count: parseCount(prompt),
     risk_warnings: [
-      'Google Places may return broad/adjacent businesses; review exclusions before run.',
+      'External data may return broad/adjacent businesses; review exclusions before run.',
     ],
     recommendation:
       'Start with a small run, review quality, then expand city-by-city to control cost.',
@@ -230,7 +230,7 @@ Schema:
   "lead_type": "lower_snake_case max 60 chars",
   "search_intent": "short lower_snake_case",
   "locations": [{"city":"City","state":"State"}],
-  "keywords": ["Google Places search keyword"],
+  "keywords": ["External data search keyword"],
   "required_fields": ["name","phone","website","maps_link","city","rating"],
   "exclude_rules": ["..."],
   "confidence_rules": ["..."],

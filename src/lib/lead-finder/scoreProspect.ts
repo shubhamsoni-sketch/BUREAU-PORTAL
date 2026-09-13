@@ -27,7 +27,7 @@ export function scoreProspect(input: {
   else if (input.is_valid_phone && input.phone_type === 'fixed_line')
     add('Valid fixed-line number', 8);
   if (input.website) add('Independent website available', 10);
-  if (Number(input.rating || 0) >= 4) add('Google rating >= 4', 5);
+  if (Number(input.rating || 0) >= 4) add('Public rating >= 4', 5);
   if (Number(input.review_count || 0) >= 5) add('Review count >= 5', 5);
   if ((input.matched_keywords || []).length > 1)
     add('Multiple relevant searched keywords matched', 10);
