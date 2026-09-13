@@ -198,7 +198,9 @@ export async function POST(request: NextRequest) {
         keywords: plan.keywords,
         requested_count: requestedCount,
         budget_cap_inr: runBudgetInr,
-        gemini_calls: Number(payload.planSource === 'ai' || payload.planSource === 'gemini' ? 1 : 0),
+        gemini_calls: Number(
+          payload.planSource === 'ai' || payload.planSource === 'gemini' ? 1 : 0
+        ),
         status: 'running',
         created_by: auth.user?.id || null,
       })
@@ -304,6 +306,37 @@ export async function POST(request: NextRequest) {
         { onConflict: 'place_id' }
       );
       if (upsertError) throw upsertError;
+    }
+
+    const { data: runMasterRows, error: runMasterError } = placeIds.length
+      ? await auth.supabase
+          .from('lead_finder_master')
+          .select('id,place_id')
+          .in('place_id', placeIds)
+      : { data: [], error: null };
+    if (runMasterError) throw runMasterError;
+    const masterIdByPlaceId = new Map(
+      (runMasterRows || []).map((row: any) => [row.place_id, row.id])
+    );
+
+    if (placeIds.length) {
+      const runResultRows = placeIds.map((placeId) => {
+        const meta = placeMeta.get(placeId);
+        const existed = existingById.has(placeId);
+        return {
+          run_id: activeRunId,
+          master_id: masterIdByPlaceId.get(placeId) || null,
+          place_id: placeId,
+          result_type: existed ? 'reused' : 'new',
+          city: meta?.city || null,
+          state: meta?.state || null,
+          keyword: Array.from(meta?.keywords || [])[0] || null,
+        };
+      });
+      const { error: runResultsError } = await auth.supabase
+        .from('lead_finder_run_results')
+        .upsert(runResultRows, { onConflict: 'run_id,place_id' });
+      if (runResultsError) throw runResultsError;
     }
 
     const reusedRecords = placeIds.filter((placeId) => existingById.has(placeId)).length;

@@ -40,10 +40,25 @@ type Summary = {
   duplicateDetailsCallsAvoided: number;
   estimatedCostUsd: number;
   estimatedCostInr?: number;
+  enterpriseDsa?: number;
+  bankNbfcLender?: number;
+  irrelevant?: number;
+  needsReview?: number;
 };
 
 type Prospect = {
   id: string;
+  place_id?: string;
+  lead_type?: string;
+  search_prompt?: string | null;
+  search_keyword?: string | null;
+  source_run_id?: string | null;
+  created_at?: string | null;
+  run_result_type?: string | null;
+  run_city?: string | null;
+  run_state?: string | null;
+  run_keyword?: string | null;
+  run_added_at?: string | null;
   business_name: string | null;
   raw_phone: string | null;
   website: string | null;
@@ -188,6 +203,28 @@ function prospectEmail(prospect: Prospect) {
     ?.replace('Email: ', '');
 }
 
+function compactWhy(prospect: Prospect) {
+  const reasons = (prospect.score_reasons || [])
+    .map((reason) => String(reason?.label || '').trim())
+    .filter((label) => label && !label.startsWith('Email:') && !label.startsWith('Email source:'));
+  if (reasons.length) return reasons.slice(0, 2).join(' • ');
+  const parts = [];
+  if (prospect.phone_type === 'mobile') parts.push('Valid mobile');
+  if (prospect.sales_priority === 'A') parts.push('Priority A');
+  if ((prospect.matched_keywords || []).length) parts.push('Keyword match');
+  return parts.slice(0, 2).join(' • ') || '-';
+}
+
+function shortSearchSource(prospect: Prospect) {
+  return (
+    prospect.run_keyword ||
+    prospect.search_keyword ||
+    (prospect.matched_keywords || [])[0] ||
+    prospect.search_prompt ||
+    '-'
+  );
+}
+
 export default function AdminLeadFinderPage() {
   const [tab, setTab] = useState<'dsa' | 'fintech' | 'universal' | 'library' | 'settings'>('dsa');
   const [city, setCity] = useState('Indore');
@@ -197,6 +234,8 @@ export default function AdminLeadFinderPage() {
   const [forceRefresh, setForceRefresh] = useState(false);
   const [refreshExisting, setRefreshExisting] = useState(false);
   const [view, setView] = useState<(typeof views)[number][0]>('sales_ready');
+  const [dataScope, setDataScope] = useState<'all' | 'this_run' | 'new' | 'reused'>('all');
+  const [activeRunId, setActiveRunId] = useState<string>('');
   const [summary, setSummary] = useState<Summary>(emptySummary);
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [runs, setRuns] = useState<RunHistory[]>([]);
@@ -219,13 +258,22 @@ export default function AdminLeadFinderPage() {
     [keywordsText]
   );
 
-  async function loadResults(nextView = view) {
+  async function loadResults(nextView = view, nextScope = dataScope, nextRunId = activeRunId) {
     setLoading(true);
     setError('');
     try {
       const leadType = tab === 'library' ? 'all' : tab === 'fintech' ? 'fintech' : 'dsa';
+      const scopeParam =
+        nextScope === 'this_run'
+          ? 'this_run'
+          : nextScope === 'new'
+            ? 'new'
+            : nextScope === 'reused'
+              ? 'reused'
+              : 'all';
+      const runParam = nextRunId ? `&runId=${encodeURIComponent(nextRunId)}` : '';
       const res = await authFetch(
-        `/api/admin-lead-finder/results?view=${nextView}&leadType=${leadType}`,
+        `/api/admin-lead-finder/results?view=${nextView}&leadType=${leadType}&scope=${scopeParam}${runParam}`,
         {
           cache: 'no-store',
         }
@@ -235,6 +283,7 @@ export default function AdminLeadFinderPage() {
         throw new Error(json.error || 'Unable to load Lead Finder');
       setSummary(json.summary || emptySummary);
       setProspects(json.prospects || []);
+      if (json.runId && !nextRunId) setActiveRunId(json.runId);
       setLastDataRefreshAt(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load Lead Finder');
@@ -342,29 +391,36 @@ export default function AdminLeadFinderPage() {
     await loadResults(nextView);
   }
 
-  const kpis = [
-    {
-      label: tab === 'fintech' ? 'Total Fintech' : 'Total DSA',
-      value: summary.rawResults,
-      icon: Database,
-    },
+  async function changeScope(nextScope: typeof dataScope) {
+    setDataScope(nextScope);
+    await loadResults(view, nextScope, activeRunId);
+  }
+
+  const primaryKpis = [
+    { label: 'Total Data', value: summary.rawResults, icon: Database },
+    { label: 'Valid Mobile', value: summary.validMobile, icon: Phone },
+    { label: 'Emails Found', value: summary.emailsFound, icon: CheckCircle2 },
     { label: 'Unique Businesses', value: summary.uniqueBusinesses, icon: BarChart3 },
+  ];
+  const analyticsKpis = [
     { label: 'Sales Ready', value: summary.salesReady, icon: Target },
     { label: 'Priority A', value: summary.priorityA, icon: Zap },
     { label: 'Priority B', value: summary.priorityB, icon: Zap },
     {
-      label: tab === 'fintech' ? 'Emails Found' : 'Valid Mobile',
-      value: tab === 'fintech' ? summary.emailsFound : summary.validMobile,
-      icon: tab === 'fintech' ? CheckCircle2 : Phone,
+      label: 'Enterprise DSA',
+      value: summary.enterpriseDsa || 0,
+      icon: Database,
     },
     {
-      label: tab === 'fintech' ? 'Valid Mobile' : 'Google Calls Saved',
-      value: tab === 'fintech' ? summary.validMobile : summary.duplicateDetailsCallsAvoided,
-      icon: ShieldCheck,
+      label: 'Bank/NBFC/Lender',
+      value: summary.bankNbfcLender || 0,
+      icon: WalletCards,
     },
     { label: 'Fixed Line', value: summary.fixedLine, icon: Phone },
     { label: 'Missing Phone', value: summary.missingPhone, icon: AlertTriangle },
-    { label: 'Emails Found', value: summary.emailsFound, icon: CheckCircle2 },
+    { label: 'Irrelevant', value: summary.irrelevant || 0, icon: AlertTriangle },
+    { label: 'Needs Review', value: summary.needsReview || 0, icon: Eye },
+    { label: 'Google Calls Saved', value: summary.duplicateDetailsCallsAvoided, icon: ShieldCheck },
     { label: 'Approx API Cost', value: formatApiCost(summary), icon: WalletCards },
   ];
   const latestRun = runs.find((run) => {
@@ -389,8 +445,8 @@ export default function AdminLeadFinderPage() {
 
         {tab === 'dsa' || tab === 'fintech' || tab === 'library' ? (
           <section className="space-y-5">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-              {kpis.map((item) => {
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {primaryKpis.map((item) => {
                 const Icon = item.icon;
                 return (
                   <div
@@ -412,6 +468,32 @@ export default function AdminLeadFinderPage() {
                 );
               })}
             </div>
+
+            <CollapsibleSection title="Detailed analytics">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                {analyticsKpis.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div
+                      key={item.label}
+                      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-600">
+                          <Icon size={22} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-800 text-slate-500">{item.label}</p>
+                          <p className="mt-1 text-2xl font-950 text-slate-950">
+                            {typeof item.value === 'number' ? formatNumber(item.value) : item.value}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CollapsibleSection>
 
             <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 shadow-sm">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -506,16 +588,48 @@ export default function AdminLeadFinderPage() {
                 </div>
               </div>
               <div className="border-b border-slate-200 px-4 py-3">
-                <div className="flex flex-wrap gap-2">
-                  {views.map(([key, label]) => (
-                    <button
-                      key={key}
-                      onClick={() => changeView(key)}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-900 ${view === key ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                <div className="space-y-3">
+                  <div>
+                    <p className="mb-2 text-xs font-950 uppercase tracking-wide text-slate-500">
+                      Data scope
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        ['this_run', 'This Run'],
+                        ['new', 'New in Run'],
+                        ['reused', 'Reused Existing'],
+                        ['all', 'All Master Data'],
+                      ].map(([key, label]) => (
+                        <button
+                          key={key}
+                          onClick={() => changeScope(key as typeof dataScope)}
+                          className={`rounded-lg px-3 py-1.5 text-xs font-900 ${
+                            dataScope === key
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-2 text-xs font-950 uppercase tracking-wide text-slate-500">
+                      Quality view
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {views.map(([key, label]) => (
+                        <button
+                          key={key}
+                          onClick={() => changeView(key)}
+                          className={`rounded-lg px-3 py-1.5 text-xs font-900 ${view === key ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
               <LeadTable
@@ -630,11 +744,13 @@ export default function AdminLeadFinderPage() {
         <AIFinderDrawer
           open={aiDrawerOpen}
           onClose={() => setAiDrawerOpen(false)}
-          onRunComplete={async () => {
+          onRunComplete={async (runId) => {
             setTab('library');
             setView('sales_ready');
-            await loadResults('sales_ready');
+            setDataScope('this_run');
+            if (runId) setActiveRunId(runId);
             await loadRuns();
+            await loadResults('sales_ready', 'this_run', runId || activeRunId);
           }}
         />
       </div>
@@ -705,7 +821,7 @@ function AIFinderDrawer({
 }: {
   open: boolean;
   onClose: () => void;
-  onRunComplete: () => Promise<void> | void;
+  onRunComplete: (runId?: string) => Promise<void> | void;
 }) {
   const [prompt, setPrompt] = useState(
     'Find loan distribution fintech and DSA partners in Indore, Bhopal, Ahmedabad, and Surat. Exclude software companies, payment apps, and stock brokers.'
@@ -794,7 +910,7 @@ function AIFinderDrawer({
       setMessage(
         `Run complete. Records ${formatNumber(json.metrics?.recordsFound || 0)}, Text ${formatNumber(json.metrics?.textSearchCalls || 0)}, Details ${formatNumber(json.metrics?.placeDetailsCalls || 0)}, Cost ≈₹${formatNumber(json.metrics?.estimatedCostInr || 0)}.`
       );
-      await onRunComplete();
+      await onRunComplete(json.runId);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Universal run failed');
@@ -1116,7 +1232,12 @@ function CollapsibleSection({
 }
 
 function PreparingPlanCard() {
-  const steps = ['Reading brief', 'Finding cities & keywords', 'Checking saved data', 'Estimating cost'];
+  const steps = [
+    'Reading brief',
+    'Finding cities & keywords',
+    'Checking saved data',
+    'Estimating cost',
+  ];
 
   return (
     <div className="relative min-h-[260px] overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-5">
@@ -1308,10 +1429,14 @@ function LeadTable({
   const [segmentFilter, setSegmentFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [phoneFilter, setPhoneFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [runSourceFilter, setRunSourceFilter] = useState('all');
 
   const cities = useMemo(
     () =>
-      Array.from(new Set(prospects.map((item) => item.detected_city).filter(Boolean))).sort() as string[],
+      Array.from(
+        new Set(prospects.map((item) => item.detected_city).filter(Boolean))
+      ).sort() as string[],
     [prospects]
   );
   const segments = useMemo(
@@ -1320,12 +1445,22 @@ function LeadTable({
     [prospects]
   );
   const priorities = useMemo(
-    () =>
-      Array.from(new Set(prospects.map((item) => item.sales_priority).filter(Boolean))).sort(),
+    () => Array.from(new Set(prospects.map((item) => item.sales_priority).filter(Boolean))).sort(),
     [prospects]
   );
   const phoneTypes = useMemo(
     () => Array.from(new Set(prospects.map((item) => item.phone_type).filter(Boolean))).sort(),
+    [prospects]
+  );
+  const runSources = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          prospects
+            .map((item) => item.run_result_type || (item.source_run_id ? 'new' : 'master'))
+            .filter(Boolean)
+        )
+      ).sort(),
     [prospects]
   );
 
@@ -1339,26 +1474,53 @@ function LeadTable({
         prospect.business_segment,
         prospect.sales_priority,
         prospect.detected_city,
+        prospect.search_prompt,
+        prospect.search_keyword,
+        prospect.run_keyword,
+        prospect.run_result_type,
         ...(prospect.matched_keywords || []),
         prospectEmail(prospect),
       ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
+      const addedAt = prospect.run_added_at || prospect.created_at;
+      const addedTime = addedAt ? new Date(addedAt).getTime() : 0;
+      const now = Date.now();
+      const dateOk =
+        dateFilter === 'all' ||
+        (dateFilter === 'today' && addedTime >= now - 24 * 60 * 60 * 1000) ||
+        (dateFilter === '7d' && addedTime >= now - 7 * 24 * 60 * 60 * 1000) ||
+        (dateFilter === '30d' && addedTime >= now - 30 * 24 * 60 * 60 * 1000);
+      const runSource = prospect.run_result_type || (prospect.source_run_id ? 'new' : 'master');
       return (
         (!needle || haystack.includes(needle)) &&
+        dateOk &&
         (cityFilter === 'all' || prospect.detected_city === cityFilter) &&
         (segmentFilter === 'all' || prospect.business_segment === segmentFilter) &&
         (priorityFilter === 'all' || prospect.sales_priority === priorityFilter) &&
-        (phoneFilter === 'all' || prospect.phone_type === phoneFilter)
+        (phoneFilter === 'all' || prospect.phone_type === phoneFilter) &&
+        (runSourceFilter === 'all' || runSource === runSourceFilter)
       );
     });
-  }, [cityFilter, phoneFilter, priorityFilter, prospects, query, segmentFilter]);
+  }, [
+    cityFilter,
+    dateFilter,
+    phoneFilter,
+    priorityFilter,
+    prospects,
+    query,
+    runSourceFilter,
+    segmentFilter,
+  ]);
 
   const heads =
     leadType === 'fintech'
       ? [
           'Business',
+          'Added On',
+          'Search Source',
+          'Run Source',
           'Map',
           'Phone',
           'Email',
@@ -1369,10 +1531,14 @@ function LeadTable({
           'City',
           'Rating',
           'Keywords',
+          'Why Summary',
           'Why',
         ]
       : [
           'Business',
+          'Added On',
+          'Search Source',
+          'Run Source',
           'Map',
           'Phone',
           'Segment',
@@ -1381,6 +1547,7 @@ function LeadTable({
           'City',
           'Rating',
           'Keywords',
+          'Why Summary',
           'Why',
         ];
   return (
@@ -1389,7 +1556,7 @@ function LeadTable({
         <div className="mb-3 flex items-center gap-2 text-xs font-950 uppercase tracking-wide text-slate-500">
           <SlidersHorizontal size={15} /> Table filters
         </div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -1415,6 +1582,22 @@ function LeadTable({
             onChange={setPhoneFilter}
             options={phoneTypes}
           />
+          <TableSelect
+            label="Run Source"
+            value={runSourceFilter}
+            onChange={setRunSourceFilter}
+            options={runSources}
+          />
+          <select
+            value={dateFilter}
+            onChange={(event) => setDateFilter(event.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-800 text-slate-700 outline-none focus:border-blue-400"
+          >
+            <option value="all">All Added On</option>
+            <option value="today">Last 24 hours</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+          </select>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-800 text-slate-500">
           <span>
@@ -1424,7 +1607,9 @@ function LeadTable({
             cityFilter !== 'all' ||
             segmentFilter !== 'all' ||
             priorityFilter !== 'all' ||
-            phoneFilter !== 'all') && (
+            phoneFilter !== 'all' ||
+            runSourceFilter !== 'all' ||
+            dateFilter !== 'all') && (
             <button
               type="button"
               onClick={() => {
@@ -1433,6 +1618,8 @@ function LeadTable({
                 setSegmentFilter('all');
                 setPriorityFilter('all');
                 setPhoneFilter('all');
+                setRunSourceFilter('all');
+                setDateFilter('all');
               }}
               className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-900 text-slate-700 hover:bg-slate-100"
             >
@@ -1442,108 +1629,128 @@ function LeadTable({
         </div>
       </div>
       <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-          <tr>
-            {heads.map((head) => (
-              <th key={head} className="px-4 py-3 text-left font-900">
-                {head}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {loading ? (
+        <table className="min-w-full text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <td colSpan={heads.length} className="px-4 py-10 text-center text-slate-500">
-                Loading...
-              </td>
+              {heads.map((head) => (
+                <th key={head} className="px-4 py-3 text-left font-900">
+                  {head}
+                </th>
+              ))}
             </tr>
-          ) : filteredProspects.length === 0 ? (
-            <tr>
-              <td colSpan={heads.length} className="px-4 py-10 text-center text-slate-500">
-                No records in this view yet.
-              </td>
-            </tr>
-          ) : (
-            filteredProspects.map((prospect) => (
-              <tr key={prospect.id} className="hover:bg-slate-50">
-                <td className="min-w-[260px] px-4 py-3">
-                  <p className="font-900 text-slate-900">{prospect.business_name || '-'}</p>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  {prospect.google_maps_url ? (
-                    <a
-                      href={prospect.google_maps_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-900 text-blue-700 hover:bg-blue-50"
-                    >
-                      Open Map
-                    </a>
-                  ) : (
-                    '-'
-                  )}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3">{prospect.raw_phone || '-'}</td>
-                {leadType === 'fintech' && (
-                  <>
-                    <td className="whitespace-nowrap px-4 py-3">
-                      {prospectEmail(prospect) || '-'}
-                    </td>
-                    <td className="max-w-[220px] truncate px-4 py-3">
-                      {prospect.website ? (
-                        <a
-                          href={prospect.website}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-800 text-blue-700 hover:underline"
-                        >
-                          {prospect.website.replace(/^https?:\/\//, '')}
-                        </a>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
-                  </>
-                )}
-                <td className="px-4 py-3">
-                  <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-900 text-blue-700">
-                    {prospect.business_segment}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-950 text-emerald-700">
-                    {prospect.prospect_score}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`rounded-full px-2 py-1 text-xs font-950 ${priorityClass(prospect.sales_priority)}`}
-                  >
-                    {prospect.sales_priority}
-                  </span>
-                </td>
-                <td className="px-4 py-3">{prospect.detected_city || '-'}</td>
-                <td className="px-4 py-3">
-                  {prospect.rating ? `${prospect.rating} (${prospect.review_count || 0})` : '-'}
-                </td>
-                <td className="max-w-[220px] truncate px-4 py-3">
-                  {(prospect.matched_keywords || []).join(', ')}
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => onWhy(prospect)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-900 text-slate-700 hover:bg-slate-50"
-                  >
-                    <Eye size={13} /> Why
-                  </button>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading ? (
+              <tr>
+                <td colSpan={heads.length} className="px-4 py-10 text-center text-slate-500">
+                  Loading...
                 </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : filteredProspects.length === 0 ? (
+              <tr>
+                <td colSpan={heads.length} className="px-4 py-10 text-center text-slate-500">
+                  No records in this view yet.
+                </td>
+              </tr>
+            ) : (
+              filteredProspects.map((prospect) => (
+                <tr key={prospect.id} className="hover:bg-slate-50">
+                  <td className="min-w-[260px] px-4 py-3">
+                    <p className="font-900 text-slate-900">{prospect.business_name || '-'}</p>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                    {formatDateTime(prospect.run_added_at || prospect.created_at || null)}
+                  </td>
+                  <td
+                    className="max-w-[240px] truncate px-4 py-3"
+                    title={prospect.search_prompt || ''}
+                  >
+                    <p className="font-800 text-slate-800">{shortSearchSource(prospect)}</p>
+                    {prospect.search_prompt && (
+                      <p className="truncate text-xs text-slate-500">{prospect.search_prompt}</p>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-950 text-emerald-700">
+                      {prospect.run_result_type || (prospect.source_run_id ? 'new' : 'master')}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {prospect.google_maps_url ? (
+                      <a
+                        href={prospect.google_maps_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-900 text-blue-700 hover:bg-blue-50"
+                      >
+                        Open Map
+                      </a>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3">{prospect.raw_phone || '-'}</td>
+                  {leadType === 'fintech' && (
+                    <>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        {prospectEmail(prospect) || '-'}
+                      </td>
+                      <td className="max-w-[220px] truncate px-4 py-3">
+                        {prospect.website ? (
+                          <a
+                            href={prospect.website}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-800 text-blue-700 hover:underline"
+                          >
+                            {prospect.website.replace(/^https?:\/\//, '')}
+                          </a>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                    </>
+                  )}
+                  <td className="px-4 py-3">
+                    <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-900 text-blue-700">
+                      {prospect.business_segment}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-950 text-emerald-700">
+                      {prospect.prospect_score}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs font-950 ${priorityClass(prospect.sales_priority)}`}
+                    >
+                      {prospect.sales_priority}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">{prospect.detected_city || '-'}</td>
+                  <td className="px-4 py-3">
+                    {prospect.rating ? `${prospect.rating} (${prospect.review_count || 0})` : '-'}
+                  </td>
+                  <td className="max-w-[220px] truncate px-4 py-3">
+                    {(prospect.matched_keywords || []).join(', ')}
+                  </td>
+                  <td className="max-w-[280px] truncate px-4 py-3" title={compactWhy(prospect)}>
+                    {compactWhy(prospect)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => onWhy(prospect)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-900 text-slate-700 hover:bg-slate-50"
+                    >
+                      <Eye size={13} /> Why
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -235,6 +235,10 @@ export function masterRowToLegacyProspect(row: any) {
   return {
     id: row.id,
     place_id: row.place_id,
+    lead_type: row.lead_type,
+    search_prompt: row.search_prompt,
+    search_keyword: row.search_keyword,
+    source_run_id: row.source_run_id,
     business_name: row.business_name,
     raw_phone: row.phone,
     e164_phone: row.phone,
@@ -258,6 +262,7 @@ export function masterRowToLegacyProspect(row: any) {
     sales_ready: row.status === 'ready',
     sales_priority: salesPriority,
     classification_source: 'master',
+    created_at: row.created_at,
     classified_at: row.updated_at,
     last_seen_at: row.last_seen_at,
     last_fetched_at: row.last_fetched_at,
