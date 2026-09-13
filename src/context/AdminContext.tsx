@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { normalizePartnerProductAccess, type PartnerProductAccess } from '@/lib/partner-access';
 import { authFetch } from '@/lib/supabase/auth-fetch';
@@ -124,6 +125,7 @@ function mapDbStatus(dbStatus: string): PartnerStatus {
 }
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [partnersLoading, setPartnersLoading] = useState(true);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
@@ -171,8 +173,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (pathname === '/admin' || pathname === '/partner-login') {
+      setPartnersLoading(false);
+      return;
+    }
     loadPartners();
-  }, [loadPartners]);
+  }, [loadPartners, pathname]);
 
   const updatePartnerStatus = useCallback((id: string, status: PartnerStatus) => {
     setPartners((prev) => prev.map((p) => p.id === id ? { ...p, status } : p));

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { createClient } from '@/lib/supabase/client';
 import AppLogo from '@/components/ui/AppLogo';
 import { Eye, EyeOff, LogIn, ShieldAlert, Shield } from 'lucide-react';
 
@@ -35,29 +36,39 @@ export default function AdminLoginPage() {
     }
     setSubmitting(true);
     try {
-      // Use the shared AuthContext login — single Supabase client, no competing locks
-      const result = await login(email.trim(), password);
-      if (!result.success) {
-        setError(result.error ?? 'Invalid email or password.');
+      // Server-side login avoids browser auth locks/CORS edge cases and still
+      // verifies the password against Supabase Auth before creating a session.
+      const loginRes = await fetch('/api/admin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const loginData = await loginRes.json().catch(() => null);
+
+      if (!loginRes.ok || !loginData?.success || !loginData?.session) {
+        setError(loginData?.error ?? 'Invalid email or password.');
         setSubmitting(false);
         return;
       }
 
-      // The shared login already resolves the Supabase user and role. Avoid calling
-      // getSession() again here because Supabase browser storage locks can stall in
-      // some Chrome sessions and leave the admin form stuck after submit.
-      if (result.user?.role === 'admin') {
+      const supabase = createClient();
+      await supabase.auth.setSession({
+        access_token: loginData.session.access_token,
+        refresh_token: loginData.session.refresh_token,
+      });
+
+      router.replace('/admin-dashboard');
+      return;
+    } catch {
+      // Last fallback for local/dev environments.
+      const result = await login(email.trim(), password);
+      if (result.success && result.user?.role === 'admin') {
         router.replace('/admin-dashboard');
         return;
       }
-
-      router.replace('/partner-dashboard');
-      setError('This account is a partner account. Opening the partner portal.');
-      setSubmitting(false);
-    } catch {
-      setError('Login failed. Please try again.');
-      setSubmitting(false);
+      setError(result.error ?? 'Login failed. Please try again.');
     }
+    setSubmitting(false);
   };
 
   // Show spinner while AuthContext is initialising
