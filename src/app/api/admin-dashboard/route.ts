@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     const [partnersResult, pullsResult, invoicesResult, paymentsResult, requestsResult] = await Promise.all([
       auth.supabase
         .from('partners')
-        .select('id, partner_code, name, company_name, email, status, wallet_balance, reports_pulled, product_access, created_at')
+        .select('id, partner_code, name, company_name, email, status, wallet_balance, reports_pulled, created_at')
         .order('created_at', { ascending: false }),
       auth.supabase
         .from('bureau_pulls')
@@ -162,7 +162,7 @@ export async function GET(req: NextRequest) {
         code: partner.partner_code,
         email: partner.email,
         status: partner.status,
-        productAccess: partner.product_access || 'bureau_portal',
+        productAccess: 'bureau_portal',
         walletBalance: numberValue(partner.wallet_balance),
         createdAt: partner.created_at,
       })),
