@@ -10,6 +10,7 @@ import {
   updateTrackedWhatsAppMessageStatus,
   upsertWhatsAppLeadFromInbound,
 } from '@/lib/marketing/attribution';
+import { handleWhatsAppAutoReply } from '@/lib/growth-campaigns/ai-agent';
 
 type WhatsAppMessage = {
   from?: string;
@@ -19,10 +20,12 @@ type WhatsAppMessage = {
   text?: { body?: string };
   button?: { text?: string; payload?: string };
   referral?: unknown;
-  interactive?: {
-    button_reply?: { id?: string; title?: string };
-    list_reply?: { id?: string; title?: string; description?: string };
-  } | unknown;
+  interactive?:
+    | {
+        button_reply?: { id?: string; title?: string };
+        list_reply?: { id?: string; title?: string; description?: string };
+      }
+    | unknown;
 };
 
 type WhatsAppStatus = {
@@ -44,10 +47,12 @@ function verifyToken() {
 }
 
 function getErrorText(status: WhatsAppStatus) {
-  return status.errors
-    ?.map((error) => [error.code, error.title || error.message].filter(Boolean).join(': '))
-    .filter(Boolean)
-    .join(' | ') || null;
+  return (
+    status.errors
+      ?.map((error) => [error.code, error.title || error.message].filter(Boolean).join(': '))
+      .filter(Boolean)
+      .join(' | ') || null
+  );
 }
 
 async function insertLog(supabase: SupabaseLike, row: Record<string, unknown>) {
@@ -56,24 +61,30 @@ async function insertLog(supabase: SupabaseLike, row: Record<string, unknown>) {
 }
 
 function incomingText(message: WhatsAppMessage) {
-  const interactive = message.interactive && typeof message.interactive === 'object'
-    ? message.interactive as { button_reply?: { title?: string }; list_reply?: { title?: string } }
-    : null;
-  return message.text?.body
-    || message.button?.text
-    || interactive?.button_reply?.title
-    || interactive?.list_reply?.title
-    || null;
+  const interactive =
+    message.interactive && typeof message.interactive === 'object'
+      ? (message.interactive as {
+          button_reply?: { title?: string };
+          list_reply?: { title?: string };
+        })
+      : null;
+  return (
+    message.text?.body ||
+    message.button?.text ||
+    interactive?.button_reply?.title ||
+    interactive?.list_reply?.title ||
+    null
+  );
 }
 
 function incomingButtonPayload(message: WhatsAppMessage) {
-  const interactive = message.interactive && typeof message.interactive === 'object'
-    ? message.interactive as { button_reply?: { id?: string }; list_reply?: { id?: string } }
-    : null;
-  return message.button?.payload
-    || interactive?.button_reply?.id
-    || interactive?.list_reply?.id
-    || null;
+  const interactive =
+    message.interactive && typeof message.interactive === 'object'
+      ? (message.interactive as { button_reply?: { id?: string }; list_reply?: { id?: string } })
+      : null;
+  return (
+    message.button?.payload || interactive?.button_reply?.id || interactive?.list_reply?.id || null
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -108,7 +119,9 @@ export async function POST(request: NextRequest) {
 
         for (const message of messages) {
           const from = normalizeWhatsAppPhone(message.from);
-          const contact = contacts.find((item: any) => normalizeWhatsAppPhone(item?.wa_id) === from);
+          const contact = contacts.find(
+            (item: any) => normalizeWhatsAppPhone(item?.wa_id) === from
+          );
           await insertLog(supabase, {
             event_type: 'whatsapp_inbound_message',
             recipient_phone: from || 'unknown',
@@ -150,7 +163,27 @@ export async function POST(request: NextRequest) {
             profileName: contact?.profile?.name ?? null,
             message: message as any,
           }).catch((error) => {
-            console.warn('[whatsapp-webhook] marketing attribution failed:', error instanceof Error ? error.message : error);
+            console.warn(
+              '[whatsapp-webhook] marketing attribution failed:',
+              error instanceof Error ? error.message : error
+            );
+          });
+          await handleWhatsAppAutoReply({
+            supabase,
+            phoneNumber: from,
+            messageText: incomingText(message),
+            providerMessageId: message.id ?? null,
+            contactName: contact?.profile?.name ?? null,
+            metadata: {
+              source: 'whatsapp_webhook',
+              message_type: message.type ?? null,
+              button_payload: incomingButtonPayload(message),
+            },
+          }).catch((error) => {
+            console.warn(
+              '[whatsapp-webhook] auto reply failed:',
+              error instanceof Error ? error.message : error
+            );
           });
           logged += 1;
         }
@@ -193,7 +226,10 @@ export async function POST(request: NextRequest) {
             failureReason,
             rawStatus: status,
           }).catch((error) => {
-            console.warn('[whatsapp-webhook] tracked status update failed:', error instanceof Error ? error.message : error);
+            console.warn(
+              '[whatsapp-webhook] tracked status update failed:',
+              error instanceof Error ? error.message : error
+            );
           });
           logged += 1;
         }

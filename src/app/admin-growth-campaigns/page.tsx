@@ -4,91 +4,70 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { authFetch } from '@/lib/supabase/auth-fetch';
 import {
-  BarChart3,
   Bot,
-  CheckCircle2,
-  ChevronRight,
-  Filter,
+  Database,
+  Mail,
   MessageCircle,
-  MousePointerClick,
+  PauseCircle,
+  PlayCircle,
   RefreshCw,
   Send,
-  Settings,
   ShieldCheck,
   Sparkles,
   Target,
-  Users,
 } from 'lucide-react';
 
-type PromotionLead = {
-  id: string;
-  name?: string | null;
-  mobile: string;
-  email?: string | null;
-  city?: string | null;
-  business_name?: string | null;
-  source?: string | null;
-  status?: string | null;
-  opt_in?: boolean | null;
-  created_at?: string | null;
+type SettingsRow = {
+  ai_auto_reply_enabled: boolean;
+  whatsapp_enabled: boolean;
+  email_enabled: boolean;
+  product_context: string;
+  reply_tone: string;
+  knowledge_base: string;
+  max_auto_replies_per_thread: number;
 };
 
-type PromotionCampaign = {
+type Conversation = {
+  id: string;
+  channel: 'whatsapp' | 'email';
+  contact_key: string;
+  contact_name?: string | null;
+  phone_number?: string | null;
+  email?: string | null;
+  status: string;
+  intent: string;
+  priority: string;
+  ai_enabled: boolean;
+  auto_reply_count: number;
+  last_message_at?: string | null;
+};
+
+type Message = {
+  id: string;
+  conversation_id: string;
+  direction: 'inbound' | 'outbound';
+  message_text?: string | null;
+  status: string;
+  ai_generated: boolean;
+  created_at: string;
+};
+
+type Campaign = {
   id: string;
   name: string;
   template_name: string;
-  language_code?: string | null;
   status: string;
   sent_count?: number | null;
   failed_count?: number | null;
-  created_at?: string | null;
 };
 
-type Recipient = {
-  id: string;
-  status: string;
-  message_id?: string | null;
-  error?: string | null;
-  created_at?: string | null;
-  promotion_leads?: {
-    name?: string | null;
-    mobile?: string | null;
-    business_name?: string | null;
-    city?: string | null;
-  } | null;
-};
-
-type InboxMessage = {
-  id: string;
-  event_type: string;
-  recipient_phone: string;
-  status?: string | null;
-  created_at: string;
-  metadata?: {
-    text?: string;
-    message_type?: string;
-    campaign_id?: string;
-  } | null;
-};
-
-type AnalyticsSummary = {
-  sent_count: number;
-  delivered_count: number;
-  read_count: number;
-  failed_count: number;
-  click_count: number;
-  reply_count: number;
-  delivered_rate: number;
-  read_rate: number;
-  reply_rate: number;
-};
-
-type LeadFinderSummary = {
-  total?: number;
-  total_records?: number;
-  sales_ready?: number;
-  valid_mobile?: number;
-  unique_businesses?: number;
+type Summary = {
+  totalLeads: number;
+  campaigns: number;
+  conversations: number;
+  callbackRequired: number;
+  doNotContact: number;
+  aiReplies: number;
 };
 
 type AiPlan = {
@@ -97,25 +76,35 @@ type AiPlan = {
   template_goal: string;
   message_preview: string;
   variables: string[];
-  followups: string[];
-  guardrails: string[];
 };
 
-const tabs = ['Dashboard', 'Audiences', 'Campaigns', 'Inbox', 'Analytics', 'Settings'] as const;
+const tabs = [
+  'Overview',
+  'Build Campaign',
+  'AI Conversations',
+  'Knowledge Base',
+  'Settings',
+] as const;
 type Tab = (typeof tabs)[number];
 
+const defaultKnowledge = `CreditTrust/RUPIQA product context:
+- Product: DSA portal for CIBIL/bureau report pulls.
+- Target users: DSA partners, loan agents, finance consultants, loan channel partners.
+- Main value: partner onboarding, wallet/recharge, bureau pull, report history, customer master, API access and admin controls.
+- Qualify every interested lead with: business name, city, monthly report pull volume, products handled and callback preference.
+- Never promise loan approval, guaranteed CIBIL score improvement or guaranteed credit changes.
+- If asked pricing: commercials depend on volume and onboarding; ask expected monthly usage.
+- If asked documents: ask business name, GST/PAN if applicable, contact person, mobile and city.
+- If not interested or asks to stop: acknowledge and mark do-not-contact.`;
+
 const defaultGoal =
-  'Create a DSA partner onboarding campaign for sales-ready loan agents with valid mobile numbers.';
+  'Create a DSA partner onboarding campaign for loan agents who need a portal for CIBIL report pulls.';
 
-function number(value: unknown) {
-  return Number(value || 0);
+function fmt(value: unknown) {
+  return new Intl.NumberFormat('en-IN').format(Number(value || 0));
 }
 
-function formatNumber(value: unknown) {
-  return new Intl.NumberFormat('en-IN').format(number(value));
-}
-
-function formatDate(value?: string | null) {
+function dt(value?: string | null) {
   if (!value) return '-';
   return new Date(value).toLocaleString('en-IN', {
     day: '2-digit',
@@ -125,211 +114,189 @@ function formatDate(value?: string | null) {
   });
 }
 
-function statusTone(status?: string | null) {
-  const value = String(status || '').toLowerCase();
-  if (['sent', 'delivered', 'read', 'complete', 'completed'].includes(value)) {
-    return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+function tone(status: string) {
+  if (
+    ['qualified', 'callback_required', 'sent', 'read', 'delivered', 'active', 'high'].includes(
+      status
+    )
+  ) {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
   }
-  if (value.includes('fail') || value.includes('error'))
-    return 'bg-red-50 text-red-700 border-red-200';
-  if (value.includes('draft') || value.includes('pending'))
-    return 'bg-amber-50 text-amber-700 border-amber-200';
-  return 'bg-slate-50 text-slate-700 border-slate-200';
+  if (['do_not_contact', 'not_interested', 'failed', 'urgent'].includes(status)) {
+    return 'border-red-200 bg-red-50 text-red-700';
+  }
+  if (['open', 'draft', 'sending', 'normal'].includes(status))
+    return 'border-blue-200 bg-blue-50 text-blue-700';
+  return 'border-slate-200 bg-slate-50 text-slate-700';
 }
 
-function parseCsv(text: string) {
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map((header) => header.trim().toLowerCase());
-  return lines.slice(1).map((line) => {
-    const cells = line.split(',').map((cell) => cell.trim());
-    return headers.reduce<Record<string, string>>((row, header, index) => {
-      row[header] = cells[index] || '';
-      return row;
-    }, {});
-  });
+function Status({ value }: { value: string }) {
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black capitalize ${tone(value)}`}
+    >
+      {value.replace(/_/g, ' ')}
+    </span>
+  );
+}
+
+function Card({
+  label,
+  value,
+  Icon,
+}: {
+  label: string;
+  value: React.ReactNode;
+  Icon: React.ComponentType<{ size?: number; className?: string }>;
+}) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+        <Icon size={22} />
+      </div>
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
+      <p className="mt-2 text-3xl font-black text-slate-950">{value}</p>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-blue-400"
+      />
+    </label>
+  );
 }
 
 export default function AdminGrowthCampaignsPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('Dashboard');
+  const [tab, setTab] = useState<Tab>('Overview');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
-  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
-  const [leads, setLeads] = useState<PromotionLead[]>([]);
-  const [campaigns, setCampaigns] = useState<PromotionCampaign[]>([]);
-  const [recipients, setRecipients] = useState<Recipient[]>([]);
-  const [inbox, setInbox] = useState<InboxMessage[]>([]);
-  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
-  const [leadFinder, setLeadFinder] = useState<LeadFinderSummary | null>(null);
-  const [activePhone, setActivePhone] = useState('');
-  const [replyText, setReplyText] = useState('');
-  const [audienceFilter, setAudienceFilter] = useState('valid_mobile');
+  const [schemaReady, setSchemaReady] = useState(true);
+  const [settings, setSettings] = useState<SettingsRow>({
+    ai_auto_reply_enabled: true,
+    whatsapp_enabled: true,
+    email_enabled: false,
+    product_context: 'DSA Portal and CIBIL Pull',
+    reply_tone: 'clear_professional',
+    knowledge_base: defaultKnowledge,
+    max_auto_replies_per_thread: 20,
+  });
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState('');
+  const [goal, setGoal] = useState(defaultGoal);
+  const [plan, setPlan] = useState<AiPlan | null>(null);
   const [campaignForm, setCampaignForm] = useState({
     name: '',
     template_name: '',
     language_code: 'en',
     body_values: '{name}\n{city}',
   });
-  const [csvText, setCsvText] = useState(
-    'name,mobile,email,city,business_name,source\nDemo Lead,919999999999,demo@example.com,Indore,Demo Finance,manual'
-  );
-  const [goal, setGoal] = useState(defaultGoal);
-  const [aiPlan, setAiPlan] = useState<AiPlan | null>(null);
-  const refreshInFlight = useRef(false);
+  const refreshLock = useRef(false);
 
-  async function loadData(options: { silent?: boolean } = {}) {
-    if (refreshInFlight.current) return;
-    refreshInFlight.current = true;
-    if (!options.silent) setLoading(true);
+  async function load(silent = false) {
+    if (refreshLock.current) return;
+    refreshLock.current = true;
+    if (!silent) setLoading(true);
     setError('');
     try {
-      const [promotionsRes, analyticsRes, leadFinderRes] = await Promise.all([
-        authFetch('/api/admin-promotions'),
-        authFetch('/api/admin-whatsapp-analytics?days=30'),
-        authFetch('/api/admin-lead-finder/results?leadType=all&view=all'),
-      ]);
-
-      const promotionsJson = await promotionsRes.json();
-      const analyticsJson = await analyticsRes.json();
-      const leadFinderJson = await leadFinderRes.json();
-
-      if (!promotionsRes.ok || promotionsJson.success === false) {
-        throw new Error(promotionsJson.error || 'Unable to load campaign workspace');
-      }
-
-      setLeads(promotionsJson.leads || []);
-      setCampaigns(promotionsJson.campaigns || []);
-      setRecipients(promotionsJson.recipients || []);
-      setInbox(promotionsJson.inboundMessages || []);
-      if (analyticsJson.success !== false) setAnalytics(analyticsJson.summary || null);
-      if (leadFinderJson.success !== false) setLeadFinder(leadFinderJson.summary || null);
-      setLastUpdatedAt(new Date());
+      const res = await authFetch('/api/growth-campaigns/workspace');
+      const json = await res.json();
+      if (!res.ok || json.success === false)
+        throw new Error(json.error || 'Unable to load Growth Campaigns');
+      setSchemaReady(json.schemaReady !== false);
+      if (json.settings) setSettings((prev) => ({ ...prev, ...json.settings }));
+      setSummary(json.summary || null);
+      setCampaigns(json.campaigns || []);
+      setConversations(json.conversations || []);
+      setMessages(json.messages || []);
+      if (!activeConversationId && json.conversations?.[0])
+        setActiveConversationId(json.conversations[0].id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load Growth Campaigns');
     } finally {
       setLoading(false);
-      refreshInFlight.current = false;
+      refreshLock.current = false;
     }
   }
 
   useEffect(() => {
-    loadData();
-    const interval = window.setInterval(() => loadData({ silent: true }), 8000);
-    return () => window.clearInterval(interval);
+    load();
+    const timer = window.setInterval(() => load(true), 10000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const activeLeads = useMemo(
-    () => leads.filter((lead) => lead.status === 'active' && lead.opt_in !== false),
-    [leads]
+  const activeConversation =
+    conversations.find((item) => item.id === activeConversationId) || conversations[0];
+  const activeMessages = useMemo(
+    () =>
+      messages
+        .filter((item) => item.conversation_id === activeConversation?.id)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    [activeConversation?.id, messages]
   );
 
-  const conversations = useMemo(() => {
-    const byPhone = new Map<string, InboxMessage[]>();
-    inbox.forEach((message) => {
-      const phone = message.recipient_phone || 'unknown';
-      byPhone.set(phone, [...(byPhone.get(phone) || []), message]);
-    });
-    return Array.from(byPhone.entries())
-      .map(([phone, messages]) => {
-        const sorted = messages.sort(
-          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-        return { phone, messages: sorted, last: sorted[sorted.length - 1] };
-      })
-      .sort(
-        (a, b) => new Date(b.last.created_at).getTime() - new Date(a.last.created_at).getTime()
-      );
-  }, [inbox]);
-
-  useEffect(() => {
-    if (!activePhone && conversations[0]) setActivePhone(conversations[0].phone);
-  }, [activePhone, conversations]);
-
-  const activeConversation =
-    conversations.find((conversation) => conversation.phone === activePhone) || conversations[0];
-
-  const cards = [
-    {
-      label: 'Lead Library',
-      value: leadFinder?.total || leadFinder?.total_records || 0,
-      Icon: Users,
-    },
-    { label: 'Campaign Leads', value: activeLeads.length, Icon: Target },
-    {
-      label: 'Sent',
-      value: analytics?.sent_count || campaigns.reduce((sum, c) => sum + number(c.sent_count), 0),
-      Icon: Send,
-    },
-    {
-      label: 'Replies',
-      value: analytics?.reply_count || conversations.length,
-      Icon: MessageCircle,
-    },
-    { label: 'Read Rate', value: `${analytics?.read_rate || 0}%`, Icon: CheckCircle2 },
-    { label: 'Clicks', value: analytics?.click_count || 0, Icon: MousePointerClick },
-  ];
-
-  async function runAction(payload: Record<string, unknown>, successMessage: string) {
+  async function post(url: string, payload: Record<string, unknown>, success: string) {
     setSaving(true);
     setNotice('');
     setError('');
     try {
-      const res = await authFetch('/api/admin-promotions', {
+      const res = await authFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(json.error || 'Action failed');
-      setNotice(successMessage);
-      await loadData({ silent: true });
+      setNotice(success);
+      await load(true);
+      return json;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');
+      return null;
     } finally {
       setSaving(false);
     }
   }
 
-  async function generateAiPlan() {
-    setSaving(true);
-    setNotice('');
-    setError('');
-    try {
-      const res = await authFetch('/api/growth-campaigns/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ goal }),
-      });
-      const json = await res.json();
-      if (!res.ok || json.success === false) throw new Error(json.error || 'AI Assist failed');
-      setAiPlan(json.plan);
-      setCampaignForm((prev) => ({
-        ...prev,
-        name: json.plan?.campaign_name || prev.name,
-        body_values: Array.isArray(json.plan?.variables)
-          ? json.plan.variables.map((item: string) => `{${item}}`).join('\n')
-          : prev.body_values,
-      }));
-      setNotice('AI Assist prepared the campaign draft.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'AI Assist failed');
-    } finally {
-      setSaving(false);
-    }
+  async function preparePlan() {
+    const json = await post('/api/growth-campaigns/ai', { goal }, 'Campaign draft prepared.');
+    if (!json?.plan) return;
+    setPlan(json.plan);
+    setCampaignForm((prev) => ({
+      ...prev,
+      name: json.plan.campaign_name || prev.name,
+      body_values: Array.isArray(json.plan.variables)
+        ? json.plan.variables.map((item: string) => `{${item}}`).join('\n')
+        : prev.body_values,
+    }));
   }
 
-  function importLeads() {
-    const rows = parseCsv(csvText);
-    runAction({ action: 'import_leads', leads: rows }, 'Audience imported.');
-  }
-
-  function createCampaign() {
-    runAction(
+  function saveCampaign() {
+    post(
+      '/api/admin-promotions',
       {
         action: 'create_campaign',
         name: campaignForm.name,
@@ -337,234 +304,218 @@ export default function AdminGrowthCampaignsPage() {
         language_code: campaignForm.language_code,
         body_values: campaignForm.body_values
           .split('\n')
-          .map((value) => value.trim())
+          .map((item) => item.trim())
           .filter(Boolean),
       },
-      'Campaign draft saved.'
+      'Campaign saved.'
     );
   }
 
-  function sendReply() {
-    if (!activeConversation || !replyText.trim()) return;
-    runAction(
-      { action: 'reply_inbox', to: activeConversation.phone, text: replyText.trim() },
-      'Reply sent.'
+  function sendCampaign(campaignId: string) {
+    post(
+      '/api/admin-promotions',
+      { action: 'send_campaign', campaign_id: campaignId },
+      'Campaign send completed.'
     );
-    setReplyText('');
   }
+
+  function saveSettings() {
+    post(
+      '/api/growth-campaigns/workspace',
+      { action: 'save_settings', ...settings },
+      'AI communication settings saved.'
+    );
+  }
+
+  function updateConversation(id: string, patch: Record<string, unknown>) {
+    post(
+      '/api/growth-campaigns/workspace',
+      { action: 'update_conversation', id, ...patch },
+      'Conversation updated.'
+    );
+  }
+
+  const topCards = [
+    ['Total Leads', summary?.totalLeads || 0, Database],
+    ['Campaigns', summary?.campaigns || 0, Send],
+    ['Conversations', summary?.conversations || 0, MessageCircle],
+    ['AI Replies', summary?.aiReplies || 0, Bot],
+    ['Callback Required', summary?.callbackRequired || 0, Target],
+    ['Do Not Contact', summary?.doNotContact || 0, ShieldCheck],
+  ] as const;
 
   return (
     <AdminLayout title="Growth Campaigns">
       <div className="space-y-5 p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-950">Growth Campaigns</h1>
-            <p className="mt-1 text-sm font-semibold text-slate-500">
-              Audience, WhatsApp campaigns, inbox and conversion tracking in one place.
+            <h1 className="text-4xl font-black tracking-tight text-slate-950">Growth Campaigns</h1>
+            <p className="mt-2 text-sm font-bold text-slate-500">
+              AI-led outreach and replies for DSA Portal + CIBIL Pull.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">
-              <ShieldCheck size={16} /> Existing setup safe
+            <span
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-black ${settings.ai_auto_reply_enabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}
+            >
+              {settings.ai_auto_reply_enabled ? (
+                <PlayCircle size={16} />
+              ) : (
+                <PauseCircle size={16} />
+              )}
+              AI Auto Reply {settings.ai_auto_reply_enabled ? 'On' : 'Off'}
             </span>
             <button
-              onClick={() => loadData()}
+              onClick={() => load()}
               disabled={loading || saving}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 hover:bg-slate-50 disabled:opacity-60"
             >
               <RefreshCw size={16} /> Refresh
             </button>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-          {tabs.map((tab) => (
+        <div className="flex flex-wrap gap-2 rounded-3xl border border-slate-200 bg-white p-2 shadow-sm">
+          {tabs.map((item) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
-                activeTab === tab
+              key={item}
+              onClick={() => setTab(item)}
+              className={`rounded-2xl px-4 py-2.5 text-sm font-black transition ${
+                tab === item
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
-              {tab}
+              {item}
             </button>
           ))}
         </div>
 
+        {!schemaReady && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">
+            Communication database is not active yet. Run the Growth Campaigns migration.
+          </div>
+        )}
         {notice && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800">
             {notice}
           </div>
         )}
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700">
             {error}
           </div>
         )}
 
-        {activeTab === 'Dashboard' && (
+        {tab === 'Overview' && (
           <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-              {cards.map(({ label, value, Icon }) => (
-                <div
-                  key={label}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                >
-                  <Icon className="mb-4 text-blue-600" size={24} />
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                    {label}
-                  </p>
-                  <p className="mt-2 text-3xl font-black text-slate-950">
-                    {typeof value === 'number' ? formatNumber(value) : value}
-                  </p>
-                </div>
+              {topCards.map(([label, value, Icon]) => (
+                <Card key={label} label={label} value={fmt(value)} Icon={Icon} />
               ))}
             </div>
-
-            <div className="grid gap-5 xl:grid-cols-[1fr_1.2fr]">
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-xl font-black text-slate-950">AI Assist</h2>
-                  <Sparkles className="text-violet-600" size={22} />
-                </div>
-                <textarea
-                  value={goal}
-                  onChange={(event) => setGoal(event.target.value)}
-                  className="min-h-28 w-full rounded-xl border border-slate-200 p-4 text-sm font-semibold text-slate-800 outline-none focus:border-blue-400"
-                />
-                <button
-                  onClick={generateAiPlan}
-                  disabled={saving}
-                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white hover:bg-slate-800 disabled:opacity-60"
-                >
-                  <Bot size={17} /> Prepare Draft
-                </button>
-              </section>
-
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-xl font-black text-slate-950">Draft Preview</h2>
-                {aiPlan ? (
-                  <div className="mt-4 space-y-3 text-sm">
-                    <InfoRow label="Campaign" value={aiPlan.campaign_name} />
-                    <InfoRow label="Audience" value={aiPlan.audience_filter} />
-                    <InfoRow label="Template" value={aiPlan.template_goal} />
-                    <div className="rounded-xl bg-slate-50 p-4 font-semibold text-slate-800">
-                      {aiPlan.message_preview}
-                    </div>
+            <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-950">How it works</h2>
+                    <p className="mt-1 text-sm font-bold text-slate-500">
+                      No human reply queue required.
+                    </p>
                   </div>
-                ) : (
-                  <EmptyState text="Prepare a campaign draft to preview it here." />
-                )}
+                  <Sparkles className="text-blue-600" />
+                </div>
+                <div className="mt-6 grid gap-3 md:grid-cols-3">
+                  {[
+                    [
+                      '1',
+                      'Select audience',
+                      'Use Lead Finder or campaign audience with valid contact details.',
+                    ],
+                    ['2', 'Send campaign', 'Approved template starts the conversation.'],
+                    [
+                      '3',
+                      'AI replies',
+                      'Every reply is classified, answered and tracked automatically.',
+                    ],
+                  ].map(([step, title, text]) => (
+                    <div key={step} className="rounded-2xl bg-slate-50 p-4">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white">
+                        {step}
+                      </span>
+                      <h3 className="mt-4 font-black text-slate-950">{title}</h3>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">{text}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="text-2xl font-black text-slate-950">Channel readiness</h2>
+                <div className="mt-5 space-y-3">
+                  <ChannelRow
+                    icon={<MessageCircle size={18} />}
+                    label="WhatsApp"
+                    status={settings.whatsapp_enabled ? 'Active' : 'Off'}
+                  />
+                  <ChannelRow
+                    icon={<Mail size={18} />}
+                    label="Email"
+                    status={settings.email_enabled ? 'Active' : 'Setup pending'}
+                  />
+                  <ChannelRow
+                    icon={<Bot size={18} />}
+                    label="AI reply engine"
+                    status={settings.ai_auto_reply_enabled ? 'Active' : 'Paused'}
+                  />
+                </div>
               </section>
             </div>
-
-            <QuickTable
-              title="Recent Campaigns"
-              rows={campaigns
-                .slice(0, 6)
-                .map((campaign) => [
-                  campaign.name,
-                  campaign.template_name,
-                  campaign.status,
-                  `${formatNumber(campaign.sent_count)} sent`,
-                  formatDate(campaign.created_at),
-                ])}
-              headers={['Campaign', 'Template', 'Status', 'Sent', 'Created']}
-            />
           </div>
         )}
 
-        {activeTab === 'Audiences' && (
-          <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-xl font-black text-slate-950">Audience Import</h2>
-              <p className="mt-1 text-sm font-semibold text-slate-500">
-                CSV: name, mobile, email, city, business_name, source
-              </p>
+        {tab === 'Build Campaign' && (
+          <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-2xl font-black text-slate-950">Campaign brief</h2>
               <textarea
-                value={csvText}
-                onChange={(event) => setCsvText(event.target.value)}
-                className="mt-4 min-h-72 w-full rounded-xl border border-slate-200 p-4 font-mono text-xs outline-none focus:border-blue-400"
+                value={goal}
+                onChange={(event) => setGoal(event.target.value)}
+                className="mt-4 min-h-36 w-full rounded-2xl border border-slate-200 p-4 text-sm font-bold text-slate-900 outline-none focus:border-blue-400"
               />
               <button
-                onClick={importLeads}
+                onClick={preparePlan}
                 disabled={saving}
-                className="mt-4 rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-60"
+                className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white hover:bg-slate-800 disabled:opacity-60"
               >
-                Import Audience
+                <Sparkles size={17} /> Prepare
               </button>
+              {plan && (
+                <div className="mt-5 rounded-2xl bg-blue-50 p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
+                    Message preview
+                  </p>
+                  <p className="mt-2 text-sm font-bold text-slate-900">{plan.message_preview}</p>
+                </div>
+              )}
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-black text-slate-950">Audience Library</h2>
-                <select
-                  value={audienceFilter}
-                  onChange={(event) => setAudienceFilter(event.target.value)}
-                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold"
-                >
-                  <option value="valid_mobile">Valid mobile</option>
-                  <option value="all">All</option>
-                  <option value="opted_in">Opted-in</option>
-                </select>
-              </div>
-              <div className="max-h-[520px] overflow-auto">
-                <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                    <tr>
-                      {['Name', 'Mobile', 'City', 'Source', 'Status'].map((head) => (
-                        <th key={head} className="px-3 py-3 text-left font-black">
-                          {head}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {leads.slice(0, 200).map((lead) => (
-                      <tr key={lead.id} className="hover:bg-slate-50">
-                        <td className="px-3 py-3 font-bold text-slate-900">
-                          {lead.name || lead.business_name || '-'}
-                        </td>
-                        <td className="px-3 py-3 font-mono text-xs">{lead.mobile}</td>
-                        <td className="px-3 py-3">{lead.city || '-'}</td>
-                        <td className="px-3 py-3">{lead.source || '-'}</td>
-                        <td className="px-3 py-3">
-                          <StatusBadge
-                            status={lead.opt_in === false ? 'opt-out' : lead.status || 'active'}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {!leads.length && (
-                  <EmptyState text={loading ? 'Loading audience...' : 'No audience yet.'} />
-                )}
-              </div>
-            </section>
-          </div>
-        )}
-
-        {activeTab === 'Campaigns' && (
-          <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-xl font-black text-slate-950">New Campaign</h2>
-              <div className="mt-4 space-y-3">
-                <Input
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-2xl font-black text-slate-950">Save campaign</h2>
+              <div className="mt-5 grid gap-4">
+                <Field
                   label="Campaign name"
                   value={campaignForm.name}
                   onChange={(value) => setCampaignForm((prev) => ({ ...prev, name: value }))}
                 />
-                <Input
+                <Field
                   label="Approved template name"
                   value={campaignForm.template_name}
                   onChange={(value) =>
                     setCampaignForm((prev) => ({ ...prev, template_name: value }))
                   }
+                  placeholder="Example: dsa_partner_intro"
                 />
-                <Input
+                <Field
                   label="Language"
                   value={campaignForm.language_code}
                   onChange={(value) =>
@@ -572,7 +523,7 @@ export default function AdminGrowthCampaignsPage() {
                   }
                 />
                 <label className="block">
-                  <span className="text-xs font-black uppercase tracking-wide text-slate-500">
+                  <span className="text-xs font-black uppercase tracking-[0.15em] text-slate-500">
                     Template variables
                   </span>
                   <textarea
@@ -580,54 +531,47 @@ export default function AdminGrowthCampaignsPage() {
                     onChange={(event) =>
                       setCampaignForm((prev) => ({ ...prev, body_values: event.target.value }))
                     }
-                    className="mt-2 min-h-24 w-full rounded-xl border border-slate-200 p-3 text-sm font-semibold outline-none focus:border-blue-400"
+                    className="mt-2 min-h-24 w-full rounded-2xl border border-slate-200 p-4 text-sm font-bold outline-none focus:border-blue-400"
                   />
                 </label>
                 <button
-                  onClick={createCampaign}
+                  onClick={saveCampaign}
                   disabled={saving}
-                  className="w-full rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-60"
+                  className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-60"
                 >
                   Save Campaign
                 </button>
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-xl font-black text-slate-950">Campaigns</h2>
-              <div className="mt-4 overflow-auto">
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
+              <h2 className="text-2xl font-black text-slate-950">Campaigns</h2>
+              <div className="mt-5 overflow-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                     <tr>
-                      {['Campaign', 'Template', 'Status', 'Sent', 'Failed', 'Action'].map(
-                        (head) => (
-                          <th key={head} className="px-3 py-3 text-left font-black">
-                            {head}
-                          </th>
-                        )
-                      )}
+                      {['Campaign', 'Template', 'Status', 'Sent', 'Failed', 'Action'].map((h) => (
+                        <th key={h} className="px-4 py-3 text-left font-black">
+                          {h}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {campaigns.map((campaign) => (
                       <tr key={campaign.id}>
-                        <td className="px-3 py-3 font-bold text-slate-900">{campaign.name}</td>
-                        <td className="px-3 py-3 font-mono text-xs">{campaign.template_name}</td>
-                        <td className="px-3 py-3">
-                          <StatusBadge status={campaign.status} />
+                        <td className="px-4 py-3 font-black text-slate-900">{campaign.name}</td>
+                        <td className="px-4 py-3 font-mono text-xs">{campaign.template_name}</td>
+                        <td className="px-4 py-3">
+                          <Status value={campaign.status} />
                         </td>
-                        <td className="px-3 py-3">{formatNumber(campaign.sent_count)}</td>
-                        <td className="px-3 py-3">{formatNumber(campaign.failed_count)}</td>
-                        <td className="px-3 py-3">
+                        <td className="px-4 py-3">{fmt(campaign.sent_count)}</td>
+                        <td className="px-4 py-3">{fmt(campaign.failed_count)}</td>
+                        <td className="px-4 py-3">
                           <button
-                            onClick={() =>
-                              runAction(
-                                { action: 'send_campaign', campaign_id: campaign.id },
-                                'Campaign send completed.'
-                              )
-                            }
-                            disabled={saving || !campaign.template_name}
-                            className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            onClick={() => sendCampaign(campaign.id)}
+                            disabled={saving}
+                            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                           >
                             Send
                           </button>
@@ -636,278 +580,274 @@ export default function AdminGrowthCampaignsPage() {
                     ))}
                   </tbody>
                 </table>
-                {!campaigns.length && <EmptyState text="No campaigns yet." />}
+                {!campaigns.length && (
+                  <Empty text={loading ? 'Loading campaigns...' : 'No campaigns yet.'} />
+                )}
               </div>
             </section>
           </div>
         )}
 
-        {activeTab === 'Inbox' && (
-          <section className="grid min-h-[620px] gap-5 xl:grid-cols-[380px_1fr]">
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-100 p-4">
-                <h2 className="text-xl font-black text-slate-950">Inbox</h2>
-                <p className="text-sm font-semibold text-slate-500">
-                  {formatNumber(conversations.length)} conversations
+        {tab === 'AI Conversations' && (
+          <section className="grid min-h-[650px] gap-5 xl:grid-cols-[390px_1fr]">
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-100 p-5">
+                <h2 className="text-2xl font-black text-slate-950">Conversations</h2>
+                <p className="text-sm font-bold text-slate-500">
+                  {fmt(conversations.length)} threads
                 </p>
               </div>
-              <div className="max-h-[560px] overflow-auto">
-                {conversations.map((conversation) => (
+              <div className="max-h-[590px] overflow-auto">
+                {conversations.map((item) => (
                   <button
-                    key={conversation.phone}
-                    onClick={() => setActivePhone(conversation.phone)}
-                    className={`flex w-full gap-3 border-b border-slate-100 p-4 text-left hover:bg-slate-50 ${
-                      activeConversation?.phone === conversation.phone ? 'bg-blue-50' : ''
-                    }`}
+                    key={item.id}
+                    onClick={() => setActiveConversationId(item.id)}
+                    className={`w-full border-b border-slate-100 p-4 text-left hover:bg-slate-50 ${activeConversation?.id === item.id ? 'bg-blue-50' : ''}`}
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-black text-white">
-                      {conversation.phone.slice(-2)}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-black text-slate-900">
-                        +{conversation.phone}
-                      </span>
-                      <span className="block truncate text-sm text-slate-500">
-                        {conversation.last.metadata?.text || '[Media message]'}
-                      </span>
-                    </span>
-                    <ChevronRight size={16} className="text-slate-300" />
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate font-black text-slate-950">
+                        {item.contact_name || item.phone_number || item.email || item.contact_key}
+                      </p>
+                      <Status value={item.priority} />
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Status value={item.status} />
+                      <Status value={item.intent} />
+                    </div>
+                    <p className="mt-2 text-xs font-bold text-slate-400">
+                      {dt(item.last_message_at)}
+                    </p>
                   </button>
                 ))}
-                {!conversations.length && <EmptyState text="No conversations yet." />}
+                {!conversations.length && <Empty text="No conversations yet." />}
               </div>
             </div>
 
-            <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
               {activeConversation ? (
-                <>
+                <div className="flex min-w-0 flex-1 flex-col">
                   <div className="border-b border-slate-100 p-5">
-                    <p className="text-xs font-black uppercase tracking-wide text-emerald-600">
-                      WhatsApp conversation
-                    </p>
-                    <h2 className="mt-1 text-2xl font-black text-slate-950">
-                      +{activeConversation.phone}
-                    </h2>
-                  </div>
-                  <div className="flex-1 space-y-3 overflow-auto bg-slate-50 p-5">
-                    {activeConversation.messages.map((message) => {
-                      const outgoing = message.event_type !== 'whatsapp_inbound_message';
-                      return (
-                        <div
-                          key={message.id}
-                          className={`flex ${outgoing ? 'justify-end' : 'justify-start'}`}
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-600">
+                          {activeConversation.channel}
+                        </p>
+                        <h2 className="mt-1 text-2xl font-black text-slate-950">
+                          {activeConversation.contact_name ||
+                            activeConversation.phone_number ||
+                            activeConversation.email}
+                        </h2>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() =>
+                            updateConversation(activeConversation.id, {
+                              ai_enabled: !activeConversation.ai_enabled,
+                            })
+                          }
+                          className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 hover:bg-slate-50"
                         >
-                          <div
-                            className={`max-w-[72%] rounded-2xl px-4 py-3 text-sm font-semibold shadow-sm ${
-                              outgoing ? 'bg-blue-600 text-white' : 'bg-white text-slate-800'
-                            }`}
-                          >
-                            <p>{message.metadata?.text || '[Media message]'}</p>
-                            <p
-                              className={`mt-1 text-[10px] ${outgoing ? 'text-blue-100' : 'text-slate-400'}`}
-                            >
-                              {formatDate(message.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="border-t border-slate-100 p-4">
-                    <textarea
-                      value={replyText}
-                      onChange={(event) => setReplyText(event.target.value)}
-                      placeholder="Type reply..."
-                      className="min-h-24 w-full rounded-xl border border-slate-200 p-3 text-sm font-semibold outline-none focus:border-blue-400"
-                    />
-                    <div className="mt-3 flex justify-end">
-                      <button
-                        onClick={sendReply}
-                        disabled={saving || !replyText.trim()}
-                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-700 disabled:opacity-60"
-                      >
-                        <Send size={16} /> Send Reply
-                      </button>
+                          AI {activeConversation.ai_enabled ? 'On' : 'Off'}
+                        </button>
+                        <select
+                          value={activeConversation.status}
+                          onChange={(event) =>
+                            updateConversation(activeConversation.id, {
+                              status: event.target.value,
+                            })
+                          }
+                          className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-black"
+                        >
+                          {[
+                            'open',
+                            'qualified',
+                            'callback_required',
+                            'converted',
+                            'not_interested',
+                            'do_not_contact',
+                            'closed',
+                          ].map((s) => (
+                            <option key={s} value={s}>
+                              {s.replace(/_/g, ' ')}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
-                </>
+                  <div className="flex-1 space-y-3 overflow-auto bg-slate-50 p-5">
+                    {activeMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-[74%] rounded-3xl px-4 py-3 text-sm font-semibold shadow-sm ${message.direction === 'outbound' ? 'bg-blue-600 text-white' : 'bg-white text-slate-800'}`}
+                        >
+                          <p>{message.message_text || '[Message]'}</p>
+                          <p
+                            className={`mt-2 text-[10px] font-bold ${message.direction === 'outbound' ? 'text-blue-100' : 'text-slate-400'}`}
+                          >
+                            {message.ai_generated ? 'AI reply · ' : ''}
+                            {dt(message.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {!activeMessages.length && (
+                      <Empty text="No messages in this conversation yet." />
+                    )}
+                  </div>
+                </div>
               ) : (
-                <EmptyState text="Select a conversation." />
+                <Empty text="Select a conversation." />
               )}
             </div>
           </section>
         )}
 
-        {activeTab === 'Analytics' && (
-          <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-              {[
-                ['Sent', analytics?.sent_count],
-                ['Delivered', analytics?.delivered_count],
-                ['Read', analytics?.read_count],
-                ['Failed', analytics?.failed_count],
-                ['Clicks', analytics?.click_count],
-                ['Replies', analytics?.reply_count],
-              ].map(([label, value]) => (
-                <div
-                  key={String(label)}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                >
-                  <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                    {label}
-                  </p>
-                  <p className="mt-2 text-3xl font-black text-slate-950">{formatNumber(value)}</p>
-                </div>
-              ))}
+        {tab === 'Knowledge Base' && (
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-2xl font-black text-slate-950">AI knowledge base</h2>
+                <p className="mt-1 text-sm font-bold text-slate-500">
+                  This is what the AI uses while replying to DSA/CIBIL enquiries.
+                </p>
+              </div>
+              <button
+                onClick={saveSettings}
+                disabled={saving}
+                className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                Save Knowledge
+              </button>
             </div>
-            <QuickTable
-              title="Recent Sends"
-              headers={['Lead', 'Status', 'Message ID', 'Time']}
-              rows={recipients
-                .slice(0, 20)
-                .map((recipient) => [
-                  recipient.promotion_leads?.name || recipient.promotion_leads?.mobile || '-',
-                  recipient.status,
-                  recipient.message_id || recipient.error || '-',
-                  formatDate(recipient.created_at),
-                ])}
+            <textarea
+              value={settings.knowledge_base || ''}
+              onChange={(event) =>
+                setSettings((prev) => ({ ...prev, knowledge_base: event.target.value }))
+              }
+              className="mt-5 min-h-[520px] w-full rounded-2xl border border-slate-200 p-5 font-mono text-sm leading-6 text-slate-900 outline-none focus:border-blue-400"
             />
-          </div>
+          </section>
         )}
 
-        {activeTab === 'Settings' && (
-          <div className="grid gap-5 xl:grid-cols-2">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="flex items-center gap-2 text-xl font-black text-slate-950">
-                <Settings size={20} /> Plug & Play Checklist
-              </h2>
-              <div className="mt-5 space-y-3">
-                {[
-                  'Approved WhatsApp templates added',
-                  'Webhook receiving inbound messages',
-                  'Status tracking enabled',
-                  'Lead Finder audience available',
-                  'AI Assist server-side only',
-                  'Daily send limit enabled',
-                  'Opt-out handling required before scale',
-                ].map((item) => (
-                  <div
-                    key={item}
-                    className="flex items-center gap-3 rounded-xl border border-slate-100 p-3"
-                  >
-                    <CheckCircle2 className="text-emerald-600" size={18} />
-                    <span className="text-sm font-bold text-slate-700">{item}</span>
-                  </div>
-                ))}
+        {tab === 'Settings' && (
+          <section className="grid gap-5 xl:grid-cols-2">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-2xl font-black text-slate-950">Automation</h2>
+              <div className="mt-5 space-y-4">
+                <Toggle
+                  label="AI auto reply"
+                  value={settings.ai_auto_reply_enabled}
+                  onChange={(value) =>
+                    setSettings((prev) => ({ ...prev, ai_auto_reply_enabled: value }))
+                  }
+                />
+                <Toggle
+                  label="WhatsApp channel"
+                  value={settings.whatsapp_enabled}
+                  onChange={(value) =>
+                    setSettings((prev) => ({ ...prev, whatsapp_enabled: value }))
+                  }
+                />
+                <Toggle
+                  label="Email channel"
+                  value={settings.email_enabled}
+                  onChange={(value) => setSettings((prev) => ({ ...prev, email_enabled: value }))}
+                />
+                <Field
+                  label="Product context"
+                  value={settings.product_context || ''}
+                  onChange={(value) => setSettings((prev) => ({ ...prev, product_context: value }))}
+                />
+                <Field
+                  label="Max AI replies per thread"
+                  value={String(settings.max_auto_replies_per_thread || 20)}
+                  onChange={(value) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      max_auto_replies_per_thread: Number(value) || 20,
+                    }))
+                  }
+                />
+                <button
+                  onClick={saveSettings}
+                  disabled={saving}
+                  className="w-full rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white hover:bg-blue-700 disabled:opacity-60"
+                >
+                  Save Settings
+                </button>
               </div>
-            </section>
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="flex items-center gap-2 text-xl font-black text-slate-950">
-                <Filter size={20} /> Safe Sending Rules
-              </h2>
-              <div className="mt-5 space-y-3 text-sm font-semibold text-slate-600">
-                <p>Use only approved template names.</p>
-                <p>Keep first campaigns small until delivery/reply rates are stable.</p>
-                <p>Never send to opt-out or invalid numbers.</p>
-                <p>Review AI suggestions before sending.</p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-2xl font-black text-slate-950">Email setup</h2>
+              <div className="mt-5 space-y-3 rounded-2xl bg-slate-50 p-5 text-sm font-bold text-slate-600">
+                <p>Email will use the same conversation database and AI knowledge base.</p>
+                <p>
+                  When mail provider access is connected, inbound replies will be saved as email
+                  conversations and AI replies can be sent from the same engine.
+                </p>
+                <p>No separate workflow is needed for the team.</p>
               </div>
-            </section>
-          </div>
-        )}
-
-        {lastUpdatedAt && (
-          <p className="text-right text-xs font-bold text-slate-400">
-            Updated{' '}
-            {lastUpdatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-          </p>
+            </div>
+          </section>
         )}
       </div>
     </AdminLayout>
   );
 }
 
-function Input({
+function Toggle({
   label,
   value,
   onChange,
 }: {
   label: string;
-  value: string;
-  onChange: (value: string) => void;
+  value: boolean;
+  onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="block">
-      <span className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</span>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold outline-none focus:border-blue-400"
-      />
-    </label>
+    <button
+      type="button"
+      onClick={() => onChange(!value)}
+      className="flex w-full items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-left"
+    >
+      <span className="font-black text-slate-800">{label}</span>
+      <span
+        className={`rounded-full px-3 py-1 text-xs font-black ${value ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+      >
+        {value ? 'On' : 'Off'}
+      </span>
+    </button>
   );
 }
 
-function StatusBadge({ status }: { status?: string | null }) {
+function ChannelRow({
+  icon,
+  label,
+  status,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  status: string;
+}) {
   return (
-    <span className={`rounded-full border px-2.5 py-1 text-xs font-black ${statusTone(status)}`}>
-      {status || 'unknown'}
-    </span>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid gap-3 rounded-xl border border-slate-100 p-3 sm:grid-cols-[130px_1fr]">
-      <p className="text-xs font-black uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="font-bold text-slate-800">{value}</p>
+    <div className="flex items-center justify-between rounded-2xl border border-slate-100 p-4">
+      <div className="flex items-center gap-3 font-black text-slate-900">
+        <span className="text-blue-600">{icon}</span>
+        {label}
+      </div>
+      <Status value={status.toLowerCase().replace(/\s+/g, '_')} />
     </div>
   );
 }
 
-function EmptyState({ text }: { text: string }) {
-  return <div className="p-8 text-center text-sm font-bold text-slate-400">{text}</div>;
-}
-
-function QuickTable({
-  title,
-  headers,
-  rows,
-}: {
-  title: string;
-  headers: string[];
-  rows: Array<Array<string | number | null | undefined>>;
-}) {
+function Empty({ text }: { text: string }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-xl font-black text-slate-950">{title}</h2>
-      <div className="mt-4 overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              {headers.map((head) => (
-                <th key={head} className="px-3 py-3 text-left font-black">
-                  {head}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-slate-50">
-                {row.map((cell, cellIndex) => (
-                  <td
-                    key={`${rowIndex}-${cellIndex}`}
-                    className="px-3 py-3 font-semibold text-slate-700"
-                  >
-                    {cell || '-'}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!rows.length && <EmptyState text="No records yet." />}
-      </div>
-    </section>
+    <div className="flex min-h-40 items-center justify-center rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm font-bold text-slate-400">
+      {text}
+    </div>
   );
 }
