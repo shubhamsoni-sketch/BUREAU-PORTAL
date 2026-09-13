@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import StatusBadge from '@/crm/components/ui/StatusBadge';
 import { crmFetch } from '@/lib/crm/api';
+import { canTransitionLenderApplication } from '@/lib/lender-intelligence/lifecycle';
 
 import ApplicationDetailPanel from './ApplicationDetailPanel';
 
@@ -19,7 +20,8 @@ type AppStage =
   | 'sanctioned'
   | 'disbursal_initiated'
   | 'disbursed'
-  | 'rejected';
+  | 'rejected'
+  | 'rerouted';
 
 type ProductType =
   | 'home_loan'
@@ -91,189 +93,6 @@ interface LoanApplication {
   documents?: ApplicationDocument[];
 }
 
-const MOCK_APPS: LoanApplication[] = [
-  {
-    id: 'app-001',
-    appId: 'CT-HL-2026-0841',
-    applicant: 'Ramesh Gupta',
-    product: 'home_loan',
-    loanAmount: 4200000,
-    lender: 'HDFC Bank',
-    stage: 'final_approval',
-    cibil: 748,
-    emi: 34820,
-    assignedAgent: 'Priya Sharma',
-    lastUpdate: '21 Jun 2026',
-    daysPending: 1,
-    city: 'Mumbai',
-    processingFee: 12600,
-    roi: 8.65,
-    tenure: 240,
-  },
-  {
-    id: 'app-002',
-    appId: 'CT-PL-2026-0842',
-    applicant: 'Neha Kulkarni',
-    product: 'personal_loan',
-    loanAmount: 850000,
-    lender: 'Bajaj Finserv',
-    stage: 'disbursed',
-    cibil: 792,
-    emi: 19240,
-    assignedAgent: 'Anil Mehta',
-    lastUpdate: '22 Jun 2026',
-    daysPending: 0,
-    city: 'Pune',
-    processingFee: 8500,
-    roi: 13.5,
-    tenure: 48,
-  },
-  {
-    id: 'app-003',
-    appId: 'CT-BL-2026-0843',
-    applicant: 'Suresh Patel',
-    product: 'business_loan',
-    loanAmount: 2500000,
-    lender: 'Tata Capital',
-    stage: 'credit_check',
-    cibil: 712,
-    emi: 56420,
-    assignedAgent: 'Priya Sharma',
-    lastUpdate: '17 Jun 2026',
-    daysPending: 5,
-    city: 'Ahmedabad',
-    processingFee: 25000,
-    roi: 16.0,
-    tenure: 60,
-  },
-  {
-    id: 'app-004',
-    appId: 'CT-LAP-2026-0844',
-    applicant: 'Kavya Reddy',
-    product: 'lap',
-    loanAmount: 3800000,
-    lender: 'ICICI Bank',
-    stage: 'under_review',
-    cibil: 731,
-    emi: 42180,
-    assignedAgent: 'Kavitha Nair',
-    lastUpdate: '15 Jun 2026',
-    daysPending: 7,
-    city: 'Hyderabad',
-    processingFee: 19000,
-    roi: 9.8,
-    tenure: 120,
-  },
-  {
-    id: 'app-005',
-    appId: 'CT-HL-2026-0845',
-    applicant: 'Preethi Kumar',
-    product: 'home_loan',
-    loanAmount: 3200000,
-    lender: 'Axis Bank',
-    stage: 'conditional_approval',
-    cibil: 756,
-    emi: 27840,
-    assignedAgent: 'Sunita Rao',
-    lastUpdate: '19 Jun 2026',
-    daysPending: 3,
-    city: 'Coimbatore',
-    processingFee: 9600,
-    roi: 8.9,
-    tenure: 180,
-  },
-  {
-    id: 'app-006',
-    appId: 'CT-PL-2026-0846',
-    applicant: 'Arjun Sharma',
-    product: 'personal_loan',
-    loanAmount: 500000,
-    lender: 'Kotak Mahindra',
-    stage: 'submitted',
-    cibil: 681,
-    emi: 11820,
-    assignedAgent: 'Vikram Joshi',
-    lastUpdate: '22 Jun 2026',
-    daysPending: 0,
-    city: 'Jaipur',
-    processingFee: 5000,
-    roi: 14.5,
-    tenure: 48,
-  },
-  {
-    id: 'app-007',
-    appId: 'CT-BL-2026-0847',
-    applicant: 'Fatima Sheikh',
-    product: 'business_loan',
-    loanAmount: 1200000,
-    lender: 'Bajaj Finserv',
-    stage: 'disbursal_initiated',
-    cibil: 724,
-    emi: 27140,
-    assignedAgent: 'Kavitha Nair',
-    lastUpdate: '21 Jun 2026',
-    daysPending: 1,
-    city: 'Mumbai',
-    processingFee: 12000,
-    roi: 15.5,
-    tenure: 60,
-  },
-  {
-    id: 'app-008',
-    appId: 'CT-HL-2026-0848',
-    applicant: 'Ganesh Iyer',
-    product: 'home_loan',
-    loanAmount: 6500000,
-    lender: 'HDFC Bank',
-    stage: 'under_review',
-    cibil: 782,
-    emi: 53920,
-    assignedAgent: 'Anil Mehta',
-    lastUpdate: '14 Jun 2026',
-    daysPending: 8,
-    city: 'Chennai',
-    processingFee: 19500,
-    roi: 8.5,
-    tenure: 240,
-  },
-  {
-    id: 'app-009',
-    appId: 'CT-CAR-2026-0849',
-    applicant: 'Anita Singh',
-    product: 'car_loan',
-    loanAmount: 720000,
-    lender: 'Axis Bank',
-    stage: 'disbursed',
-    cibil: 768,
-    emi: 14820,
-    assignedAgent: 'Sunita Rao',
-    lastUpdate: '22 Jun 2026',
-    daysPending: 0,
-    city: 'Bangalore',
-    processingFee: 3600,
-    roi: 9.25,
-    tenure: 60,
-  },
-  {
-    id: 'app-010',
-    appId: 'CT-PL-2026-0850',
-    applicant: 'Mohan Das',
-    product: 'personal_loan',
-    loanAmount: 500000,
-    lender: 'ICICI Bank',
-    stage: 'rejected',
-    cibil: 612,
-    emi: 0,
-    assignedAgent: 'Anil Mehta',
-    lastUpdate: '17 Jun 2026',
-    daysPending: 5,
-    city: 'Delhi',
-    processingFee: 0,
-    roi: 0,
-    tenure: 0,
-  },
-];
-
 const formatINR = (n: number) => {
   if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
   if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
@@ -306,6 +125,11 @@ export default function LoanApplicationContent() {
   const [filterProduct, setFilterProduct] = useState('all');
   const [filterLender, setFilterLender] = useState('all');
   const [search, setSearch] = useState('');
+  const [loadingApplications, setLoadingApplications] = useState(true);
+  const [applicationLoadError, setApplicationLoadError] = useState('');
+  const [rejectionReasons, setRejectionReasons] = useState<Array<{ code: string; label: string }>>(
+    []
+  );
 
   useEffect(() => {
     const highlightedApplicationId =
@@ -314,11 +138,27 @@ export default function LoanApplicationContent() {
         : '';
 
     const loadApplications = async () => {
+      setLoadingApplications(true);
+      setApplicationLoadError('');
       try {
         const response = await crmFetch('/api/crm/leads', { cache: 'no-store' });
-        const json = await response.json();
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(json.error || 'Unable to load lender applications');
         const applications = Array.isArray(json.applications) ? json.applications : [];
         const leads = Array.isArray(json.data) ? json.data : [];
+        setRejectionReasons(
+          Array.isArray(json.rejectionReasons)
+            ? json.rejectionReasons.filter(
+                (reason: unknown): reason is { code: string; label: string } =>
+                  Boolean(
+                    reason &&
+                    typeof reason === 'object' &&
+                    typeof (reason as { code?: unknown }).code === 'string' &&
+                    typeof (reason as { label?: unknown }).label === 'string'
+                  )
+              )
+            : []
+        );
         const liveApps: LoanApplication[] = applications.map(
           (application: {
             id: string;
@@ -387,8 +227,13 @@ export default function LoanApplicationContent() {
             setSearch(highlightedApp.applicant);
           }
         }
-      } catch {
+      } catch (loadError) {
         setApps([]);
+        setApplicationLoadError(
+          loadError instanceof Error ? loadError.message : 'Unable to load lender applications'
+        );
+      } finally {
+        setLoadingApplications(false);
       }
     };
 
@@ -405,7 +250,7 @@ export default function LoanApplicationContent() {
       filterStage === 'all'
         ? true
         : filterStage === 'in_progress'
-          ? !['disbursed', 'rejected'].includes(a.stage)
+          ? !['disbursed', 'rejected', 'rerouted'].includes(a.stage)
           : filterStage === 'case_sent_to_lender'
             ? ['case_sent_to_lender', 'login_pending'].includes(a.stage)
             : a.stage === filterStage;
@@ -432,12 +277,13 @@ export default function LoanApplicationContent() {
     'disbursal_initiated',
     'disbursed',
     'rejected',
+    'rerouted',
   ];
   const quickFilters = [
     {
       key: 'in_progress',
       label: 'In Progress',
-      count: apps.filter((a) => !['disbursed', 'rejected'].includes(a.stage)).length,
+      count: apps.filter((a) => !['disbursed', 'rejected', 'rerouted'].includes(a.stage)).length,
       color: 'bg-info-bg text-info border-info/20',
       active: 'ring-info/25 border-info/50',
     },
@@ -468,9 +314,21 @@ export default function LoanApplicationContent() {
   const updateApplicationStatus = async (
     applicationId: string,
     status: AppStage,
-    options: { note?: string; rejectionReason?: string } = {}
+    options: {
+      note?: string;
+      rejectionReason?: string;
+      rejectionReasonCode?: string;
+      sanctionedAmount?: number;
+      disbursedAmount?: number;
+      approvedRoi?: number;
+      approvedTenureMonths?: number;
+    } = {}
   ) => {
     const targetApp = apps.find((app) => app.id === applicationId);
+    if (!targetApp || !canTransitionLenderApplication(targetApp.stage, status)) {
+      toast.error('Select a valid next lender stage');
+      return;
+    }
     const documentProgress = getDocumentProgress(targetApp?.documents);
     if (status === 'submitted' && !documentProgress.ready) {
       toast.error('Verify required documents before submission');
@@ -514,6 +372,11 @@ export default function LoanApplicationContent() {
           status,
           note: options.note,
           rejectionReason: options.rejectionReason,
+          rejectionReasonCode: options.rejectionReasonCode,
+          sanctionedAmount: options.sanctionedAmount,
+          disbursedAmount: options.disbursedAmount,
+          approvedRoi: options.approvedRoi,
+          approvedTenureMonths: options.approvedTenureMonths,
         }),
       });
       const json = await response.json();
@@ -662,7 +525,10 @@ export default function LoanApplicationContent() {
             attention
           </p>
         </div>
-        <button className="flex items-center gap-1.5 h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-600 hover:bg-primary/90 active:scale-95 transition-all duration-150 self-start sm:self-auto">
+        <Link
+          href="/crm/eligibility-check"
+          className="flex items-center gap-1.5 h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-600 hover:bg-primary/90 active:scale-95 transition-all duration-150 self-start sm:self-auto"
+        >
           <svg
             width="13"
             height="13"
@@ -677,8 +543,24 @@ export default function LoanApplicationContent() {
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           New File
-        </button>
+        </Link>
       </div>
+
+      {applicationLoadError && (
+        <div
+          role="alert"
+          className="mb-4 flex items-center justify-between gap-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+        >
+          <span>File Process data could not be loaded: {applicationLoadError}</span>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="shrink-0 font-semibold underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Summary pills */}
       <div className="flex flex-wrap gap-2 mb-4">
@@ -810,172 +692,281 @@ export default function LoanApplicationContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.length === 0 ? (
+                {loadingApplications ? (
                   <tr>
-                    <td colSpan={15} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                      No files found
+                    <td
+                      colSpan={15}
+                      className="px-4 py-12 text-center text-sm text-muted-foreground"
+                    >
+                      Loading lender applications…
                     </td>
                   </tr>
-                ) : filtered.map((app) => (
-                  <tr
-                    key={app.id}
-                    className={[
-                      'hover:bg-muted/30 transition-colors cursor-pointer group',
-                      selectedRows.includes(app.id) ? 'bg-primary/5' : '',
-                      selectedApp?.id === app.id ? 'bg-primary/8 border-l-2 border-l-primary' : '',
-                    ].join(' ')}
-                    onClick={() => setSelectedApp(selectedApp?.id === app.id ? null : app)}
-                  >
-                    <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.includes(app.id)}
-                        onChange={() => toggleRow(app.id)}
-                        className="w-3.5 h-3.5 rounded accent-primary"
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className="text-[11px] font-700 text-primary font-mono">
-                        {app.appId}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div>
-                        <p className="text-xs font-600 text-foreground">{app.applicant}</p>
-                        <p className="text-[10px] text-muted-foreground">{app.city}</p>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">
-                      <StatusBadge variant={app.product} size="sm" />
-                    </td>
-                    <td className="px-3 py-3 text-xs font-700 text-foreground inr-value">
-                      {formatINR(app.loanAmount)}
-                    </td>
-                    <td className="px-3 py-3 text-xs text-foreground font-600 whitespace-nowrap">
-                      {app.lender}
-                    </td>
-                    <td className="px-3 py-3">
-                      <select
-                        value={app.stage}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => {
-                          const nextStatus = event.target.value as AppStage;
-                          const rejectionReason =
-                            nextStatus === 'rejected'
-                              ? window.prompt('Rejection reason?') || ''
-                              : '';
-                          updateApplicationStatus(app.id, nextStatus, {
-                            rejectionReason,
-                            note: rejectionReason,
-                          });
-                        }}
-                        className="h-7 rounded-full border border-border bg-background px-2 text-[10px] font-700 text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                      >
-                        {stageOptions.map((stage) => (
-                          <option key={`${app.id}-${stage}`} value={stage}>
-                            {stage.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-3 py-3">
-                      <CIBILBadge score={app.cibil} />
-                    </td>
-                    <td className="px-3 py-3 text-xs text-foreground font-600 inr-value tabular-nums">
-                      {app.emi > 0 ? `₹${app.emi.toLocaleString('en-IN')}` : '—'}
-                    </td>
-                    <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {app.assignedAgent.split(' ')[0]}
-                    </td>
-                    <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {app.followUpDate || '-'}
-                    </td>
-                    <td className="px-3 py-3">
-                      {(() => {
-                        const progress = getDocumentProgress(app.documents);
-                        return (
-                          <span
-                            className={[
-                              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-700',
-                              progress.ready
-                                ? 'bg-success-bg text-success'
-                                : 'bg-warning-bg text-warning',
-                            ].join(' ')}
-                          >
-                            {progress.verified}/{progress.required || 0}
-                          </span>
-                        );
-                      })()}
-                    </td>
-                    <td className="px-3 py-3">
-                      <span
-                        className={[
-                          'inline-flex items-center justify-center w-7 h-6 rounded-sm text-[10px] font-700',
-                          app.daysPending >= 7
-                            ? 'bg-danger-bg text-danger'
-                            : app.daysPending >= 4
-                              ? 'bg-warning-bg text-warning'
-                              : 'bg-muted text-muted-foreground',
-                        ].join(' ')}
-                      >
-                        {app.daysPending}d
-                      </span>
-                    </td>
-                    <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                      {app.leadId ? (
-                        <Link
-                          href={`/crm/lender-selection?lead=${encodeURIComponent(app.leadId)}`}
-                          className="inline-flex h-7 items-center justify-center rounded-sm border border-border bg-background px-2 text-[10px] font-700 text-foreground hover:bg-muted"
-                        >
-                          Change
-                        </Link>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          className="w-7 h-7 flex items-center justify-center rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                          title="Upload document for this application"
-                        >
-                          <svg
-                            width="13"
-                            height="13"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="17 8 12 3 7 8" />
-                            <line x1="12" y1="3" x2="12" y2="15" />
-                          </svg>
-                        </button>
-                        <button
-                          className="w-7 h-7 flex items-center justify-center rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                          title="Edit application details"
-                        >
-                          <svg
-                            width="13"
-                            height="13"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                      </div>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={15}
+                      className="px-4 py-12 text-center text-sm text-muted-foreground"
+                    >
+                      {applicationLoadError
+                        ? 'Applications are unavailable. Retry after the data service recovers.'
+                        : 'No files found'}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filtered.map((app) => (
+                    <tr
+                      key={app.id}
+                      className={[
+                        'hover:bg-muted/30 transition-colors cursor-pointer group',
+                        selectedRows.includes(app.id) ? 'bg-primary/5' : '',
+                        selectedApp?.id === app.id
+                          ? 'bg-primary/8 border-l-2 border-l-primary'
+                          : '',
+                      ].join(' ')}
+                      onClick={() => setSelectedApp(selectedApp?.id === app.id ? null : app)}
+                    >
+                      <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.includes(app.id)}
+                          onChange={() => toggleRow(app.id)}
+                          className="w-3.5 h-3.5 rounded accent-primary"
+                        />
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="text-[11px] font-700 text-primary font-mono">
+                          {app.appId}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div>
+                          <p className="text-xs font-600 text-foreground">{app.applicant}</p>
+                          <p className="text-[10px] text-muted-foreground">{app.city}</p>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <StatusBadge variant={app.product} size="sm" />
+                      </td>
+                      <td className="px-3 py-3 text-xs font-700 text-foreground inr-value">
+                        {formatINR(app.loanAmount)}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-foreground font-600 whitespace-nowrap">
+                        {app.lender}
+                      </td>
+                      <td className="px-3 py-3">
+                        <select
+                          value={app.stage}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => {
+                            const nextStatus = event.target.value as AppStage;
+                            const rejectionReason =
+                              nextStatus === 'rejected'
+                                ? window.prompt('Lender rejection detail?')?.trim() || ''
+                                : '';
+                            const rejectionReasonCode =
+                              nextStatus === 'rejected'
+                                ? window
+                                    .prompt(
+                                      `Rejection code (${rejectionReasons.map((reason) => reason.code).join(', ')}):`,
+                                      rejectionReasons[0]?.code || 'OTHER'
+                                    )
+                                    ?.trim()
+                                    .toUpperCase() || ''
+                                : undefined;
+                            const sanctionedAmount =
+                              nextStatus === 'sanctioned'
+                                ? Number(
+                                    window.prompt(
+                                      'Sanctioned amount (₹):',
+                                      String(app.loanAmount)
+                                    ) || 0
+                                  )
+                                : undefined;
+                            const approvedRoi =
+                              nextStatus === 'sanctioned'
+                                ? Number(window.prompt('Approved annual ROI (%):') || 0)
+                                : undefined;
+                            const approvedTenureMonths =
+                              nextStatus === 'sanctioned'
+                                ? Number(window.prompt('Approved tenure (months):') || 0)
+                                : undefined;
+                            const disbursedAmount =
+                              nextStatus === 'disbursed'
+                                ? Number(
+                                    window.prompt(
+                                      'Disbursed amount (₹):',
+                                      String(app.loanAmount)
+                                    ) || 0
+                                  )
+                                : undefined;
+                            if (nextStatus === 'rejected' && !rejectionReason) {
+                              toast.error('Rejection detail is required');
+                              return;
+                            }
+                            if (
+                              nextStatus === 'rejected' &&
+                              !rejectionReasons.some(
+                                (reason) => reason.code === rejectionReasonCode
+                              )
+                            ) {
+                              toast.error('Select a valid active rejection reason');
+                              return;
+                            }
+                            if (
+                              nextStatus === 'sanctioned' &&
+                              (!sanctionedAmount || sanctionedAmount <= 0)
+                            ) {
+                              toast.error('Valid sanctioned amount is required');
+                              return;
+                            }
+                            if (
+                              nextStatus === 'sanctioned' &&
+                              (!approvedRoi || approvedRoi <= 0 || approvedRoi > 100)
+                            ) {
+                              toast.error('Approved ROI must be greater than 0 and at most 100%');
+                              return;
+                            }
+                            if (
+                              nextStatus === 'sanctioned' &&
+                              (!approvedTenureMonths ||
+                                !Number.isInteger(approvedTenureMonths) ||
+                                approvedTenureMonths <= 0 ||
+                                approvedTenureMonths > 1200)
+                            ) {
+                              toast.error('Approved tenure must be 1 to 1200 whole months');
+                              return;
+                            }
+                            if (
+                              nextStatus === 'disbursed' &&
+                              (!disbursedAmount || disbursedAmount <= 0)
+                            ) {
+                              toast.error('Valid disbursed amount is required');
+                              return;
+                            }
+                            updateApplicationStatus(app.id, nextStatus, {
+                              rejectionReason,
+                              note: rejectionReason,
+                              rejectionReasonCode,
+                              sanctionedAmount,
+                              disbursedAmount,
+                              approvedRoi,
+                              approvedTenureMonths,
+                            });
+                          }}
+                          className="h-7 rounded-full border border-border bg-background px-2 text-[10px] font-700 text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                        >
+                          {stageOptions
+                            .filter(
+                              (stage) =>
+                                stage === app.stage ||
+                                canTransitionLenderApplication(app.stage, stage)
+                            )
+                            .map((stage) => (
+                              <option key={`${app.id}-${stage}`} value={stage}>
+                                {stage.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                              </option>
+                            ))}
+                        </select>
+                      </td>
+                      <td className="px-3 py-3">
+                        <CIBILBadge score={app.cibil} />
+                      </td>
+                      <td className="px-3 py-3 text-xs text-foreground font-600 inr-value tabular-nums">
+                        {app.emi > 0 ? `₹${app.emi.toLocaleString('en-IN')}` : '—'}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {app.assignedAgent.split(' ')[0]}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {app.followUpDate || '-'}
+                      </td>
+                      <td className="px-3 py-3">
+                        {(() => {
+                          const progress = getDocumentProgress(app.documents);
+                          return (
+                            <span
+                              className={[
+                                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-700',
+                                progress.ready
+                                  ? 'bg-success-bg text-success'
+                                  : 'bg-warning-bg text-warning',
+                              ].join(' ')}
+                            >
+                              {progress.verified}/{progress.required || 0}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={[
+                            'inline-flex items-center justify-center w-7 h-6 rounded-sm text-[10px] font-700',
+                            app.daysPending >= 7
+                              ? 'bg-danger-bg text-danger'
+                              : app.daysPending >= 4
+                                ? 'bg-warning-bg text-warning'
+                                : 'bg-muted text-muted-foreground',
+                          ].join(' ')}
+                        >
+                          {app.daysPending}d
+                        </span>
+                      </td>
+                      <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                        {app.leadId ? (
+                          <Link
+                            href={`/crm/lender-selection?lead=${encodeURIComponent(app.leadId)}`}
+                            className="inline-flex h-7 items-center justify-center rounded-sm border border-border bg-background px-2 text-[10px] font-700 text-foreground hover:bg-muted"
+                          >
+                            Change
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            className="w-7 h-7 flex items-center justify-center rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                            title="Upload document for this application"
+                          >
+                            <svg
+                              width="13"
+                              height="13"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="17 8 12 3 7 8" />
+                              <line x1="12" y1="3" x2="12" y2="15" />
+                            </svg>
+                          </button>
+                          <button
+                            className="w-7 h-7 flex items-center justify-center rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                            title="Edit application details"
+                          >
+                            <svg
+                              width="13"
+                              height="13"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -1006,6 +997,7 @@ export default function LoanApplicationContent() {
           <div className="w-80 shrink-0">
             <ApplicationDetailPanel
               app={selectedApp}
+              rejectionReasons={rejectionReasons}
               onClose={() => setSelectedApp(null)}
               onAddNote={addApplicationNote}
               onUpdateFollowUp={updateApplicationFollowUp}

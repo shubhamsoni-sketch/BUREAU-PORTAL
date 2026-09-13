@@ -50,6 +50,7 @@ export type CrmApplication = {
     | 'disbursal_initiated'
     | 'sanctioned'
     | 'rejected'
+    | 'rerouted'
     | 'disbursed';
   statusHistory?: {
     status: CrmApplication['status'];
@@ -304,6 +305,7 @@ export function normalizeApplicationStatus(value: unknown): CrmApplication['stat
       'disbursal_initiated',
       'sanctioned',
       'rejected',
+      'rerouted',
       'disbursed',
     ].includes(status)
   ) {

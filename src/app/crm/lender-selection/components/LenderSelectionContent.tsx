@@ -10,6 +10,20 @@ type LenderMatch = {
   maxLoan: string;
   approvalRate?: number;
   tat?: string;
+  rank?: number | null;
+  fitScore?: number;
+  programName?: string;
+  programId?: string;
+  matchStatus?: 'eligible' | 'near_match' | 'excluded' | 'needs_data';
+  reasons?: Array<{ reasonText: string; outcome: string }>;
+};
+
+type RoutingException = { id: string; program_id: string; status: string };
+type RoutingDecision = {
+  id: string;
+  eligibility_report_id: string;
+  result_snapshot: LenderMatch[];
+  lender_routing_exceptions?: RoutingException[];
 };
 
 type Lead = {
@@ -69,6 +83,7 @@ export default function LenderSelectionContent() {
   const [submitting, setSubmitting] = useState('');
   const [createdApplication, setCreatedApplication] = useState<CreatedApplication | null>(null);
   const [error, setError] = useState('');
+  const [routingDecisions, setRoutingDecisions] = useState<RoutingDecision[]>([]);
 
   const loadData = async () => {
     setLoading(true);
@@ -80,6 +95,13 @@ export default function LenderSelectionContent() {
 
       const leads = Array.isArray(json.data?.leads) ? (json.data.leads as Lead[]) : [];
       const reports = Array.isArray(json.data?.reports) ? (json.data.reports as Report[]) : [];
+      const routingResponse = await crmFetch('/api/crm/lender-routing', { cache: 'no-store' });
+      const routingJson = await routingResponse.json().catch(() => ({}));
+      setRoutingDecisions(
+        routingResponse.ok && routingJson.success && Array.isArray(routingJson.data)
+          ? routingJson.data
+          : []
+      );
       const reportById = new Map(reports.map((report) => [report.id, report]));
       const nextRows = leads
         .filter((lead) => lead.eligibilityReportId)
@@ -88,9 +110,6 @@ export default function LenderSelectionContent() {
           return report ? { lead, report } : null;
         })
         .filter((item): item is SelectionRow => Boolean(item))
-        .filter(
-          ({ report }) => Array.isArray(report.matched_lenders) && report.matched_lenders.length > 0
-        )
         .sort(
           (a, b) =>
             new Date(b.report.created_at).getTime() - new Date(a.report.created_at).getTime()
@@ -134,8 +153,43 @@ export default function LenderSelectionContent() {
   const activeRow = filteredRows.find((row) => row.lead.id === activeLeadId) || filteredRows[0];
   const pendingCount = rows.filter((row) => !row.lead.selectedLender).length;
   const selectedCount = rows.length - pendingCount;
+  const activeDecision = activeRow
+    ? routingDecisions.find((item) => item.eligibility_report_id === activeRow.report.id)
+    : null;
+  const exceptionResults = (activeDecision?.result_snapshot || []).filter((item) =>
+    ['near_match', 'excluded', 'needs_data'].includes(item.matchStatus || '')
+  );
 
-  const submitToLender = async (leadId: string, lenderName: string) => {
+  const submitToLender = async (leadId: string, lender: LenderMatch, fallbackRank: number) => {
+    const lenderName = lender.name;
+    const rank = lender.rank || fallbackRank;
+    const previousLender = activeRow?.lead.id === leadId ? activeRow.lead.selectedLender : '';
+    let switchReason = '';
+    if (previousLender && previousLender.toLowerCase() !== lenderName.toLowerCase()) {
+      switchReason =
+        window
+          .prompt(
+            `This file is currently with ${previousLender}. Enter the reason for rerouting it to ${lenderName}:`
+          )
+          ?.trim() || '';
+      if (!switchReason) {
+        setError('A rerouting reason is required when changing the selected lender.');
+        return;
+      }
+    }
+    let overrideNote = '';
+    if (rank > 1 && !['excluded', 'needs_data'].includes(lender.matchStatus || '')) {
+      overrideNote =
+        window
+          .prompt(
+            `You are selecting rank ${rank} instead of the top recommendation. Enter the operational reason:`
+          )
+          ?.trim() || '';
+      if (!overrideNote) {
+        setError('An override reason is required when selecting outside rank 1.');
+        return;
+      }
+    }
     setSubmitting(`${leadId}-${lenderName}`);
     setCreatedApplication(null);
     setError('');
@@ -143,7 +197,15 @@ export default function LenderSelectionContent() {
       const response = await crmFetch('/api/crm/eligibility-check', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'submit_to_lender', leadId, lenderName }),
+        body: JSON.stringify({
+          action: 'submit_to_lender',
+          leadId,
+          lenderName,
+          programId: lender.programId,
+          overrideReasonCode: rank > 1 ? 'USER_SELECTED_ALTERNATE' : '',
+          overrideNote,
+          switchReason,
+        }),
       });
       const json = await response.json();
       if (!response.ok || !json.success)
@@ -157,6 +219,40 @@ export default function LenderSelectionContent() {
       await loadData();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Unable to select lender');
+    } finally {
+      setSubmitting('');
+    }
+  };
+
+  const requestException = async (decisionId: string, result: LenderMatch) => {
+    const reasonNote =
+      window.prompt('Explain why this lender exception is operationally required:')?.trim() || '';
+    if (reasonNote.length < 10) {
+      setError('Provide a detailed exception reason of at least 10 characters.');
+      return;
+    }
+    setSubmitting(`exception-${result.programId}`);
+    setError('');
+    try {
+      const response = await crmFetch('/api/crm/lender-routing', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'request_exception',
+          decisionId,
+          programId: result.programId,
+          reasonCode: 'MANUAL_CREDIT_REVIEW',
+          reasonNote,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success)
+        throw new Error(json.error || 'Unable to request exception');
+      await loadData();
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error ? requestError.message : 'Unable to request exception'
+      );
     } finally {
       setSubmitting('');
     }
@@ -417,7 +513,8 @@ export default function LenderSelectionContent() {
                         <div>
                           <p className="text-sm font-800 text-foreground">{lender.name}</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Option {index + 1} · {lender.tat || 'TAT pending'}
+                            Rank {lender.rank || index + 1} ·{' '}
+                            {lender.programName || lender.tat || 'TAT pending'}
                           </p>
                         </div>
                         {isSelected && (
@@ -441,7 +538,7 @@ export default function LenderSelectionContent() {
                       </div>
 
                       <button
-                        onClick={() => submitToLender(activeRow.lead.id, lender.name)}
+                        onClick={() => submitToLender(activeRow.lead.id, lender, index + 1)}
                         disabled={isSelected || Boolean(submitting)}
                         className={[
                           'w-full h-9 rounded-sm text-xs font-700 transition-colors disabled:opacity-60',
@@ -461,7 +558,78 @@ export default function LenderSelectionContent() {
                     </div>
                   );
                 })}
+                {!activeRow.report.matched_lenders.length && (
+                  <div className="rounded-lg border border-dashed border-border p-5 text-sm text-muted-foreground lg:col-span-2">
+                    No directly eligible lender. Review explainable results below.
+                  </div>
+                )}
               </div>
+
+              {exceptionResults.length > 0 && activeDecision && (
+                <div className="mt-6 border-t border-border pt-5">
+                  <h3 className="text-sm font-700 text-foreground">Manual Review & Exceptions</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    These programs failed or need data. Submission requires independent approval.
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    {exceptionResults.map((result) => {
+                      const exception = activeDecision.lender_routing_exceptions?.find(
+                        (item) =>
+                          item.program_id === result.programId &&
+                          !['cancelled', 'expired'].includes(item.status)
+                      );
+                      const failedReasons = (result.reasons || []).filter(
+                        (reason) => reason.outcome !== 'passed'
+                      );
+                      return (
+                        <div
+                          key={result.programId}
+                          className="rounded-lg border border-warning/30 bg-warning/5 p-4"
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-sm font-800 text-foreground">
+                                {result.name} · {result.programName}
+                              </p>
+                              <p className="mt-1 text-xs font-700 uppercase text-warning">
+                                {result.matchStatus?.replace(/_/g, ' ')}
+                              </p>
+                              <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                {failedReasons.slice(0, 3).map((reason, index) => (
+                                  <li key={`${reason.reasonText}-${index}`}>
+                                    • {reason.reasonText}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            {exception?.status === 'approved' ? (
+                              <button
+                                disabled={Boolean(submitting)}
+                                onClick={() => submitToLender(activeRow.lead.id, result, 1)}
+                                className="h-9 rounded-sm bg-success px-3 text-xs font-700 text-white"
+                              >
+                                Use approved exception
+                              </button>
+                            ) : exception ? (
+                              <span className="rounded-full border border-warning/30 px-3 py-1 text-xs font-700 text-warning">
+                                {exception.status}
+                              </span>
+                            ) : (
+                              <button
+                                disabled={Boolean(submitting)}
+                                onClick={() => requestException(activeDecision.id, result)}
+                                className="h-9 rounded-sm border border-warning/40 px-3 text-xs font-700 text-warning"
+                              >
+                                Request exception
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         </div>

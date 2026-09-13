@@ -27,6 +27,7 @@ import {
   Brain,
   Route,
   BadgeIndianRupee,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -71,6 +72,11 @@ const navGroups = [
     label: 'Lender Intelligence',
     items: [
       { label: 'Lender Intelligence', href: '/admin-lender-intelligence', icon: Brain },
+      {
+        label: 'Lender Onboarding',
+        href: '/admin-lender-intelligence/onboarding',
+        icon: Building2,
+      },
       { label: 'Lender Routing', href: '/admin-lender-intelligence/routing', icon: Route },
       {
         label: 'Lender Performance',
@@ -78,9 +84,14 @@ const navGroups = [
         icon: BarChart3,
       },
       {
-        label: 'Invoicing & Compliance',
+        label: 'Finance & Reconciliation',
         href: '/admin-lender-intelligence/invoicing-compliance',
         icon: BadgeIndianRupee,
+      },
+      {
+        label: 'Compliance Evidence',
+        href: '/admin-lender-intelligence/compliance',
+        icon: Shield,
       },
     ],
   },
@@ -97,10 +108,29 @@ const navGroups = [
   },
 ];
 
+const lenderPermissionByPath: Record<string, string> = {
+  '/admin-lender-intelligence': 'intelligence.read',
+  '/admin-lender-intelligence/onboarding': 'catalog.read',
+  '/admin-lender-intelligence/routing': 'intelligence.read',
+  '/admin-lender-intelligence/performance': 'intelligence.read',
+  '/admin-lender-intelligence/invoicing-compliance': 'finance.read',
+  '/admin-lender-intelligence/compliance': 'compliance.read',
+};
+
 export default function AdminSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const lenderPermissions = new Set(user?.lenderIntelligencePermissions || []);
+  const visibleNavGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        const required = lenderPermissionByPath[item.href];
+        return !required || lenderPermissions.has('*') || lenderPermissions.has(required);
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <aside
@@ -130,7 +160,7 @@ export default function AdminSidebar() {
       )}
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto scrollbar-thin py-2 px-2">
-        {navGroups?.map((group) => (
+        {visibleNavGroups.map((group) => (
           <div key={`group-${group?.label}`} className="mb-1">
             {!collapsed && (
               <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">

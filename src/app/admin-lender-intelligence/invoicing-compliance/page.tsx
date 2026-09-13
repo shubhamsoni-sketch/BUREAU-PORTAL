@@ -1,5 +1,5 @@
-import LenderIntelligenceWorkspace from '../components/LenderIntelligenceWorkspace';
+import LenderFinanceWorkspace from '../components/LenderFinanceWorkspace';
 
 export default function AdminLenderInvoicingCompliancePage() {
-  return <LenderIntelligenceWorkspace view="compliance" />;
+  return <LenderFinanceWorkspace />;
 }

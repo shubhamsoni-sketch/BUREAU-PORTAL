@@ -34,11 +34,21 @@ export function middleware(request: NextRequest) {
     return marketingPath === '' ? '/' : marketingPath;
   };
 
+  const isLenderIntelligenceSurface =
+    normalizedPathname.startsWith('/admin-lender-intelligence') ||
+    normalizedPathname.startsWith('/api/admin-lender-intelligence') ||
+    normalizedPathname === '/api/crm/lender-routing';
+
   if (isApiConsoleHost && normalizedPathname === '/') {
     return NextResponse.rewrite(new URL('/api-console', request.url));
   }
 
-  if (isApiConsoleHost && !isAsset && !isApiRoute && !normalizedPathname.startsWith('/api-console')) {
+  if (
+    isApiConsoleHost &&
+    !isAsset &&
+    !isApiRoute &&
+    !normalizedPathname.startsWith('/api-console')
+  ) {
     return NextResponse.rewrite(new URL('/api-console', request.url));
   }
 
@@ -51,15 +61,15 @@ export function middleware(request: NextRequest) {
   }
 
   if (isCrmHost && !isAsset && !isApiRoute && marketingPaths.has(normalizedPathname)) {
-    return NextResponse.rewrite(new URL(normalizedPathname === '/' ? '/crm-website' : `/crm-website${normalizedPathname}`, request.url));
+    return NextResponse.rewrite(
+      new URL(
+        normalizedPathname === '/' ? '/crm-website' : `/crm-website${normalizedPathname}`,
+        request.url
+      )
+    );
   }
 
-  if (
-    isCrmHost &&
-    !isAsset &&
-    !isApiRoute &&
-    !normalizedPathname.startsWith('/crm')
-  ) {
+  if (isCrmHost && !isAsset && !isApiRoute && !normalizedPathname.startsWith('/crm')) {
     return NextResponse.redirect(withSearch(normalizedPathname, 'https://credittrust.in'));
   }
 
@@ -73,6 +83,15 @@ export function middleware(request: NextRequest) {
 
   if (isMainPortalHost && normalizedPathname.startsWith('/crm')) {
     return NextResponse.redirect(withSearch(normalizedPathname, 'https://crm.credittrust.in'));
+  }
+
+  if (isLenderIntelligenceSurface) {
+    const response = NextResponse.next();
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    return response;
   }
 
   return NextResponse.next();

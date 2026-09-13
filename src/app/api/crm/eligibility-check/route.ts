@@ -36,6 +36,11 @@ import {
   upsertCrmLead,
   upsertCrmReminder,
 } from '@/lib/crm/db';
+import { matchPublishedPrograms, saveRoutingDecision } from '@/lib/lender-intelligence/server';
+import {
+  canTransitionLenderApplication,
+  isLenderApplicationStage,
+} from '@/lib/lender-intelligence/lifecycle';
 
 type CrmEligibilityReport = {
   id: string;
@@ -55,7 +60,17 @@ type CrmEligibilityReport = {
   created_at: string;
   cibil_payload: Record<string, unknown>;
   bureau_response: unknown;
+  consent_given?: boolean;
+  consent_at?: string | null;
+  consent_version?: string | null;
+  consent_purpose?: string | null;
+  consent_source?: string | null;
+  consent_captured_by?: string | null;
 };
+
+const ELIGIBILITY_CONSENT_VERSION = 'eligibility-routing-v1';
+const ELIGIBILITY_CONSENT_PURPOSE =
+  'Customer authorized profile verification, eligibility assessment, and lender-fit routing.';
 
 type CrmCreditTransaction = {
   id: string;
@@ -133,6 +148,7 @@ function permissionForAction(action: string): CrmPermissionKey {
   if (
     [
       'send_to_lender',
+      'submit_to_lender',
       'update_application_status',
       'add_application_note',
       'update_application_document',
@@ -433,7 +449,9 @@ function buildEligibilityResultFromReport(report: CrmEligibilityReport) {
     recommendedEMI: 0,
     foir: Number(report.foir || 0),
     remarks: [
-      score ? `Saved bureau score: ${score}` : `Saved bureau status: ${report.status || 'available'}`,
+      score
+        ? `Saved bureau score: ${score}`
+        : `Saved bureau status: ${report.status || 'available'}`,
       'Saved CRM report used. No live bureau API was called.',
       report.matched_lenders?.length
         ? `${report.matched_lenders.length} lender policy match found in saved result.`
@@ -637,8 +655,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, data: store });
     }
 
+    if (body.action === 'withdraw_eligibility_consent') {
+      const eligibilityReportId = cleanString(body.eligibilityReportId);
+      const reason = cleanString(body.reason);
+      if (!eligibilityReportId || reason.length < 5 || reason.length > 2000) {
+        return jsonError('Eligibility report and a meaningful withdrawal reason are required');
+      }
+      const supabase = createAdminClient();
+      const scope = await resolveCrmScope(request, supabase);
+      if (!scope.partnerId || scope.isDemo) return jsonError('Partner account is required', 403);
+      const { data, error } = await supabase.rpc('withdraw_lender_eligibility_consent', {
+        p_partner_id: scope.partnerId,
+        p_eligibility_report_id: eligibilityReportId,
+        p_reason: reason,
+        p_actor_user_id: scope.userId,
+      });
+      if (error) return jsonError(error.message, 409);
+      return NextResponse.json({ success: true, data });
+    }
+
     if (body.action === 'seed_demo_eligibility') {
-      if (process.env.CRM_ALLOW_DEMO_SEED !== 'true') {
+      if (process.env.NODE_ENV === 'production' || process.env.CRM_ALLOW_DEMO_SEED !== 'true') {
         return jsonError('Demo seed is disabled in production', 403);
       }
 
@@ -803,6 +840,10 @@ export async function POST(request: NextRequest) {
     if (body.action === 'submit_to_lender') {
       const leadId = cleanString(body.leadId);
       const lenderName = cleanString(body.lenderName);
+      const requestedProgramId = cleanString(body.programId);
+      const overrideReasonCode = cleanString(body.overrideReasonCode).toUpperCase();
+      const overrideNote = cleanString(body.overrideNote);
+      const switchReason = cleanString(body.switchReason);
       if (!leadId) return jsonError('Lead is required', 400);
       if (!lenderName) return jsonError('Lender is required', 400);
 
@@ -812,14 +853,149 @@ export async function POST(request: NextRequest) {
       if (tableData) {
         store.leads = tableData.leads;
         store.applications = tableData.applications;
+        store.reports = tableData.reports;
+        store.lenders = tableData.lenders;
       }
       const lead = store.leads.find((item) => item.id === leadId);
       if (!lead) return jsonError('Lead not found', 404);
+      const isLenderSwitch = Boolean(
+        lead.selectedLender && lead.selectedLender.toLowerCase() !== lenderName.toLowerCase()
+      );
+      if (isLenderSwitch && !switchReason) {
+        return jsonError('Rerouting reason is required when changing the selected lender', 409);
+      }
+
+      const eligibilityReport = lead.eligibilityReportId
+        ? store.reports.find((item) => item.id === lead.eligibilityReportId)
+        : null;
+      if (!eligibilityReport) {
+        return jsonError('Run eligibility before selecting a lender', 409);
+      }
+
+      let matchedLender = (eligibilityReport.matched_lenders || []).find(
+        (item) => cleanString(item.name).toLowerCase() === lenderName.toLowerCase()
+      );
+      let approvedExceptionId = '';
+      let approvedExceptionReasonCode = '';
+      let approvedExceptionNote = '';
+      if (!matchedLender && requestedProgramId && scope.partnerId) {
+        const { data: exception } = await supabase
+          .from('lender_routing_exceptions')
+          .select(
+            'id,program_id,lender_id,reason_code,reason_note,lender_master!inner(display_name)'
+          )
+          .eq('partner_id', scope.partnerId)
+          .eq('eligibility_report_id', eligibilityReport.id)
+          .eq('program_id', requestedProgramId)
+          .eq('status', 'approved')
+          .maybeSingle();
+        const exceptionLender = exception
+          ? Array.isArray(exception.lender_master)
+            ? exception.lender_master[0]
+            : exception.lender_master
+          : null;
+        if (
+          exception &&
+          cleanString(exceptionLender?.display_name).toLowerCase() === lenderName.toLowerCase()
+        ) {
+          approvedExceptionId = exception.id;
+          approvedExceptionReasonCode = cleanString(exception.reason_code);
+          approvedExceptionNote = cleanString(exception.reason_note);
+          matchedLender = {
+            name: lenderName,
+            roi: '-',
+            maxLoan: '-',
+          };
+        }
+      }
+      if (!matchedLender) {
+        return jsonError('Selected lender is not an eligible match for this lead', 409);
+      }
+
+      const matchedDetails = matchedLender as unknown as Record<string, unknown>;
+      const matchedProgramId =
+        cleanString(matchedDetails.programId) || (approvedExceptionId ? requestedProgramId : '');
+      const selectedRank = Number(matchedDetails.rank || 0) || null;
+      if (selectedRank && selectedRank > 1 && (!overrideReasonCode || !overrideNote)) {
+        return jsonError('Override reason is required when selecting outside rank 1', 409);
+      }
+      let selectedLenderId = '';
+      let selectedProgramId = '';
+      if (matchedProgramId) {
+        const { data: program, error: programError } = await supabase
+          .from('lender_programs')
+          .select(
+            'id,lender_id,status,capacity_status,lender_master!inner(display_name,onboarding_status)'
+          )
+          .eq('id', matchedProgramId)
+          .single();
+        if (programError) return jsonError('Selected lender program is unavailable', 409);
+        const lender = Array.isArray(program.lender_master)
+          ? program.lender_master[0]
+          : program.lender_master;
+        if (
+          program.status !== 'active' ||
+          program.capacity_status === 'paused' ||
+          lender?.onboarding_status !== 'active' ||
+          cleanString(lender?.display_name).toLowerCase() !== lenderName.toLowerCase()
+        ) {
+          return jsonError('Selected lender program is no longer active', 409);
+        }
+        selectedLenderId = cleanString(program.lender_id);
+        selectedProgramId = cleanString(program.id);
+      }
+
+      const activeLegacyLender = store.lenders.find(
+        (item) => item.status === 'active' && item.name.toLowerCase() === lenderName.toLowerCase()
+      );
+      if (!matchedProgramId && !activeLegacyLender) {
+        return jsonError('Selected lender is no longer active', 409);
+      }
 
       const now = new Date().toISOString();
+      const terminalStatuses: CrmApplication['status'][] = ['rejected', 'rerouted', 'disbursed'];
+      const previousApplication = isLenderSwitch
+        ? (store.applications || []).find(
+            (item) =>
+              item.leadId === leadId &&
+              item.lenderName.toLowerCase() === lead.selectedLender?.toLowerCase() &&
+              !terminalStatuses.includes(item.status)
+          )
+        : undefined;
+      if (previousApplication) {
+        previousApplication.status = 'rerouted';
+        previousApplication.statusHistory = [
+          {
+            status: 'rerouted' as const,
+            note: `Rerouted from ${previousApplication.lenderName} to ${lenderName}: ${switchReason}`,
+            changedAt: now,
+            changedBy: 'Admin',
+          },
+          ...(previousApplication.statusHistory || []),
+        ].slice(0, 100);
+        previousApplication.lenderHistory = [
+          {
+            lenderName: previousApplication.lenderName,
+            status: 'rerouted',
+            changedAt: now,
+            note: `Transferred to ${lenderName}: ${switchReason}`,
+          },
+          ...(previousApplication.lenderHistory || []),
+        ].slice(0, 100);
+        previousApplication.updatedAt = now;
+      }
       const existingApplication = (store.applications || []).find(
-        (item) => item.leadId === leadId && item.lenderName === lenderName
+        (item) =>
+          item.leadId === leadId &&
+          item.lenderName.toLowerCase() === lenderName.toLowerCase() &&
+          !terminalStatuses.includes(item.status)
       );
+      if (existingApplication && selectedProgramId && scope.partnerId && !scope.isDemo) {
+        return NextResponse.json({
+          success: true,
+          data: { application: existingApplication, leads: store.leads, idempotent: true },
+        });
+      }
       const application: CrmApplication = existingApplication || {
         id: crypto.randomUUID(),
         leadId,
@@ -839,6 +1015,16 @@ export async function POST(request: NextRequest) {
         ],
         notes: [],
         lenderHistory: [
+          ...(isLenderSwitch && lead.selectedLender
+            ? [
+                {
+                  lenderName: lead.selectedLender,
+                  status: 'rerouted',
+                  changedAt: now,
+                  note: `Transferred to ${lenderName}: ${switchReason}`,
+                },
+              ]
+            : []),
           {
             lenderName,
             status: 'sent',
@@ -864,8 +1050,95 @@ export async function POST(request: NextRequest) {
             }
           : item
       );
+      const decisionType = approvedExceptionId
+        ? 'exception'
+        : selectedRank && selectedRank > 1
+          ? 'override'
+          : 'selected';
+      const selectionReasonCode = approvedExceptionId
+        ? approvedExceptionReasonCode
+        : decisionType === 'override'
+          ? overrideReasonCode
+          : '';
+      const selectionReasonNote = approvedExceptionId
+        ? approvedExceptionNote
+        : decisionType === 'override'
+          ? overrideNote
+          : '';
+      let usedAtomicReroute = false;
+      let usedAtomicSelection = false;
+      if (previousApplication && selectedProgramId && scope.partnerId && !scope.isDemo) {
+        const { error: rerouteError } = await supabase.rpc('reroute_crm_application', {
+          p_partner_id: scope.partnerId,
+          p_previous_application_id: previousApplication.id,
+          p_new_application: application,
+          p_new_lender_id: selectedLenderId || null,
+          p_new_program_id: selectedProgramId || null,
+          p_reason: switchReason,
+          p_eligibility_report_id: eligibilityReport.id,
+          p_selected_rank: selectedRank,
+          p_decision_type: decisionType,
+          p_reason_code: selectionReasonCode,
+          p_reason_note: selectionReasonNote,
+          p_exception_id: approvedExceptionId || null,
+          p_actor_user_id: scope.userId,
+          p_occurred_at: now,
+        });
+        if (rerouteError) throw rerouteError;
+        usedAtomicReroute = true;
+        await saveCrmApplicationDocuments(supabase, scope, application);
+        await logCrmAudit(supabase, scope, {
+          module: 'file_process',
+          action: 'reroute_application',
+          entityType: 'application',
+          entityId: application.id,
+          summary: `${lead.name} file rerouted from ${previousApplication.lenderName} to ${lenderName}`,
+          metadata: { previousApplicationId: previousApplication.id, switchReason },
+        });
+      } else if (previousApplication) {
+        await upsertCrmApplication(supabase, scope, previousApplication);
+      }
+      if (
+        !previousApplication &&
+        !existingApplication &&
+        selectedProgramId &&
+        scope.partnerId &&
+        !scope.isDemo
+      ) {
+        const { error: selectionError } = await supabase.rpc('commit_lender_selection', {
+          p_partner_id: scope.partnerId,
+          p_eligibility_report_id: eligibilityReport.id,
+          p_application: application,
+          p_lender_id: selectedLenderId,
+          p_program_id: selectedProgramId,
+          p_selected_rank: selectedRank,
+          p_decision_type: decisionType,
+          p_reason_code: selectionReasonCode,
+          p_reason_note: selectionReasonNote,
+          p_exception_id: approvedExceptionId || null,
+          p_actor_user_id: scope.userId,
+          p_occurred_at: now,
+        });
+        if (selectionError) throw selectionError;
+        usedAtomicSelection = true;
+        await saveCrmApplicationDocuments(supabase, scope, application);
+        await logCrmAudit(supabase, scope, {
+          module: 'lender_selection',
+          action: 'commit_lender_selection',
+          entityType: 'application',
+          entityId: application.id,
+          summary: `${lead.name} file committed to ${lenderName}`,
+          metadata: {
+            selectedProgramId,
+            selectedRank,
+            decisionType,
+            approvedExceptionId: approvedExceptionId || null,
+          },
+        });
+      }
+      if (!usedAtomicReroute && !usedAtomicSelection)
+        await upsertCrmApplication(supabase, scope, application);
       await saveCrmStore(supabase, rowId, store);
-      await upsertCrmApplication(supabase, scope, application);
       const changedLead = store.leads.find((item) => item.id === leadId);
       if (changedLead) await upsertCrmLead(supabase, scope, changedLead);
       return NextResponse.json({ success: true, data: { application, leads: store.leads } });
@@ -876,22 +1149,38 @@ export async function POST(request: NextRequest) {
       const status = cleanString(body.status);
       const note = cleanString(body.note);
       const rejectionReason = cleanString(body.rejectionReason);
-      const allowedStatuses = new Set([
-        'case_sent_to_lender',
-        'login_pending',
-        'draft',
-        'submitted',
-        'under_review',
-        'credit_check',
-        'conditional_approval',
-        'final_approval',
-        'disbursal_initiated',
-        'sanctioned',
-        'rejected',
-        'disbursed',
-      ]);
+      const rejectionReasonCode = cleanString(body.rejectionReasonCode).toUpperCase();
+      const sanctionedAmount = Math.max(0, Number(body.sanctionedAmount || 0));
+      const disbursedAmount = Math.max(0, Number(body.disbursedAmount || 0));
+      const approvedRoi = Math.max(0, Number(body.approvedRoi || 0));
+      const approvedTenureMonths = Math.max(0, Number(body.approvedTenureMonths || 0));
       if (!applicationId) return jsonError('Application is required', 400);
-      if (!allowedStatuses.has(status)) return jsonError('Valid status is required', 400);
+      if (!isLenderApplicationStage(status)) return jsonError('Valid status is required', 400);
+      if (note.length > 2000 || rejectionReason.length > 2000 || rejectionReasonCode.length > 50) {
+        return jsonError('Application outcome text exceeds the allowed length', 400);
+      }
+      if (
+        ![sanctionedAmount, disbursedAmount, approvedRoi, approvedTenureMonths].every(
+          Number.isFinite
+        )
+      ) {
+        return jsonError('Application outcome values must be valid numbers', 400);
+      }
+      if (sanctionedAmount > 1_000_000_000_000 || disbursedAmount > 1_000_000_000_000) {
+        return jsonError('Application outcome amount is outside the allowed range', 400);
+      }
+      if (
+        [body.sanctionedAmount, body.disbursedAmount].some((value) => {
+          const amount = cleanString(value);
+          return amount.length > 0 && !/^\d+(?:\.\d{1,2})?$/.test(amount);
+        })
+      ) {
+        return jsonError('Application outcome amounts cannot contain sub-paise precision', 400);
+      }
+      if (approvedRoi > 100) return jsonError('Approved ROI must be between 0 and 100', 400);
+      if (approvedTenureMonths > 1200) {
+        return jsonError('Approved tenure must be between 0 and 1200 months', 400);
+      }
 
       const supabase = createAdminClient();
       const { rowId, store, scope } = await getCrmStore(request, supabase);
@@ -901,6 +1190,78 @@ export async function POST(request: NextRequest) {
         (application) => application.id === applicationId
       );
       if (!existingApplication) return jsonError('Application not found', 404);
+      if (!canTransitionLenderApplication(existingApplication.status, status)) {
+        return jsonError(
+          `Invalid lender stage transition from ${existingApplication.status} to ${status}`,
+          409
+        );
+      }
+
+      if (status === 'sanctioned' && sanctionedAmount <= 0) {
+        return jsonError('Sanctioned amount must be greater than zero', 400);
+      }
+      if (status === 'sanctioned' && approvedRoi <= 0) {
+        return jsonError('Approved ROI must be greater than zero', 400);
+      }
+      if (
+        status === 'sanctioned' &&
+        (approvedTenureMonths <= 0 || !Number.isInteger(approvedTenureMonths))
+      ) {
+        return jsonError('Approved tenure must be a positive whole number of months', 400);
+      }
+      if (status === 'disbursed' && disbursedAmount <= 0) {
+        return jsonError('Disbursed amount must be greater than zero', 400);
+      }
+      if (status === 'disbursed') {
+        const { data: boundDecision, error: boundDecisionError } = await supabase
+          .from('lender_routing_decisions')
+          .select('selected_lender_id,selected_program_id')
+          .eq('partner_id', scope.partnerId)
+          .eq('application_id', applicationId)
+          .order('decided_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (boundDecisionError) return jsonError(boundDecisionError.message, 500);
+        if (!boundDecision?.selected_lender_id || !boundDecision.selected_program_id) {
+          return jsonError('A bound lender decision is required before disbursal', 409);
+        }
+        const { data: approvedOutcome, error: approvedOutcomeError } = await supabase
+          .from('lender_outcomes')
+          .select('sanctioned_amount')
+          .eq('partner_id', scope.partnerId)
+          .eq('application_id', applicationId)
+          .eq('lender_id', boundDecision.selected_lender_id)
+          .eq('program_id', boundDecision.selected_program_id)
+          .eq('outcome', 'approved')
+          .order('decided_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (approvedOutcomeError) return jsonError(approvedOutcomeError.message, 500);
+        if (!approvedOutcome) {
+          return jsonError('Record a canonical sanction before disbursal', 409);
+        }
+        if (disbursedAmount > Number(approvedOutcome.sanctioned_amount || 0)) {
+          return jsonError('Disbursed amount cannot exceed the sanctioned amount', 400);
+        }
+      }
+
+      if (status === 'rejected') {
+        if (!rejectionReasonCode || !rejectionReason) {
+          return jsonError('Rejection reason code and detail are required', 400);
+        }
+        let reasonQuery = supabase
+          .from('lender_rejection_reasons')
+          .select('code')
+          .eq('code', rejectionReasonCode)
+          .eq('active', true);
+        reasonQuery = scope.partnerId
+          ? reasonQuery.or(`partner_id.is.null,partner_id.eq.${scope.partnerId}`)
+          : reasonQuery.is('partner_id', null);
+        const { data: reason } = await reasonQuery.limit(1).maybeSingle();
+        if (!reason) return jsonError('Select a valid active rejection reason', 400);
+      }
+
+      const occurredAt = new Date().toISOString();
 
       store.applications = (store.applications || []).map((application) =>
         application.id === applicationId
@@ -919,20 +1280,39 @@ export async function POST(request: NextRequest) {
                     (status === 'rejected' && rejectionReason
                       ? rejectionReason
                       : `Status changed to ${status.replace(/_/g, ' ')}`),
-                  changedAt: new Date().toISOString(),
+                  changedAt: occurredAt,
                   changedBy: 'Admin',
                 },
                 ...(application.statusHistory || []),
               ].slice(0, 100),
-              updatedAt: new Date().toISOString(),
+              updatedAt: occurredAt,
             }
           : application
       );
-      await saveCrmStore(supabase, rowId, store);
       const changedApplication = (store.applications || []).find(
         (application) => application.id === applicationId
       );
-      if (changedApplication) await upsertCrmApplication(supabase, scope, changedApplication);
+      if (!changedApplication || !scope.partnerId)
+        return jsonError('Persisted partner application is required', 409);
+      const { error: transitionError } = await supabase.rpc('transition_lender_application', {
+        p_partner_id: scope.partnerId,
+        p_application_id: applicationId,
+        p_expected_from_stage: existingApplication.status,
+        p_to_stage: status,
+        p_status_history: changedApplication.statusHistory || [],
+        p_note: note || rejectionReason || '',
+        p_reason_code: status === 'rejected' ? rejectionReasonCode || 'OTHER' : '',
+        p_rejection_reason: rejectionReason || '',
+        p_sanctioned_amount: sanctionedAmount,
+        p_disbursed_amount: disbursedAmount,
+        p_approved_roi: approvedRoi,
+        p_approved_tenure_months: approvedTenureMonths,
+        p_actor_user_id: scope.userId,
+        p_occurred_at: occurredAt,
+      });
+      if (transitionError) return jsonError(transitionError.message, 409);
+      // The normalized tables above are authoritative. Keep the legacy JSON store synchronized for older screens.
+      await saveCrmStore(supabase, rowId, store).catch(() => undefined);
       return NextResponse.json({ success: true, data: { applications: store.applications } });
     }
 
@@ -1020,9 +1400,7 @@ export async function POST(request: NextRequest) {
           notes: [
             {
               id: crypto.randomUUID(),
-              note:
-                note ||
-                `${documentName || 'Document'} marked ${status.replace(/_/g, ' ')}`,
+              note: note || `${documentName || 'Document'} marked ${status.replace(/_/g, ' ')}`,
               createdAt: now,
               createdBy: 'System',
             },
@@ -1113,6 +1491,9 @@ export async function POST(request: NextRequest) {
     const tenure = Math.max(1, Number(body.tenure || 60));
 
     if (!/^\d{10}$/.test(mobile)) return jsonError('Valid mobile is required', 400);
+    if (body.consent !== true) {
+      return jsonError('Explicit customer consent attestation is required', 422);
+    }
 
     const supabase = createAdminClient();
     const { rowId: crmRowId, store: crmStore, scope } = await getCrmStore(request, supabase);
@@ -1206,10 +1587,12 @@ export async function POST(request: NextRequest) {
         .filter(Boolean)
         .join(' ');
     } else {
-      if (!name.firstName || !name.lastName) return jsonError('Full name with first and last name is required', 400);
+      if (!name.firstName || !name.lastName)
+        return jsonError('Full name with first and last name is required', 400);
       if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(pan)) return jsonError('Valid PAN is required', 400);
 
-      const state = cleanString(body.state) || stateFromPincode(pincode, city) || CRM_STANDARD_DEFAULTS.state;
+      const state =
+        cleanString(body.state) || stateFromPincode(pincode, city) || CRM_STANDARD_DEFAULTS.state;
       cibilPayload = {
         firstName: name.firstName,
         lastName: name.lastName,
@@ -1255,8 +1638,46 @@ export async function POST(request: NextRequest) {
         ? Math.round(((monthlyIncome * 0.55) / r) * (1 - Math.pow(1 + r, -tenure)))
         : 0
     );
-    const matchedLenders =
+    const routingInput = {
+      score,
+      loanType,
+      loanAmount,
+      monthlyIncome,
+      tenure,
+      foir,
+      state: cleanString(cibilPayload.state),
+      city,
+      employmentType: cleanString(body.employmentType),
+      channel: cleanString(body.channel) || 'crm',
+      maxLoanAmount,
+    };
+    const policyResults =
       monthlyIncome > 0 && loanType
+        ? await matchPublishedPrograms(supabase, scope, routingInput)
+        : null;
+    const matchedLenders = policyResults
+      ? policyResults
+          .filter((item) => item.matchStatus === 'eligible')
+          .map((item) => ({
+            name: item.lenderName,
+            programId: item.programId,
+            programName: item.programName,
+            policyVersionId: item.policyVersionId,
+            policyVersion: item.policyVersion,
+            fitScore: item.fitScore,
+            rank: item.rank,
+            reasons: item.reasons,
+            roi: item.roi,
+            maxLoan: new Intl.NumberFormat('en-IN', {
+              style: 'currency',
+              currency: 'INR',
+              maximumFractionDigits: 0,
+            }).format(
+              Math.min(loanAmount || maxLoanAmount, item.maxLoan || loanAmount || maxLoanAmount)
+            ),
+            tat: item.tat,
+          }))
+      : monthlyIncome > 0 && loanType
         ? matchLenders(crmStore.lenders, {
             score,
             loanType,
@@ -1283,6 +1704,7 @@ export async function POST(request: NextRequest) {
         : 'Customer needs manual review or alternate lender mapping.',
     ];
 
+    const consentAt = new Date().toISOString();
     const report: CrmEligibilityReport = {
       id: crypto.randomUUID(),
       request_id: requestId,
@@ -1301,6 +1723,12 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
       cibil_payload: cibilPayload,
       bureau_response: bureauResponse.data,
+      consent_given: true,
+      consent_at: consentAt,
+      consent_version: ELIGIBILITY_CONSENT_VERSION,
+      consent_purpose: ELIGIBILITY_CONSENT_PURPOSE,
+      consent_source: 'operator_attestation',
+      consent_captured_by: scope.userId,
     };
 
     crmStore.eligibility_credits = {
@@ -1336,6 +1764,15 @@ export async function POST(request: NextRequest) {
     await saveCrmStore(supabase, crmRowId, crmStore);
     await saveApiHubStore(supabase, apiHubRowId, apiHubStore);
     await insertCrmEligibilityReport(supabase, scope, report, leadId || undefined);
+    if (policyResults) {
+      await saveRoutingDecision(supabase, scope, {
+        leadId: leadId || undefined,
+        eligibilityReportId: report.id,
+        engineVersion: 'policy-rules-v1',
+        inputSnapshot: routingInput,
+        results: policyResults,
+      });
+    }
     if (leadId) {
       const changedLead = crmStore.leads.find((lead) => lead.id === leadId);
       if (changedLead) await upsertCrmLead(supabase, scope, changedLead);
@@ -1346,7 +1783,15 @@ export async function POST(request: NextRequest) {
       entityType: 'eligibility_report',
       entityId: report.id,
       summary: `Eligibility check completed for ${borrowerName}`,
-      metadata: { requestId, score, status, leadId },
+      metadata: {
+        requestId,
+        score,
+        status,
+        leadId,
+        consentVersion: ELIGIBILITY_CONSENT_VERSION,
+        consentSource: 'operator_attestation',
+        consentAt,
+      },
     });
 
     return NextResponse.json({

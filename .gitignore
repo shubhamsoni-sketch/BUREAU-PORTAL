@@ -46,5 +46,6 @@ artifacts/
 turbo/
 
 .vercel
+/output/
 .env*
 supabase/.temp/

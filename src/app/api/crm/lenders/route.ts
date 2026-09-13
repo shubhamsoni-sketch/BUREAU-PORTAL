@@ -128,7 +128,11 @@ export async function GET(request: NextRequest) {
     const effectiveStore = tableData ? { ...store, ...tableData } : store;
     const access = requireCrmPermission(scope, effectiveStore, 'lender_management');
     if (!access.ok) return jsonError(access.error, access.status);
-    return NextResponse.json({ success: true, data: normalizeLenders(effectiveStore.lenders), scope });
+    return NextResponse.json({
+      success: true,
+      data: normalizeLenders(effectiveStore.lenders),
+      scope,
+    });
   } catch (error) {
     console.error('[crm:lenders] GET failed:', error);
     return jsonError(error instanceof Error ? error.message : 'Unable to load lenders', 500);

@@ -20,6 +20,11 @@ interface EligibilityReport {
   checkedOn: string;
   status: 'eligible' | 'not_eligible' | 'pending';
   isLive?: boolean;
+  consentGiven?: boolean;
+  consentAt?: string | null;
+  consentVersion?: string | null;
+  consentWithdrawnAt?: string | null;
+  consentWithdrawalReason?: string | null;
 }
 
 const formatINR = (n: number) => {
@@ -52,6 +57,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedReport, setSelectedReport] = useState<EligibilityReport | null>(null);
+  const [withdrawingConsent, setWithdrawingConsent] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,7 +68,7 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
         const liveReports = json?.data?.reports;
         if (!cancelled && Array.isArray(liveReports)) {
           setReports(
-            liveReports.map((report: any) => ({
+            liveReports.map((report: Record<string, unknown>) => ({
               id: String(report.id || report.request_id),
               borrowerName: String(report.borrower_name || 'Customer'),
               pan: String(report.pan || ''),
@@ -81,24 +87,40 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
               foir: 0,
               eligible: Boolean(report.eligible),
               matchedLenders: Array.isArray(report.matched_lenders)
-                ? report.matched_lenders.map((lender: any) => ({
-                    name: String(lender.name || ''),
-                    roi: String(lender.roi || ''),
-                    maxLoan: String(lender.maxLoan || lender.max_loan || ''),
-                  }))
+                ? report.matched_lenders.map((lender) => {
+                    const item = lender as Record<string, unknown>;
+                    return {
+                      name: String(item.name || ''),
+                      roi: String(item.roi || ''),
+                      maxLoan: String(item.maxLoan || item.max_loan || ''),
+                    };
+                  })
                 : [],
               checkedBy: 'CreditTrust CRM',
-              checkedOn: report.created_at
-                ? new Date(report.created_at).toLocaleString('en-IN', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : '',
+              checkedOn:
+                typeof report.created_at === 'string' || typeof report.created_at === 'number'
+                  ? new Date(report.created_at).toLocaleString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : '',
               status: report.eligible ? 'eligible' : report.score ? 'not_eligible' : 'pending',
               isLive: true,
+              consentGiven: report.consent_given === true,
+              consentAt: typeof report.consent_at === 'string' ? report.consent_at : null,
+              consentVersion:
+                typeof report.consent_version === 'string' ? report.consent_version : null,
+              consentWithdrawnAt:
+                typeof report.consent_withdrawn_at === 'string'
+                  ? report.consent_withdrawn_at
+                  : null,
+              consentWithdrawalReason:
+                typeof report.consent_withdrawal_reason === 'string'
+                  ? report.consent_withdrawal_reason
+                  : null,
             }))
           );
         }
@@ -122,11 +144,46 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
   });
 
   const scoredReports = reports.filter((r) => r.creditScore > 0);
+  const withdrawConsent = async (report: EligibilityReport) => {
+    const reason = window.prompt('Record the customer withdrawal request and evidence reference:');
+    if (!reason) return;
+    if (reason.trim().length < 5) {
+      window.alert('Enter a meaningful withdrawal reason.');
+      return;
+    }
+    setWithdrawingConsent(true);
+    try {
+      const response = await crmFetch('/api/crm/eligibility-check', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'withdraw_eligibility_consent',
+          eligibilityReportId: report.id,
+          reason: reason.trim(),
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || 'Consent withdrawal failed');
+      const withdrawnAt = json.data?.withdrawn_at || new Date().toISOString();
+      const updated = {
+        ...report,
+        consentWithdrawnAt: withdrawnAt,
+        consentWithdrawalReason: reason.trim(),
+      };
+      setReports((current) => current.map((item) => (item.id === report.id ? updated : item)));
+      setSelectedReport(updated);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Consent withdrawal failed');
+    } finally {
+      setWithdrawingConsent(false);
+    }
+  };
   const downloadPdf = (report: EligibilityReport) => {
     if (!report.isLive) return;
-    const filename = `${report.borrowerName || 'crm-eligibility-report'}-${report.id}`
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-') + '.pdf';
+    const filename =
+      `${report.borrowerName || 'crm-eligibility-report'}-${report.id}`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-') + '.pdf';
     downloadAuthenticatedFile(
       `/api/bureau-report-pdf?source=crm_eligibility_reports&id=${encodeURIComponent(report.id)}`,
       filename
@@ -403,6 +460,26 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                   {STATUS_LABELS[selectedReport.status]}
                 </span>
 
+                <div className="rounded-sm border border-border bg-muted/30 p-3">
+                  <p className="text-[10px] font-700 uppercase tracking-wide text-muted-foreground">
+                    Customer consent
+                  </p>
+                  <p
+                    className={`mt-1 text-xs font-700 ${selectedReport.consentWithdrawnAt ? 'text-danger' : selectedReport.consentGiven ? 'text-success' : 'text-warning'}`}
+                  >
+                    {selectedReport.consentWithdrawnAt
+                      ? 'Withdrawn — new routing blocked'
+                      : selectedReport.consentGiven
+                        ? `Active · ${selectedReport.consentVersion || 'version recorded'}`
+                        : 'No governed consent evidence'}
+                  </p>
+                  {selectedReport.consentWithdrawalReason && (
+                    <p className="mt-1 text-[10px] text-muted-foreground break-words">
+                      {selectedReport.consentWithdrawalReason}
+                    </p>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { label: 'PAN', value: selectedReport.pan },
@@ -454,6 +531,16 @@ export default function EligibilityReportContent({ embedded = false }: { embedde
                   </svg>
                   Download PDF Report
                 </button>
+                {selectedReport.consentGiven && !selectedReport.consentWithdrawnAt && (
+                  <button
+                    type="button"
+                    onClick={() => withdrawConsent(selectedReport)}
+                    disabled={withdrawingConsent}
+                    className="w-full h-8 rounded-sm border border-danger/30 text-xs font-600 text-danger hover:bg-danger/5 transition-colors disabled:opacity-50"
+                  >
+                    {withdrawingConsent ? 'Recording withdrawal...' : 'Record consent withdrawal'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

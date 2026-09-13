@@ -12,18 +12,30 @@ function isPending(status?: string | null) {
   return String(status || '').toLowerCase() === 'pending';
 }
 
-async function findPartner(supabase: ReturnType<typeof createAdminClient>, partnerId: string | null, userId: string | null) {
+async function findPartner(
+  supabase: ReturnType<typeof createAdminClient>,
+  partnerId: string | null,
+  userId: string | null
+) {
   const fields =
     'id, user_id, partner_code, name, company_name, email, mobile, city, status, wallet_balance, reports_pulled, pricing_plan, created_at';
 
   if (partnerId) {
-    const { data, error } = await supabase.from('partners').select(fields).eq('id', partnerId).maybeSingle();
+    const { data, error } = await supabase
+      .from('partners')
+      .select(fields)
+      .eq('id', partnerId)
+      .maybeSingle();
     if (error) throw error;
     return data;
   }
 
   if (userId) {
-    const { data, error } = await supabase.from('partners').select(fields).eq('user_id', userId).maybeSingle();
+    const { data, error } = await supabase
+      .from('partners')
+      .select(fields)
+      .eq('user_id', userId)
+      .maybeSingle();
     if (error) throw error;
     return data;
   }
@@ -69,37 +81,37 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const [
-      transactionsResult,
-      invoicesResult,
-      agreementResult,
-      commercialsResult,
-    ] = await Promise.all([
-      supabase
-        .from('wallet_transactions')
-        .select('id, created_at, type, amount, description, transaction_type, running_balance, status, metadata')
-        .eq('partner_id', partner.id)
-        .order('created_at', { ascending: false })
-        .limit(200),
-      supabase
-        .from('invoices')
-        .select('*')
-        .eq('partner_id', partner.id)
-        .order('issued_at', { ascending: false })
-        .limit(100),
-      supabase
-        .from('partner_agreements')
-        .select('*')
-        .eq('partner_id', partner.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from('partner_commercials')
-        .select('partner_id, pricing_plan, subscription_type, consumer_credit_rate, commercial_credit_rate, bundled_credits, credit_limit, credit_rate, notes')
-        .eq('partner_id', partner.id)
-        .maybeSingle(),
-    ]);
+    const [transactionsResult, invoicesResult, agreementResult, commercialsResult] =
+      await Promise.all([
+        supabase
+          .from('wallet_transactions')
+          .select(
+            'id, created_at, type, amount, description, transaction_type, running_balance, status, metadata'
+          )
+          .eq('partner_id', partner.id)
+          .order('created_at', { ascending: false })
+          .limit(200),
+        supabase
+          .from('invoices')
+          .select('*')
+          .eq('partner_id', partner.id)
+          .order('issued_at', { ascending: false })
+          .limit(100),
+        supabase
+          .from('partner_agreements')
+          .select('*')
+          .eq('partner_id', partner.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('partner_commercials')
+          .select(
+            'partner_id, pricing_plan, subscription_type, consumer_credit_rate, commercial_credit_rate, bundled_credits, credit_limit, credit_rate, notes'
+          )
+          .eq('partner_id', partner.id)
+          .maybeSingle(),
+      ]);
 
     if (transactionsResult.error) throw transactionsResult.error;
     if (invoicesResult.error) throw invoicesResult.error;
@@ -125,7 +137,9 @@ export async function GET(request: NextRequest) {
         partner,
         scope,
         wallet: {
-          balance: transactions.length ? Math.max(0, balanceFromLedger) : Number(partner.wallet_balance || 0),
+          balance: transactions.length
+            ? Math.max(0, balanceFromLedger)
+            : Number(partner.wallet_balance || 0),
           adminBalance: Number(partner.wallet_balance || 0),
           totalRecharged,
           totalDeducted,
@@ -136,10 +150,13 @@ export async function GET(request: NextRequest) {
         commercials: commercialsResult.data ?? null,
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[crm/context] unexpected error:', err);
     return NextResponse.json(
-      { success: false, error: err?.message || 'Unable to load CRM context' },
+      {
+        success: false,
+        error: err instanceof Error ? err.message : 'Unable to load CRM context',
+      },
       { status: 500 }
     );
   }

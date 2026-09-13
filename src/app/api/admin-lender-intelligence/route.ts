@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
+import { requireLenderIntelligenceCapability } from '@/lib/lender-intelligence/access';
 
 type LenderRow = {
   id: string;
@@ -62,6 +63,15 @@ function productLabel(value: unknown) {
   return String(value || 'not_mapped').replace(/_/g, ' ');
 }
 
+function percentile(values: number[], quantile: number) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return (
+    Math.round(sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * quantile) - 1)] * 10) /
+    10
+  );
+}
+
 function formatLender(row: LenderRow) {
   return {
     id: row.id,
@@ -85,12 +95,29 @@ export async function GET(request: NextRequest) {
   if ('error' in auth) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
+  const denied = requireLenderIntelligenceCapability(auth.user, 'intelligence.read');
+  if (denied)
+    return NextResponse.json({ success: false, error: denied.error }, { status: denied.status });
 
   try {
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const cohortStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
-    const [lendersResult, appsResult, reportsResult, invoicesResult] = await Promise.all([
+    const [
+      lendersResult,
+      appsResult,
+      reportsResult,
+      invoicesResult,
+      outcomesResult,
+      eventsResult,
+      decisionsResult,
+      policiesResult,
+      reconciliationResult,
+      qualityResult,
+      kpiResult,
+      kpiBreakdownResult,
+      profilePerformanceResult,
+    ] = await Promise.all([
       auth.supabase
         .from('crm_lenders')
         .select(
@@ -99,15 +126,15 @@ export async function GET(request: NextRequest) {
         .order('updated_at', { ascending: false })
         .limit(500),
       auth.supabase
-        .from('crm_applications')
+        .from('crm_lender_applications')
         .select('id,lender_name,product,loan_amount,status,rejection_reason,created_at,updated_at')
-        .gte('created_at', monthStart)
+        .gte('created_at', cohortStart)
         .order('created_at', { ascending: false })
         .limit(3000),
       auth.supabase
         .from('crm_eligibility_reports')
         .select('id,loan_type,score,status,matched_lenders,created_at')
-        .gte('created_at', monthStart)
+        .gte('created_at', cohortStart)
         .order('created_at', { ascending: false })
         .limit(3000),
       auth.supabase
@@ -115,6 +142,51 @@ export async function GET(request: NextRequest) {
         .select('id,partner_name,amount,status,invoice_number,issued_at')
         .order('issued_at', { ascending: false })
         .limit(500),
+      auth.supabase
+        .from('lender_outcomes')
+        .select('id,application_id,outcome,created_at')
+        .limit(5000),
+      auth.supabase
+        .from('application_stage_events')
+        .select('application_id,to_stage,occurred_at')
+        .order('occurred_at', { ascending: true })
+        .limit(10000),
+      auth.supabase
+        .from('lender_routing_decisions')
+        .select('decision_type,selected_rank,decided_at')
+        .gte('decided_at', cohortStart)
+        .limit(5000),
+      auth.supabase
+        .from('lender_policy_versions')
+        .select('id,status,review_due_at')
+        .eq('status', 'published')
+        .limit(2000),
+      auth.supabase
+        .from('lender_reconciliation_items')
+        .select('expected_amount,received_amount,status')
+        .limit(5000),
+      auth.supabase
+        .from('lender_data_quality_issues')
+        .select('severity,status')
+        .neq('status', 'resolved')
+        .limit(2000),
+      auth.supabase.rpc('get_lender_kpi_snapshot', {
+        p_cohort_start: cohortStart,
+        p_as_of: now.toISOString(),
+        p_maturity_days: 30,
+        p_min_sample: 20,
+      }),
+      auth.supabase.rpc('get_lender_kpi_breakdown', {
+        p_cohort_start: cohortStart,
+        p_as_of: now.toISOString(),
+        p_maturity_days: 30,
+        p_min_sample: 20,
+      }),
+      auth.supabase.rpc('get_lender_profile_performance', {
+        p_cohort_start: cohortStart,
+        p_as_of: now.toISOString(),
+        p_min_sample: 20,
+      }),
     ]);
 
     const firstError = [
@@ -122,6 +194,15 @@ export async function GET(request: NextRequest) {
       appsResult.error,
       reportsResult.error,
       invoicesResult.error,
+      outcomesResult.error,
+      eventsResult.error,
+      decisionsResult.error,
+      policiesResult.error,
+      reconciliationResult.error,
+      qualityResult.error,
+      kpiResult.error,
+      kpiBreakdownResult.error,
+      profilePerformanceResult.error,
     ].find(Boolean);
     if (firstError) throw firstError;
 
@@ -184,6 +265,74 @@ export async function GET(request: NextRequest) {
       (sum, invoice) => sum + numberValue(invoice.amount),
       0
     );
+    const outcomes = outcomesResult.data || [];
+    const terminalDecisions = outcomes.filter((item) =>
+      ['approved', 'rejected'].includes(statusKey(item.outcome))
+    );
+    const approvedOutcomes = terminalDecisions.filter(
+      (item) => statusKey(item.outcome) === 'approved'
+    );
+    const rejectedOutcomes = terminalDecisions.filter(
+      (item) => statusKey(item.outcome) === 'rejected'
+    );
+    const disbursedOutcomes = outcomes.filter((item) => statusKey(item.outcome) === 'disbursed');
+    const eventsByApplication = new Map<string, Array<{ to_stage: string; occurred_at: string }>>();
+    for (const event of eventsResult.data || []) {
+      const current = eventsByApplication.get(event.application_id) || [];
+      current.push(event);
+      eventsByApplication.set(event.application_id, current);
+    }
+    const sanctionTatHours: number[] = [];
+    const disbursalTatHours: number[] = [];
+    for (const events of eventsByApplication.values()) {
+      const sent = events.find((event) =>
+        ['case_sent_to_lender', 'submitted'].includes(statusKey(event.to_stage))
+      );
+      const sanction = events.find((event) => statusKey(event.to_stage) === 'sanctioned');
+      const disbursal = events.find((event) => statusKey(event.to_stage) === 'disbursed');
+      const sentAt = sent ? Date.parse(sent.occurred_at) : NaN;
+      if (Number.isFinite(sentAt) && sanction)
+        sanctionTatHours.push(Math.max(0, (Date.parse(sanction.occurred_at) - sentAt) / 3600000));
+      if (Number.isFinite(sentAt) && disbursal)
+        disbursalTatHours.push(Math.max(0, (Date.parse(disbursal.occurred_at) - sentAt) / 3600000));
+    }
+    const decisions = decisionsResult.data || [];
+    const selections = decisions.filter((item) =>
+      ['selected', 'override', 'exception'].includes(statusKey(item.decision_type))
+    );
+    const overrides = selections.filter(
+      (item) => statusKey(item.decision_type) === 'override' || Number(item.selected_rank || 0) > 1
+    );
+    const policies = policiesResult.data || [];
+    const freshPolicies = policies.filter(
+      (item) => !item.review_due_at || Date.parse(item.review_due_at) >= now.getTime()
+    );
+    const reconciliation = reconciliationResult.data || [];
+    const expectedPayout = reconciliation.reduce(
+      (sum, item) => sum + numberValue(item.expected_amount),
+      0
+    );
+    const receivedPayout = reconciliation.reduce(
+      (sum, item) => sum + numberValue(item.received_amount),
+      0
+    );
+    const openQualityIssues = qualityResult.data || [];
+    const kpis = (
+      kpiResult.data && typeof kpiResult.data === 'object' && !Array.isArray(kpiResult.data)
+        ? kpiResult.data
+        : {}
+    ) as Record<string, { value?: unknown }> & {
+      cohort?: unknown;
+      decisionTAT?: unknown;
+      disbursalTAT?: unknown;
+      stageTAT?: unknown;
+      outcomeRates?: unknown;
+      lenderConversion?: unknown;
+      programConversion?: unknown;
+      rejectionTaxonomy?: unknown;
+      similarProfiles?: unknown;
+      funnel?: unknown;
+    };
 
     return NextResponse.json({
       success: true,
@@ -194,7 +343,7 @@ export async function GET(request: NextRequest) {
         mappedProducts: lenders.reduce((sum, lender) => sum + lender.products.length, 0),
         reportsChecked: reports.length,
         matchedReports: matchedReports.length,
-        matchRate: reports.length ? Math.round((matchedReports.length / reports.length) * 100) : 0,
+        matchRate: kpis.matchRate?.value ?? null,
         sentFiles: sentApps.length,
         approvalRate: applications.length
           ? Math.round((approvedApps.length / applications.length) * 100)
@@ -246,6 +395,64 @@ export async function GET(request: NextRequest) {
           status: invoice.status || 'pending',
           issuedAt: invoice.issued_at,
         })),
+      },
+      intelligence: {
+        cohort: kpis.cohort || {
+          from: cohortStart,
+          to: now.toISOString(),
+          maturityDays: 30,
+          minimumSampleSize: 20,
+        },
+        kpis,
+        breakdown: Array.isArray(kpiBreakdownResult.data) ? kpiBreakdownResult.data : [],
+        profilePerformance:
+          profilePerformanceResult.data && typeof profilePerformanceResult.data === 'object'
+            ? profilePerformanceResult.data
+            : {
+                cohort: {
+                  from: cohortStart,
+                  to: now.toISOString(),
+                  minimumSampleSize: 20,
+                  modelVersion: null,
+                  mode: 'descriptive_only',
+                  fallback: 'deterministic_policy_routing',
+                },
+                rows: [],
+              },
+        pendingDecisions: numberValue(kpis.pendingDecisions),
+        terminalDecisions: terminalDecisions.length,
+        approvalRate: terminalDecisions.length
+          ? Math.round((approvedOutcomes.length / terminalDecisions.length) * 100)
+          : 0,
+        rejectionRate: terminalDecisions.length
+          ? Math.round((rejectedOutcomes.length / terminalDecisions.length) * 100)
+          : 0,
+        disbursedFiles: disbursedOutcomes.length,
+        overrideRate: selections.length
+          ? Math.round((overrides.length / selections.length) * 100)
+          : 0,
+        policyFreshness: policies.length
+          ? Math.round((freshPolicies.length / policies.length) * 100)
+          : 0,
+        publishedPolicies: policies.length,
+        openQualityIssues: openQualityIssues.length,
+        criticalQualityIssues: openQualityIssues.filter((item) => item.severity === 'critical')
+          .length,
+        expectedPayout,
+        receivedPayout,
+        outstandingPayout: Math.max(0, expectedPayout - receivedPayout),
+        sanctionTatHours: kpis.sanctionTatHours || {
+          sampleSize: sanctionTatHours.length,
+          median: percentile(sanctionTatHours, 0.5),
+          p75: percentile(sanctionTatHours, 0.75),
+          p90: percentile(sanctionTatHours, 0.9),
+        },
+        disbursalTatHours: kpis.disbursalTatHours || {
+          sampleSize: disbursalTatHours.length,
+          median: percentile(disbursalTatHours, 0.5),
+          p75: percentile(disbursalTatHours, 0.75),
+          p90: percentile(disbursalTatHours, 0.9),
+        },
       },
     });
   } catch (error) {

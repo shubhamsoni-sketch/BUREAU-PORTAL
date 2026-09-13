@@ -159,11 +159,32 @@ export async function GET(request: NextRequest) {
       queue === 'eligibility'
         ? leads.filter((lead) => ['new', 'contacted', 'eligibility_pending'].includes(lead.stage))
         : leads;
+    let rejectionQuery = supabase
+      .from('lender_rejection_reasons')
+      .select('code,label,category,partner_id,sort_order')
+      .eq('active', true)
+      .order('sort_order')
+      .order('code');
+    rejectionQuery = scope.partnerId
+      ? rejectionQuery.or(`partner_id.is.null,partner_id.eq.${scope.partnerId}`)
+      : rejectionQuery.is('partner_id', null);
+    const { data: rawRejectionReasons, error: rejectionReasonError } = await rejectionQuery;
+    if (rejectionReasonError) throw rejectionReasonError;
+    const rejectionReasons = Array.from(
+      (rawRejectionReasons || [])
+        .sort((left, right) => Number(Boolean(right.partner_id)) - Number(Boolean(left.partner_id)))
+        .reduce((items, reason) => {
+          if (!items.has(reason.code)) items.set(reason.code, reason);
+          return items;
+        }, new Map<string, (typeof rawRejectionReasons)[number]>())
+        .values()
+    );
     return NextResponse.json({
       success: true,
       data,
       applications: effectiveStore.applications || [],
       team: effectiveStore.team || defaultCrmTeam,
+      rejectionReasons,
       scope,
     });
   } catch (error) {

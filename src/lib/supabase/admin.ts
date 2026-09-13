@@ -23,8 +23,9 @@ export async function requireAdmin(accessToken: string | null) {
   const { data: { user }, error } = await supabase.auth.getUser(accessToken);
   if (error || !user) return { error: 'Unauthorized', status: 401 as const };
 
-  const role = user.app_metadata?.role || user.user_metadata?.role;
-  if (role === 'admin') return { user, supabase };
+  // app_metadata is set by a trusted auth administrator. Never accept
+  // user_metadata as authorization evidence because users can edit it.
+  if (user.app_metadata?.role === 'admin') return { user, supabase };
 
   const { data: profile } = await supabase
     .from('user_profiles')

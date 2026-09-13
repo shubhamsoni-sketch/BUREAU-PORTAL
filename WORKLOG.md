@@ -1,6 +1,101 @@
 # Worklog
 
+- Added atomic audit evidence to initial explainable routing-decision persistence and every application stage/outcome transition. Routing replays remain idempotent without duplicate audits; disbursal audits include the commercial version, calculated payout, and GST lineage.
+- Made the full compliance data-quality issue lifecycle atomically audited. Claim, resolve, accept-risk, and reopen now record previous/current ownership and state with evidence inside the locked database mutation; removed the catalog's final mutation-side post-commit audit.
+- Made private document registration/review and rejection-taxonomy create/update atomically audited. Added canonical reviewer verification to document review, retained failed-metadata storage cleanup, and removed all three mutation-side API post-commit audits.
+- Made lender/program master saves and operating-status changes atomically audited for both create/update branches and lifecycle transitions. Removed four API post-commit audits plus the program-activation readiness pre-read; canonical locked database guards now own the decision.
+- Made policy restoration and policy-rule replacement atomically audited. Restoration records exact copied-rule count and lineage; rule replacement locks the policy and commits content plus audit together. Removed both API post-commit audits and the stale draft-status pre-read.
+- Made the principal policy maker-checker lifecycle atomically audited: draft creation, submission, publication, rejection, retirement, and discard now commit state plus source/checksum/effective-date evidence together. Removed six API post-commit audits and the stale policy-submission pre-read.
+- Made the complete commercial maker-checker lifecycle atomically audited: draft creation, submission, rejection, activation, termination, and discard now commit state plus rich commercial evidence together. Removed all six API post-commit audits and the stale submission pre-read.
+- Made routing-exception request and independent review audits atomic with their locked lifecycle mutations. Complete decision/program/policy/reason/reviewer evidence now commits together, and both APIs no longer perform fallible post-commit logging.
+- Made every reconciliation resolution path atomically audited: dispute, direct settlement, invoice-lifecycle restoration, and write-off now commit state and evidence together. Removed the API's race-prone finance pre-read and post-commit audit.
+- Made custom/manual payout audit atomic with approved amount, calculated GST, approval evidence, and the invoice-ready transition. Audit failure leaves the reconciliation item untouched; removed post-commit API logging.
+- Made invoice cancellation audit atomic with cancellation status, mandatory reason, and reconciliation-line release. Audit failure rolls the entire reversal back; removed post-commit API logging.
+- Made invoice raising audit atomic with the locked draft-to-raised transition and issued timestamp. Audit failure now leaves the invoice in draft; removed post-commit API logging.
+- Made invoice creation audit atomic with fiscal-sequence allocation, header insertion, reconciliation-line attachment, and calculated totals. Audit failure now rolls back all invoice state including the sequence increment; removed post-commit API logging.
+- Made invoice payment audit atomic with receipt posting, allocation, and balance updates. Audit failure rolls back all cash evidence; identical idempotent replay returns before audit insertion and cannot duplicate payment or audit rows. Removed the post-commit API audit.
+- Made clawback liability and settlement audit evidence atomic: registration and recovered/waived resolution now append canonical audit events inside their database transactions, and the API no longer performs fallible post-commit duplicate logging.
+- Added clawback cash-settlement evidence: `recovered` now requires a bounded payment/UTR reference and records the exact recovered amount, while `waived` explicitly rejects recovery receipt fields. Database transition guards, API, finance UI, and audit metadata are aligned.
+- Capped clawback recovery to the lower of contracted payout and actual cash received. Full, percentage, and fixed recovery can no longer exceed received payout principal or accidentally recover GST as payout principal.
+- Corrected clawback accounting eligibility: written-off reconciliation items can no longer create recovery liabilities because no payout was received; registration and the finance action are now restricted to actually paid items.
+- Added active-content blocking to policy-document inspection: PDF JavaScript/launch/embedded-file actions and legacy Office VBA/macro stream markers (ASCII or UTF-16) are rejected before private storage.
+- Tightened OOXML policy-document inspection beyond ZIP magic bytes: DOCX/XLSX uploads now require the content-types manifest and correct `word/` or `xl/` package root, and packages advertising embedded `vbaProject.bin` macros are rejected before storage.
+- Hardened private policy-document uploads with server-side binary signature verification for PDF, OOXML, and legacy Office formats. Empty, disguised, mismatched, or unknown content is rejected before storage and metadata registration.
+- Corrected and strengthened the live rollout verifier against the actual API shapes (`reconciliation`/`exceptions` and root intelligence payload), added invalid-token rejection, response credential-leak detection, fresh-generation checks, and KPI cohort/breakdown evidence validation.
+- Added a deployment-safe authenticated rollout verifier for the live Lender Intelligence catalog, operations, and KPI surfaces. It is read-only, timeout-bounded, redirect-denying, contract-aware, does not print its bearer token, and exits non-zero on any failed launch gate.
+- Split manual and scheduled compliance scan execution: admin-triggered readiness scans now use a canonical actor-bound database wrapper that commits scan changes and immutable audit evidence atomically; the raw no-argument scanner remains isolated to the `CRON_SECRET` scheduler.
+- Completed the canonical actor rollout for the newest governed workflows: policy draft/submit/retire/discard, commercial draft/terminate/discard, and rejection-taxonomy maintenance now resolve real `auth.users` identities rather than accepting any non-null UUID.
+- Extended canonical `auth.users` actor verification across application transitions, policy rules/restoration/review/publish, routing decisions/exceptions, lender and program lifecycle changes, compliance issue handling, private-document registration, and clawback registration/resolution.
+- Closed fabricated finance/commercial provenance: a private canonical actor verifier now resolves identities against `auth.users`; invoice creation/raise/cancel, manual payout valuation, payment posting, reconciliation resolution, and commercial submit/reject/activate workflows reject null, unknown, or invented actors before mutation.
+- Hardened lender/program bulk import so the private database RPC independently checks actor, batch/payload bounds, duplicate program codes, and locked lifecycle state, then delegates all writes to the canonical lender and program workflows. Bulk import can now update only drafts and cannot bypass tenant, identity, range, SLA, or immutable lifecycle controls; its immutable audit record commits atomically with the entire batch.
+
 Keep this file updated for meaningful changes. Add newest entries at the top.
+
+## 2026-09-13 - Codex - Lender compliance state machines
+
+- Added database transition matrices for lender onboarding, KYC, and agreement lifecycles while preserving the current UI onboarding flow.
+- Blocked backward KYC resets, invalid onboarding jumps, offboarded revival, and in-place resurrection of terminated agreements.
+
+## 2026-09-13 - Codex - Governed lender-program lifecycle
+
+- Added a row-locking program operating-status RPC with explicit draft/active/paused/retired transitions.
+- Froze lender ownership/provenance universally and all program identity, eligibility, pricing indicator, SLA, priority, and metadata fields after draft; retirement is terminal.
+
+## 2026-09-13 - Codex - Governed private-document registration
+
+- Moved policy-document metadata creation into a private RPC validating lender/program/policy ownership, MIME type, storage scope, checksum, and expiry.
+- Made draft-policy checksum binding atomic with registration and revoked direct service-client document DML.
+
+## 2026-09-13 - Codex - Canonical audit-ledger registration
+
+- Replaced direct audit inserts with a private RPC that resolves canonical actor email from Auth and validates module, identifiers, summaries, and bounded JSON metadata.
+- Revoked direct service-client audit DML while preserving reporting reads and append-only history.
+
+## 2026-09-13 - Codex - Workflow-owned compliance findings
+
+- Revoked direct data-quality issue DML from service clients while preserving compliance reporting reads.
+- Restricted finding creation/refresh to the scanner and claim/resolve/accept/reopen mutations to the row-locking lifecycle RPC.
+
+## 2026-09-13 - Codex - Governed clawback lifecycle
+
+- Moved clawback registration and recovered/waived resolution into private row-locking database functions.
+- Recalculated recovery from immutable settlement, commercial, and disbursal evidence; revoked direct service-client clawback DML.
+
+## 2026-09-13 - Codex - Workflow-owned reconciliation ledger
+
+- Revoked direct reconciliation-item DML from service clients while preserving reporting reads.
+- Restricted payout creation, custom valuation, invoicing, receipt settlement, disputes, write-offs, and cancellation release to security-definer workflows.
+
+## 2026-09-13 - Codex - RPC-only application evidence ledgers
+
+- Revoked direct stage-event and lender-outcome DML from service clients; governed selection, reroute, and transition functions are now the only production writers.
+- Preserved service reporting reads and explicitly scoped the old helper to pre-migration compatibility only.
+
+## 2026-09-13 - Codex - RPC-only routing exceptions
+
+- Moved exception request and maker-checker review into private row-locking database functions that derive targets from immutable routing evidence.
+- Revoked direct routing-exception DML from service clients and added concurrent-open-request and independent-review enforcement.
+
+## 2026-09-13 - Codex - Governed routing snapshot registration
+
+- Replaced direct routing-decision insertion with a private idempotent RPC validating exact partner, lead, eligibility report, engine, input, and result evidence.
+- Enforced one immutable unbound recommendation snapshot per report and revoked direct decision-table DML even from service-role clients.
+
+## 2026-09-13 - Codex - RPC-only invoice finance boundary
+
+- Revoked direct DML on invoice headers, sequences, receipts, allocations, and adjustments from public, user, and service-role clients.
+- Retained service-role reporting reads while requiring every financial mutation to pass through the governed security-definer workflows.
+
+## 2026-09-13 - Codex - Atomic lender shutdown and identity custody
+
+- Corrected pause/offboard ordering so active programs are atomically paused or retired before the lender shutdown guard evaluates.
+- Made offboarding terminal and protected lender code, partner binding, creation provenance, and governed legal identity from direct database rewrites.
+
+## 2026-09-13 - Codex - Policy document evidence custody
+
+- Enforced SHA-256 document identity and valid issue/expiry terms at the database boundary.
+- Made lender/program/policy ownership, storage metadata, checksum, validity dates, uploader, and creation time immutable; document evidence cannot be deleted.
+- Preserved maker-checker review evidence and allowed verified-to-expired movement only after the recorded expiry time.
 
 ## 2026-09-05 - Developer - B2C Credit Intelligence Dashboard
 
@@ -886,3 +981,199 @@ Verification:
 
 - `npm run build -- --no-lint` passed.
 - `npm run type-check -- --pretty false` passed.
+
+# 2026-09-12 - Lender intelligence ownership foundation
+
+- Audited the existing CRM lender policy, eligibility matching, lender selection, file process, admin intelligence, finance, and database flows.
+- Added the end-to-end lender intelligence product plan at `docs/tasks/lender-intelligence-product-plan.md`.
+- Hardened lender submission so it requires `file_process` permission.
+- Added server-side validation that the selected lender exists in the lead's saved eligibility matches and is still active.
+- Added an additive Lender Intelligence foundation migration covering lender onboarding, product programs, versioned credit policy/rules/documents, decision snapshots, application stage events, outcomes, commercial versions, reconciliation, and data-quality operations.
+- Added an admin-only lender catalog and policy governance API with lender/program upserts, immutable policy version creation, draft rule replacement, review submission, and maker-checker publishing.
+- Made policy publication atomic in Postgres so retiring the old policy and activating the reviewed version cannot partially succeed.
+- Added the admin Lender Onboarding workspace for creating lenders, product programs, sourced policy drafts, and monitoring onboarding/policy status.
+- Added a deterministic, explainable lender-policy engine supporting hard, soft, and warning rules; missing-input outcomes; reason traces; fit scoring; and stable ranking.
+- Integrated published lender-program policies into live CRM eligibility routing with legacy fallback and immutable decision snapshots.
+- Made lender selection aware of the new program/lender identities and linked the selected program, rank, application, actor, and timestamp back to the routing decision.
+- Added immutable application stage events and structured sanction, rejection, and disbursal outcome capture for lender funnel and TAT analytics.
+- Added commercial payout calculation for flat, percentage, and slab terms; disbursal now creates an invoice-ready reconciliation item from the active commercial version.
+- Added lender operations APIs for commercial draft/review/activation, atomic invoice creation from reconciliation items, invoice raising, and payment allocation.
+- Replaced the lender compliance placeholder with an operational finance workspace for commercials, reconciliation selection, lender invoice creation/raising, and settlement.
+- Completed the admin policy workflow UI with rule authoring, draft submission, and checker-only publication actions.
+- Upgraded lender performance analytics with terminal-outcome rates, routing overrides, policy freshness, TAT median/P75/P90, payout exposure, and data-quality KPIs.
+- Added the Lender Intelligence operations guide and updated the project handoff with rollout order, lifecycle controls, verification gates, and current production limitations.
+- Made policy rule replacement atomic so a rejected batch cannot delete the existing draft rule set.
+- Added controlled routing overrides: non-rank-1 selection requires an operational reason and persists override type, code, note, rank, actor, and timestamp.
+- Added append-only lender intelligence audit logs and instrumented lender/program/policy governance mutations with actor and sanitized metadata.
+- Enforced database-level audit immutability and exposed recent lender governance history in the admin onboarding workspace.
+- Added private lender policy/compliance document upload with type/size validation, SHA-256 checksums, short-lived signed access, cleanup on failed metadata writes, and audit logging.
+- Added compliance evidence upload and private signed-document access UI with lender/program/policy linkage, expiry, checksum, and document register.
+- Added governed lender onboarding transitions and enforced verified KYC plus signed, unexpired agreement before lender activation.
+- Added partner-scoped lender routing exception records and API access to full explainable results plus controlled exception requests for near-match, excluded, and missing-data programs.
+- Added admin exception queue data and independent approve/reject controls that block self-approval and inactive/paused program approvals.
+- Enforced one-time approved exceptions for non-eligible lender submission and consume the exception only after successful application creation.
+- Persisted exception reason evidence into the routing decision and added a database uniqueness guard against duplicate lead/lender applications.
+- Added DSA-facing explainable manual-review results, exception request status, and approved-exception submission controls, including leads with zero direct matches.
+- Added admin exception review queue with approve/reject notes and visible lender, program, policy match state, and request reason.
+- Added partner exception-request audit events without exposing customer or bureau payload data.
+- Added canonical, partner-extensible lender rejection taxonomy and enforced structured rejection code plus detail for terminal rejection outcomes.
+- Replaced free-text rejection prompt with a canonical reason selector plus mandatory lender detail in File Process UI.
+- Added automated lender readiness/compliance scans and an admin issue board for invalid active lenders, missing published policies, overdue policy reviews, and expiring documents.
+- Added lender pause/offboarding with active-file safeguards, automatic program pausing/retirement, program capacity controls, policy-gated activation, and configurable login/sanction/disbursal SLAs.
+- Extended automated compliance scans to create application-level lender TAT breach issues from immutable stage-event timestamps and program SLAs.
+- Added reconciliation dispute, paid-resolution, and controlled write-off workflows with amount validation, variance reasons, invoice dispute propagation, and audit events.
+- Closed the lender-switch lifecycle gap: changing lenders now requires a reason, marks the prior active application as `rerouted`, preserves status/lender histories and immutable stage events, and creates a distinct application for the new lender.
+- Added zero-dependency lender policy regression tests for operator boundaries, missing-input safety, hard/soft/warning outcomes, product filtering, deterministic ranking, and rank assignment.
+- Corrected application uniqueness to allow historical rejected/rerouted/disbursed attempts while still preventing duplicate active lead+lender files.
+- Made lender rerouting transactional in PostgreSQL: closing the prior file, creating the target-lender file, and writing both stage events now succeed or roll back together.
+- Added automated commercial payout regression coverage for flat, percentage, slab-boundary, open-ended, rounding, unsupported, and negative-input cases.
+- Added preview-first bulk lender/program import with normalized validation, duplicate/range/SLA checks, a 500-row limit, active-program overwrite protection, atomic database commit, audit evidence, and an admin import workspace.
+- Added governed policy restoration: a retired version is cloned atomically into a new immutable draft with copied rules and source evidence, then must pass the normal independent maker-checker publication flow.
+- Added independent checker policy rejection with mandatory evidence and audit history, plus a default 90-day review SLA enforced before publication.
+- Added deduplicated lender login-warning and stage-SLA-breach notifications routed to the originating operations user, backed by the existing notification center.
+- Added a CRON_SECRET-protected hourly lender readiness/SLA scan endpoint and Vercel Cron schedule.
+- Replaced capped in-memory headline rates with a database KPI snapshot covering a 90-day sent cohort, 30-day disbursal maturity, terminal-only approval/rejection denominators, pending separation, complete-report match rate, active-program policy freshness, and TAT percentiles.
+- Added minimum sample-size suppression (n=20), numerator/denominator evidence, cohort timestamps, maturity disclosure, and removed stale prototype messaging from the performance UI.
+- Added database-aggregated lender, program, product, and partner KPI breakdowns with the same cohort/maturity/sample contracts, dimension-level TAT, pending counts, and links to up to 100 source applications per row.
+- Hardened invoice settlement with immutable payment entries, caller-supplied idempotency keys, strict overpayment/state validation, and adjustment-aware outstanding balances.
+- Made disputed reconciliation resolution atomic and added an immutable adjustment ledger so linked write-offs update invoice accounting in the same transaction.
+- Exposed payment and adjustment audit trails in the lender finance workspace and prevented direct paid resolution for invoice-linked items.
+- Added commercial maker submission evidence, independent checker rejection with mandatory reason, and atomic database transitions.
+- Applied commercial GST/reverse-charge terms to disbursal reconciliation and invoice totals, with regression coverage.
+- Closed a commercial tenant-isolation gap by enforcing partner-specific lookup with global-only fallback during payout generation.
+- Added contract-driven post-disbursal clawbacks with full/percentage/fixed calculation, configurable windows, immutable source evidence, single-step recovery/waiver resolution, audit events, and finance UI register.
+- Fixed a migration-blocking duplicate policy-column declaration discovered during completion audit and added permanent schema-integrity regression tests.
+- Enforced one current active commercial per partner/lender/program scope and deterministic newest-effective policy selection.
+- Added a canonical forward-only lender application stage matrix, terminal-state immutability, and mandatory positive sanction/disbursal amount validation with regression coverage.
+- Made normal lender application transitions transactional: locked CRM status/history, stage event, terminal outcome, commercial payout, GST, and reconciliation now commit or roll back together, with stale-write protection.
+- Aligned File Process UI with the governed stage matrix: invalid/backward options are hidden, terminal quick actions are disabled, and sanction/disbursal amounts plus rejection evidence are collected before mutation.
+- Closed finance lifecycle dead-ends with atomic invoice-dispute restoration and reasoned cancellation of unpaid invoices, including safe reconciliation-item release and audit logging.
+- Added governed compliance issue claim/resolve/risk-accept/reopen actions, complete admin UI history, and fixed hourly scans so active ownership and accepted-risk evidence are not erased.
+- Added a shared policy-field taxonomy with type-compatible operators, comparison/evidence validation, governed editor controls, API rejection, and database publish guards so unavailable or malformed inputs cannot become live policy.
+- Enforced lender program master guardrails (amount, tenure, employment, channel, state, and city) inside the explainable ranking engine and added the missing full-eligibility loan/income inputs required to evaluate them.
+- Expanded the admin product-program form to configure amount/tenure/ROI bands plus employment, channel, state, and city serviceability, with server-side malformed, negative, integer-tenure, and inverted-range validation.
+- Hardened private lender-document handling: upload now rejects cross-lender program/policy references, and every signed URL grant requires an immutable access-audit event before the URL is returned.
+- Added independent private-document review: pending evidence can be verified or rejected once, uploaders cannot self-review, rejection requires evidence, and every decision is audited.
+- Bound document-sourced policy publication to a current, independently verified, checksum-matched document at both review submission and transactional database publication gates.
+- Added explainable operational-capacity ranking: paused programs remain excluded, while limited programs stay eligible with a visible 15-point ranking penalty behind equivalent open-capacity programs.
+- Closed commercial payout configuration gaps with lender/program ownership validation, strict flat/percentage/slab validation, overlap/open-ended slab checks, and a working JSON slab editor in the finance workspace.
+- Mirrored commercial payout validation in PostgreSQL with an immutable slab validator and table constraint, preventing malformed terms from entering the ledger through API bypass or future service-role integrations.
+- Made invoice creation concurrency-safe by deterministically locking every source reconciliation row before partner/lender/status validation and aggregation, preventing duplicate invoices from simultaneous finance actions.
+- Added a governed custom-commercial payout workflow: finance must record a positive approved amount plus evidence, GST is calculated transactionally, the item then becomes invoice-ready, and zero-value invoices are blocked in PostgreSQL.
+- Governed invoice aging and issuance: creation requires a future due date with a 15-day default, the finance register displays it, and raising now uses a locked RPC that revalidates invoice value and linked reconciliation evidence.
+- Added overdue collections controls to the hourly compliance scan: open-balance invoices create governed issues, escalate to critical after 30 days, notify their owner once, and display an overdue warning in finance.
+- Completed partial-payment operations: finance can enter any valid amount up to the net outstanding balance, UTR-derived keys make retries idempotent, and API/database validation bounds references and rejects sub-paise precision.
+- Added a secured lender-invoice PDF artifact with source application lines, tax/payment/adjustment/outstanding totals, admin-only audited access, no-store delivery, finance download control, automated contract tests, and visual A4 render verification.
+- Replaced random lender invoice identifiers with a private, atomic fiscal-year sequence (`LND26-27-000001`), allocated in the invoice transaction for concurrency safety and rollback consistency.
+- Closed onboarding activation bypasses: program upsert is draft-only and cannot move records between lenders, while PostgreSQL triggers enforce lender KYC/agreement readiness and active-program lender/published-policy readiness for every write path.
+- Made initial lender selection transactional: locked decision evidence, current lender/program state, rank, application creation, decision binding, first stage event, and approved-exception consumption now commit or roll back as one database operation.
+- Made persisted lender rerouting fully governed and atomic: it now preserves the original routing decision, clones immutable engine evidence into a new application-bound decision, revalidates rank/current lender-program state, and consumes an exact approved exception in the same transaction.
+- Closed the direct-RPC outcome-quality bypass: application progression now requires a bound lender/program routing decision, and rejection codes are resolved against the active partner/global canonical taxonomy inside PostgreSQL before stage and outcome records are written.
+- Replaced proportional reconciliation rewrites with an immutable incremental payment-allocation ledger. Every receipt now locks invoice lines in stable order, allocates exact paise, updates only funded rows, and aborts atomically if any amount cannot be allocated.
+- Extended audited invoice HTML/PDF evidence with exact payment-reference-to-reconciliation-line allocations and included allocation counts in the artifact access audit metadata.
+- Enforced evidence immutability in PostgreSQL: stage events, outcomes, payment/allocation/adjustment ledgers, and audit logs are append-only; routing decisions allow only one controlled application binding while preserving engine/input/result evidence.
+- Added database structural-freeze guards for credit policy and commercial versions. Rules/economics are draft-only editable, reviewed history cannot be deleted, and only the documented maker-checker lifecycle transitions remain legal.
+- Closed operating dependency gaps: immediate policy/commercial activation cannot be future-dated, active programs must retain a current published policy at transaction commit, and active programs must be shut down before their lender is paused/offboarded.
+- Bound selection/rerouting to the exact currently effective policy version in the immutable snapshot and added database-governed exception requests: snapshot identity validation, frozen request evidence, independent review, live readiness recheck, and one-time consumption.
+- Added canonical insert guards for stage and outcome evidence: partner/application/status binding, exact routed lender/program identity, continuous monotonic event chains, bounded timestamps, matching terminal events, positive amounts, and canonical rejection evidence.
+- Closed the missing-commercial blind spot: every disbursal now materializes a reconciliation row, zero-value/non-calculable terms carry explicit evidence, and readiness scans raise critical missing-coverage or warning manual-valuation issues.
+- Added database economic-proof validation for reconciliation inserts: matching disbursal source, exact lender/program and partner scope, historical commercial coverage, recalculated flat/percentage/slab payout, GST, and zero-value missing-coverage state.
+- Enforced finance-ledger conservation: allocations must join receipt and line on one invoice, cannot exceed either balance, every receipt must be fully allocated at commit, and reconciliation source/received amounts are protected against direct mutation.
+- Added the reconciliation database state machine with exact invoice attach/release rules, immutable attached line values, monotonic bounded receipts, evidence-backed paid/part-paid states, and dispute-only write-off transitions.
+- Added an invoice header state machine tied to immutable payment/adjustment ledger sums, frozen source totals and due date, evidence-backed settlement/cancellation, and preserved invoice dispute status while any other line remains disputed.
+- Bounded persisted routing evidence at the database boundary (1 MB input, 2 MB/500 results) and constrained application transitions to 1 MB history, bounded text, finite/ranged economics, realistic tenure, and non-future/non-predating event timestamps; the API mirrors the economic/text checks for fast feedback.
+- Added privacy-safe similar-profile performance: immutable application-bound routing inputs are grouped into fixed score, income, loan-size, and employment bands, joined to canonical outcomes/overrides, sample-suppressed, and shown in the performance workspace as descriptive evidence with an explicit deterministic-routing fallback.
+- Added governed compliance exports: admins can download audit or data-quality registers through a 90-day/5,000-row bounded no-store route; optional partner scope is validated, CSV formula injection is neutralized, and immutable export audit evidence must commit before the file is released.
+- Closed post-activation compliance drift in routing: recommendations, initial selection, and rerouting now independently require verified KYC, a signed agreement, and a still-current agreement expiry, so an expired lender cannot receive a new file while still carrying an active operating label.
+- Time-bounded routing exceptions: approval now rechecks KYC, signed/current agreement, live program capacity, and exact policy evidence; selection/rerouting accept approvals for 24 hours only, and a replacement request atomically expires the stale authorization with audit metadata.
+- Minimized compliance PII: system TAT findings now identify only the application, and CSV exports omit free-text issue/resolution narratives while preserving structured entity IDs, taxonomy, status, ownership, and timestamps.
+- Hardened the two application-creation transactions: selection and reroute now verify canonical actors; bound 1 MB object payloads, array histories, text lengths, amount precision/range, lead lineage, and event time; ignore client-created timestamps; and append their Lender Intelligence audit evidence atomically with routing/application/stage/exception state.
+- Completed lender billing identity from onboarding to invoice: finance email, registered billing address, and GSTIN are normalized and validated in the lender-master RPC, mandatory for activation/new routing, editable from onboarding, and rendered in audited invoice artifacts; plaintext bank credentials remain out of scope by design.
+- Made invoice artifacts historically reproducible by freezing issuer and recipient legal, tax, address, and contact identity at invoice creation. Both snapshots are database-immutable, and PDF rendering uses the frozen evidence while retaining live joins only for legacy invoices.
+- Replaced the CRM eligibility UI's hard-coded consent assertion with an explicit operator checkbox. New reports persist immutable consent time, purpose, notice version, source, and authenticated actor; database checks now reject recommendation registration, initial lender selection, and rerouting when consent evidence is absent.
+- Added the governed consent-withdrawal lifecycle: CRM operators record a meaningful withdrawal reason, a private actor-bound RPC locks the report and appends immutable withdrawal plus audit evidence, and every recommendation/selection/reroute boundary rejects withdrawn reports while retaining their historical record.
+- Upgraded lender capacity from a manual label to a quantitative operating control: programs can carry an optional IST-day submission cap, recommendation exposes exhaustion as a hard reason, selection/reroute use a shared advisory lock and event recount to prevent concurrent overshoot, and admins change caps only through a reasoned audited RPC.
+- Removed the capacity recommender's raw event-row counting ceiling by adding a bounded authenticated PostgreSQL aggregate that returns exact used, remaining, and exhausted values for up to 500 programs. Routing consumes this snapshot and the admin register surfaces live usage, including volumes above the Supabase 1,000-row response default.
+- Closed invoice-direction injection: lender payout reconciliation now creates only server-derived receivable invoices, PostgreSQL rejects payable relabeling, and the UI no longer submits a direction. Documented partner commission as a separate governed payable ledger pending its reviewed business terms instead of fabricating it from lender receivable evidence.
+- Closed the legacy CRM application evidence bypass: once routing/stage/outcome/reconciliation evidence exists, PostgreSQL blocks deletion, freezes partner/lead/customer/lender/product/amount/provenance, and permits lifecycle/history/rejection changes only from the atomic reroute or transition workflows via a transaction-local guard.
+- Added the independent partner-commission payable system: versioned source-backed terms, maker-checker activation, lender/program specificity, disbursal-triggered payable materialization, immutable tax/TDS/terms snapshots, and idempotent partial/final payment evidence. Added admin contract review and payable controls without reusing lender receivable invoices.
+- Completed partner-payable operations with audited active-contract termination, locked hold/dispute/release/write-off transitions, admin controls, and overdue compliance scanning with 30-day severity escalation and accepted-risk preservation.
+- Strengthened the read-only live rollout gate with a database schema-health manifest: it now fails closed on missing critical relations/functions, triggers attached to the wrong table, missing RLS, unsafe API-role DML privileges, or absent partner payable response contracts.
+- Added versioned partner payout-beneficiary governance: maker-checker verification, legal/GST/contact evidence, masked PAN and bank-account identity, IFSC and provider beneficiary reference. Commission activation now requires a verified profile, and every payable freezes that exact beneficiary version without storing full PAN/account credentials.
+- Closed the outbound-payment single-admin gap: partner settlements now begin as immutable payment requests with amount, UTR/reference, idempotency key, and instruction evidence; a different admin must approve/reject, approval rechecks the locked balance, and only the internal atomic workflow can create payment evidence.
+- Added audited, bounded partner payable and payment-approval CSV registers for finance reconciliation. Exports preserve structured source/amount/masked-beneficiary evidence while omitting borrower names, narrative notes, and full financial credentials and neutralizing spreadsheet formulas.
+- Added a least-privilege GitHub Actions quality gate for all Lender Intelligence pull requests and matching `main` pushes. It performs a clean locked Node 22 install, the dedicated Lender Intelligence suite, TypeScript validation, and a production build using non-secret placeholder configuration; a contract test prevents silent weakening of the workflow. The repository runtime is explicitly `>=22.6.0 <25`, matching the test runner's TypeScript-stripping requirement.
+- Added a dedicated partner-commission recovery subledger: claims are capped by commission cash paid, source payable rows are locked, canonical triggers and evidence are mandatory, and a different admin must record dispute, collection reference, or waiver. Added finance UI/API controls, schema-health coverage, immutable audit evidence, and a bounded PII-minimized recovery CSV export.
+- Added fail-closed, purpose-specific Lender Intelligence admin capabilities in server-owned Supabase app metadata. Catalog/policy, routing review, finance read/write, and compliance read/write routes now enforce distinct grants after base admin authentication; client-editable user metadata is ignored, and existing admins are explicitly bootstrapped as super-admins by migration.
+- Closed an inherited admin privilege-escalation path: the shared server authorization helper no longer accepts client-editable `user_metadata.role`. Admin authority now requires trusted auth `app_metadata` or the database-owned user profile, and LI super-admin bootstrap likewise ignores self-asserted metadata.
+- Aligned CI and repository engines on Node `>=22.6.0 <25`, which is required by the TypeScript-stripping test suite. Upgraded Next.js to 15.5.25 and remediated the full npm advisory tree, including the critical Next.js and high PostCSS/sharp chains; `npm audit` now reports zero vulnerabilities and CI rejects future low-or-higher advisories.
+- Proved CI parity under Node 22.23.2: all 154 Lender Intelligence tests, TypeScript, and the production build pass on the workflow runtime. Expanded workflow path filters to include operations/planning/audit handoff docs plus environment and Vercel configuration, so changes to claimed rollout controls cannot bypass the gate.
+- Added an offline PostgreSQL-parser gate for the complete Lender Intelligence migration. All 485 top-level statements parse successfully; CI now rejects malformed or unexpectedly truncated migration SQL while documentation correctly retains live Supabase execution as the PL/pgSQL/runtime proof.
+- Added isolated embedded-PostgreSQL migration execution to CI, compiling all SQL/PL/pgSQL, triggers, grants, and schema-health checks against prerequisite CreditTrust tables. It exposed and fixed two genuine launch blockers: ambiguous/unbalanced reconciliation validation control flow and a schema manifest expecting nonexistent `select_lender_application` instead of governed `commit_lender_selection`. The complete migration now executes and reports schema health ready.
+- Extended embedded migration verification with database behavior: trusted app/profile admins receive explicit LI capability bootstrap, fabricated actors are rejected, governed lender creation forces draft/pending defaults and atomically emits one audit event, and the service role cannot bypass the workflow with direct lender DML. Contract tests prevent silently skipping statements or weakening these smoke assertions.
+- Added an actual policy-governance database journey to the embedded gate: governed program creation, source-bound policy draft, structured rule replacement, maker submission, explicit same-maker publish denial, and successful publication by a second trusted admin. This verifies the central maker-checker path beyond source-pattern assertions.
+- Extended the embedded journey through compliance-ready lender/program activation, explicit consent evidence, rejection of routing without consent, immutable explainable decision registration, atomic rank-1 application selection with exactly one initial stage event, and rejection of direct governed-application lifecycle mutation.
+- Extended the executable database journey through independently approved percentage commercials, sanction, disbursal, automatic payout/GST reconciliation, receivable invoice creation/raising, exact payment allocation, full settlement, and replay-safe receipt idempotency. This uncovered and fixed three launch-blocking PostgreSQL defects: nullable stage events were incorrectly deduplicated, the reconciliation upsert could not infer its partial unique index, and the shared deferred conservation trigger accessed a field absent from payment rows.
+- Corrected export least privilege: audit/compliance CSV datasets require `compliance.read`, while partner payable, payment-request, and recovery ledgers require `finance.read`; a compliance-only operator can no longer export finance settlement evidence.
+- Fixed partner commission materialization to use the canonical disbursal timestamp rather than the intentionally null decision timestamp on disbursed outcomes. Extended embedded PostgreSQL verification through masked beneficiary maker-checker approval, partner commission activation, automatic tax/TDS/net-payable creation, same-maker payment denial, and independent full settlement.
+- Extended the executable controlled case through post-settlement recoveries: full-basis lender clawback calculation and collection, partner-recovery rejection above cash actually paid, and maker-checker partner recovery collection with immutable reference evidence.
+- Extended embedded verification through compliance close-out: private expiring-document registration, actor-bound readiness scan, issue materialization, claim ownership, repeat-scan ownership preservation, risk acceptance, and repeat-scan preservation of resolution evidence.
+- Extended the read-only production rollout verifier with an optional fail-closed four-account permission matrix. It now proves real restricted, catalog-read, finance-read, and compliance-read allow/deny boundaries, validates partner recovery presence in the operations contract, and retains backward-compatible super-admin smoke verification.
+- Added bounded, audited lender reconciliation and invoice CSV registers to the finance workspace. They expose source/outcome/commercial/invoice identities, disbursal and exact expected/tax/invoiced/received/open amounts, settlement status and references without borrower names or narrative notes; export audits now use the correct invoicing, partner-commission, or compliance module by dataset.
+- Hardened File Process operational integrity: API failures no longer masquerade as an empty portfolio, loading/empty/unavailable states are distinct with a retry action, live state never falls back to demo applications, and **New File** now starts the governed eligibility journey instead of being an inert control.
+- Added a second executable database case for canonical rejection: fabricated taxonomy codes fail atomically, a valid global reason produces exactly one matching stage event and immutable rejection outcome, application/outcome reason evidence agrees, and direct outcome mutation is rejected.
+- Removed the obsolete hard-coded borrower-like demo portfolio from the production File Process component. A regression contract now requires complete absence of the mock identifiers/names/lenders while retaining authoritative live API state and explicit loading/error handling.
+- Made demo eligibility seeding categorically unavailable when `NODE_ENV=production`, even if its development opt-in flag is accidentally enabled. The denial occurs before database client/store access, preventing sample borrower and lender/rate data from contaminating production evidence.
+- Strengthened embedded privilege verification under the actual `service_role`: governed schema-health and actor-bound compliance RPCs execute, while direct lender creation, application-stage insertion, reconciliation rewrite, forged audit insertion, and partner-payable rewrite are all denied at the PostgreSQL privilege boundary.
+
+# Lender master workflow hardening
+
+- Replaced API-side lender-master upserts with a private, row-locking database workflow.
+- Forced every new lender into draft/pending onboarding state and added bounded identity, contact, and metadata validation.
+- Revoked direct lender-master writes from API roles while retaining read access and governed lifecycle operations.
+- Moved lender-program content writes to a private draft-only, row-locking workflow with tenant, range, SLA, audience-list, and metadata validation; direct program DML is now revoked.
+- Serialized policy version allocation under a program lock, prohibited competing draft/review branches, moved submission into an evidence-revalidating RPC, and revoked direct policy-version/rule writes from service clients.
+- Moved commercial draft creation into a serialized private workflow with tenant/program ownership, payout, tax, clawback, source, and parallel-draft validation; revoked direct commercial-ledger DML.
+- Removed stale application-stage, outcome, reconciliation, routing-decision, and exception direct-write fallbacks; normalized evidence now moves only through atomic RPCs, with duplicate same-lender selection returning idempotently.
+- Added a governed rejection-taxonomy registry with immutable code/tenant identity, bounded labels/categories, non-destructive deactivation, protected global fallback, audit logging, and revoked direct DML.
+- Added the admin rejection-taxonomy register/editor for global and partner-scoped reasons, including ordering, descriptions, stable identity, and non-destructive activation controls.
+- Added locked active-commercial termination with mandatory evidence, effective-window closure, audit logging, API action, and finance-workspace control.
+- Added governed published-policy retirement with policy/program row locks, mandatory evidence, effective-window closure, active-program protection, audit logging, and UI control.
+- Added evidence-based policy/commercial draft discard workflows and UI actions, preventing abandoned drafts from permanently blocking new versions while preserving history.
+
+# Lender Intelligence production configuration hardening
+
+- Pinned Next.js output tracing to the BUREAU-PORTAL application root so an adjacent parent lockfile cannot alter deployment tracing.
+- Disabled production browser source maps and removed the build-time TypeScript bypass; production builds now fail closed on type errors.
+- Browser runtime check confirmed the protected admin route renders the administrator login redirect without an error overlay, and all four unauthenticated Lender Intelligence API surfaces return structured HTTP 401 responses.
+- Added locked configuration regressions; 171/171 Lender Intelligence tests and the production build pass.
+- Enforced private `no-store`, `Pragma: no-cache`, `Referrer-Policy: no-referrer`, and `X-Content-Type-Options: nosniff` headers for protected Lender Intelligence pages, admin APIs, and CRM routing responses. Runtime header checks passed on all five surfaces; 172/172 tests pass.
+- Removed staff email and free-text summary from the audit CSV. Stable actor UUID, module, action, entity, and timestamp remain sufficient for attribution while the export metadata can truthfully state that PII/free text is excluded; 173/173 tests pass.
+- Replaced the scheduler's two independent scan transactions with one advisory-locked `run_lender_compliance_scan` database workflow. Readiness and partner-payable changes now commit atomically, and successful executions retain durable component counts/timestamps in a service-read-only run register. Embedded PostgreSQL executes and verifies the real wrapper; 174/174 tests pass.
+- Added a dedicated `compliance.read` API and `/admin-lender-intelligence/compliance` workspace so a narrowly scoped compliance operator can inspect issue custody, private document metadata/access, minimized audit evidence, and the latest 50 scheduled scan runs without catalog or finance permissions. The live rollout verifier now proves this allow/deny boundary; 176/176 tests, type-check, and the 172-page production build pass.
+- Completed the compliance evidence UI contract: all returned scan runs and minimized audit rows now render in bounded scrollable registers, finance/compliance navigation is separated, and the compliance workspace is directly reachable from both the global admin sidebar and LI navigation. 177/177 tests, type-check, and the production build pass.
+- Fixed private-document viewing in both onboarding and compliance workspaces: an opener-isolated blank viewer is now created synchronously inside the click gesture before the audited signed-URL request, then navigated only on success and closed on denial/failure. This avoids async popup blocking without exposing the parent window; 178/178 tests and type-check pass.
+- Closed a least-privilege leak in `catalog.read`: its response no longer bundles compliance issues, private-document metadata, staff email, or audit history. Onboarding now loads the dedicated compliance boundary separately and safely degrades to catalog-only data on a 403. The authenticated rollout contract was updated; 179/179 tests and type-check pass.
+- Separated the cross-domain intelligence dashboard from `catalog.read`. The dashboard now requires `intelligence.read` (or super-admin `*`) because it contains performance, receivable, invoice, and compliance aggregates; a catalog-only release-test account is explicitly denied.
+- Extended the fail-closed live rollout verifier to require an independent `intelligence.read` account when scoped tokens are supplied. The five-account matrix now proves nineteen allow/deny boundaries, including that the composite reader cannot enter catalog, finance, or compliance APIs.
+- Propagated trusted LI permissions from Supabase `app_metadata` into the client session model and filtered each LI sidebar destination by its exact read capability (with `*` support). This removes predictable 403 dead ends for scoped operators while retaining API/database authorization as the security boundary; 180/180 tests and type-check pass.
+- Extended permission-aware navigation inside LI workspaces. Composite tabs, finance-to-compliance links, and workspace back links now honor exact read grants; operators without `intelligence.read` return to the general admin dashboard rather than a guaranteed 403. A shared client helper has runtime coverage; 181/181 tests and type-check pass.
+- Made the finance workspace usable with `finance.read` alone: a catalog 403 now degrades to empty setup choices instead of failing all ledger data, while operations remain required. Compliance navigation plus compliance/audit CSV controls are hidden without `compliance.read`; 182/182 tests and type-check pass.
+- Made finance role separation explicit in the workspace: `finance.read` remains sufficient for inspection and exports, all finance mutations are centrally denied without `finance.manage`, and routing exception approval/rejection is independently controlled by `routing.review`. Read-only controls are visually suppressed while API and database authorization remain authoritative.
+- Extended exact capability UX to catalog and compliance surfaces. Catalog inspection no longer presents usable policy/onboarding writes without `policy.manage`; issue custody is independently gated by `compliance.manage`; and the dedicated compliance evidence workspace stays useful to readers while lifecycle mutations are disabled and centrally denied.
+- Surfaced database maker-checker rules directly in operational queues. Policy, document, commercial, beneficiary, partner-commission, payment, recovery, and routing-exception rows now compare their maker identity with the authenticated actor and disable self-review with an explicit independent-checker explanation before the locked workflow is called.
+- Added a live, non-mutating mutation-authorization verifier. Eight deliberately invalid POST probes prove that catalog/finance/compliance readers and a non-reviewer stop at 403 while exact policy/finance/compliance managers and routing reviewers cross the capability boundary and stop safely at 400 validation, with bounded requests and bearer-leak checks.
+- Replaced hard-coded CRM rejection capture with the active canonical registry. The leads boundary returns deduplicated global/partner-scoped codes (partner overrides win), the detail panel follows the live options, and inline stage changes validate a selected live code instead of silently forcing `OTHER`; the transition API retains the authoritative scoped lookup.
+- Closed premature/excess disbursal paths. The transition workflow now requires a canonical sanction for the same decision-bound lender/program, caps disbursal at the sanctioned amount, and copies sanctioned amount/ROI/tenure into the immutable disbursal outcome. API preflight mirrors the prerequisite, and embedded execution proves both denials plus inherited terms.
+- Made sanction evidence complete at capture time. CRM operators must provide sanctioned amount, approved annual ROI, and whole-month tenure; API validation and the database outcome guard reject missing/non-positive terms, so later disbursal inheritance cannot silently produce incomplete economics.
+- Aligned disbursal API preflight with the database's exact routing lineage: it now resolves the latest bound decision and accepts sanction evidence only for that selected lender/program, preventing a pre-reroute lender's historical approval from passing the early check.
+- Rejected sub-paise sanction and disbursal amounts at both API and database boundaries, preventing numeric-column rounding from diverging from payout calculations and preserving exact outcome-to-reconciliation conservation.
+- Extended the embedded PostgreSQL journey with real rollback-safe denials for incomplete sanction economics and sub-paise sanction/disbursal values; the valid sanction-to-disbursal-to-invoice path still completes with inherited terms. Migration execution, 187/187 tests, type-check, and diff validation pass.
+- Added a per-release production evidence record that closes the audit's five remaining gates with explicit owners, opaque evidence IDs, short-lived-token verification, controlled bilateral money-path proof, and final sign-off while prohibiting secrets, borrower PII, bureau payloads, policy documents, and confidential commercial values from the record. Fresh dependency audit reports 0 vulnerabilities, all 494 migration statements parse, and the 172-page production build passes.
+- Added a zero-warning scoped Lender Intelligence lint gate to CI and its locked contract. Removed an unused eligibility mapper, replaced loose exception/status/API response `any` types with bounded types or safe `unknown` narrowing, and formatted the governed admin/CRM surfaces; scoped lint and TypeScript validation pass.
+- Corrected the production runtime contract: `npm start` now serves the compiled Next.js application on port 4028 instead of silently launching a development server. README guidance and a locked regression assertion prevent deployment entrypoint drift.
+- Converted the manual production-server check into an enforced CI smoke gate. It boots the compiled application, verifies private/no-store/no-referrer/nosniff controls on the protected LI workspace, asserts a structured unauthenticated HTTP 401 from the admin API, and always terminates the child server; the release evidence record now captures this proof.
+- Extended the authenticated live rollout verifier to reject deployments missing private/no-store/no-referrer/nosniff controls on invalid-token, super-admin, or scoped-role requests. Corrected the release record to obtain schema health from the actual catalog contract rather than a nonexistent query action.
+- Hardened both live verification tools against bearer-token transport leakage: deployment targets must be origin-only HTTPS URLs, with plain HTTP accepted solely for loopback testing; embedded credentials, paths, queries, and fragments are rejected before any request. Behavioral tests prove non-loopback HTTP exits before network use.
+- Closed live-verifier false positives from proxies and WAFs. Scoped read and manage probes now require JSON content type, protected private response headers, and a valid success/error application envelope in addition to the expected HTTP status; an HTML status page can no longer masquerade as authorization proof.
+- Migrated the LI zero-warning gate onto ESLint 9 flat configuration while preserving the existing Next, TypeScript, and Prettier rule contract, removing the deprecated compatibility environment flag. Added a scoped ESM package boundary for direct Node execution of LI TypeScript modules so test output no longer repeats ambiguous-module warnings.

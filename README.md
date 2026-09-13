@@ -20,18 +20,21 @@ Current demo mode includes a single shared demo partner account, demo bureau rep
 ## 🛠️ Installation
 
 1. Install dependencies:
-  ```bash
-  npm install
-  # or
-  yarn install
-  ```
+
+```bash
+npm install
+# or
+yarn install
+```
 
 2. Start the development server:
-  ```bash
-  npm run dev
-  # or
-  yarn dev
-  ```
+
+```bash
+npm run dev
+# or
+yarn dev
+```
+
 3. Open [http://localhost:4028](http://localhost:4028) with your browser to see the result.
 
 ## 📁 Project Structure
@@ -59,6 +62,7 @@ You can start editing the page by modifying `src/app/page.tsx`. The page auto-up
 ## 🎨 Styling
 
 This project uses Tailwind CSS for styling with the following features:
+
 - Utility-first approach for rapid development
 - Custom theme configuration
 - Responsive design utilities
@@ -68,8 +72,8 @@ This project uses Tailwind CSS for styling with the following features:
 
 - `npm run dev` - Start development server on port 4028
 - `npm run build` - Build the application for production
-- `npm run start` - Start the development server
-- `npm run serve` - Start the production server
+- `npm run start` - Start the built production server on port 4028
+- `npm run serve` - Start the built production server on the default port
 - `npm run lint` - Run ESLint to check code quality
 - `npm run lint:fix` - Fix ESLint issues automatically
 - `npm run format` - Format code with Prettier
@@ -78,9 +82,9 @@ This project uses Tailwind CSS for styling with the following features:
 
 Build the application for production:
 
-  ```bash
-  npm run build
-  ```
+```bash
+npm run build
+```
 
 ## 📚 Learn More
 

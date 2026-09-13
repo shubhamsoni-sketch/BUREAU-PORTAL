@@ -15,11 +15,7 @@ import {
   normalizeTeam,
   rolePermissions,
 } from '@/lib/crm/team';
-import {
-  deleteCrmTeamMember,
-  getCrmTableData,
-  upsertCrmTeamMember,
-} from '@/lib/crm/db';
+import { deleteCrmTeamMember, getCrmTableData, upsertCrmTeamMember } from '@/lib/crm/db';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -37,10 +33,7 @@ function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
 }
 
-async function findAuthUserByEmail(
-  supabase: ReturnType<typeof createAdminClient>,
-  email: string
-) {
+async function findAuthUserByEmail(supabase: ReturnType<typeof createAdminClient>, email: string) {
   const { data, error } = await supabase.auth.admin.listUsers();
   if (error) throw error;
   return data.users.find((user) => user.email?.toLowerCase() === email.toLowerCase()) || null;
@@ -57,7 +50,8 @@ async function provisionCrmAuthUser(
     return { member, temporaryPassword: '' };
   }
 
-  const temporaryPassword = forcePassword || !existing?.authUserId ? generateTemporaryPassword(12) : '';
+  const temporaryPassword =
+    forcePassword || !existing?.authUserId ? generateTemporaryPassword(12) : '';
   let authUserId = existing?.authUserId || '';
 
   if (!authUserId) {
@@ -81,7 +75,13 @@ async function provisionCrmAuthUser(
   };
 
   if (authUserId) {
-    const updatePayload: any = {
+    const updatePayload: {
+      email: string;
+      email_confirm: boolean;
+      app_metadata: typeof appMetadata;
+      user_metadata: typeof userMetadata;
+      password?: string;
+    } = {
       email: member.email,
       email_confirm: true,
       app_metadata: appMetadata,
@@ -298,9 +298,7 @@ export async function POST(request: NextRequest) {
       const target = team.find((member) => member.id === id);
       if (!target) return jsonError('Member not found', 404);
       const provisioned = await provisionCrmAuthUser(supabase, scope, target, target, true);
-      const nextTeam = team.map((member) =>
-        member.id === id ? provisioned.member : member
-      );
+      const nextTeam = team.map((member) => (member.id === id ? provisioned.member : member));
       await saveStore(supabase, rowId, { ...effectiveStore, team: nextTeam });
       await upsertCrmTeamMember(supabase, scope, provisioned.member);
       return NextResponse.json({
@@ -335,9 +333,7 @@ export async function POST(request: NextRequest) {
     if (!/^\S+@\S+\.\S+$/.test(member.email)) return jsonError('Valid email is required');
     if (!/^[6-9]\d{9}$/.test(member.mobile)) return jsonError('Valid mobile is required');
     if (!member.zone) return jsonError('Zone / location is required');
-    const duplicate = team.find(
-      (item) => item.email === member.email && item.id !== member.id
-    );
+    const duplicate = team.find((item) => item.email === member.email && item.id !== member.id);
     if (duplicate) return jsonError('A member with this email already exists');
 
     const provisioned = await provisionCrmAuthUser(supabase, scope, member, existing);

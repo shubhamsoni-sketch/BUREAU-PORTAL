@@ -20,7 +20,10 @@ interface EligibilityForm {
   address: string;
   pincode: string;
   state: string;
+  city: string;
   gender: string;
+  employmentType: string;
+  channel: string;
   monthlyIncome: string;
   otherIncome: string;
   existingEMI: string;
@@ -79,7 +82,10 @@ const emptyForm: EligibilityForm = {
   address: '',
   pincode: '',
   state: '',
+  city: '',
   gender: '',
+  employmentType: '',
+  channel: 'crm',
   monthlyIncome: '',
   otherIncome: '',
   existingEMI: '',
@@ -109,6 +115,7 @@ export default function EligibilityCheckContent() {
   const [result, setResult] = useState<EligibilityResult | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState('');
+  const [consentConfirmed, setConsentConfirmed] = useState(false);
 
   const loadEligibilityData = async () => {
     try {
@@ -172,6 +179,7 @@ export default function EligibilityCheckContent() {
     setErrors({});
     setServerError('');
     setResult(null);
+    setConsentConfirmed(false);
   };
 
   const selectLead = (lead: QueueLead) => {
@@ -186,20 +194,15 @@ export default function EligibilityCheckContent() {
     setErrors({});
     setServerError('');
     setResult(null);
+    setConsentConfirmed(false);
   };
-
-  const leadForm = (lead: QueueLead): EligibilityForm => ({
-    ...emptyForm,
-    mobile: lead.mobile,
-    loanType: lead.product === 'credit_card' ? 'personal_loan' : (lead.product as LoanType),
-    loanAmount: String(lead.loanAmount || ''),
-  });
 
   const validateForm = (values: EligibilityForm, selectedMode: EligibilityMode) => {
     const nextErrors: Record<string, string> = {};
     if (!/^[6-9]\d{9}$/.test(values.mobile)) {
       nextErrors.mobile = '10-digit mobile required';
     }
+    if (!consentConfirmed) nextErrors.consent = 'Confirm customer consent before proceeding';
 
     if (selectedMode === 'full_details') {
       if (values.fullName.trim().split(/\s+/).filter(Boolean).length < 2) {
@@ -208,6 +211,10 @@ export default function EligibilityCheckContent() {
       if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(values.pan.toUpperCase())) {
         nextErrors.pan = 'Valid PAN required';
       }
+      if (!values.loanType) nextErrors.loanType = 'Select a loan product';
+      if (!(Number(values.loanAmount) > 0)) nextErrors.loanAmount = 'Enter requested loan amount';
+      if (!(Number(values.monthlyIncome) > 0)) nextErrors.monthlyIncome = 'Enter monthly income';
+      if (!(Number(values.tenure) > 0)) nextErrors.tenure = 'Enter tenure in months';
     }
 
     return nextErrors;
@@ -237,7 +244,12 @@ export default function EligibilityCheckContent() {
       const response = await crmFetch('/api/crm/eligibility-check', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...payload, mode: runMode, consent: true, leadId: lead?.id }),
+        body: JSON.stringify({
+          ...payload,
+          mode: runMode,
+          consent: consentConfirmed,
+          leadId: lead?.id,
+        }),
       });
       const json = await response.json();
       if (!response.ok || !json.success) throw new Error(json.error || 'Eligibility check failed');
@@ -261,7 +273,8 @@ export default function EligibilityCheckContent() {
   };
 
   const runLeadEligibility = async (lead: QueueLead) => {
-    await runEligibility(leadForm(lead), 'mobile_advanced', lead);
+    selectLead(lead);
+    setMainTab('mobile');
   };
 
   const scoreColor = result
@@ -320,309 +333,422 @@ export default function EligibilityCheckContent() {
       ) : (
         <div className="space-y-5">
           {mainTab === 'queue' && (
-          <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 border-b border-border">
-              <div>
-                <h2 className="text-sm font-700 text-foreground">Lead Eligibility Queue</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Run checks from pending leads and keep completed reports ready for next workflow
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center rounded-sm border border-border bg-muted p-0.5">
-                  {[
-                    ['pending', 'Pending Leads', pendingLeads.length],
-                    ['checked', 'Eligibility Checked Leads', checkedLeads.length],
-                  ].map(([tab, label, count]) => (
-                    <button
-                      key={String(tab)}
-                      onClick={() => setQueueTab(tab as QueueTab)}
-                      className={[
-                        'h-7 px-3 rounded-sm text-xs font-700 transition-colors',
-                        queueTab === tab
-                          ? 'bg-card text-foreground shadow-card'
-                          : 'text-muted-foreground hover:text-foreground',
-                      ].join(' ')}
-                    >
-                      {label}
-                      <span className="ml-1 tabular-nums">{count}</span>
-                    </button>
-                  ))}
+            <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 border-b border-border">
+                <div>
+                  <h2 className="text-sm font-700 text-foreground">Lead Eligibility Queue</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Run checks from pending leads and keep completed reports ready for next workflow
+                  </p>
                 </div>
-                <div className="relative w-full sm:w-64">
-                  <svg
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  <input
-                    value={queueSearch}
-                    onChange={(event) => setQueueSearch(event.target.value)}
-                    placeholder="Search lead..."
-                    className="w-full h-8 pl-8 pr-3 rounded-sm border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto scrollbar-thin">
-              <div className="max-h-[420px] overflow-y-auto scrollbar-thin">
-                <table className="w-full min-w-[860px] text-sm">
-                  <thead className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border">
-                    <tr>
-                      {[
-                        'Lead',
-                        'Mobile',
-                        'Product',
-                        'Amount',
-                        'Agent',
-                        queueTab === 'pending' ? 'Follow-up' : 'Result',
-                        '',
-                      ].map((column) => (
-                        <th
-                          key={column}
-                          className="px-4 py-3 text-left text-[11px] font-700 uppercase tracking-wide text-muted-foreground whitespace-nowrap"
-                        >
-                          {column}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {visibleQueue.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={7}
-                          className="px-4 py-10 text-center text-sm text-muted-foreground"
-                        >
-                          {queueTab === 'pending'
-                            ? 'No pending leads found'
-                            : 'No checked leads found'}
-                        </td>
-                      </tr>
-                    ) : (
-                      visibleQueue.map((lead) => {
-                        const report = lead.eligibilityReportId
-                          ? reports[lead.eligibilityReportId]
-                          : undefined;
-                        return (
-                          <tr
-                            key={lead.id}
-                            className={[
-                              'hover:bg-muted/30 transition-colors',
-                              selectedLead?.id === lead.id ? 'bg-primary/5' : '',
-                            ].join(' ')}
-                          >
-                            <td className="px-4 py-3">
-                              <p className="text-xs font-700 text-foreground">{lead.name}</p>
-                              <p className="text-[10px] text-muted-foreground">
-                                {lead.city || 'City pending'}
-                              </p>
-                            </td>
-                            <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
-                              {lead.mobile}
-                            </td>
-                            <td className="px-4 py-3 text-xs text-foreground capitalize">
-                              {String(lead.product).replace(/_/g, ' ')}
-                            </td>
-                            <td className="px-4 py-3 text-xs font-700 text-foreground">
-                              {formatINR(lead.loanAmount)}
-                            </td>
-                            <td className="px-4 py-3 text-xs text-muted-foreground">
-                              {lead.assignedAgent}
-                            </td>
-                            <td className="px-4 py-3">
-                              {queueTab === 'pending' ? (
-                                <span className="text-xs text-muted-foreground">
-                                  {lead.nextFollowUp || '-'}
-                                </span>
-                              ) : (
-                                <div>
-                                  <p
-                                    className={[
-                                      'text-xs font-700',
-                                      report?.eligible ? 'text-success' : 'text-warning',
-                                    ].join(' ')}
-                                  >
-                                    {report
-                                      ? `${report.eligible ? 'Eligible' : 'Review'} · ${report.score || '-'}`
-                                      : 'Report saved'}
-                                  </p>
-                                  <p className="text-[10px] text-muted-foreground">
-                                    {lead.selectedLender
-                                      ? `Sent to ${lead.selectedLender}`
-                                      : report
-                                        ? 'Report ready'
-                                        : lead.stage.replace(/_/g, ' ')}
-                                  </p>
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              {queueTab === 'pending' ? (
-                                <button
-                                  onClick={() => runLeadEligibility(lead)}
-                                  disabled={checking}
-                                  className="h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-700 hover:bg-primary/90 disabled:opacity-60"
-                                >
-                                  {checkingLeadId === lead.id ? 'Running...' : 'Run Eligibility'}
-                                </button>
-                              ) : (
-                                <div className="flex items-center justify-end gap-2">
-                                  {lead.selectedLender && (
-                                    <span className="inline-flex h-8 items-center rounded-sm bg-success/10 px-3 text-xs font-700 text-success">
-                                      Application Created
-                                    </span>
-                                  )}
-                                  <button
-                                    onClick={() => setMainTab('reports')}
-                                    className="inline-flex items-center justify-center h-8 px-3 rounded-sm border border-border bg-background text-xs font-700 text-foreground hover:bg-muted"
-                                  >
-                                    View Report
-                                  </button>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          )}
-
-          {(mainTab === 'mobile' || mainTab === 'full') && (
-          <div className="bg-card rounded-lg border border-border shadow-card p-5 space-y-5">
-            <div className="flex items-start justify-between gap-4 pb-4 border-b border-border">
-              <div>
-                <h2 className="text-base font-800 text-foreground">
-                  {mode === 'mobile_advanced'
-                    ? 'Check Eligibility by Mobile No.'
-                    : 'Check Eligibility with Full Details'}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {mode === 'mobile_advanced'
-                    ? 'Use this when only customer mobile number and consent are available.'
-                    : 'Use this when customer name, mobile number, and PAN are available.'}
-                </p>
-              </div>
-              <button
-                onClick={() => setMainTab('queue')}
-                className="h-8 px-3 rounded-sm border border-border bg-background text-xs font-700 text-foreground hover:bg-muted"
-              >
-                Back to Queue
-              </button>
-            </div>
-            {mode === 'mobile_advanced' ? (
-              <div>
-                <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
-                  Mobile Check
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-sm font-600 text-foreground">
-                      Mobile Number <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      value={form.mobile}
-                      onChange={(event) => setField('mobile', event.target.value)}
-                      placeholder="9876543210"
-                      maxLength={10}
-                      className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                    />
-                    {errors.mobile && <p className="text-xs text-danger">{errors.mobile}</p>}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center rounded-sm border border-border bg-muted p-0.5">
+                    {[
+                      ['pending', 'Pending Leads', pendingLeads.length],
+                      ['checked', 'Eligibility Checked Leads', checkedLeads.length],
+                    ].map(([tab, label, count]) => (
+                      <button
+                        key={String(tab)}
+                        onClick={() => setQueueTab(tab as QueueTab)}
+                        className={[
+                          'h-7 px-3 rounded-sm text-xs font-700 transition-colors',
+                          queueTab === tab
+                            ? 'bg-card text-foreground shadow-card'
+                            : 'text-muted-foreground hover:text-foreground',
+                        ].join(' ')}
+                      >
+                        {label}
+                        <span className="ml-1 tabular-nums">{count}</span>
+                      </button>
+                    ))}
                   </div>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
-                  Customer Details
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <TextInput
-                      label="Full Name"
-                      required
-                      value={form.fullName}
-                      error={errors.fullName}
-                      onChange={(value) => setField('fullName', value)}
-                      placeholder="Harshal Pawar"
-                    />
-                  </div>
-                  <TextInput
-                    label="Mobile Number"
-                    required
-                    value={form.mobile}
-                    error={errors.mobile}
-                    onChange={(value) => setField('mobile', value)}
-                    placeholder="9876543210"
-                    maxLength={10}
-                  />
-                  <TextInput
-                    label="PAN Number"
-                    required
-                    value={form.pan}
-                    error={errors.pan}
-                    onChange={(value) => setField('pan', value.toUpperCase())}
-                    placeholder="ABCDE1234F"
-                    maxLength={10}
-                    className="uppercase"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="pt-2 border-t border-border">
-              {selectedLead && (
-                <div className="bg-primary/5 border border-primary/20 rounded-sm p-3 mb-4 text-xs text-primary font-600">
-                  Selected lead: {selectedLead.name} · {selectedLead.mobile}
-                </div>
-              )}
-                {serverError && (
-                <div className="bg-danger/5 border border-danger/20 rounded-sm p-3 mb-4 text-xs font-600 text-danger">
-                  {serverError}
-                </div>
-              )}
-              <button
-                onClick={handleCheck}
-                disabled={checking}
-                className="w-full h-10 rounded-sm bg-primary text-primary-foreground text-sm font-700 hover:bg-primary/90 active:scale-95 transition-all duration-150 disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {checking ? (
-                  <>
+                  <div className="relative w-full sm:w-64">
                     <svg
-                      className="animate-spin"
-                      width="16"
-                      height="16"
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      width="13"
+                      height="13"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2"
                     >
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
-                    Checking...
-                  </>
-                ) : mode === 'mobile_advanced' ? (
-                  'Check by Mobile'
-                ) : (
-                  'Check with Name, Mobile & PAN'
-                )}
-              </button>
+                    <input
+                      value={queueSearch}
+                      onChange={(event) => setQueueSearch(event.target.value)}
+                      placeholder="Search lead..."
+                      className="w-full h-8 pl-8 pr-3 rounded-sm border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto scrollbar-thin">
+                <div className="max-h-[420px] overflow-y-auto scrollbar-thin">
+                  <table className="w-full min-w-[860px] text-sm">
+                    <thead className="sticky top-0 z-10 bg-muted/60 backdrop-blur border-b border-border">
+                      <tr>
+                        {[
+                          'Lead',
+                          'Mobile',
+                          'Product',
+                          'Amount',
+                          'Agent',
+                          queueTab === 'pending' ? 'Follow-up' : 'Result',
+                          '',
+                        ].map((column) => (
+                          <th
+                            key={column}
+                            className="px-4 py-3 text-left text-[11px] font-700 uppercase tracking-wide text-muted-foreground whitespace-nowrap"
+                          >
+                            {column}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {visibleQueue.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={7}
+                            className="px-4 py-10 text-center text-sm text-muted-foreground"
+                          >
+                            {queueTab === 'pending'
+                              ? 'No pending leads found'
+                              : 'No checked leads found'}
+                          </td>
+                        </tr>
+                      ) : (
+                        visibleQueue.map((lead) => {
+                          const report = lead.eligibilityReportId
+                            ? reports[lead.eligibilityReportId]
+                            : undefined;
+                          return (
+                            <tr
+                              key={lead.id}
+                              className={[
+                                'hover:bg-muted/30 transition-colors',
+                                selectedLead?.id === lead.id ? 'bg-primary/5' : '',
+                              ].join(' ')}
+                            >
+                              <td className="px-4 py-3">
+                                <p className="text-xs font-700 text-foreground">{lead.name}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {lead.city || 'City pending'}
+                                </p>
+                              </td>
+                              <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
+                                {lead.mobile}
+                              </td>
+                              <td className="px-4 py-3 text-xs text-foreground capitalize">
+                                {String(lead.product).replace(/_/g, ' ')}
+                              </td>
+                              <td className="px-4 py-3 text-xs font-700 text-foreground">
+                                {formatINR(lead.loanAmount)}
+                              </td>
+                              <td className="px-4 py-3 text-xs text-muted-foreground">
+                                {lead.assignedAgent}
+                              </td>
+                              <td className="px-4 py-3">
+                                {queueTab === 'pending' ? (
+                                  <span className="text-xs text-muted-foreground">
+                                    {lead.nextFollowUp || '-'}
+                                  </span>
+                                ) : (
+                                  <div>
+                                    <p
+                                      className={[
+                                        'text-xs font-700',
+                                        report?.eligible ? 'text-success' : 'text-warning',
+                                      ].join(' ')}
+                                    >
+                                      {report
+                                        ? `${report.eligible ? 'Eligible' : 'Review'} · ${report.score || '-'}`
+                                        : 'Report saved'}
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground">
+                                      {lead.selectedLender
+                                        ? `Sent to ${lead.selectedLender}`
+                                        : report
+                                          ? 'Report ready'
+                                          : lead.stage.replace(/_/g, ' ')}
+                                    </p>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {queueTab === 'pending' ? (
+                                  <button
+                                    onClick={() => runLeadEligibility(lead)}
+                                    disabled={checking}
+                                    className="h-8 px-3 rounded-sm bg-primary text-primary-foreground text-xs font-700 hover:bg-primary/90 disabled:opacity-60"
+                                  >
+                                    {checkingLeadId === lead.id ? 'Running...' : 'Run Eligibility'}
+                                  </button>
+                                ) : (
+                                  <div className="flex items-center justify-end gap-2">
+                                    {lead.selectedLender && (
+                                      <span className="inline-flex h-8 items-center rounded-sm bg-success/10 px-3 text-xs font-700 text-success">
+                                        Application Created
+                                      </span>
+                                    )}
+                                    <button
+                                      onClick={() => setMainTab('reports')}
+                                      className="inline-flex items-center justify-center h-8 px-3 rounded-sm border border-border bg-background text-xs font-700 text-foreground hover:bg-muted"
+                                    >
+                                      View Report
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {(mainTab === 'mobile' || mainTab === 'full') && (
+            <div className="bg-card rounded-lg border border-border shadow-card p-5 space-y-5">
+              <div className="flex items-start justify-between gap-4 pb-4 border-b border-border">
+                <div>
+                  <h2 className="text-base font-800 text-foreground">
+                    {mode === 'mobile_advanced'
+                      ? 'Check Eligibility by Mobile No.'
+                      : 'Check Eligibility with Full Details'}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {mode === 'mobile_advanced'
+                      ? 'Use this when only customer mobile number and consent are available.'
+                      : 'Use this when customer name, mobile number, and PAN are available.'}
+                  </p>
+                </div>
+                <label className="flex items-start gap-3 rounded-sm border border-border bg-muted/30 p-3 text-xs text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={consentConfirmed}
+                    onChange={(event) => {
+                      setConsentConfirmed(event.target.checked);
+                      setErrors((previous) => {
+                        const next = { ...previous };
+                        delete next.consent;
+                        return next;
+                      });
+                    }}
+                    className="mt-0.5 h-4 w-4"
+                  />
+                  <span>
+                    I confirm that the customer has explicitly authorized profile verification,
+                    eligibility assessment, and lender-fit routing for this request.
+                    {errors.consent && (
+                      <span className="mt-1 block text-danger">{errors.consent}</span>
+                    )}
+                  </span>
+                </label>
+                <button
+                  onClick={() => setMainTab('queue')}
+                  className="h-8 px-3 rounded-sm border border-border bg-background text-xs font-700 text-foreground hover:bg-muted"
+                >
+                  Back to Queue
+                </button>
+              </div>
+              {mode === 'mobile_advanced' ? (
+                <div>
+                  <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
+                    Mobile Check
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-sm font-600 text-foreground">
+                        Mobile Number <span className="text-danger">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        value={form.mobile}
+                        onChange={(event) => setField('mobile', event.target.value)}
+                        placeholder="9876543210"
+                        maxLength={10}
+                        className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                      />
+                      {errors.mobile && <p className="text-xs text-danger">{errors.mobile}</p>}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <h3 className="text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
+                    Customer Details
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <TextInput
+                        label="Full Name"
+                        required
+                        value={form.fullName}
+                        error={errors.fullName}
+                        onChange={(value) => setField('fullName', value)}
+                        placeholder="Harshal Pawar"
+                      />
+                    </div>
+                    <TextInput
+                      label="Mobile Number"
+                      required
+                      value={form.mobile}
+                      error={errors.mobile}
+                      onChange={(value) => setField('mobile', value)}
+                      placeholder="9876543210"
+                      maxLength={10}
+                    />
+                    <TextInput
+                      label="PAN Number"
+                      required
+                      value={form.pan}
+                      error={errors.pan}
+                      onChange={(value) => setField('pan', value.toUpperCase())}
+                      placeholder="ABCDE1234F"
+                      maxLength={10}
+                      className="uppercase"
+                    />
+                    <TextInput
+                      label="State"
+                      value={form.state}
+                      onChange={(value) => setField('state', value)}
+                      placeholder="Maharashtra"
+                    />
+                    <TextInput
+                      label="City"
+                      value={form.city}
+                      onChange={(value) => setField('city', value)}
+                      placeholder="Mumbai"
+                    />
+                  </div>
+                  <h3 className="mt-6 text-xs font-700 uppercase tracking-wider text-muted-foreground mb-3 pb-2 border-b border-border">
+                    Loan & Income Details
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-sm font-600 text-foreground">
+                        Loan Product <span className="text-danger">*</span>
+                      </label>
+                      <select
+                        value={form.loanType}
+                        onChange={(event) => setField('loanType', event.target.value)}
+                        className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground"
+                      >
+                        <option value="">Select product</option>
+                        <option value="personal_loan">Personal Loan</option>
+                        <option value="business_loan">Business Loan</option>
+                        <option value="home_loan">Home Loan</option>
+                        <option value="lap">Loan Against Property</option>
+                        <option value="car_loan">Car Loan</option>
+                      </select>
+                      {errors.loanType && <p className="text-xs text-danger">{errors.loanType}</p>}
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-sm font-600 text-foreground">
+                        Employment Type
+                      </label>
+                      <select
+                        value={form.employmentType}
+                        onChange={(event) => setField('employmentType', event.target.value)}
+                        className="w-full h-9 px-3 rounded-sm border border-input bg-background text-sm text-foreground"
+                      >
+                        <option value="">Select employment</option>
+                        <option value="salaried">Salaried</option>
+                        <option value="self_employed">Self Employed</option>
+                        <option value="professional">Professional</option>
+                      </select>
+                    </div>
+                    <TextInput
+                      label="Requested Loan Amount"
+                      required
+                      type="number"
+                      value={form.loanAmount}
+                      error={errors.loanAmount}
+                      onChange={(value) => setField('loanAmount', value)}
+                      placeholder="500000"
+                    />
+                    <TextInput
+                      label="Monthly Income"
+                      required
+                      type="number"
+                      value={form.monthlyIncome}
+                      error={errors.monthlyIncome}
+                      onChange={(value) => setField('monthlyIncome', value)}
+                      placeholder="75000"
+                    />
+                    <TextInput
+                      label="Other Monthly Income"
+                      type="number"
+                      value={form.otherIncome}
+                      onChange={(value) => setField('otherIncome', value)}
+                      placeholder="0"
+                    />
+                    <TextInput
+                      label="Existing Monthly EMI"
+                      type="number"
+                      value={form.existingEMI}
+                      onChange={(value) => setField('existingEMI', value)}
+                      placeholder="0"
+                    />
+                    <TextInput
+                      label="Tenure (months)"
+                      required
+                      type="number"
+                      value={form.tenure}
+                      error={errors.tenure}
+                      onChange={(value) => setField('tenure', value)}
+                      placeholder="60"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-border">
+                {selectedLead && (
+                  <div className="bg-primary/5 border border-primary/20 rounded-sm p-3 mb-4 text-xs text-primary font-600">
+                    Selected lead: {selectedLead.name} · {selectedLead.mobile}
+                  </div>
+                )}
+                {serverError && (
+                  <div className="bg-danger/5 border border-danger/20 rounded-sm p-3 mb-4 text-xs font-600 text-danger">
+                    {serverError}
+                  </div>
+                )}
+                <button
+                  onClick={handleCheck}
+                  disabled={checking}
+                  className="w-full h-10 rounded-sm bg-primary text-primary-foreground text-sm font-700 hover:bg-primary/90 active:scale-95 transition-all duration-150 disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {checking ? (
+                    <>
+                      <svg
+                        className="animate-spin"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                      </svg>
+                      Checking...
+                    </>
+                  ) : mode === 'mobile_advanced' ? (
+                    'Check by Mobile'
+                  ) : (
+                    'Check with Name, Mobile & PAN'
+                  )}
+                </button>
+              </div>
+            </div>
           )}
           {result && (
             <ResultPanel
@@ -694,9 +820,10 @@ function ResultPanel({
 
   const downloadPdf = () => {
     if (!result.reportId) return;
-    const filename = `${result.customerName || 'crm-eligibility-report'}-${result.requestId || result.reportId}`
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-') + '.pdf';
+    const filename =
+      `${result.customerName || 'crm-eligibility-report'}-${result.requestId || result.reportId}`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-') + '.pdf';
     downloadAuthenticatedFile(
       `/api/bureau-report-pdf?source=crm_eligibility_reports&id=${encodeURIComponent(result.reportId)}`,
       filename

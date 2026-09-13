@@ -2,6 +2,12 @@
   "name": "credit-trust",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.6.0 <25"
+  },
+  "overrides": {
+    "postcss": "$postcss"
+  },
   "rocketCritical": {
     "dependencies": [
       "next",
@@ -41,12 +47,19 @@
   "scripts": {
     "dev": "next dev -p 4028",
     "build": "next build",
-    "start": "next dev -p 4028",
+    "start": "next start -p 4028",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\"",
     "serve": "next start",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "lint:lender-intelligence": "eslint src/app/admin-lender-intelligence src/app/api/admin-lender-intelligence src/lib/lender-intelligence src/app/api/crm src/app/crm/eligibility-check src/app/crm/eligibility-report src/app/crm/lender-selection src/app/crm/loan-application-tracking --max-warnings=0",
+    "test:lender-intelligence": "node --experimental-strip-types --test tests/lender-intelligence/*.test.mjs",
+    "verify:lender-intelligence-migration-syntax": "node scripts/verify-lender-intelligence-migration-syntax.mjs",
+    "verify:lender-intelligence-migration-execution": "node scripts/verify-lender-intelligence-migration-execution.mjs",
+    "verify:lender-intelligence-runtime": "node scripts/verify-lender-intelligence-runtime.mjs",
+    "verify:lender-intelligence-rollout": "node scripts/verify-lender-intelligence-rollout.mjs",
+    "verify:lender-intelligence-mutation-authorization": "node scripts/verify-lender-intelligence-mutation-authorization.mjs"
   },
   "dependencies": {
     "@dhiwise/component-tagger": "^1.0.15",
@@ -58,7 +71,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "google-libphonenumber": "^3.2.46",
     "lucide-react": "^1.7.0",
-    "next": "^15.5.20",
+    "next": "^15.5.25",
     "puppeteer-core": "^25.3.0",
     "react": "19.0.3",
     "react-dom": "19.0.3",
@@ -67,7 +80,9 @@
     "sonner": "^2.0.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@eslint/eslintrc": "^3",
+    "@eslint/js": "^9.39.4",
     "@netlify/plugin-nextjs": "^5.11.1",
     "@types/google-libphonenumber": "^7.4.31",
     "@types/node": "^20",
@@ -80,7 +95,8 @@
     "eslint-config-next": "^15.5.20",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
-    "postcss": "^8.5.17",
+    "pgsql-parser": "^18.2.6",
+    "postcss": "8.5.28",
     "prettier": "^3.5.3",
     "tailwindcss": "3.4.6",
     "tailwindcss-animate": "^1.0.7",

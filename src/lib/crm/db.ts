@@ -64,13 +64,14 @@ export async function logCrmAudit(
 export async function getCrmTableData(supabase: SupabaseAdmin, scope: CrmScope) {
   if (!hasPartner(scope)) return null;
 
-  const [leadsResult, applicationsResult, teamResult, lendersResult, reportsResult] =
+  const [leadsResult, applicationsResult, teamResult, lendersResult, reportsResult, withdrawalsResult] =
     await Promise.all([
       supabase.from('crm_leads').select('*').eq('partner_id', scope.partnerId).order('created_at', { ascending: false }),
-      supabase.from('crm_applications').select('*').eq('partner_id', scope.partnerId).order('created_at', { ascending: false }),
+      supabase.from('crm_lender_applications').select('*').eq('partner_id', scope.partnerId).order('created_at', { ascending: false }),
       supabase.from('crm_team_members').select('*').eq('partner_id', scope.partnerId).order('created_at', { ascending: true }),
       supabase.from('crm_lenders').select('*').eq('partner_id', scope.partnerId).order('created_at', { ascending: true }),
       supabase.from('crm_eligibility_reports').select('*').eq('partner_id', scope.partnerId).order('created_at', { ascending: false }),
+      supabase.from('lender_consent_withdrawals').select('eligibility_report_id,reason,withdrawn_at,withdrawn_by').eq('partner_id', scope.partnerId),
     ]);
 
   const firstError =
@@ -78,7 +79,8 @@ export async function getCrmTableData(supabase: SupabaseAdmin, scope: CrmScope) 
     applicationsResult.error ||
     teamResult.error ||
     lendersResult.error ||
-    reportsResult.error;
+    reportsResult.error ||
+    withdrawalsResult.error;
 
   if (firstError) {
     if (isMissingTableError(firstError)) return null;
@@ -88,6 +90,10 @@ export async function getCrmTableData(supabase: SupabaseAdmin, scope: CrmScope) 
   const applications = normalizeApplications((applicationsResult.data || []).map(applicationFromRow));
   const documents = await getApplicationDocuments(supabase, scope, applications.map((app) => app.id));
 
+  const withdrawals = new Map(
+    (withdrawalsResult.data || []).map((row) => [String(row.eligibility_report_id), row])
+  );
+
   return {
     leads: normalizeLeads((leadsResult.data || []).map(leadFromRow)),
     applications: applications.map((app) => ({
@@ -96,7 +102,16 @@ export async function getCrmTableData(supabase: SupabaseAdmin, scope: CrmScope) 
     })),
     team: normalizeTeam((teamResult.data || []).map(teamFromRow)),
     lenders: normalizeLenders((lendersResult.data || []).map(lenderFromRow)),
-    reports: (reportsResult.data || []).map(reportFromRow),
+    reports: (reportsResult.data || []).map((row) => {
+      const report = reportFromRow(row);
+      const withdrawal = withdrawals.get(report.id);
+      return {
+        ...report,
+        consent_withdrawn_at: withdrawal?.withdrawn_at || null,
+        consent_withdrawal_reason: withdrawal?.reason || null,
+        consent_withdrawn_by: withdrawal?.withdrawn_by || null,
+      };
+    }),
   };
 }
 
@@ -269,7 +284,7 @@ export async function upsertCrmApplication(
   application: CrmApplication
 ) {
   if (!hasPartner(scope)) return false;
-  const { error } = await supabase.from('crm_applications').upsert(applicationToRow(scope, application), {
+  const { error } = await supabase.from('crm_lender_applications').upsert(applicationToRow(scope, application), {
     onConflict: 'id',
     ignoreDuplicates: false,
   });
@@ -314,6 +329,12 @@ export async function insertCrmEligibilityReport(
       matched_lenders: report.matched_lenders || [],
       cibil_payload: report.cibil_payload || {},
       raw_response: report.bureau_response || report.raw_response || {},
+      consent_given: report.consent_given === true,
+      consent_at: report.consent_at || null,
+      consent_version: report.consent_version || null,
+      consent_purpose: report.consent_purpose || null,
+      consent_source: report.consent_source || null,
+      consent_captured_by: report.consent_captured_by || scope.userId,
       created_by: scope.userId,
       created_at: report.created_at || new Date().toISOString(),
     },
@@ -568,6 +589,12 @@ function reportFromRow(row: Record<string, any>) {
     cibil_payload: row.cibil_payload || {},
     bureau_response: row.raw_response || {},
     raw_response: row.raw_response || {},
+    consent_given: row.consent_given === true,
+    consent_at: row.consent_at || null,
+    consent_version: row.consent_version || null,
+    consent_purpose: row.consent_purpose || null,
+    consent_source: row.consent_source || null,
+    consent_captured_by: row.consent_captured_by || null,
     created_at: row.created_at,
   };
 }

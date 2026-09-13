@@ -89,10 +89,13 @@ export async function GET(request: NextRequest) {
       },
       scope,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[crm:me] GET failed:', error);
     return NextResponse.json(
-      { success: false, error: error?.message || 'Unable to load CRM user' },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unable to load CRM user',
+      },
       { status: 500 }
     );
   }

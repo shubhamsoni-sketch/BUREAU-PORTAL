@@ -3,7 +3,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AUTH_STORAGE_KEY, createClient, resetClient } from '@/lib/supabase/client';
-import { getPartnerLandingPath, normalizePartnerProductAccess, type PartnerProductAccess } from '@/lib/partner-access';
+import {
+  getPartnerLandingPath,
+  normalizePartnerProductAccess,
+  type PartnerProductAccess,
+} from '@/lib/partner-access';
 import type { User } from '@supabase/supabase-js';
 
 export type UserRole = 'admin' | 'partner';
@@ -16,11 +20,15 @@ export interface AuthUser {
   partnerCode?: string;
   productAccess?: PartnerProductAccess;
   isTempPassword?: boolean;
+  lenderIntelligencePermissions?: string[];
 }
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: AuthUser | null }>;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; error?: string; user?: AuthUser | null }>;
   logout: (redirectTo?: string) => Promise<void>;
   isLoading: boolean;
 }
@@ -90,8 +98,16 @@ async function resolveAuthUser(supabaseUser: User): Promise<AuthUser | null> {
       role,
       partnerCode,
       productAccess,
-      isTempPassword: profile?.is_temp_password ??
-        ((supabaseUser.app_metadata?.is_temp_password === true) || false),
+      isTempPassword:
+        profile?.is_temp_password ??
+        (supabaseUser.app_metadata?.is_temp_password === true || false),
+      lenderIntelligencePermissions: Array.isArray(
+        supabaseUser.app_metadata?.lender_intelligence_permissions
+      )
+        ? supabaseUser.app_metadata.lender_intelligence_permissions.filter(
+            (permission): permission is string => typeof permission === 'string'
+          )
+        : [],
     };
     return resolved;
   } catch (err) {
@@ -101,21 +117,23 @@ async function resolveAuthUser(supabaseUser: User): Promise<AuthUser | null> {
 }
 
 function buildFallbackAuthUser(supabaseUser: User): AuthUser {
-  const role = (
-    supabaseUser.app_metadata?.role ||
+  const role = (supabaseUser.app_metadata?.role ||
     supabaseUser.user_metadata?.role ||
-    'partner'
-  ) as UserRole;
+    'partner') as UserRole;
 
   return {
     id: supabaseUser.id,
-    name:
-      supabaseUser.user_metadata?.full_name ||
-      supabaseUser.email?.split('@')[0] ||
-      'User',
+    name: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'User',
     email: supabaseUser.email || '',
     role,
     isTempPassword: supabaseUser.app_metadata?.is_temp_password === true,
+    lenderIntelligencePermissions: Array.isArray(
+      supabaseUser.app_metadata?.lender_intelligence_permissions
+    )
+      ? supabaseUser.app_metadata.lender_intelligence_permissions.filter(
+          (permission): permission is string => typeof permission === 'string'
+        )
+      : [],
   };
 }
 
@@ -155,7 +173,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const loadInitialSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         if (cancelled) return;
 
         if (session?.user) {
@@ -179,8 +199,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Single source of truth: onAuthStateChange handles INITIAL_SESSION on mount.
     // Do NOT call getSession() separately — that creates a competing lock on the same
     // localStorage key and causes "lock stolen" / rate-limit errors.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[AuthContext] onAuthStateChange:', event, 'session user:', session?.user?.id ?? null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(
+        '[AuthContext] onAuthStateChange:',
+        event,
+        'session user:',
+        session?.user?.id ?? null
+      );
 
       // INITIAL_SESSION fires on mount with the current session (or null if signed out)
       if (event === 'INITIAL_SESSION') {
@@ -207,7 +234,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // A transient refresh miss should not kick the user out. Only an explicit SIGNED_OUT
       // event clears the portal session.
       if (event === 'TOKEN_REFRESHED' && !session) {
-        console.warn('[AuthContext] Token refresh returned no session; keeping current user until explicit sign-out.');
+        console.warn(
+          '[AuthContext] Token refresh returned no session; keeping current user until explicit sign-out.'
+        );
         setIsLoading(false);
         return;
       }
@@ -257,50 +286,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string; user?: AuthUser | null }> => {
-    try {
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        console.error('[AuthContext] signInWithPassword error:', error.message);
-        return { success: false, error: 'Invalid email or password.' };
-      }
-      if (!data.user) {
+  const login = useCallback(
+    async (
+      email: string,
+      password: string
+    ): Promise<{ success: boolean; error?: string; user?: AuthUser | null }> => {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          console.error('[AuthContext] signInWithPassword error:', error.message);
+          return { success: false, error: 'Invalid email or password.' };
+        }
+        if (!data.user) {
+          return { success: false, error: 'Login failed. Please try again.' };
+        }
+
+        const profile = await resolveStableAuthUser(data.user);
+        setUser(profile);
+        setIsLoading(false);
+        return { success: true, user: profile };
+      } catch {
         return { success: false, error: 'Login failed. Please try again.' };
       }
+    },
+    []
+  );
 
-      const profile = await resolveStableAuthUser(data.user);
-      setUser(profile);
-      setIsLoading(false);
-      return { success: true, user: profile };
-    } catch {
-      return { success: false, error: 'Login failed. Please try again.' };
-    }
-  }, []);
-
-  const logout = useCallback(async (redirectTo = '/') => {
-    setUser(null);
-    setIsLoading(true);
-    try {
-      await createClient().auth.signOut({ scope: 'global' });
-    } catch (err) {
-      console.warn('[AuthContext] signOut failed, clearing local session anyway:', err);
-    } finally {
-      try {
-        window.localStorage.removeItem(AUTH_STORAGE_KEY);
-        Object.keys(window.localStorage)
-          .filter((key) => key.startsWith('sb-') && key.includes('auth-token'))
-          .forEach((key) => window.localStorage.removeItem(key));
-      } catch {
-        // Ignore storage cleanup failures.
-      }
-      resetClient();
+  const logout = useCallback(
+    async (redirectTo = '/') => {
       setUser(null);
-      setIsLoading(false);
-      router.replace(redirectTo);
-      router.refresh();
-    }
-  }, [router]);
+      setIsLoading(true);
+      try {
+        await createClient().auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.warn('[AuthContext] signOut failed, clearing local session anyway:', err);
+      } finally {
+        try {
+          window.localStorage.removeItem(AUTH_STORAGE_KEY);
+          Object.keys(window.localStorage)
+            .filter((key) => key.startsWith('sb-') && key.includes('auth-token'))
+            .forEach((key) => window.localStorage.removeItem(key));
+        } catch {
+          // Ignore storage cleanup failures.
+        }
+        resetClient();
+        setUser(null);
+        setIsLoading(false);
+        router.replace(redirectTo);
+        router.refresh();
+      }
+    },
+    [router]
+  );
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isLoading }}>

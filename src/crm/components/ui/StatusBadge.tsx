@@ -15,6 +15,7 @@ type BadgeVariant =
   | 'approved'
   | 'disbursed'
   | 'rejected'
+  | 'rerouted'
   | 'lost'
   | 'draft'
   | 'submitted'
@@ -77,6 +78,7 @@ const variantMap: Record<BadgeVariant, { label: string; classes: string }> = {
   approved: { label: 'Approved', classes: 'bg-success-bg text-success border-success/20' },
   disbursed: { label: 'Disbursed', classes: 'bg-success-bg text-success border-success/20' },
   rejected: { label: 'Rejected', classes: 'bg-danger-bg text-danger border-danger/20' },
+  rerouted: { label: 'Rerouted', classes: 'bg-purple-50 text-purple-700 border-purple-200' },
   lost: { label: 'Lost', classes: 'bg-muted text-muted-foreground border-border' },
   draft: { label: 'Draft', classes: 'bg-muted text-muted-foreground border-border' },
   submitted: { label: 'Submitted', classes: 'bg-info-bg text-info border-info/20' },

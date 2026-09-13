@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   AlertCircle,
@@ -14,13 +14,22 @@ import {
   Network,
   RefreshCw,
   Route,
+  Shield,
   ShieldCheck,
   TrendingUp,
 } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
 import { authFetch } from '@/lib/supabase/auth-fetch';
+import { useAuth } from '@/context/AuthContext';
+import { hasLenderIntelligenceClientPermission } from '@/lib/lender-intelligence/client-access';
 
 type ViewMode = 'overview' | 'routing' | 'performance' | 'compliance';
+type RateMetric = {
+  numerator: number;
+  denominator: number;
+  value: number | null;
+  sufficientSample: boolean;
+};
 
 type LenderIntelData = {
   generatedAt: string;
@@ -30,7 +39,7 @@ type LenderIntelData = {
     mappedProducts: number;
     reportsChecked: number;
     matchedReports: number;
-    matchRate: number;
+    matchRate: number | null;
     sentFiles: number;
     approvalRate: number;
     rejectionRate: number;
@@ -91,27 +100,116 @@ type LenderIntelData = {
       issuedAt: string | null;
     }>;
   };
+  intelligence: {
+    cohort: { from: string; to: string; maturityDays: number; minimumSampleSize: number };
+    kpis: {
+      loginRate: RateMetric;
+      approvalRate: RateMetric;
+      rejectionRate: RateMetric;
+      disbursalRate: RateMetric;
+      overrideRate: RateMetric;
+      matchRate: RateMetric;
+      policyFreshness: RateMetric;
+    };
+    breakdown: Array<{
+      dimension: 'lender' | 'program' | 'product' | 'partner';
+      dimensionId: string;
+      label: string;
+      sentFiles: number;
+      pendingFiles: number;
+      applicationIds: string[];
+      loginRate: RateMetric;
+      approvalRate: RateMetric;
+      rejectionRate: RateMetric;
+      disbursalRate: RateMetric;
+      sanctionTatHours: {
+        sampleSize: number;
+        median: number;
+        p90: number;
+        sufficientSample: boolean;
+      };
+      disbursalTatHours: {
+        sampleSize: number;
+        median: number;
+        p90: number;
+        sufficientSample: boolean;
+      };
+    }>;
+    profilePerformance: {
+      cohort: {
+        from: string;
+        to: string;
+        minimumSampleSize: number;
+        modelVersion: string | null;
+        mode: string;
+        fallback: string;
+      };
+      rows: Array<{
+        dimension: 'score_band' | 'income_band' | 'loan_band' | 'employment';
+        segmentId: string;
+        label: string;
+        sampleSize: number;
+        terminalDecisions: number;
+        applicationIds: string[];
+        approvalRate: RateMetric;
+        rejectionRate: RateMetric;
+        overrideRate: RateMetric;
+        disbursedFiles: number;
+      }>;
+    };
+    pendingDecisions: number;
+    terminalDecisions: number;
+    approvalRate: number;
+    rejectionRate: number;
+    disbursedFiles: number;
+    overrideRate: number;
+    policyFreshness: number;
+    publishedPolicies: number;
+    openQualityIssues: number;
+    criticalQualityIssues: number;
+    expectedPayout: number;
+    receivedPayout: number;
+    outstandingPayout: number;
+    sanctionTatHours: { sampleSize: number; median: number; p75: number; p90: number };
+    disbursalTatHours: { sampleSize: number; median: number; p75: number; p90: number };
+  };
 };
 
 const navigation = [
-  { id: 'overview', label: 'Lender Intelligence', href: '/admin-lender-intelligence', icon: Brain },
+  {
+    id: 'overview',
+    label: 'Lender Intelligence',
+    href: '/admin-lender-intelligence',
+    icon: Brain,
+    permission: 'intelligence.read',
+  },
   {
     id: 'routing',
     label: 'Lender Routing',
     href: '/admin-lender-intelligence/routing',
     icon: Route,
+    permission: 'intelligence.read',
   },
   {
     id: 'performance',
     label: 'Lender Performance',
     href: '/admin-lender-intelligence/performance',
     icon: BarChart3,
+    permission: 'intelligence.read',
   },
   {
     id: 'compliance',
-    label: 'Invoicing & Compliance',
+    label: 'Finance & Reconciliation',
     href: '/admin-lender-intelligence/invoicing-compliance',
     icon: BadgeIndianRupee,
+    permission: 'finance.read',
+  },
+  {
+    id: 'complianceEvidence',
+    label: 'Compliance Evidence',
+    href: '/admin-lender-intelligence/compliance',
+    icon: Shield,
+    permission: 'compliance.read',
   },
 ] as const;
 
@@ -133,6 +231,15 @@ function formatDate(value: string | null) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value));
+}
+
+function rateValue(metric: RateMetric) {
+  return metric.value === null ? '—' : `${metric.value}%`;
+}
+
+function rateHelper(metric: RateMetric, minimumSampleSize: number) {
+  const evidence = `${formatNumber(metric.numerator)} / ${formatNumber(metric.denominator)}`;
+  return metric.sufficientSample ? evidence : `${evidence} · hidden until n≥${minimumSampleSize}`;
 }
 
 function statusClass(status: string) {
@@ -181,9 +288,14 @@ function EmptyState({ text }: { text: string }) {
 }
 
 export default function LenderIntelligenceWorkspace({ view }: { view: ViewMode }) {
+  const { user } = useAuth();
   const [data, setData] = useState<LenderIntelData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [breakdownDimension, setBreakdownDimension] = useState<
+    'lender' | 'program' | 'product' | 'partner'
+  >('lender');
+  const [expandedBreakdown, setExpandedBreakdown] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -208,6 +320,9 @@ export default function LenderIntelligenceWorkspace({ view }: { view: ViewMode }
   const pageTitle = useMemo(() => {
     return navigation.find((item) => item.id === view)?.label || 'Lender Intelligence';
   }, [view]);
+  const visibleNavigation = navigation.filter((item) =>
+    hasLenderIntelligenceClientPermission(user, item.permission)
+  );
 
   return (
     <AdminLayout title={pageTitle}>
@@ -233,8 +348,8 @@ export default function LenderIntelligenceWorkspace({ view }: { view: ViewMode }
             </button>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-2 md:grid-cols-4">
-            {navigation.map((item) => {
+          <div className="mt-5 grid grid-cols-1 gap-2 md:grid-cols-5">
+            {visibleNavigation.map((item) => {
               const Icon = item.icon;
               const active = item.id === view;
               return (
@@ -290,8 +405,11 @@ export default function LenderIntelligenceWorkspace({ view }: { view: ViewMode }
               />
               <MetricCard
                 label="Routing match rate"
-                value={`${data.summary.matchRate}%`}
-                helper={`${formatNumber(data.summary.matchedReports)} matched reports`}
+                value={rateValue(data.intelligence.kpis.matchRate)}
+                helper={rateHelper(
+                  data.intelligence.kpis.matchRate,
+                  data.intelligence.cohort.minimumSampleSize
+                )}
                 icon={Gauge}
                 tone="border-emerald-100 bg-emerald-50 text-emerald-600"
               />
@@ -368,8 +486,8 @@ export default function LenderIntelligenceWorkspace({ view }: { view: ViewMode }
                         reports.
                       </p>
                       <p>
-                        Next phase: migrate advanced prototype policy engine into this same
-                        workspace.
+                        Published policy evaluation, immutable decisions and outcome feedback use
+                        this governed workspace.
                       </p>
                     </div>
                   </div>
@@ -405,7 +523,7 @@ export default function LenderIntelligenceWorkspace({ view }: { view: ViewMode }
                         </div>
                       ))
                     ) : (
-                      <EmptyState text="No routing demand captured this month." />
+                      <EmptyState text="No routing demand captured in the current 90-day cohort." />
                     )}
                   </div>
                 </div>
@@ -444,47 +562,205 @@ export default function LenderIntelligenceWorkspace({ view }: { view: ViewMode }
             )}
 
             {view === 'performance' && (
-              <div className="grid gap-5 xl:grid-cols-3">
-                <div className="rounded-lg border border-slate-200 bg-white shadow-sm xl:col-span-2">
-                  <div className="border-b border-slate-100 px-5 py-4">
-                    <h2 className="text-base font-bold text-slate-900">Lender File Performance</h2>
+              <div className="space-y-5">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <MetricCard
+                    label="Terminal approval rate"
+                    value={rateValue(data.intelligence.kpis.approvalRate)}
+                    helper={`${rateHelper(data.intelligence.kpis.approvalRate, data.intelligence.cohort.minimumSampleSize)} · ${data.intelligence.pendingDecisions} pending`}
+                    icon={CheckCircle2}
+                    tone="border-emerald-100 bg-emerald-50 text-emerald-600"
+                  />
+                  <MetricCard
+                    label="Routing override rate"
+                    value={rateValue(data.intelligence.kpis.overrideRate)}
+                    helper={rateHelper(
+                      data.intelligence.kpis.overrideRate,
+                      data.intelligence.cohort.minimumSampleSize
+                    )}
+                    icon={Route}
+                    tone="border-amber-100 bg-amber-50 text-amber-600"
+                  />
+                  <MetricCard
+                    label="Median sanction TAT"
+                    value={
+                      data.intelligence.sanctionTatHours.sampleSize >=
+                      data.intelligence.cohort.minimumSampleSize
+                        ? `${data.intelligence.sanctionTatHours.median}h`
+                        : '—'
+                    }
+                    helper={`n=${data.intelligence.sanctionTatHours.sampleSize} · P90 ${data.intelligence.sanctionTatHours.p90}h · minimum n=${data.intelligence.cohort.minimumSampleSize}`}
+                    icon={Gauge}
+                    tone="border-blue-100 bg-blue-50 text-blue-600"
+                  />
+                  <MetricCard
+                    label="Policy freshness"
+                    value={rateValue(data.intelligence.kpis.policyFreshness)}
+                    helper={rateHelper(data.intelligence.kpis.policyFreshness, 1)}
+                    icon={ShieldCheck}
+                    tone="border-violet-100 bg-violet-50 text-violet-600"
+                  />
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                    <p className="text-sm font-bold text-slate-900">KPI evidence contract</p>
+                    <p className="text-xs text-slate-500">
+                      Sent-date cohort {formatDate(data.intelligence.cohort.from)} to{' '}
+                      {formatDate(data.intelligence.cohort.to)} · minimum n=
+                      {data.intelligence.cohort.minimumSampleSize}
+                    </p>
+                  </div>
+                  <div className="mt-3 grid gap-3 md:grid-cols-3">
+                    <div className="rounded-md bg-blue-50 p-3">
+                      <p className="text-xs font-bold uppercase text-blue-600">Login rate</p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {rateValue(data.intelligence.kpis.loginRate)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {rateHelper(
+                          data.intelligence.kpis.loginRate,
+                          data.intelligence.cohort.minimumSampleSize
+                        )}
+                      </p>
+                    </div>
+                    <div className="rounded-md bg-red-50 p-3">
+                      <p className="text-xs font-bold uppercase text-red-600">
+                        Terminal rejection rate
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {rateValue(data.intelligence.kpis.rejectionRate)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {rateHelper(
+                          data.intelligence.kpis.rejectionRate,
+                          data.intelligence.cohort.minimumSampleSize
+                        )}
+                      </p>
+                    </div>
+                    <div className="rounded-md bg-emerald-50 p-3">
+                      <p className="text-xs font-bold uppercase text-emerald-600">
+                        Matured disbursal rate
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {rateValue(data.intelligence.kpis.disbursalRate)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {rateHelper(
+                          data.intelligence.kpis.disbursalRate,
+                          data.intelligence.cohort.minimumSampleSize
+                        )}{' '}
+                        · {data.intelligence.cohort.maturityDays}d
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+                  <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="font-bold text-slate-900">Evidence drill-down</h2>
+                      <p className="text-sm text-slate-500">
+                        Same cohort and sample rules, grouped to operational dimensions.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {(['lender', 'program', 'product', 'partner'] as const).map((dimension) => (
+                        <button
+                          key={dimension}
+                          type="button"
+                          onClick={() => {
+                            setBreakdownDimension(dimension);
+                            setExpandedBreakdown('');
+                          }}
+                          className={`rounded-md px-3 py-1.5 text-xs font-semibold capitalize ${breakdownDimension === dimension ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-600'}`}
+                        >
+                          {dimension}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-slate-100 text-sm">
-                      <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                      <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                         <tr>
-                          <th className="px-5 py-3 text-left">Lender</th>
-                          <th className="px-5 py-3 text-right">Files</th>
-                          <th className="px-5 py-3 text-right">Amount</th>
-                          <th className="px-5 py-3 text-right">Approved</th>
-                          <th className="px-5 py-3 text-right">Rejected</th>
+                          <th className="px-5 py-3 text-left">{breakdownDimension}</th>
+                          <th className="px-5 py-3 text-right">Sent / pending</th>
+                          <th className="px-5 py-3 text-right">Login</th>
+                          <th className="px-5 py-3 text-right">Approval</th>
+                          <th className="px-5 py-3 text-right">Disbursal</th>
+                          <th className="px-5 py-3 text-right">Sanction TAT</th>
+                          <th className="px-5 py-3 text-right">Evidence</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {data.performance.lenderVolume.length ? (
-                          data.performance.lenderVolume.map((row) => (
-                            <tr key={row.lender}>
-                              <td className="px-5 py-4 font-semibold text-slate-900">
-                                {row.lender}
-                              </td>
-                              <td className="px-5 py-4 text-right text-slate-600">
-                                {formatNumber(row.files)}
-                              </td>
-                              <td className="px-5 py-4 text-right text-slate-600">
-                                {money.format(row.amount)}
-                              </td>
-                              <td className="px-5 py-4 text-right text-emerald-700">
-                                {formatNumber(row.approved)}
-                              </td>
-                              <td className="px-5 py-4 text-right text-red-700">
-                                {formatNumber(row.rejected)}
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
+                        {data.intelligence.breakdown
+                          .filter((item) => item.dimension === breakdownDimension)
+                          .map((item) => {
+                            const rowKey = `${item.dimension}:${item.dimensionId}`;
+                            return (
+                              <Fragment key={rowKey}>
+                                <tr>
+                                  <td className="px-5 py-3 font-semibold text-slate-900">
+                                    {item.label}
+                                  </td>
+                                  <td className="px-5 py-3 text-right text-slate-600">
+                                    {item.sentFiles} / {item.pendingFiles}
+                                  </td>
+                                  <td className="px-5 py-3 text-right">
+                                    {rateValue(item.loginRate)}
+                                  </td>
+                                  <td className="px-5 py-3 text-right">
+                                    {rateValue(item.approvalRate)}
+                                  </td>
+                                  <td className="px-5 py-3 text-right">
+                                    {rateValue(item.disbursalRate)}
+                                  </td>
+                                  <td className="px-5 py-3 text-right">
+                                    {item.sanctionTatHours.sufficientSample
+                                      ? `${item.sanctionTatHours.median}h`
+                                      : '—'}
+                                  </td>
+                                  <td className="px-5 py-3 text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setExpandedBreakdown(
+                                          expandedBreakdown === rowKey ? '' : rowKey
+                                        )
+                                      }
+                                      className="text-xs font-semibold text-blue-600"
+                                    >
+                                      {expandedBreakdown === rowKey
+                                        ? 'Hide files'
+                                        : `View files (${item.applicationIds.length})`}
+                                    </button>
+                                  </td>
+                                </tr>
+                                {expandedBreakdown === rowKey && (
+                                  <tr>
+                                    <td colSpan={7} className="bg-slate-50 px-5 py-3">
+                                      <div className="flex flex-wrap gap-2">
+                                        {item.applicationIds.map((id) => (
+                                          <Link
+                                            key={id}
+                                            href={`/crm/loan-application-tracking?application=${encodeURIComponent(id)}`}
+                                            className="rounded-md border border-slate-200 bg-white px-2 py-1 font-mono text-xs text-blue-700 hover:border-blue-300"
+                                          >
+                                            {id}
+                                          </Link>
+                                        ))}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </Fragment>
+                            );
+                          })}
+                        {!data.intelligence.breakdown.some(
+                          (item) => item.dimension === breakdownDimension
+                        ) && (
                           <tr>
-                            <td colSpan={5} className="p-5">
-                              <EmptyState text="No lender files captured this month." />
+                            <td colSpan={7} className="p-5">
+                              <EmptyState text="No dimension data in this cohort." />
                             </td>
                           </tr>
                         )}
@@ -492,19 +768,156 @@ export default function LenderIntelligenceWorkspace({ view }: { view: ViewMode }
                     </table>
                   </div>
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                  <h2 className="text-base font-bold text-slate-900">Rejection Reasons</h2>
-                  <div className="mt-4 space-y-3">
-                    {data.performance.rejectionReasons.length ? (
-                      data.performance.rejectionReasons.map((item) => (
-                        <div key={item.reason} className="rounded-lg bg-red-50 px-4 py-3">
-                          <p className="text-sm font-semibold text-red-800">{item.reason}</p>
-                          <p className="text-xs text-red-500">{formatNumber(item.count)} files</p>
-                        </div>
-                      ))
-                    ) : (
-                      <EmptyState text="No rejection reason data yet." />
-                    )}
+                <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+                  <div className="border-b border-slate-100 px-5 py-4">
+                    <h2 className="font-bold text-slate-900">Similar-profile performance</h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Descriptive borrower bands only. Rates stay hidden below n=
+                      {data.intelligence.profilePerformance.cohort.minimumSampleSize}; deterministic
+                      policy routing remains authoritative.
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-slate-100 text-sm">
+                      <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                        <tr>
+                          <th className="px-5 py-3 text-left">Profile band</th>
+                          <th className="px-5 py-3 text-right">Sample / terminal</th>
+                          <th className="px-5 py-3 text-right">Approval</th>
+                          <th className="px-5 py-3 text-right">Rejection</th>
+                          <th className="px-5 py-3 text-right">Override</th>
+                          <th className="px-5 py-3 text-right">Disbursed</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {data.intelligence.profilePerformance.rows.map((row) => (
+                          <tr key={`${row.dimension}:${row.segmentId}`}>
+                            <td className="px-5 py-3">
+                              <p className="font-semibold text-slate-900">{row.label}</p>
+                              <p className="text-xs capitalize text-slate-500">
+                                {row.dimension.replace(/_/g, ' ')}
+                              </p>
+                            </td>
+                            <td className="px-5 py-3 text-right text-slate-600">
+                              {row.sampleSize} / {row.terminalDecisions}
+                            </td>
+                            <td className="px-5 py-3 text-right">{rateValue(row.approvalRate)}</td>
+                            <td className="px-5 py-3 text-right">{rateValue(row.rejectionRate)}</td>
+                            <td className="px-5 py-3 text-right">{rateValue(row.overrideRate)}</td>
+                            <td className="px-5 py-3 text-right">{row.disbursedFiles}</td>
+                          </tr>
+                        ))}
+                        {!data.intelligence.profilePerformance.rows.length && (
+                          <tr>
+                            <td colSpan={6} className="p-5">
+                              <EmptyState text="No application-bound routing samples are available in this cohort." />
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div className="grid gap-5 xl:grid-cols-3">
+                  <div className="rounded-lg border border-slate-200 bg-white shadow-sm xl:col-span-2">
+                    <div className="border-b border-slate-100 px-5 py-4">
+                      <h2 className="text-base font-bold text-slate-900">
+                        Lender File Performance
+                      </h2>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-slate-100 text-sm">
+                        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                          <tr>
+                            <th className="px-5 py-3 text-left">Lender</th>
+                            <th className="px-5 py-3 text-right">Files</th>
+                            <th className="px-5 py-3 text-right">Amount</th>
+                            <th className="px-5 py-3 text-right">Approved</th>
+                            <th className="px-5 py-3 text-right">Rejected</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {data.performance.lenderVolume.length ? (
+                            data.performance.lenderVolume.map((row) => (
+                              <tr key={row.lender}>
+                                <td className="px-5 py-4 font-semibold text-slate-900">
+                                  {row.lender}
+                                </td>
+                                <td className="px-5 py-4 text-right text-slate-600">
+                                  {formatNumber(row.files)}
+                                </td>
+                                <td className="px-5 py-4 text-right text-slate-600">
+                                  {money.format(row.amount)}
+                                </td>
+                                <td className="px-5 py-4 text-right text-emerald-700">
+                                  {formatNumber(row.approved)}
+                                </td>
+                                <td className="px-5 py-4 text-right text-red-700">
+                                  {formatNumber(row.rejected)}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={5} className="p-5">
+                                <EmptyState text="No lender files captured in the current 90-day cohort." />
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 className="text-base font-bold text-slate-900">Rejection Reasons</h2>
+                    <div className="mt-4 space-y-3">
+                      {data.performance.rejectionReasons.length ? (
+                        data.performance.rejectionReasons.map((item) => (
+                          <div key={item.reason} className="rounded-lg bg-red-50 px-4 py-3">
+                            <p className="text-sm font-semibold text-red-800">{item.reason}</p>
+                            <p className="text-xs text-red-500">{formatNumber(item.count)} files</p>
+                          </div>
+                        ))
+                      ) : (
+                        <EmptyState text="No rejection reason data yet." />
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="rounded-lg border border-slate-200 bg-white p-4">
+                    <p className="text-xs font-bold uppercase text-slate-400">
+                      Matured disbursal rate
+                    </p>
+                    <p className="mt-2 text-xl font-bold text-slate-900">
+                      {rateValue(data.intelligence.kpis.disbursalRate)}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {rateHelper(
+                        data.intelligence.kpis.disbursalRate,
+                        data.intelligence.cohort.minimumSampleSize
+                      )}{' '}
+                      · {data.intelligence.cohort.maturityDays}-day maturity
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-white p-4">
+                    <p className="text-xs font-bold uppercase text-slate-400">Outstanding payout</p>
+                    <p className="mt-2 text-xl font-bold text-slate-900">
+                      {money.format(data.intelligence.outstandingPayout)}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Expected {money.format(data.intelligence.expectedPayout)} · Received{' '}
+                      {money.format(data.intelligence.receivedPayout)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-white p-4">
+                    <p className="text-xs font-bold uppercase text-slate-400">Data quality</p>
+                    <p className="mt-2 text-xl font-bold text-slate-900">
+                      {data.intelligence.openQualityIssues} open
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {data.intelligence.criticalQualityIssues} critical issues
+                    </p>
                   </div>
                 </div>
               </div>
@@ -588,7 +1001,8 @@ export default function LenderIntelligenceWorkspace({ view }: { view: ViewMode }
               Routing ready
             </div>
             <p className="mt-2 text-sm text-slate-500">
-              Next step is to migrate prototype policy waterfall rules here.
+              Published policy waterfall, governed overrides and outcome feedback are connected
+              here.
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-4">

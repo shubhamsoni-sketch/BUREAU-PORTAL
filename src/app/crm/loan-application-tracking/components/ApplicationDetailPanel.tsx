@@ -2,6 +2,10 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import StatusBadge from '@/crm/components/ui/StatusBadge';
+import {
+  canTransitionLenderApplication,
+  type LenderApplicationStage,
+} from '@/lib/lender-intelligence/lifecycle';
 
 interface LoanApplication {
   id: string;
@@ -57,13 +61,22 @@ type ApplicationDocument = {
 
 interface Props {
   app: LoanApplication;
+  rejectionReasons: Array<{ code: string; label: string }>;
   onClose: () => void;
   onAddNote: (applicationId: string, note: string) => Promise<void>;
   onUpdateFollowUp: (applicationId: string, followUpDate: string) => Promise<void>;
   onUpdateStatus: (
     applicationId: string,
-    status: any,
-    options?: { note?: string; rejectionReason?: string }
+    status: LenderApplicationStage,
+    options?: {
+      note?: string;
+      rejectionReason?: string;
+      rejectionReasonCode?: string;
+      sanctionedAmount?: number;
+      disbursedAmount?: number;
+      approvedRoi?: number;
+      approvedTenureMonths?: number;
+    }
   ) => Promise<void>;
   onUpdateDocument: (
     applicationId: string,
@@ -117,6 +130,7 @@ const LENDER_OFFERS = [
 
 export default function ApplicationDetailPanel({
   app,
+  rejectionReasons,
   onClose,
   onAddNote,
   onUpdateFollowUp,
@@ -129,19 +143,35 @@ export default function ApplicationDetailPanel({
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [followUpDate, setFollowUpDate] = useState(app.followUpDate || '');
+  const [showReject, setShowReject] = useState(false);
+  const [rejectionCode, setRejectionCode] = useState('');
+  const [rejectionDetail, setRejectionDetail] = useState('');
 
   useEffect(() => {
     setFollowUpDate(app.followUpDate || '');
     setNote('');
   }, [app.id, app.followUpDate]);
 
+  useEffect(() => {
+    if (
+      rejectionReasons.length &&
+      !rejectionReasons.some((reason) => reason.code === rejectionCode)
+    ) {
+      setRejectionCode(rejectionReasons[0].code);
+    }
+  }, [rejectionCode, rejectionReasons]);
+
   const documents = app.documents?.length ? app.documents : DEFAULT_DOCS;
-  const verifiedRequired = documents.filter((doc) => doc.required && doc.status === 'verified')
-    .length;
+  const verifiedRequired = documents.filter(
+    (doc) => doc.required && doc.status === 'verified'
+  ).length;
   const totalRequired = documents.filter((doc) => doc.required).length;
   const requiredDocsReady = totalRequired === 0 || verifiedRequired === totalRequired;
-  const uploadedCount = documents.filter((doc) => ['uploaded', 'verified'].includes(doc.status))
-    .length;
+  const uploadedCount = documents.filter((doc) =>
+    ['uploaded', 'verified'].includes(doc.status)
+  ).length;
+  const canSubmit = canTransitionLenderApplication(app.stage, 'submitted');
+  const canReject = canTransitionLenderApplication(app.stage, 'rejected');
 
   const handleUpload = async (docId: string, fileName: string) => {
     setUploadingDoc(docId);
@@ -358,6 +388,7 @@ export default function ApplicationDetailPanel({
 
             <div className="flex gap-2 pt-1">
               <button
+                disabled={!canSubmit}
                 onClick={() => {
                   if (!requiredDocsReady) {
                     toast.error('Verify required documents before submission');
@@ -365,20 +396,68 @@ export default function ApplicationDetailPanel({
                   }
                   onUpdateStatus(app.id, 'submitted', { note: 'File submitted' });
                 }}
-                className="flex-1 h-8 rounded-sm bg-primary text-primary-foreground text-xs font-600 hover:bg-primary/90 active:scale-95 transition-all duration-150 disabled:opacity-60"
+                className="flex-1 h-8 rounded-sm bg-primary text-primary-foreground text-xs font-600 hover:bg-primary/90 active:scale-95 transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Mark Submitted
               </button>
               <button
-                onClick={() => {
-                  const reason = window.prompt('Rejection reason?') || '';
-                  onUpdateStatus(app.id, 'rejected', { note: reason, rejectionReason: reason });
-                }}
-                className="flex-1 h-8 rounded-sm border border-danger/20 text-xs font-600 text-danger hover:bg-danger/5 active:scale-95 transition-all duration-150"
+                disabled={!canReject}
+                onClick={() => setShowReject((current) => !current)}
+                className="flex-1 h-8 rounded-sm border border-danger/20 text-xs font-600 text-danger hover:bg-danger/5 active:scale-95 transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Reject
               </button>
             </div>
+            {showReject && (
+              <div className="space-y-2 rounded-sm border border-danger/20 bg-danger/5 p-3">
+                <p className="text-xs font-700 text-danger">Record structured rejection</p>
+                <select
+                  value={rejectionCode}
+                  onChange={(event) => setRejectionCode(event.target.value)}
+                  className="h-9 w-full rounded-sm border border-input bg-background px-2 text-xs"
+                >
+                  {!rejectionReasons.length && (
+                    <option value="">No active reasons available</option>
+                  )}
+                  {rejectionReasons.map(({ code, label }) => (
+                    <option key={code} value={code}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <textarea
+                  value={rejectionDetail}
+                  onChange={(event) => setRejectionDetail(event.target.value)}
+                  rows={2}
+                  placeholder="Lender-provided detail is required"
+                  className="w-full resize-none rounded-sm border border-input bg-background p-2 text-xs"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowReject(false)}
+                    className="h-8 flex-1 rounded-sm border border-border text-xs font-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={!rejectionCode || !rejectionDetail.trim()}
+                    onClick={async () => {
+                      const detail = rejectionDetail.trim();
+                      await onUpdateStatus(app.id, 'rejected', {
+                        note: detail,
+                        rejectionReason: detail,
+                        rejectionReasonCode: rejectionCode,
+                      });
+                      setShowReject(false);
+                      setRejectionDetail('');
+                    }}
+                    className="h-8 flex-1 rounded-sm bg-danger text-xs font-600 text-white disabled:opacity-50"
+                  >
+                    Confirm rejection
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

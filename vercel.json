@@ -7,6 +7,10 @@
     {
       "path": "/api/marketing/automation/evaluate",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/admin-lender-intelligence/sla-scan",
+      "schedule": "0 * * * *"
     }
   ]
 }
