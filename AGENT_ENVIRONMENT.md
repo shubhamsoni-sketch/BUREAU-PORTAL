@@ -76,9 +76,9 @@ VERCEL_OIDC_TOKEN=
 
 ## Supabase production source
 
-- Main Supabase project ref: `ncuszzxymbhzxprecovg`
-- Supabase URL format: `https://ncuszzxymbhzxprecovg.supabase.co`
-- Database host: `db.ncuszzxymbhzxprecovg.supabase.co`
+- Main Supabase project ref: `qoseffoyxasnqqdrcesb`
+- Supabase URL format: `https://qoseffoyxasnqqdrcesb.supabase.co`
+- Database host: `db.qoseffoyxasnqqdrcesb.supabase.co`
 
 Use the local secret env file for actual service-role key and database password.
 
@@ -151,4 +151,3 @@ These were used earlier by mistake and should not be used for BUREAU-PORTAL prod
 - `creditanalytics-universal`
 - `creditanalytics-universal-xi.vercel.app`
 - `ketavpipaliya-7793s-projects` for this portal deployment
-
