@@ -13,6 +13,7 @@ import {
   Eye,
   Filter,
   History,
+  Loader2,
   Phone,
   Play,
   RefreshCw,
@@ -876,7 +877,12 @@ function AIFinderDrawer({
                     onClick={generatePlan}
                     className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-950 text-white hover:bg-blue-700 disabled:opacity-60"
                   >
-                    <Zap size={17} /> {loadingPlan ? 'Preparing...' : 'Prepare'}
+                    {loadingPlan ? (
+                      <Loader2 className="animate-spin" size={17} />
+                    ) : (
+                      <Zap size={17} />
+                    )}
+                    {loadingPlan ? 'Preparing plan...' : 'Prepare'}
                   </button>
                   <button
                     type="button"
@@ -902,7 +908,9 @@ function AIFinderDrawer({
                   No charge until Run
                 </span>
               </div>
-              {!plan ? (
+              {loadingPlan ? (
+                <PreparingPlanCard />
+              ) : !plan ? (
                 <div className="flex min-h-[174px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
                   <div>
                     <Search className="mx-auto text-slate-400" size={28} />
@@ -1021,6 +1029,40 @@ function MetricBox({
     <div className={`rounded-xl border p-4 ${tones[tone]}`}>
       <p className="text-xs font-900 uppercase tracking-wide text-slate-500">{label}</p>
       <p className="mt-2 text-lg font-950 text-slate-950">{value || '-'}</p>
+    </div>
+  );
+}
+
+function PreparingPlanCard() {
+  const steps = ['Reading brief', 'Finding cities & keywords', 'Checking saved data', 'Estimating cost'];
+
+  return (
+    <div className="relative min-h-[260px] overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-5">
+      <div className="absolute -right-12 -top-12 h-36 w-36 animate-pulse rounded-full bg-blue-200/40 blur-2xl" />
+      <div className="absolute -bottom-16 -left-10 h-40 w-40 animate-pulse rounded-full bg-violet-200/40 blur-2xl" />
+      <div className="relative flex h-full min-h-[220px] flex-col items-center justify-center text-center">
+        <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
+          <div className="absolute inset-0 animate-ping rounded-2xl bg-blue-500 opacity-25" />
+          <Loader2 className="relative animate-spin" size={28} />
+        </div>
+        <h4 className="text-lg font-950 text-slate-950">Preparing your AI search plan</h4>
+        <p className="mt-2 max-w-sm text-sm font-800 leading-6 text-slate-600">
+          Gemini is turning your brief into cities, keywords, duplicate checks and an estimated run
+          cost. No Google Places charge yet.
+        </p>
+        <div className="mt-5 grid w-full gap-2 sm:grid-cols-2">
+          {steps.map((step, index) => (
+            <div
+              key={step}
+              className="flex items-center gap-2 rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-left text-xs font-900 text-slate-700 shadow-sm"
+              style={{ animation: `pulse 1.8s ease-in-out ${index * 0.18}s infinite` }}
+            >
+              <span className="h-2 w-2 rounded-full bg-blue-500" />
+              {step}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
