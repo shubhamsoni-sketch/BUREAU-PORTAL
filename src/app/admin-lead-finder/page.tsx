@@ -235,6 +235,15 @@ function shortSearchSource(prospect: Prospect) {
   );
 }
 
+function displayDomain(value: string) {
+  try {
+    const url = new URL(value.startsWith('http') ? value : `https://${value}`);
+    return url.hostname.replace(/^www\./, '');
+  } catch {
+    return value.split(/[/?#]/)[0].replace(/^www\./, '');
+  }
+}
+
 export default function AdminLeadFinderPage() {
   const [tab, setTab] = useState<LeadFinderTab>('library');
   const [city, setCity] = useState('Indore');
@@ -1670,7 +1679,7 @@ function LeadTable({
               rel="noreferrer"
               className="font-800 text-blue-700 hover:underline"
             >
-              {prospect.website.replace(/^https?:\/\//, '')}
+              {displayDomain(prospect.website)}
             </a>
           ) : (
             '-'
