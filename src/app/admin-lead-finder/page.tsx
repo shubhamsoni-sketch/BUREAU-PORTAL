@@ -719,8 +719,18 @@ function AIFinderDrawer({
   const [forceRefresh, setForceRefresh] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [running, setRunning] = useState(false);
+  const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
+  const [runElapsedSeconds, setRunElapsedSeconds] = useState(0);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!running || !runStartedAt) return;
+    const interval = window.setInterval(() => {
+      setRunElapsedSeconds(Math.max(0, Math.floor((Date.now() - runStartedAt) / 1000)));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [runStartedAt, running]);
 
   if (!open) return null;
 
@@ -761,6 +771,9 @@ function AIFinderDrawer({
     )
       return;
     setRunning(true);
+    const startedAt = Date.now();
+    setRunStartedAt(startedAt);
+    setRunElapsedSeconds(0);
     setError('');
     setMessage('');
     try {
@@ -787,6 +800,7 @@ function AIFinderDrawer({
       setError(err instanceof Error ? err.message : 'Universal run failed');
     } finally {
       setRunning(false);
+      setRunStartedAt(null);
     }
   }
 
@@ -796,8 +810,10 @@ function AIFinderDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-slate-950/30 backdrop-blur-[1px]"
-      onClick={onClose}
+      className={`fixed inset-0 z-50 flex justify-end backdrop-blur-[1px] ${
+        running ? 'bg-slate-950/15' : 'bg-slate-950/30'
+      }`}
+      onClick={running ? undefined : onClose}
     >
       <aside
         className="h-full w-full max-w-xl overflow-y-auto bg-white shadow-2xl"
@@ -811,9 +827,10 @@ function AIFinderDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-900 text-slate-600 hover:bg-slate-50"
+            disabled={running}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-900 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Close
+            {running ? 'Running' : 'Close'}
           </button>
         </div>
         <div className="space-y-4 p-5">
@@ -914,7 +931,13 @@ function AIFinderDrawer({
                   No charge until Run
                 </span>
               </div>
-              {loadingPlan ? (
+              {running ? (
+                <RunningPlanCard
+                  elapsedSeconds={runElapsedSeconds}
+                  forecast={forecast}
+                  forceRefresh={forceRefresh}
+                />
+              ) : loadingPlan ? (
                 <PreparingPlanCard />
               ) : !plan ? (
                 <div className="flex min-h-[174px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
@@ -1120,6 +1143,98 @@ function PreparingPlanCard() {
               {step}
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatElapsed(seconds: number) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function RunningPlanCard({
+  elapsedSeconds,
+  forecast,
+  forceRefresh,
+}: {
+  elapsedSeconds: number;
+  forecast: UniversalForecast | null;
+  forceRefresh: boolean;
+}) {
+  const steps = [
+    'Checking 30-day cache',
+    'Searching only missing coverage',
+    'Fetching safe detail fields',
+    'Saving deduped leads',
+  ];
+
+  return (
+    <div className="relative min-h-[300px] overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-5">
+      <div className="absolute -right-16 -top-16 h-44 w-44 animate-pulse rounded-full bg-emerald-200/50 blur-3xl" />
+      <div className="absolute -bottom-20 -left-12 h-48 w-48 animate-pulse rounded-full bg-blue-200/50 blur-3xl" />
+      <div className="relative">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-200">
+              <div className="absolute inset-0 animate-ping rounded-2xl bg-emerald-500 opacity-25" />
+              <Loader2 className="relative animate-spin" size={28} />
+            </div>
+            <div>
+              <h4 className="text-lg font-950 text-slate-950">Run in progress</h4>
+              <p className="mt-1 text-sm font-800 text-slate-600">
+                Keep this drawer open. Results will refresh automatically after completion.
+              </p>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-emerald-200 bg-white/80 px-4 py-3 text-center shadow-sm">
+            <p className="text-xs font-950 uppercase tracking-wide text-emerald-700">Elapsed</p>
+            <p className="mt-1 font-mono text-2xl font-950 text-slate-950">
+              {formatElapsed(elapsedSeconds)}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          {steps.map((step, index) => (
+            <div
+              key={step}
+              className="flex items-center gap-2 rounded-xl border border-white/80 bg-white/85 px-3 py-2 text-sm font-900 text-slate-700 shadow-sm"
+              style={{ animation: `pulse 1.8s ease-in-out ${index * 0.18}s infinite` }}
+            >
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              {step}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 grid gap-2 sm:grid-cols-3">
+          <MetricBox
+            label="Expected leads"
+            value={
+              forecast
+                ? `${formatNumber(forecast.estimated_unique_leads_min)}-${formatNumber(forecast.estimated_unique_leads_max)}`
+                : '-'
+            }
+            tone="green"
+          />
+          <MetricBox
+            label="Estimated cost"
+            value={forecast ? `≈₹${formatNumber(forecast.approx_cost_inr)}` : '-'}
+            tone="amber"
+          />
+          <MetricBox
+            label="Mode"
+            value={forceRefresh ? 'Force refresh' : 'Cache first'}
+            tone="blue"
+          />
+        </div>
+
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-800 leading-6 text-amber-800">
+          Paid Google Places calls may be running now. Please wait for completion instead of
+          pressing Run again.
         </div>
       </div>
     </div>
