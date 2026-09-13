@@ -6,6 +6,7 @@ import { authFetch, downloadAuthenticatedFile } from '@/lib/supabase/auth-fetch'
 import {
   AlertTriangle,
   BarChart3,
+  ChevronDown,
   CheckCircle2,
   Clock3,
   Database,
@@ -20,6 +21,7 @@ import {
   Search,
   Settings2,
   ShieldCheck,
+  SlidersHorizontal,
   Target,
   WalletCards,
   Zap,
@@ -360,6 +362,9 @@ export default function AdminLeadFinderPage() {
       value: tab === 'fintech' ? summary.validMobile : summary.duplicateDetailsCallsAvoided,
       icon: ShieldCheck,
     },
+    { label: 'Fixed Line', value: summary.fixedLine, icon: Phone },
+    { label: 'Missing Phone', value: summary.missingPhone, icon: AlertTriangle },
+    { label: 'Emails Found', value: summary.emailsFound, icon: CheckCircle2 },
     { label: 'Approx API Cost', value: formatApiCost(summary), icon: WalletCards },
   ];
   const latestRun = runs.find((run) => {
@@ -384,7 +389,7 @@ export default function AdminLeadFinderPage() {
 
         {tab === 'dsa' || tab === 'fintech' || tab === 'library' ? (
           <section className="space-y-5">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
               {kpis.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -777,6 +782,7 @@ function AIFinderDrawer({
         `Run complete. Records ${formatNumber(json.metrics?.recordsFound || 0)}, Text ${formatNumber(json.metrics?.textSearchCalls || 0)}, Details ${formatNumber(json.metrics?.placeDetailsCalls || 0)}, Cost ≈₹${formatNumber(json.metrics?.estimatedCostInr || 0)}.`
       );
       await onRunComplete();
+      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Universal run failed');
     } finally {
@@ -953,21 +959,46 @@ function AIFinderDrawer({
                       </p>
                     </div>
                   )}
-                  <div className="rounded-xl border border-slate-200">
-                    <div className="grid grid-cols-[110px_1fr] border-b border-slate-100 px-3 py-2 text-sm">
-                      <span className="font-900 text-slate-500">Type</span>
-                      <span className="font-800 text-slate-800">{plan.lead_type}</span>
-                    </div>
-                    <div className="grid grid-cols-[110px_1fr] border-b border-slate-100 px-3 py-2 text-sm">
-                      <span className="font-900 text-slate-500">Cities</span>
-                      <span className="font-800 text-slate-800">
-                        {plan.locations.map((item) => item.city).join(', ')}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-[110px_1fr] px-3 py-2 text-sm">
-                      <span className="font-900 text-slate-500">Keywords</span>
-                      <span className="font-800 text-slate-800">{plan.keywords.join(', ')}</span>
-                    </div>
+                  <div className="space-y-2">
+                    <CollapsibleSection title="Geography" defaultOpen>
+                      <div className="flex flex-wrap gap-2">
+                        {plan.locations.map((item) => (
+                          <span
+                            key={`${item.city}-${item.state}`}
+                            className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-900 text-blue-700"
+                          >
+                            {item.city}, {item.state}
+                          </span>
+                        ))}
+                      </div>
+                    </CollapsibleSection>
+                    <CollapsibleSection title="Audience type" defaultOpen>
+                      <InfoBox label="Type" value={plan.lead_type} />
+                      <div className="mt-2">
+                        <InfoBox label="Intent" value={plan.search_intent} />
+                      </div>
+                    </CollapsibleSection>
+                    <CollapsibleSection title="Search keywords">
+                      <div className="flex flex-wrap gap-2">
+                        {plan.keywords.map((keyword) => (
+                          <span
+                            key={keyword}
+                            className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-900 text-slate-700"
+                          >
+                            {keyword}
+                          </span>
+                        ))}
+                      </div>
+                    </CollapsibleSection>
+                    <CollapsibleSection title="Rules & exclusions">
+                      <ul className="space-y-2 text-sm font-700 leading-6 text-slate-700">
+                        {[...plan.exclude_rules, ...plan.risk_warnings].map((rule) => (
+                          <li key={rule} className="rounded-lg bg-slate-50 px-3 py-2">
+                            {rule}
+                          </li>
+                        ))}
+                      </ul>
+                    </CollapsibleSection>
                   </div>
                 </div>
               )}
@@ -1029,6 +1060,34 @@ function MetricBox({
     <div className={`rounded-xl border p-4 ${tones[tone]}`}>
       <p className="text-xs font-900 uppercase tracking-wide text-slate-500">{label}</p>
       <p className="mt-2 text-lg font-950 text-slate-950">{value || '-'}</p>
+    </div>
+  );
+}
+
+function CollapsibleSection({
+  title,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-950 text-slate-900 hover:bg-slate-50"
+      >
+        {title}
+        <ChevronDown
+          size={17}
+          className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open && <div className="border-t border-slate-100 p-4">{children}</div>}
     </div>
   );
 }
@@ -1129,6 +1188,58 @@ function LeadTable({
   onWhy: (prospect: Prospect) => void;
   leadType: 'dsa' | 'fintech';
 }) {
+  const [query, setQuery] = useState('');
+  const [cityFilter, setCityFilter] = useState('all');
+  const [segmentFilter, setSegmentFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [phoneFilter, setPhoneFilter] = useState('all');
+
+  const cities = useMemo(
+    () =>
+      Array.from(new Set(prospects.map((item) => item.detected_city).filter(Boolean))).sort() as string[],
+    [prospects]
+  );
+  const segments = useMemo(
+    () =>
+      Array.from(new Set(prospects.map((item) => item.business_segment).filter(Boolean))).sort(),
+    [prospects]
+  );
+  const priorities = useMemo(
+    () =>
+      Array.from(new Set(prospects.map((item) => item.sales_priority).filter(Boolean))).sort(),
+    [prospects]
+  );
+  const phoneTypes = useMemo(
+    () => Array.from(new Set(prospects.map((item) => item.phone_type).filter(Boolean))).sort(),
+    [prospects]
+  );
+
+  const filteredProspects = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return prospects.filter((prospect) => {
+      const haystack = [
+        prospect.business_name,
+        prospect.raw_phone,
+        prospect.website,
+        prospect.business_segment,
+        prospect.sales_priority,
+        prospect.detected_city,
+        ...(prospect.matched_keywords || []),
+        prospectEmail(prospect),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return (
+        (!needle || haystack.includes(needle)) &&
+        (cityFilter === 'all' || prospect.detected_city === cityFilter) &&
+        (segmentFilter === 'all' || prospect.business_segment === segmentFilter) &&
+        (priorityFilter === 'all' || prospect.sales_priority === priorityFilter) &&
+        (phoneFilter === 'all' || prospect.phone_type === phoneFilter)
+      );
+    });
+  }, [cityFilter, phoneFilter, priorityFilter, prospects, query, segmentFilter]);
+
   const heads =
     leadType === 'fintech'
       ? [
@@ -1158,7 +1269,64 @@ function LeadTable({
           'Why',
         ];
   return (
-    <div className="overflow-x-auto">
+    <div>
+      <div className="border-b border-slate-100 bg-slate-50/70 p-4">
+        <div className="mb-3 flex items-center gap-2 text-xs font-950 uppercase tracking-wide text-slate-500">
+          <SlidersHorizontal size={15} /> Table filters
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search like Excel..."
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-700 outline-none focus:border-blue-400"
+          />
+          <TableSelect label="City" value={cityFilter} onChange={setCityFilter} options={cities} />
+          <TableSelect
+            label="Type"
+            value={segmentFilter}
+            onChange={setSegmentFilter}
+            options={segments}
+          />
+          <TableSelect
+            label="Priority"
+            value={priorityFilter}
+            onChange={setPriorityFilter}
+            options={priorities}
+          />
+          <TableSelect
+            label="Phone"
+            value={phoneFilter}
+            onChange={setPhoneFilter}
+            options={phoneTypes}
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-800 text-slate-500">
+          <span>
+            Showing {formatNumber(filteredProspects.length)} of {formatNumber(prospects.length)}
+          </span>
+          {(query ||
+            cityFilter !== 'all' ||
+            segmentFilter !== 'all' ||
+            priorityFilter !== 'all' ||
+            phoneFilter !== 'all') && (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery('');
+                setCityFilter('all');
+                setSegmentFilter('all');
+                setPriorityFilter('all');
+                setPhoneFilter('all');
+              }}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-900 text-slate-700 hover:bg-slate-100"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
           <tr>
@@ -1176,14 +1344,14 @@ function LeadTable({
                 Loading...
               </td>
             </tr>
-          ) : prospects.length === 0 ? (
+          ) : filteredProspects.length === 0 ? (
             <tr>
               <td colSpan={heads.length} className="px-4 py-10 text-center text-slate-500">
                 No records in this view yet.
               </td>
             </tr>
           ) : (
-            prospects.map((prospect) => (
+            filteredProspects.map((prospect) => (
               <tr key={prospect.id} className="hover:bg-slate-50">
                 <td className="min-w-[260px] px-4 py-3">
                   <p className="font-900 text-slate-900">{prospect.business_name || '-'}</p>
@@ -1261,7 +1429,38 @@ function LeadTable({
           )}
         </tbody>
       </table>
+      </div>
     </div>
+  );
+}
+
+function TableSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+}) {
+  return (
+    <label className="block">
+      <span className="sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-800 text-slate-700 outline-none focus:border-blue-400"
+      >
+        <option value="all">All {label}</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
