@@ -238,9 +238,11 @@ function shortSearchSource(prospect: Prospect) {
 function displayDomain(value: string) {
   try {
     const url = new URL(value.startsWith('http') ? value : `https://${value}`);
-    return url.hostname.replace(/^www\./, '');
+    const hostname = url.hostname.replace(/^www\./, '');
+    return /google/i.test(hostname) ? 'Website' : hostname;
   } catch {
-    return value.split(/[/?#]/)[0].replace(/^www\./, '');
+    const hostname = value.split(/[/?#]/)[0].replace(/^www\./, '');
+    return /google/i.test(hostname) ? 'Website' : hostname;
   }
 }
 

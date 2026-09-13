@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
       .from('lead_finder_runs')
       .insert({
         user_prompt: userPrompt,
-        ai_generated_plan: payload.plan || {},
+        gemini_generated_plan: payload.plan || {},
         approved_plan: approvedPlan,
         lead_type: plan.lead_type,
         search_intent: plan.search_intent,
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
         keywords: plan.keywords,
         requested_count: requestedCount,
         budget_cap_inr: runBudgetInr,
-        ai_calls: Number(payload.planSource === 'ai' || payload.planSource === 'model' ? 1 : 0),
+        gemini_calls: Number(payload.planSource === 'ai' || payload.planSource === 'model' ? 1 : 0),
         status: 'running',
         created_by: auth.user?.id || null,
       })
