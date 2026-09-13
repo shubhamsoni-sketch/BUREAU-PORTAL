@@ -245,7 +245,11 @@ Rules: max 12 locations, max 10 keywords, Indian cities/states when implied, cos
               ],
             },
           ],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 1600 },
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 4096,
+            responseMimeType: 'application/json',
+          },
         }),
       }
     );
