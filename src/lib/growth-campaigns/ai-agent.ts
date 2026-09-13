@@ -101,6 +101,58 @@ async function ensureConversation(params: {
   return data as ConversationRow;
 }
 
+export async function recordCampaignOutbound(params: {
+  supabase: SupabaseLike;
+  phoneNumber: string;
+  contactName?: string | null;
+  messageText: string;
+  providerMessageId?: string | null;
+  status?: string | null;
+  metadata?: Record<string, unknown>;
+}) {
+  const phoneNumber = clean(params.phoneNumber);
+  if (!phoneNumber) return { skipped: true, reason: 'missing_phone' };
+
+  const now = new Date().toISOString();
+  const conversation = await ensureConversation({
+    supabase: params.supabase,
+    channel: 'whatsapp',
+    contactKey: phoneNumber,
+    phoneNumber,
+    contactName: params.contactName ?? null,
+    metadata: params.metadata,
+  });
+
+  await params.supabase.from('communication_messages').insert({
+    conversation_id: conversation.id,
+    channel: 'whatsapp',
+    direction: 'outbound',
+    message_text: params.messageText,
+    provider_message_id: params.providerMessageId ?? null,
+    status: params.status ?? 'sent',
+    ai_generated: false,
+    intent: 'campaign_outreach',
+    metadata: {
+      campaign_outreach: true,
+      ...(params.metadata ?? {}),
+    },
+    created_at: now,
+  });
+
+  await params.supabase
+    .from('communication_conversations')
+    .update({
+      status: conversation.status === 'new' ? 'open' : conversation.status,
+      intent: conversation.intent === 'unknown' ? 'campaign_outreach' : conversation.intent,
+      priority: conversation.priority || 'normal',
+      last_message_at: now,
+      last_outbound_at: now,
+    })
+    .eq('id', conversation.id);
+
+  return { skipped: false, conversationId: conversation.id };
+}
+
 function fallbackDecision(message: string) {
   const text = message.toLowerCase();
   if (/\b(stop|unsubscribe|not interested|no need|mat bhejo|band)\b/i.test(text)) {
