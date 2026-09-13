@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { authFetch, downloadAuthenticatedFile } from '@/lib/supabase/auth-fetch';
 import {
@@ -76,6 +76,8 @@ type Prospect = {
 
 type RunHistory = {
   id: string;
+  lead_type?: string;
+  locations?: Array<{ city: string; state: string }>;
   searched_city: string;
   searched_state: string;
   keywords: string[];
@@ -91,7 +93,13 @@ type RunHistory = {
   force_refresh: boolean;
   status: 'running' | 'complete' | 'failed' | 'stopped_by_budget';
   created_at: string;
+  completed_at?: string | null;
   error_message: string | null;
+  analytics?: {
+    byCity?: Record<string, number>;
+    byKeyword?: Record<string, number>;
+    byResultType?: Record<string, number>;
+  };
 };
 
 type UniversalPlan = {
@@ -246,6 +254,7 @@ export default function AdminLeadFinderPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [why, setWhy] = useState<Prospect | null>(null);
+  const [runDetail, setRunDetail] = useState<RunHistory | null>(null);
   const [lastDataRefreshAt, setLastDataRefreshAt] = useState<Date | null>(null);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
 
@@ -394,6 +403,14 @@ export default function AdminLeadFinderPage() {
   async function changeScope(nextScope: typeof dataScope) {
     setDataScope(nextScope);
     await loadResults(view, nextScope, activeRunId);
+  }
+
+  async function openRunData(run: RunHistory, scope: typeof dataScope = 'this_run') {
+    setActiveRunId(run.id);
+    setDataScope(scope);
+    setTab('library');
+    setView('sales_ready');
+    await loadResults('sales_ready', scope, run.id);
   }
 
   const primaryKpis = [
@@ -577,8 +594,8 @@ export default function AdminLeadFinderPage() {
                   <button
                     onClick={() =>
                       downloadAuthenticatedFile(
-                        `/api/admin-lead-finder/export?sales_ready=true&leadType=${tab === 'fintech' ? 'fintech' : 'dsa'}`,
-                        `${tab === 'fintech' ? 'fintech' : 'dsa'}-sales-ready.csv`
+                        `/api/admin-lead-finder/export?sales_ready=${view === 'sales_ready'}&view=${view}&leadType=${tab === 'library' ? 'all' : tab === 'fintech' ? 'fintech' : 'dsa'}&scope=${dataScope}${activeRunId ? `&runId=${encodeURIComponent(activeRunId)}` : ''}`,
+                        `${tab === 'library' ? 'lead-library' : tab === 'fintech' ? 'fintech' : 'dsa'}-${dataScope}-${view}.csv`
                       )
                     }
                     className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-900 text-white hover:bg-blue-700"
@@ -735,12 +752,27 @@ export default function AdminLeadFinderPage() {
                   <RefreshCw size={16} /> Refresh History
                 </button>
               </div>
-              <RunHistoryTable loading={runsLoading} runs={runs} />
+              <RunHistoryTable
+                loading={runsLoading}
+                runs={runs}
+                onView={setRunDetail}
+                onOpenRun={openRunData}
+              />
             </div>
           </section>
         )}
 
         {why && <WhyDrawer prospect={why} onClose={() => setWhy(null)} />}
+        {runDetail && (
+          <RunDetailDrawer
+            run={runDetail}
+            onClose={() => setRunDetail(null)}
+            onOpenRun={(scope) => {
+              setRunDetail(null);
+              openRunData(runDetail, scope);
+            }}
+          />
+        )}
         <AIFinderDrawer
           open={aiDrawerOpen}
           onClose={() => setAiDrawerOpen(false)}
@@ -1431,6 +1463,23 @@ function LeadTable({
   const [phoneFilter, setPhoneFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [runSourceFilter, setRunSourceFilter] = useState('all');
+  const [showColumns, setShowColumns] = useState<Record<string, boolean>>({
+    addedOn: true,
+    searchSource: true,
+    runSource: true,
+    map: true,
+    phone: true,
+    email: true,
+    website: true,
+    segment: true,
+    score: true,
+    priority: true,
+    city: true,
+    rating: true,
+    keywords: true,
+    whySummary: true,
+    why: true,
+  });
 
   const cities = useMemo(
     () =>
@@ -1514,42 +1563,171 @@ function LeadTable({
     segmentFilter,
   ]);
 
-  const heads =
-    leadType === 'fintech'
+  const tableColumns = [
+    { key: 'business', label: 'Business', always: true },
+    { key: 'addedOn', label: 'Added On' },
+    { key: 'searchSource', label: 'Search Source' },
+    { key: 'runSource', label: 'Run Source' },
+    { key: 'map', label: 'Map' },
+    { key: 'phone', label: 'Phone' },
+    ...(leadType === 'fintech'
       ? [
-          'Business',
-          'Added On',
-          'Search Source',
-          'Run Source',
-          'Map',
-          'Phone',
-          'Email',
-          'Website',
-          'Segment',
-          'Score',
-          'Priority',
-          'City',
-          'Rating',
-          'Keywords',
-          'Why Summary',
-          'Why',
+          { key: 'email', label: 'Email' },
+          { key: 'website', label: 'Website' },
         ]
-      : [
-          'Business',
-          'Added On',
-          'Search Source',
-          'Run Source',
-          'Map',
-          'Phone',
-          'Segment',
-          'Score',
-          'Priority',
-          'City',
-          'Rating',
-          'Keywords',
-          'Why Summary',
-          'Why',
-        ];
+      : []),
+    { key: 'segment', label: 'Segment' },
+    { key: 'score', label: 'Score' },
+    { key: 'priority', label: 'Priority' },
+    { key: 'city', label: 'City' },
+    { key: 'rating', label: 'Rating' },
+    { key: 'keywords', label: 'Keywords' },
+    { key: 'whySummary', label: 'Why Summary' },
+    { key: 'why', label: 'Why' },
+  ];
+  const visibleColumns = tableColumns.filter(
+    (column) => column.always || showColumns[column.key] !== false
+  );
+
+  const renderCell = (prospect: Prospect, key: string) => {
+    if (key === 'business') {
+      return (
+        <td className="sticky left-0 z-10 min-w-[260px] bg-white px-4 py-3 shadow-[1px_0_0_0_rgba(226,232,240,1)]">
+          <p className="font-900 text-slate-900">{prospect.business_name || '-'}</p>
+        </td>
+      );
+    }
+    if (key === 'addedOn') {
+      return (
+        <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+          {formatDateTime(prospect.run_added_at || prospect.created_at || null)}
+        </td>
+      );
+    }
+    if (key === 'searchSource') {
+      return (
+        <td className="max-w-[240px] truncate px-4 py-3" title={prospect.search_prompt || ''}>
+          <p className="font-800 text-slate-800">{shortSearchSource(prospect)}</p>
+          {prospect.search_prompt && (
+            <p className="truncate text-xs text-slate-500">{prospect.search_prompt}</p>
+          )}
+        </td>
+      );
+    }
+    if (key === 'runSource') {
+      return (
+        <td className="whitespace-nowrap px-4 py-3">
+          <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-950 text-emerald-700">
+            {prospect.run_result_type || (prospect.source_run_id ? 'new' : 'master')}
+          </span>
+        </td>
+      );
+    }
+    if (key === 'map') {
+      return (
+        <td className="whitespace-nowrap px-4 py-3">
+          {prospect.google_maps_url ? (
+            <a
+              href={prospect.google_maps_url}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-900 text-blue-700 hover:bg-blue-50"
+            >
+              Open Map
+            </a>
+          ) : (
+            '-'
+          )}
+        </td>
+      );
+    }
+    if (key === 'phone') {
+      return <td className="whitespace-nowrap px-4 py-3">{prospect.raw_phone || '-'}</td>;
+    }
+    if (key === 'email') {
+      return <td className="whitespace-nowrap px-4 py-3">{prospectEmail(prospect) || '-'}</td>;
+    }
+    if (key === 'website') {
+      return (
+        <td className="max-w-[220px] truncate px-4 py-3">
+          {prospect.website ? (
+            <a
+              href={prospect.website}
+              target="_blank"
+              rel="noreferrer"
+              className="font-800 text-blue-700 hover:underline"
+            >
+              {prospect.website.replace(/^https?:\/\//, '')}
+            </a>
+          ) : (
+            '-'
+          )}
+        </td>
+      );
+    }
+    if (key === 'segment') {
+      return (
+        <td className="px-4 py-3">
+          <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-900 text-blue-700">
+            {prospect.business_segment}
+          </span>
+        </td>
+      );
+    }
+    if (key === 'score') {
+      return (
+        <td className="px-4 py-3">
+          <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-950 text-emerald-700">
+            {prospect.prospect_score}
+          </span>
+        </td>
+      );
+    }
+    if (key === 'priority') {
+      return (
+        <td className="px-4 py-3">
+          <span
+            className={`rounded-full px-2 py-1 text-xs font-950 ${priorityClass(prospect.sales_priority)}`}
+          >
+            {prospect.sales_priority}
+          </span>
+        </td>
+      );
+    }
+    if (key === 'city') return <td className="px-4 py-3">{prospect.detected_city || '-'}</td>;
+    if (key === 'rating') {
+      return (
+        <td className="px-4 py-3">
+          {prospect.rating ? `${prospect.rating} (${prospect.review_count || 0})` : '-'}
+        </td>
+      );
+    }
+    if (key === 'keywords') {
+      return (
+        <td className="max-w-[220px] truncate px-4 py-3">
+          {(prospect.matched_keywords || []).join(', ')}
+        </td>
+      );
+    }
+    if (key === 'whySummary') {
+      return (
+        <td className="max-w-[280px] truncate px-4 py-3" title={compactWhy(prospect)}>
+          {compactWhy(prospect)}
+        </td>
+      );
+    }
+    return (
+      <td className="px-4 py-3">
+        <button
+          onClick={() => onWhy(prospect)}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-900 text-slate-700 hover:bg-slate-50"
+        >
+          <Eye size={13} /> Why
+        </button>
+      </td>
+    );
+  };
+
   return (
     <div>
       <div className="border-b border-slate-100 bg-slate-50/70 p-4">
@@ -1627,14 +1805,48 @@ function LeadTable({
             </button>
           )}
         </div>
+        <details className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+          <summary className="cursor-pointer text-xs font-950 uppercase tracking-wide text-slate-600">
+            Columns
+          </summary>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {tableColumns
+              .filter((column) => !column.always)
+              .map((column) => (
+                <label
+                  key={column.key}
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-900 text-slate-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={showColumns[column.key] !== false}
+                    onChange={(event) =>
+                      setShowColumns((current) => ({
+                        ...current,
+                        [column.key]: event.target.checked,
+                      }))
+                    }
+                  />
+                  {column.label}
+                </label>
+              ))}
+          </div>
+        </details>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              {heads.map((head) => (
-                <th key={head} className="px-4 py-3 text-left font-900">
-                  {head}
+              {visibleColumns.map((column) => (
+                <th
+                  key={column.key}
+                  className={`px-4 py-3 text-left font-900 ${
+                    column.key === 'business'
+                      ? 'sticky left-0 z-10 bg-slate-50 shadow-[1px_0_0_0_rgba(226,232,240,1)]'
+                      : ''
+                  }`}
+                >
+                  {column.label}
                 </th>
               ))}
             </tr>
@@ -1642,110 +1854,28 @@ function LeadTable({
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td colSpan={heads.length} className="px-4 py-10 text-center text-slate-500">
+                <td
+                  colSpan={visibleColumns.length}
+                  className="px-4 py-10 text-center text-slate-500"
+                >
                   Loading...
                 </td>
               </tr>
             ) : filteredProspects.length === 0 ? (
               <tr>
-                <td colSpan={heads.length} className="px-4 py-10 text-center text-slate-500">
+                <td
+                  colSpan={visibleColumns.length}
+                  className="px-4 py-10 text-center text-slate-500"
+                >
                   No records in this view yet.
                 </td>
               </tr>
             ) : (
               filteredProspects.map((prospect) => (
                 <tr key={prospect.id} className="hover:bg-slate-50">
-                  <td className="min-w-[260px] px-4 py-3">
-                    <p className="font-900 text-slate-900">{prospect.business_name || '-'}</p>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                    {formatDateTime(prospect.run_added_at || prospect.created_at || null)}
-                  </td>
-                  <td
-                    className="max-w-[240px] truncate px-4 py-3"
-                    title={prospect.search_prompt || ''}
-                  >
-                    <p className="font-800 text-slate-800">{shortSearchSource(prospect)}</p>
-                    {prospect.search_prompt && (
-                      <p className="truncate text-xs text-slate-500">{prospect.search_prompt}</p>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3">
-                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-950 text-emerald-700">
-                      {prospect.run_result_type || (prospect.source_run_id ? 'new' : 'master')}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3">
-                    {prospect.google_maps_url ? (
-                      <a
-                        href={prospect.google_maps_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-900 text-blue-700 hover:bg-blue-50"
-                      >
-                        Open Map
-                      </a>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3">{prospect.raw_phone || '-'}</td>
-                  {leadType === 'fintech' && (
-                    <>
-                      <td className="whitespace-nowrap px-4 py-3">
-                        {prospectEmail(prospect) || '-'}
-                      </td>
-                      <td className="max-w-[220px] truncate px-4 py-3">
-                        {prospect.website ? (
-                          <a
-                            href={prospect.website}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-800 text-blue-700 hover:underline"
-                          >
-                            {prospect.website.replace(/^https?:\/\//, '')}
-                          </a>
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-                    </>
-                  )}
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-900 text-blue-700">
-                      {prospect.business_segment}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-950 text-emerald-700">
-                      {prospect.prospect_score}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-950 ${priorityClass(prospect.sales_priority)}`}
-                    >
-                      {prospect.sales_priority}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{prospect.detected_city || '-'}</td>
-                  <td className="px-4 py-3">
-                    {prospect.rating ? `${prospect.rating} (${prospect.review_count || 0})` : '-'}
-                  </td>
-                  <td className="max-w-[220px] truncate px-4 py-3">
-                    {(prospect.matched_keywords || []).join(', ')}
-                  </td>
-                  <td className="max-w-[280px] truncate px-4 py-3" title={compactWhy(prospect)}>
-                    {compactWhy(prospect)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => onWhy(prospect)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-900 text-slate-700 hover:bg-slate-50"
-                    >
-                      <Eye size={13} /> Why
-                    </button>
-                  </td>
+                  {visibleColumns.map((column) => (
+                    <Fragment key={column.key}>{renderCell(prospect, column.key)}</Fragment>
+                  ))}
                 </tr>
               ))
             )}
@@ -1786,7 +1916,17 @@ function TableSelect({
   );
 }
 
-function RunHistoryTable({ loading, runs }: { loading: boolean; runs: RunHistory[] }) {
+function RunHistoryTable({
+  loading,
+  runs,
+  onView,
+  onOpenRun,
+}: {
+  loading: boolean;
+  runs: RunHistory[];
+  onView: (run: RunHistory) => void;
+  onOpenRun: (run: RunHistory, scope?: 'all' | 'this_run' | 'new' | 'reused') => void;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="min-w-[1280px] text-sm">
@@ -1862,18 +2002,159 @@ function RunHistoryTable({ loading, runs }: { loading: boolean; runs: RunHistory
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    title={run.error_message || run.id}
-                    className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-900 text-slate-700 hover:bg-slate-50"
-                  >
-                    View
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onView(run)}
+                      title={run.error_message || run.id}
+                      className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-900 text-slate-700 hover:bg-slate-50"
+                    >
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenRun(run, 'this_run')}
+                      className="rounded-lg bg-blue-600 px-2 py-1 text-xs font-900 text-white hover:bg-blue-700"
+                    >
+                      Open Data
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))
           )}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function RunDetailDrawer({
+  run,
+  onClose,
+  onOpenRun,
+}: {
+  run: RunHistory;
+  onClose: () => void;
+  onOpenRun: (scope: 'all' | 'this_run' | 'new' | 'reused') => void;
+}) {
+  const byCity = Object.entries(run.analytics?.byCity || {}).sort((a, b) => b[1] - a[1]);
+  const byKeyword = Object.entries(run.analytics?.byKeyword || {}).sort((a, b) => b[1] - a[1]);
+  const byResultType = Object.entries(run.analytics?.byResultType || {}).sort(
+    (a, b) => b[1] - a[1]
+  );
+  const cards = [
+    ['Records', run.raw_results_count],
+    ['New', run.analytics?.byResultType?.new || run.raw_results_count - run.cached_records_reused],
+    ['Reused', run.analytics?.byResultType?.reused || run.cached_records_reused],
+    ['Cost', formatMoney(run.estimated_cost_usd)],
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40" onClick={onClose}>
+      <div
+        className="h-full w-full max-w-2xl overflow-y-auto bg-white p-6 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-950 uppercase tracking-[0.18em] text-blue-700">Run detail</p>
+            <h3 className="mt-2 text-2xl font-950 text-slate-950">
+              {run.searched_city} {run.searched_state}
+            </h3>
+            <p className="mt-1 text-sm font-800 text-slate-500">
+              {formatDateTime(run.created_at)} · {run.status}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+            Close
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-4">
+          {cards.map(([label, value]) => (
+            <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-900 uppercase tracking-wide text-slate-500">{label}</p>
+              <p className="mt-2 text-xl font-950 text-slate-950">
+                {typeof value === 'number' ? formatNumber(value) : value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <button
+            onClick={() => onOpenRun('this_run')}
+            className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-950 text-white hover:bg-blue-700"
+          >
+            Open This Run
+          </button>
+          <button
+            onClick={() => onOpenRun('new')}
+            className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-950 text-emerald-700 hover:bg-emerald-100"
+          >
+            Only New
+          </button>
+          <button
+            onClick={() => onOpenRun('reused')}
+            className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-950 text-slate-700 hover:bg-slate-50"
+          >
+            Reused Existing
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <BreakdownCard title="City breakdown" rows={byCity} />
+          <BreakdownCard title="Keyword breakdown" rows={byKeyword} />
+          <BreakdownCard title="New vs reused" rows={byResultType} />
+          <div className="rounded-2xl border border-slate-200 p-4">
+            <h4 className="text-sm font-950 text-slate-950">API audit</h4>
+            <div className="mt-3 space-y-2 text-sm text-slate-700">
+              <p>Text Search calls: {formatNumber(run.actual_text_search_calls)}</p>
+              <p>Place Details calls: {formatNumber(run.actual_place_details_calls)}</p>
+              <p>
+                Cache saved: {formatNumber(run.duplicates_skipped || run.cached_records_reused)}
+              </p>
+              <p>Requested count: {formatNumber(run.requested_count)}</p>
+            </div>
+          </div>
+        </div>
+
+        {run.error_message && (
+          <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-800 text-red-700">
+            {run.error_message}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BreakdownCard({ title, rows }: { title: string; rows: Array<[string, number]> }) {
+  const max = Math.max(...rows.map(([, count]) => count), 1);
+  return (
+    <div className="rounded-2xl border border-slate-200 p-4">
+      <h4 className="text-sm font-950 text-slate-950">{title}</h4>
+      <div className="mt-3 space-y-3">
+        {rows.length === 0 ? (
+          <p className="text-sm text-slate-500">No breakdown saved for this run.</p>
+        ) : (
+          rows.slice(0, 12).map(([label, count]) => (
+            <div key={label}>
+              <div className="mb-1 flex items-center justify-between gap-3 text-xs font-900 text-slate-600">
+                <span className="truncate">{label}</span>
+                <span>{formatNumber(count)}</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-blue-500"
+                  style={{ width: `${Math.max(6, Math.round((count / max) * 100))}%` }}
+                />
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

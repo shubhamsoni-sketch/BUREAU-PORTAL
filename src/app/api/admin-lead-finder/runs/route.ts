@@ -31,10 +31,42 @@ export async function GET(request: NextRequest) {
         .order('started_at', { ascending: false })
         .limit(limit);
       if (error) throw error;
+      const runIds = (data || []).map((run: any) => run.id).filter(Boolean);
+      const { data: runResultRows, error: runResultError } = runIds.length
+        ? await auth.supabase
+            .from('lead_finder_run_results')
+            .select('run_id,result_type,city,state,keyword,created_at')
+            .in('run_id', runIds)
+        : { data: [], error: null };
+      if (runResultError && runResultError.code !== '42P01') throw runResultError;
+      const analyticsByRun = new Map<string, any>();
+      for (const row of runResultRows || []) {
+        const current =
+          analyticsByRun.get(row.run_id) ||
+          ({
+            byCity: {},
+            byKeyword: {},
+            byResultType: {},
+          } as any);
+        const cityKey = [row.city, row.state].filter(Boolean).join(', ') || 'Unknown';
+        const keywordKey = row.keyword || 'Unknown';
+        const resultKey = row.result_type || 'unknown';
+        current.byCity[cityKey] = (current.byCity[cityKey] || 0) + 1;
+        current.byKeyword[keywordKey] = (current.byKeyword[keywordKey] || 0) + 1;
+        current.byResultType[resultKey] = (current.byResultType[resultKey] || 0) + 1;
+        analyticsByRun.set(row.run_id, current);
+      }
       const runs = (data || []).map((run: any) => {
         const firstLocation = Array.isArray(run.locations) ? run.locations[0] : null;
+        const analytics = analyticsByRun.get(run.id) || {
+          byCity: {},
+          byKeyword: {},
+          byResultType: {},
+        };
         return {
           id: run.id,
+          lead_type: run.lead_type,
+          locations: Array.isArray(run.locations) ? run.locations : [],
           searched_city: firstLocation?.city || run.lead_type || 'Universal',
           searched_state: firstLocation?.state || run.search_intent || '',
           keywords: Array.isArray(run.keywords) ? run.keywords : [],
@@ -55,6 +87,7 @@ export async function GET(request: NextRequest) {
           created_at: run.started_at,
           completed_at: run.completed_at,
           error_message: run.error_message,
+          analytics,
         };
       });
       return NextResponse.json({
