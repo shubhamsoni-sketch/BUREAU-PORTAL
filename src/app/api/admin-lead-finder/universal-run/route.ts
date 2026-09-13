@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
         keywords: plan.keywords,
         requested_count: requestedCount,
         budget_cap_inr: runBudgetInr,
-        gemini_calls: Number(payload.planSource === 'gemini' ? 1 : 0),
+        gemini_calls: Number(payload.planSource === 'ai' || payload.planSource === 'gemini' ? 1 : 0),
         status: 'running',
         created_by: auth.user?.id || null,
       })

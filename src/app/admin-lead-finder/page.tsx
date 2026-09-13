@@ -707,7 +707,7 @@ function AIFinderDrawer({
   );
   const [plan, setPlan] = useState<UniversalPlan | null>(null);
   const [forecast, setForecast] = useState<UniversalForecast | null>(null);
-  const [planSource, setPlanSource] = useState<'gemini' | 'fallback' | null>(null);
+  const [planSource, setPlanSource] = useState<'ai' | 'fallback' | null>(null);
   const [schemaReady, setSchemaReady] = useState(false);
   const [setupChecked, setSetupChecked] = useState(false);
   const [count, setCount] = useState('100');
@@ -1047,7 +1047,7 @@ function PreparingPlanCard() {
         </div>
         <h4 className="text-lg font-950 text-slate-950">Preparing your AI search plan</h4>
         <p className="mt-2 max-w-sm text-sm font-800 leading-6 text-slate-600">
-          Gemini is turning your brief into cities, keywords, duplicate checks and an estimated run
+          AI is turning your brief into cities, keywords, duplicate checks and an estimated run
           cost. No Google Places charge yet.
         </p>
         <div className="mt-5 grid w-full gap-2 sm:grid-cols-2">

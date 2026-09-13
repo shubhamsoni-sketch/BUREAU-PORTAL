@@ -204,7 +204,7 @@ function extractJson(text: string) {
 
 export async function generateUniversalPlan(prompt: string): Promise<{
   plan: UniversalLeadPlan;
-  source: 'gemini' | 'fallback';
+  source: 'ai' | 'fallback';
 }> {
   const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
@@ -253,7 +253,7 @@ Rules: max 12 locations, max 10 keywords, Indian cities/states when implied, cos
         }),
       }
     );
-    if (!response.ok) throw new Error(`Gemini failed: ${response.status}`);
+    if (!response.ok) throw new Error(`AI planner failed: ${response.status}`);
     const json = await response.json();
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const parsed = extractJson(text);
@@ -274,7 +274,7 @@ Rules: max 12 locations, max 10 keywords, Indian cities/states when implied, cos
         Math.min(1000, Number(parsed.recommended_count || fallback.recommended_count))
       ),
     };
-    return { plan, source: 'gemini' };
+    return { plan, source: 'ai' };
   } catch {
     return { plan: fallback, source: 'fallback' };
   }
