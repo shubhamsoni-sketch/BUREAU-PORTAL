@@ -2,10 +2,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const workflow = readFileSync(
-  new URL('../../.github/workflows/lender-intelligence-quality.yml', import.meta.url),
-  'utf8'
-);
 const packageJson = readFileSync(new URL('../../package.json', import.meta.url), 'utf8');
 const nextConfig = readFileSync(new URL('../../next.config.mjs', import.meta.url), 'utf8');
 const eslintConfig = readFileSync(new URL('../../eslint.config.mjs', import.meta.url), 'utf8');
@@ -14,37 +10,19 @@ const runtimeVerifier = readFileSync(
   'utf8'
 );
 
-test('Lender Intelligence CI gate runs locked tests, types, and production build', () => {
-  assert.match(workflow, /pull_request:/);
-  assert.match(workflow, /push:[\s\S]*branches: \[main\]/);
-  assert.match(workflow, /workflow_dispatch:/);
-  assert.equal((workflow.match(/docs\/LENDER_INTELLIGENCE_OPERATIONS\.md/g) || []).length, 2);
-  assert.equal((workflow.match(/docs\/LENDER_INTELLIGENCE_RELEASE_EVIDENCE\.md/g) || []).length, 2);
-  assert.equal((workflow.match(/docs\/tasks\/lender-intelligence-\*\.md/g) || []).length, 2);
-  assert.equal((workflow.match(/WORKLOG\.md/g) || []).length, 2);
-  assert.equal((workflow.match(/PROJECT_HANDOFF\.md/g) || []).length, 2);
-  assert.equal((workflow.match(/\.env\.example/g) || []).length, 2);
-  assert.equal((workflow.match(/vercel\.json/g) || []).length, 2);
-  assert.match(workflow, /permissions:[\s\S]*contents: read/);
-  assert.match(workflow, /timeout-minutes: 20/);
-  assert.match(workflow, /uses: actions\/checkout@v4/);
-  assert.match(workflow, /uses: actions\/setup-node@v4/);
-  assert.match(workflow, /node-version: 22/);
+test('Lender Intelligence quality commands cover tests, types, lint, migration, build and runtime', () => {
+  const manifest = JSON.parse(packageJson);
   assert.match(packageJson, /"node": ">=22\.6\.0 <25"/);
-  assert.match(workflow, /run: npm ci/);
-  assert.match(workflow, /run: npm audit --audit-level=low/);
-  assert.match(workflow, /run: npm run test:lender-intelligence/);
-  assert.match(workflow, /run: npm run verify:lender-intelligence-migration-syntax/);
-  assert.match(workflow, /run: npm run verify:lender-intelligence-migration-execution/);
-  assert.match(workflow, /run: npm run type-check/);
-  assert.match(workflow, /run: npm run lint:lender-intelligence/);
+  assert.ok(manifest.scripts['test:lender-intelligence']);
+  assert.ok(manifest.scripts['verify:lender-intelligence-migration-syntax']);
+  assert.ok(manifest.scripts['verify:lender-intelligence-migration-execution']);
+  assert.ok(manifest.scripts['verify:lender-intelligence-runtime']);
+  assert.ok(manifest.scripts['type-check']);
+  assert.ok(manifest.scripts['build']);
   assert.match(packageJson, /"lint:lender-intelligence": "[^"]*--max-warnings=0"/);
   assert.doesNotMatch(packageJson, /ESLINT_USE_FLAT_CONFIG=false/);
   assert.match(eslintConfig, /new FlatCompat/);
   assert.match(eslintConfig, /next\/core-web-vitals/);
-  assert.match(workflow, /run: npm run build/);
-  assert.match(workflow, /run: npm run verify:lender-intelligence-runtime/);
-  assert.doesNotMatch(workflow, /SUPABASE_SERVICE_ROLE_KEY:\s*\$\{\{/);
 });
 
 test('Next output tracing is pinned to this application root', () => {

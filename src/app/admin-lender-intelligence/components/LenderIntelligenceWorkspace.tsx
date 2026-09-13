@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   AlertCircle,
+  ArrowRight,
   BadgeIndianRupee,
   BarChart3,
   Brain,
@@ -330,13 +331,10 @@ export default function LenderIntelligenceWorkspace({ view }: { view: ViewMode }
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">
-                Lender Intelligence
-              </p>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">Lenders</p>
               <h1 className="mt-2 text-2xl font-bold text-slate-950">{pageTitle}</h1>
               <p className="mt-1 max-w-3xl text-sm text-slate-500">
-                One admin control room for lender master, policy routing, partner performance,
-                invoicing and compliance readiness.
+                Manage lenders, loan programs, routing performance, payouts and compliance.
               </p>
             </div>
             <button
@@ -472,28 +470,37 @@ export default function LenderIntelligenceWorkspace({ view }: { view: ViewMode }
                 </div>
                 <div className="space-y-4">
                   <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                      <ShieldCheck size={17} className="text-emerald-600" />
-                      Operating notes
-                    </div>
-                    <div className="mt-4 space-y-3 text-sm text-slate-600">
-                      <p>
-                        Policies should be maintained at lender-product level before routing rules
-                        go fully automatic.
-                      </p>
-                      <p>
-                        Routing and performance tabs are reading live CRM files and eligibility
-                        reports.
-                      </p>
-                      <p>
-                        Published policy evaluation, immutable decisions and outcome feedback use
-                        this governed workspace.
-                      </p>
+                    <h2 className="text-base font-bold text-slate-900">Quick actions</h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Start the most common lender tasks.
+                    </p>
+                    <div className="mt-4 space-y-2">
+                      <Link
+                        href="/admin-lender-intelligence/onboarding"
+                        className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                      >
+                        Add a new lender
+                        <ArrowRight size={16} />
+                      </Link>
+                      <Link
+                        href="/admin-lender-intelligence/routing"
+                        className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        Review routing
+                        <ArrowRight size={16} />
+                      </Link>
+                      <Link
+                        href="/admin-lender-intelligence/invoicing-compliance"
+                        className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        Reconcile payouts
+                        <ArrowRight size={16} />
+                      </Link>
                     </div>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                      Last refreshed
+                      Data updated
                     </p>
                     <p className="mt-2 text-sm font-semibold text-slate-800">
                       {formatDate(data.generatedAt)}
@@ -984,37 +991,6 @@ export default function LenderIntelligenceWorkspace({ view }: { view: ViewMode }
             )}
           </>
         ) : null}
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-              <CheckCircle2 size={16} className="text-emerald-600" />
-              Same Supabase
-            </div>
-            <p className="mt-2 text-sm text-slate-500">
-              Reads Bureau Portal CRM and finance tables directly.
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-              <Route size={16} className="text-blue-600" />
-              Routing ready
-            </div>
-            <p className="mt-2 text-sm text-slate-500">
-              Published policy waterfall, governed overrides and outcome feedback are connected
-              here.
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-              <ShieldCheck size={16} className="text-violet-600" />
-              Admin controlled
-            </div>
-            <p className="mt-2 text-sm text-slate-500">
-              Visible only inside Bureau Portal admin routes.
-            </p>
-          </div>
-        </div>
       </div>
     </AdminLayout>
   );
