@@ -7,10 +7,10 @@ Use this document when assigning this repo to multiple Codex/AI agents.
 - Repo: `https://github.com/shubhamsoni-sketch/BUREAU-PORTAL.git`
 - Branch used right now: `main`
 - Local working directory in this session: `/tmp/bureau-portal-MCWEQm`
-- Vercel project: `creditanalytics-universal`
-- Production URL: `https://creditanalytics-universal-xi.vercel.app`
-- Main Supabase project ref: `ncuszzxymbhzxprecovg`
-- Main Supabase URL: `https://ncuszzxymbhzxprecovg.supabase.co`
+- Vercel project: `bureau-portal`
+- Production URL: `https://credittrust.in`
+- Main Supabase project ref: `qoseffoyxasnqqdrcesb`
+- Main Supabase URL: `https://qoseffoyxasnqqdrcesb.supabase.co`
 
 Do not mix this project with the old/other Supabase project refs.
 
@@ -26,10 +26,10 @@ Committed reference files:
 Current production Supabase must be:
 
 ```text
-NEXT_PUBLIC_SUPABASE_URL=https://ncuszzxymbhzxprecovg.supabase.co
-SUPABASE_PROJECT_REF=ncuszzxymbhzxprecovg
-SUPABASE_PROJECT_ID=ncuszzxymbhzxprecovg
-SUPABASE_DB_URL host=db.ncuszzxymbhzxprecovg.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://qoseffoyxasnqqdrcesb.supabase.co
+SUPABASE_PROJECT_REF=qoseffoyxasnqqdrcesb
+SUPABASE_PROJECT_ID=qoseffoyxasnqqdrcesb
+SUPABASE_DB_URL host=db.qoseffoyxasnqqdrcesb.supabase.co
 ```
 
 Never commit `.env.local`, API keys, DB passwords, service role keys, Vercel tokens, or downloaded env files.
@@ -43,7 +43,7 @@ Universal Finder master tables exist in the main Supabase project:
 - `lead_search_coverage`
 - `lead_search_coverage_places`
 
-The old legacy tables `dsa_prospect_master` and `dsa_extraction_runs` were not found in the main `ncuszz...` project during the latest check, so no legacy backfill was applied there.
+Legacy DSA data is available in `dsa_prospect_master`, and Universal Finder data has been migrated/backfilled into `lead_finder_master`.
 
 ## Suggested 7-agent split
 
@@ -52,7 +52,7 @@ The old legacy tables `dsa_prospect_master` and `dsa_extraction_runs` were not f
 Scope:
 
 - Maintain `.env.example` and `docs/ENVIRONMENT_SETUP.md`
-- Verify Vercel production env points to `ncuszz...`
+- Verify Vercel production env points to `qoseffoyxasnqqdrcesb`
 - Run production deployments only after build passes
 - Keep deployment notes updated
 
@@ -251,4 +251,4 @@ Default test count should be small, such as 10 or 25. Do not jump to 500/1000 wi
 
 ## Known current note
 
-The repo is live on Vercel and env is aligned to `ncuszz...`. Universal Finder schema exists, but old DSA legacy tables were not found in that Supabase project. The next agent working on data should decide whether to import old DSA/Fintech datasets into `lead_finder_master` directly.
+The repo is live on Vercel and env is aligned to `qoseffoyxasnqqdrcesb`. Universal Finder schema exists, and master lead data is active in `lead_finder_master`.

@@ -1,15 +1,15 @@
 # Environment setup
 
-This repo is deployed as **creditanalytics-universal** on Vercel.
+This repo is deployed as **bureau-portal** on Vercel.
 
 ## Source of truth
 
 - GitHub repo: `https://github.com/shubhamsoni-sketch/BUREAU-PORTAL.git`
 - Branch: `main`
-- Vercel project: `creditanalytics-universal`
-- Production URL: `https://creditanalytics-universal-xi.vercel.app`
-- Main Supabase project ref: `ncuszzxymbhzxprecovg`
-- Main Supabase URL: `https://ncuszzxymbhzxprecovg.supabase.co`
+- Vercel project: `bureau-portal`
+- Production URL: `https://credittrust.in`
+- Main Supabase project ref: `qoseffoyxasnqqdrcesb`
+- Main Supabase URL: `https://qoseffoyxasnqqdrcesb.supabase.co`
 
 ## Local env
 
@@ -35,9 +35,9 @@ Start from `.env.example`, then fill the real values:
 
 Vercel production env must point to the same Supabase project:
 
-- public Supabase URL: `https://ncuszzxymbhzxprecovg.supabase.co`
-- project ref/id: `ncuszzxymbhzxprecovg`
-- DB URL host: `db.ncuszzxymbhzxprecovg.supabase.co`
+- public Supabase URL: `https://qoseffoyxasnqqdrcesb.supabase.co`
+- project ref/id: `qoseffoyxasnqqdrcesb`
+- DB URL host: `db.qoseffoyxasnqqdrcesb.supabase.co`
 
 After changing Vercel environment variables, run a new production deployment. Existing deployments do not automatically reload changed env vars.
 
