@@ -37,9 +37,9 @@ const AuthContext = createContext<AuthContextType | null>(null);
 async function resolveAuthUser(supabaseUser: User): Promise<AuthUser | null> {
   try {
     const supabase = createClient(); // always get the current (possibly fresh) client
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile } = await supabase
       .from('user_profiles')
-      .select('id, email, full_name, role, is_temp_password')
+      .select('id, email, full_name, role')
       .eq('id', supabaseUser.id)
       .maybeSingle();
 
@@ -90,8 +90,7 @@ async function resolveAuthUser(supabaseUser: User): Promise<AuthUser | null> {
       role,
       partnerCode,
       productAccess,
-      isTempPassword: profile?.is_temp_password ??
-        ((supabaseUser.app_metadata?.is_temp_password === true) || false),
+      isTempPassword: (supabaseUser.app_metadata?.is_temp_password === true) || false,
     };
     return resolved;
   } catch (err) {

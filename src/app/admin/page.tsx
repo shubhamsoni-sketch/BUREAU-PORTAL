@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createClient } from '@/lib/supabase/client';
 import AppLogo from '@/components/ui/AppLogo';
 import { Eye, EyeOff, LogIn, ShieldAlert, Shield } from 'lucide-react';
 
@@ -44,46 +43,10 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // After login succeeds, check role via the singleton client (session is already set)
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session?.user) {
-        setError('Login failed. Please try again.');
-        setSubmitting(false);
-        return;
-      }
-
-      // Check role from JWT metadata first (most reliable — not affected by RLS)
-      const appRole = session.user.app_metadata?.role;
-      const metaRole = session.user.user_metadata?.role;
-
-      if (appRole === 'admin' || metaRole === 'admin') {
-        router.replace('/admin-dashboard');
-        return;
-      }
-
-      // Fallback: query user_profiles table
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .maybeSingle();
-
-      if (profile?.role === 'admin') {
-        router.replace('/admin-dashboard');
-        return;
-      }
-
-      // Final fallback: verify via server-side API (bypasses RLS)
-      const verifyRes = await fetch('/api/verify-admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: session.user.id }),
-      });
-      const verifyData = await verifyRes.json();
-
-      if (verifyData.isAdmin) {
+      // The shared login already resolves the Supabase user and role. Avoid calling
+      // getSession() again here because Supabase browser storage locks can stall in
+      // some Chrome sessions and leave the admin form stuck after submit.
+      if (result.user?.role === 'admin') {
         router.replace('/admin-dashboard');
         return;
       }
