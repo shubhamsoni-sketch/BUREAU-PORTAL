@@ -19,8 +19,6 @@ const ADMIN_ONLY_PATHS = [
   '/admin-promotions',
   '/admin-whatsapp-analytics',
   '/admin-lead-finder',
-  '/admin-growth-engine',
-  '/admin-lender-intelligence',
   '/admin-audit-logs',
   '/admin-invoices',
   '/admin-customer-master',
