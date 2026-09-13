@@ -1651,14 +1651,15 @@ function LeadTable({
       return (
         <td className="whitespace-nowrap px-4 py-3">
           {prospect.google_maps_url ? (
-            <a
-              href={prospect.google_maps_url}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={() =>
+                window.open(prospect.google_maps_url || '', '_blank', 'noopener,noreferrer')
+              }
               className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-900 text-blue-700 hover:bg-blue-50"
             >
               Open Map
-            </a>
+            </button>
           ) : (
             '-'
           )}
@@ -1675,14 +1676,13 @@ function LeadTable({
       return (
         <td className="max-w-[220px] truncate px-4 py-3">
           {prospect.website ? (
-            <a
-              href={prospect.website}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={() => window.open(prospect.website || '', '_blank', 'noopener,noreferrer')}
               className="font-800 text-blue-700 hover:underline"
             >
               {displayDomain(prospect.website)}
-            </a>
+            </button>
           ) : (
             '-'
           )}
