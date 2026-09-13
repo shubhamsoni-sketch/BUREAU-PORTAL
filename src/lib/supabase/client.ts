@@ -17,6 +17,10 @@ export function createClient() {
         autoRefreshToken: true,
         detectSessionInUrl: true,
         flowType: 'pkce',
+        // Chrome/Web Locks can get stuck after repeated deploys or stale tabs,
+        // which leaves getSession/signInWithPassword pending forever. This app
+        // uses a single client instance, so a direct in-process lock is enough.
+        lock: async (_name, _acquireTimeout, fn) => fn(),
       },
     }
   );
