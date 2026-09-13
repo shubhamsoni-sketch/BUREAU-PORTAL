@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const salesReadyOnly = request.nextUrl.searchParams.get('sales_ready') !== 'false';
   const requestedLeadType = request.nextUrl.searchParams.get('leadType');
   const leadType =
-    requestedLeadType === 'fintech' ? 'fintech' : requestedLeadType === 'all' ? 'all' : 'dsa';
+    requestedLeadType === 'dsa' ? 'dsa' : requestedLeadType === 'fintech' ? 'fintech' : 'all';
   const scope = request.nextUrl.searchParams.get('scope') || 'all';
   let requestedRunId = request.nextUrl.searchParams.get('runId') || '';
   const view = request.nextUrl.searchParams.get('view') || (salesReadyOnly ? 'sales_ready' : 'all');

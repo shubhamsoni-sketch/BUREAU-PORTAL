@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const scope = request.nextUrl.searchParams.get('scope') || 'all';
     let requestedRunId = request.nextUrl.searchParams.get('runId') || '';
     const leadType =
-      requestedLeadType === 'fintech' ? 'fintech' : requestedLeadType === 'all' ? 'all' : 'dsa';
+      requestedLeadType === 'dsa' ? 'dsa' : requestedLeadType === 'fintech' ? 'fintech' : 'all';
     const useMaster = await hasLeadFinderMasterTable(auth.supabase);
 
     if (useMaster) {

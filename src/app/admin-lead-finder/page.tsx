@@ -135,6 +135,8 @@ type UniversalForecast = {
   recommendation: string;
 };
 
+type LeadFinderTab = 'library' | 'settings';
+
 const defaultKeywords = [
   'Loan DSA',
   'Loan Agent',
@@ -234,7 +236,7 @@ function shortSearchSource(prospect: Prospect) {
 }
 
 export default function AdminLeadFinderPage() {
-  const [tab, setTab] = useState<'dsa' | 'fintech' | 'universal' | 'library' | 'settings'>('dsa');
+  const [tab, setTab] = useState<LeadFinderTab>('library');
   const [city, setCity] = useState('Indore');
   const [state, setState] = useState('Madhya Pradesh');
   const [count, setCount] = useState('100');
@@ -271,7 +273,6 @@ export default function AdminLeadFinderPage() {
     setLoading(true);
     setError('');
     try {
-      const leadType = tab === 'library' ? 'all' : tab === 'fintech' ? 'fintech' : 'dsa';
       const scopeParam =
         nextScope === 'this_run'
           ? 'this_run'
@@ -282,7 +283,7 @@ export default function AdminLeadFinderPage() {
               : 'all';
       const runParam = nextRunId ? `&runId=${encodeURIComponent(nextRunId)}` : '';
       const res = await authFetch(
-        `/api/admin-lead-finder/results?view=${nextView}&leadType=${leadType}&scope=${scopeParam}${runParam}`,
+        `/api/admin-lead-finder/results?view=${nextView}&leadType=all&scope=${scopeParam}${runParam}`,
         {
           cache: 'no-store',
         }
@@ -322,7 +323,7 @@ export default function AdminLeadFinderPage() {
   }, []);
 
   useEffect(() => {
-    if (tab === 'dsa' || tab === 'fintech' || tab === 'library') {
+    if (tab === 'library') {
       loadResults(view);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -357,7 +358,7 @@ export default function AdminLeadFinderPage() {
       if (json.prospects) setProspects(json.prospects);
       setLastDataRefreshAt(new Date());
       setView('sales_ready');
-      setTab('dsa');
+      setTab('library');
       setNotice(
         `Run complete. Text ${json.summary?.textSearchCalls || 0}, Details ${json.summary?.placeDetailsCalls || 0}, Cost ${formatMoney(json.summary?.estimatedCostUsd || 0)}.`
       );
@@ -440,12 +441,9 @@ export default function AdminLeadFinderPage() {
     { label: 'Google Calls Saved', value: summary.duplicateDetailsCallsAvoided, icon: ShieldCheck },
     { label: 'Approx API Cost', value: formatApiCost(summary), icon: WalletCards },
   ];
-  const latestRun = runs.find((run) => {
-    const isFintechRun =
-      (run.keywords || []).includes('Fintech Lead') ||
-      (run.keywords || []).includes('fintech_import');
-    return tab === 'fintech' ? isFintechRun : !isFintechRun;
-  });
+  const latestRun = runs.find((run) =>
+    ['complete', 'stopped_by_budget', 'failed'].includes(run.status)
+  );
 
   return (
     <AdminLayout title="Lead Finder">
@@ -460,7 +458,7 @@ export default function AdminLeadFinderPage() {
           </div>
         )}
 
-        {tab === 'dsa' || tab === 'fintech' || tab === 'library' ? (
+        {tab === 'library' ? (
           <section className="space-y-5">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               {primaryKpis.map((item) => {
@@ -566,13 +564,7 @@ export default function AdminLeadFinderPage() {
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-col gap-3 border-b border-slate-200 p-4 xl:flex-row xl:items-center">
                 <div>
-                  <h2 className="text-lg font-900 text-slate-950">
-                    {tab === 'library'
-                      ? 'Lead Library'
-                      : tab === 'fintech'
-                        ? 'Fintech Results'
-                        : 'DSA Results'}
-                  </h2>
+                  <h2 className="text-lg font-900 text-slate-950">Lead Library</h2>
                   <p className="text-xs font-700 text-slate-500">
                     Showing {prospects.length ? `1-${Math.min(prospects.length, 500)}` : '0'}{' '}
                     records
@@ -594,8 +586,8 @@ export default function AdminLeadFinderPage() {
                   <button
                     onClick={() =>
                       downloadAuthenticatedFile(
-                        `/api/admin-lead-finder/export?sales_ready=${view === 'sales_ready'}&view=${view}&leadType=${tab === 'library' ? 'all' : tab === 'fintech' ? 'fintech' : 'dsa'}&scope=${dataScope}${activeRunId ? `&runId=${encodeURIComponent(activeRunId)}` : ''}`,
-                        `${tab === 'library' ? 'lead-library' : tab === 'fintech' ? 'fintech' : 'dsa'}-${dataScope}-${view}.csv`
+                        `/api/admin-lead-finder/export?sales_ready=${view === 'sales_ready'}&view=${view}&leadType=all&scope=${dataScope}${activeRunId ? `&runId=${encodeURIComponent(activeRunId)}` : ''}`,
+                        `lead-library-${dataScope}-${view}.csv`
                       )
                     }
                     className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-900 text-white hover:bg-blue-700"
@@ -649,12 +641,7 @@ export default function AdminLeadFinderPage() {
                   </div>
                 </div>
               </div>
-              <LeadTable
-                loading={loading}
-                prospects={prospects}
-                onWhy={setWhy}
-                leadType={tab === 'fintech' ? 'fintech' : 'dsa'}
-              />
+              <LeadTable loading={loading} prospects={prospects} onWhy={setWhy} />
             </div>
           </section>
         ) : (
@@ -795,13 +782,11 @@ function Header({
   setTab,
   onOpenAi,
 }: {
-  tab: 'dsa' | 'fintech' | 'universal' | 'library' | 'settings';
-  setTab: (tab: 'dsa' | 'fintech' | 'universal' | 'library' | 'settings') => void;
+  tab: LeadFinderTab;
+  setTab: (tab: LeadFinderTab) => void;
   onOpenAi: () => void;
 }) {
   const tabs = [
-    ['dsa', 'DSA Data'],
-    ['fintech', 'Fintech Data'],
     ['library', 'Lead Library'],
     ['settings', 'Runs & Cost'],
   ] as const;
@@ -1449,22 +1434,22 @@ function LeadTable({
   loading,
   prospects,
   onWhy,
-  leadType,
 }: {
   loading: boolean;
   prospects: Prospect[];
   onWhy: (prospect: Prospect) => void;
-  leadType: 'dsa' | 'fintech';
 }) {
   const [query, setQuery] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
   const [segmentFilter, setSegmentFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [phoneFilter, setPhoneFilter] = useState('all');
+  const [leadTypeFilter, setLeadTypeFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [runSourceFilter, setRunSourceFilter] = useState('all');
   const [showColumns, setShowColumns] = useState<Record<string, boolean>>({
     addedOn: true,
+    dataType: true,
     searchSource: true,
     runSource: true,
     map: true,
@@ -1501,6 +1486,11 @@ function LeadTable({
     () => Array.from(new Set(prospects.map((item) => item.phone_type).filter(Boolean))).sort(),
     [prospects]
   );
+  const leadTypes = useMemo(
+    () =>
+      Array.from(new Set(prospects.map((item) => item.lead_type || 'dsa').filter(Boolean))).sort(),
+    [prospects]
+  );
   const runSources = useMemo(
     () =>
       Array.from(
@@ -1521,6 +1511,7 @@ function LeadTable({
         prospect.raw_phone,
         prospect.website,
         prospect.business_segment,
+        prospect.lead_type,
         prospect.sales_priority,
         prospect.detected_city,
         prospect.search_prompt,
@@ -1547,6 +1538,7 @@ function LeadTable({
         dateOk &&
         (cityFilter === 'all' || prospect.detected_city === cityFilter) &&
         (segmentFilter === 'all' || prospect.business_segment === segmentFilter) &&
+        (leadTypeFilter === 'all' || (prospect.lead_type || 'dsa') === leadTypeFilter) &&
         (priorityFilter === 'all' || prospect.sales_priority === priorityFilter) &&
         (phoneFilter === 'all' || prospect.phone_type === phoneFilter) &&
         (runSourceFilter === 'all' || runSource === runSourceFilter)
@@ -1555,6 +1547,7 @@ function LeadTable({
   }, [
     cityFilter,
     dateFilter,
+    leadTypeFilter,
     phoneFilter,
     priorityFilter,
     prospects,
@@ -1566,16 +1559,13 @@ function LeadTable({
   const tableColumns = [
     { key: 'business', label: 'Business', always: true },
     { key: 'addedOn', label: 'Added On' },
+    { key: 'dataType', label: 'Data Type' },
     { key: 'searchSource', label: 'Search Source' },
     { key: 'runSource', label: 'Run Source' },
     { key: 'map', label: 'Map' },
     { key: 'phone', label: 'Phone' },
-    ...(leadType === 'fintech'
-      ? [
-          { key: 'email', label: 'Email' },
-          { key: 'website', label: 'Website' },
-        ]
-      : []),
+    { key: 'email', label: 'Email' },
+    { key: 'website', label: 'Website' },
     { key: 'segment', label: 'Segment' },
     { key: 'score', label: 'Score' },
     { key: 'priority', label: 'Priority' },
@@ -1601,6 +1591,15 @@ function LeadTable({
       return (
         <td className="whitespace-nowrap px-4 py-3 text-slate-600">
           {formatDateTime(prospect.run_added_at || prospect.created_at || null)}
+        </td>
+      );
+    }
+    if (key === 'dataType') {
+      return (
+        <td className="whitespace-nowrap px-4 py-3">
+          <span className="rounded-full bg-violet-50 px-2 py-1 text-xs font-950 capitalize text-violet-700">
+            {(prospect.lead_type || 'dsa').replace(/_/g, ' ')}
+          </span>
         </td>
       );
     }
@@ -1734,7 +1733,7 @@ function LeadTable({
         <div className="mb-3 flex items-center gap-2 text-xs font-950 uppercase tracking-wide text-slate-500">
           <SlidersHorizontal size={15} /> Table filters
         </div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -1747,6 +1746,12 @@ function LeadTable({
             value={segmentFilter}
             onChange={setSegmentFilter}
             options={segments}
+          />
+          <TableSelect
+            label="Data Type"
+            value={leadTypeFilter}
+            onChange={setLeadTypeFilter}
+            options={leadTypes}
           />
           <TableSelect
             label="Priority"
@@ -1784,6 +1789,7 @@ function LeadTable({
           {(query ||
             cityFilter !== 'all' ||
             segmentFilter !== 'all' ||
+            leadTypeFilter !== 'all' ||
             priorityFilter !== 'all' ||
             phoneFilter !== 'all' ||
             runSourceFilter !== 'all' ||
@@ -1794,6 +1800,7 @@ function LeadTable({
                 setQuery('');
                 setCityFilter('all');
                 setSegmentFilter('all');
+                setLeadTypeFilter('all');
                 setPriorityFilter('all');
                 setPhoneFilter('all');
                 setRunSourceFilter('all');
