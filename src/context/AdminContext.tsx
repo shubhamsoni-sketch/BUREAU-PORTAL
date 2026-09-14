@@ -113,6 +113,17 @@ interface AdminContextType {
 
 const AdminContext = createContext<AdminContextType | null>(null);
 
+const PUBLIC_CONTEXT_SKIP_PATHS = [
+  '/',
+  '/about',
+  '/contact',
+  '/features',
+  '/pricing',
+  '/privacy-policy',
+  '/terms-and-conditions',
+  '/crm-website',
+];
+
 function mapDbStatus(dbStatus: string): PartnerStatus {
   switch (dbStatus) {
     case 'approved': return 'Active';
@@ -173,7 +184,18 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (pathname === '/admin' || pathname === '/partner-login') {
+    const isCrmMarketingHost =
+      typeof window !== 'undefined' && window.location.hostname === 'crm.credittrust.in';
+    const isPublicMarketingPath = PUBLIC_CONTEXT_SKIP_PATHS.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`)
+    );
+
+    if (
+      pathname === '/admin' ||
+      pathname === '/partner-login' ||
+      isCrmMarketingHost ||
+      isPublicMarketingPath
+    ) {
       setPartnersLoading(false);
       return;
     }

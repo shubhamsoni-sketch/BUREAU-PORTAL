@@ -58,7 +58,8 @@ export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}
       // Storage may be unavailable in restricted browser contexts.
     }
     const path = window.location.pathname;
-    window.location.href = path.startsWith('/admin') ? '/admin' : '/partner-login';
+    const isCrmHost = window.location.hostname === 'crm.credittrust.in';
+    window.location.href = isCrmHost ? '/login' : path.startsWith('/admin') ? '/admin' : '/partner-login';
   }
 
   return response;
