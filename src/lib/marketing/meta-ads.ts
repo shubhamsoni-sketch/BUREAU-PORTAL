@@ -114,6 +114,7 @@ export async function createClickToWhatsAppAd(params: {
     campaign_id: metaCampaign.data.id,
     billing_event: 'IMPRESSIONS',
     optimization_goal: 'CONVERSATIONS',
+    bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
     status: 'PAUSED',
     targeting: defaultTargeting(campaign.audience_json),
   };
