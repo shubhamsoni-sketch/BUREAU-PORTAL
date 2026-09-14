@@ -72,8 +72,13 @@ function list(value: string) {
 }
 
 function specialAdCategories(value: string) {
-  const categories = list(value || 'CREDIT').map((item) => item.toUpperCase());
-  return categories.includes('CREDIT') ? categories : ['CREDIT', ...categories];
+  const categories = list(value || 'FINANCIAL_PRODUCTS_SERVICES').map((item) => {
+    const normalized = item.toUpperCase();
+    return normalized === 'CREDIT' ? 'FINANCIAL_PRODUCTS_SERVICES' : normalized;
+  });
+  return categories.includes('FINANCIAL_PRODUCTS_SERVICES')
+    ? categories
+    : ['FINANCIAL_PRODUCTS_SERVICES', ...categories];
 }
 
 export function normalizeCreditTrustWhatsAppNumber(
