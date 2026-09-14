@@ -35,6 +35,38 @@ function clean(value: unknown) {
   return String(value ?? '').trim();
 }
 
+function graphParamValue(value: unknown) {
+  if (value === undefined || value === null) return '';
+  return typeof value === 'object' ? JSON.stringify(value) : String(value);
+}
+
+function graphErrorMessage(data: unknown) {
+  if (!data || typeof data !== 'object' || !('error' in data)) {
+    return 'Meta API request failed';
+  }
+
+  const error = (data as {
+    error?: {
+      message?: string;
+      code?: number | string;
+      error_subcode?: number | string;
+      error_user_title?: string;
+      error_user_msg?: string;
+      fbtrace_id?: string;
+    };
+  }).error;
+  const parts = [
+    error?.message || 'Meta API request failed',
+    error?.error_user_title,
+    error?.error_user_msg,
+    error?.code ? `code=${error.code}` : null,
+    error?.error_subcode ? `subcode=${error.error_subcode}` : null,
+    error?.fbtrace_id ? `fbtrace_id=${error.fbtrace_id}` : null,
+  ].filter(Boolean);
+
+  return parts.join(' | ');
+}
+
 function list(value: string) {
   return value.split(',').map((item) => item.trim()).filter(Boolean);
 }
@@ -133,19 +165,31 @@ export async function metaGraphFetch<T = any>(
   url.searchParams.set('access_token', token);
   for (const [key, value] of Object.entries(options.query || {})) {
     if (value === undefined || value === null || value === '') continue;
-    url.searchParams.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+    url.searchParams.set(key, graphParamValue(value));
+  }
+
+  const body = options.body
+    ? Object.entries(options.body).reduce((params, [key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.set(key, graphParamValue(value));
+      }
+      return params;
+    }, new URLSearchParams())
+    : undefined;
+
+  if (body && !body.has('access_token')) {
+    body.set('access_token', token);
+    url.searchParams.delete('access_token');
   }
 
   const response = await fetch(url, {
     method: options.method || 'GET',
-    headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    headers: body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : undefined,
+    body,
   });
   const data = await response.json().catch(() => null) as T | null;
   if (!response.ok) {
-    const error = data && typeof data === 'object' && 'error' in data
-      ? String((data as { error?: { message?: string } }).error?.message || 'Meta API request failed')
-      : 'Meta API request failed';
+    const error = graphErrorMessage(data);
     return { ok: false, status: response.status, data, error };
   }
   return { ok: true, status: response.status, data };
