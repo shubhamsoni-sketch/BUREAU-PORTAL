@@ -38,7 +38,13 @@ type Campaign = {
   meta_error?: string | null;
   created_at: string;
   marketing_assets?: Array<{ file_url: string; asset_type: string }> | null;
-  meta_campaigns?: Array<{ meta_campaign_id?: string | null; meta_ad_id?: string | null; status?: string | null }> | null;
+  meta_campaigns?: Array<{
+    meta_campaign_id?: string | null;
+    meta_adset_id?: string | null;
+    meta_ad_id?: string | null;
+    meta_creative_id?: string | null;
+    status?: string | null;
+  }> | null;
 };
 
 type Lead = {
@@ -203,6 +209,14 @@ export default function AdminMetaMarketingPage() {
     });
   }
 
+  async function publishCampaign(campaign: Campaign) {
+    const confirmed = window.confirm(
+      `Publish this campaign live on Meta?\n\nCampaign: ${campaign.name}\nWhatsApp number: ${campaign.whatsapp_number}\n\nThis can create Meta campaign/ad set/ad/creative if not already prepared, then set it ACTIVE.`,
+    );
+    if (!confirmed) return;
+    await runAction(`/api/marketing/campaigns/${campaign.id}/publish-live`, 'Campaign published live on Meta');
+  }
+
   async function uploadMedia(file: File | null) {
     if (!file) return;
     setSaving(true);
@@ -326,7 +340,7 @@ export default function AdminMetaMarketingPage() {
           <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-5">
               <h2 className="text-lg font-bold text-slate-900">Campaign Performance</h2>
-              <p className="text-sm text-slate-500">Publish posts, create Click-to-WhatsApp ads, pause/resume and inspect campaign details.</p>
+              <p className="text-sm text-slate-500">Drafts stay internal until you explicitly publish. Meta publish needs final confirmation.</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
@@ -340,7 +354,10 @@ export default function AdminMetaMarketingPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {campaigns.map((campaign) => (
+                  {campaigns.map((campaign) => {
+                    const metaDraft = campaign.meta_campaigns?.[0];
+                    const hasMetaIds = Boolean(metaDraft?.meta_campaign_id || metaDraft?.meta_adset_id || metaDraft?.meta_ad_id);
+                    return (
                     <tr key={campaign.id} className="align-top hover:bg-slate-50/70">
                       <td className="px-4 py-4">
                         <p className="font-bold text-slate-900">{campaign.name}</p>
@@ -351,6 +368,7 @@ export default function AdminMetaMarketingPage() {
                         <p className="font-mono text-[11px] text-slate-700">{campaign.campaign_code}</p>
                         <p className="font-mono text-[11px] text-slate-500">{campaign.ad_code}</p>
                         <p className="font-mono text-[11px] text-slate-400">{campaign.tracking_token || '-'}</p>
+                        <p className="mt-1 text-[11px] font-semibold text-slate-500">{hasMetaIds ? `Meta: ${metaDraft?.status || 'prepared'}` : 'Meta IDs: not created yet'}</p>
                       </td>
                       <td className="px-4 py-4 text-slate-700">{formatCurrency(campaign.budget_type === 'lifetime' ? campaign.lifetime_budget : campaign.daily_budget)}</td>
                       <td className="px-4 py-4">
@@ -360,13 +378,14 @@ export default function AdminMetaMarketingPage() {
                         <div className="flex flex-wrap justify-end gap-2">
                           <Link href={`/admin-meta-marketing/${campaign.id}`} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50">Detail</Link>
                           <button disabled={saving} onClick={() => runAction(`/api/marketing/campaigns/${campaign.id}/publish-post`, 'Post publish/schedule requested', { body: JSON.stringify({ post_text: campaign.content_text, media_url: firstAsset(campaign) }) })} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50">Post</button>
-                          <button disabled={saving} onClick={() => runAction(`/api/marketing/campaigns/${campaign.id}/create-ad`, 'Draft Meta ad created in paused state')} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700">Create Draft Ad</button>
+                          <button disabled={saving || hasMetaIds} onClick={() => runAction(`/api/marketing/campaigns/${campaign.id}/create-ad`, 'Meta draft prepared in paused state')} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50">Prepare Meta Draft</button>
                           <button disabled={saving} onClick={() => runAction(`/api/marketing/campaigns/${campaign.id}/pause`, 'Campaign paused')} className="rounded-lg border border-amber-200 px-2.5 py-1.5 text-amber-700"><Pause size={13} /></button>
-                          <button disabled={saving} onClick={() => runAction(`/api/marketing/campaigns/${campaign.id}/resume`, 'Campaign published live')} className="rounded-lg border border-emerald-200 px-2.5 py-1.5 text-emerald-700" title="Publish live"><Play size={13} /></button>
+                          <button disabled={saving} onClick={() => publishCampaign(campaign)} className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-bold text-emerald-700" title="Publish live with confirmation"><Play size={13} /> Publish</button>
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {!campaigns.length && (
                     <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">{loading ? 'Loading campaigns...' : 'No campaigns yet.'}</td></tr>
                   )}

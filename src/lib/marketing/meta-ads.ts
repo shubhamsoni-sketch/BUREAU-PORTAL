@@ -279,7 +279,11 @@ export async function updateMetaCampaignStatus(params: {
 }) {
   const config = assertMetaConfig(['accessToken']);
   const meta = await loadMetaCampaign(params.supabase, params.campaignId);
+  if (params.status === 'ACTIVE' && (!meta.meta_campaign_id || !meta.meta_adset_id || !meta.meta_ad_id)) {
+    throw new Error('Meta campaign/ad IDs are missing. Prepare or publish the Meta ad first.');
+  }
   const ids = [meta.meta_campaign_id, meta.meta_adset_id, meta.meta_ad_id].filter(Boolean);
+  if (!ids.length) throw new Error('Meta campaign/ad IDs are missing. Prepare or publish the Meta ad first.');
   const results = [];
   for (const id of ids) {
     results.push(await metaGraphFetch(String(id), {
