@@ -22,6 +22,11 @@ type MarketingCampaign = {
   daily_budget?: number | null;
   lifetime_budget?: number | null;
   audience_json?: Record<string, unknown> | null;
+  tracking_token?: string | null;
+  marketing_assets?: Array<{
+    file_url?: string | null;
+    asset_type?: string | null;
+  }> | null;
 };
 
 function clean(value: unknown) {
@@ -58,12 +63,18 @@ function defaultTargeting(audience?: Record<string, unknown> | null) {
 async function loadCampaign(supabase: SupabaseLike, id: string) {
   const { data, error } = await supabase
     .from('marketing_campaigns')
-    .select('*')
+    .select('*, marketing_assets(*)')
     .eq('id', id)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Marketing campaign not found');
   return data as MarketingCampaign;
+}
+
+function firstCreativeImageUrl(campaign: MarketingCampaign, fallback?: string | null) {
+  const assets = Array.isArray(campaign.marketing_assets) ? campaign.marketing_assets : [];
+  const imageAsset = assets.find((asset) => clean(asset.asset_type || 'image').toLowerCase().startsWith('image') && clean(asset.file_url));
+  return clean(imageAsset?.file_url) || clean(fallback);
 }
 
 export async function createClickToWhatsAppAd(params: {
@@ -77,6 +88,7 @@ export async function createClickToWhatsAppAd(params: {
   const prefilledMessage = campaign.prefilled_message || campaignPrefilledMessage(campaign.campaign_code);
   const waNumber = resolveCreditTrustAdEnquiryWhatsAppNumber(campaign.whatsapp_number, config.whatsappAdEnquiryNumber);
   const waLink = whatsappDeepLink(waNumber, prefilledMessage);
+  const creativeImageUrl = firstCreativeImageUrl(campaign, config.defaultCreativeImageUrl);
   const budget = campaign.budget_type === 'lifetime'
     ? moneyToMinor(campaign.lifetime_budget)
     : moneyToMinor(campaign.daily_budget);
@@ -119,6 +131,20 @@ export async function createClickToWhatsAppAd(params: {
     return { ...adset, meta: null };
   }
 
+  const linkData: Record<string, unknown> = {
+    message: campaign.content_text || campaign.name,
+    link: waLink,
+    name: campaign.name,
+    call_to_action: {
+      type: 'WHATSAPP_MESSAGE',
+      value: {
+        app_destination: 'WHATSAPP',
+        link: waLink,
+      },
+    },
+  };
+  if (creativeImageUrl) linkData.picture = creativeImageUrl;
+
   const creative = await metaGraphFetch<{ id?: string }>(`${adAccountPath}/adcreatives`, {
     method: 'POST',
     token: config.accessToken,
@@ -126,18 +152,7 @@ export async function createClickToWhatsAppAd(params: {
       name: `${campaign.name} Creative`,
       object_story_spec: {
         page_id: config.pageId,
-        link_data: {
-          message: campaign.content_text || 'Check your Credit Trust financial health report.',
-          link: waLink,
-          name: campaign.name,
-          call_to_action: {
-            type: 'WHATSAPP_MESSAGE',
-            value: {
-              app_destination: 'WHATSAPP',
-              link: waLink,
-            },
-          },
-        },
+        link_data: linkData,
       },
     },
   });
@@ -179,6 +194,13 @@ export async function createClickToWhatsAppAd(params: {
       creative: creative.data,
       ad: ad.data,
       whatsapp_link: waLink,
+      whatsapp_number: waNumber,
+      prefilled_message: prefilledMessage,
+      creative_image_url: creativeImageUrl || null,
+      campaign_code: campaign.campaign_code,
+      ad_code: campaign.ad_code,
+      tracking_token: campaign.tracking_token ?? null,
+      special_ad_categories: config.specialAdCategories,
     },
   };
 
@@ -201,6 +223,12 @@ export async function createClickToWhatsAppAd(params: {
       meta_ad_id: ad.data.id,
       campaign_code: campaign.campaign_code,
       ad_code: campaign.ad_code,
+      tracking_token: campaign.tracking_token,
+      whatsapp_number: waNumber,
+      whatsapp_link: waLink,
+      prefilled_message: prefilledMessage,
+      special_ad_categories: config.specialAdCategories,
+      creative_image_url: creativeImageUrl || null,
     },
     occurred_at: now,
   });
