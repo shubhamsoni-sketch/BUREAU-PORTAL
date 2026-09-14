@@ -60,6 +60,7 @@ function defaultTargeting(audience?: Record<string, unknown> | null) {
     publisher_platforms: audience?.publisher_platforms || ['facebook', 'instagram'],
     facebook_positions: facebookPositions.length ? facebookPositions : ['feed', 'marketplace'],
     instagram_positions: audience?.instagram_positions || ['stream', 'story', 'reels'],
+    targeting_automation: audience?.targeting_automation || { advantage_audience: 0 },
   };
 }
 
