@@ -46,6 +46,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.rewrite(new URL('/crm/sign-up-login-screen', request.url));
   }
 
+  if (
+    isCrmHost &&
+    (normalizedPathname === '/partner-login' || normalizedPathname.startsWith('/partner-dashboard'))
+  ) {
+    return NextResponse.redirect(withSearch('/login', 'https://crm.credittrust.in'));
+  }
+
   if (isCrmHost && normalizedPathname.startsWith('/crm-website')) {
     return NextResponse.redirect(withSearch(crmWebsitePath(), 'https://crm.credittrust.in'));
   }
@@ -69,6 +76,10 @@ export function middleware(request: NextRequest) {
 
   if (isMainPortalHost && normalizedPathname.startsWith('/crm-website')) {
     return NextResponse.redirect(withSearch(crmWebsitePath(), 'https://crm.credittrust.in'));
+  }
+
+  if (isMainPortalHost && normalizedPathname === '/crm') {
+    return NextResponse.redirect(withSearch('/', 'https://crm.credittrust.in'));
   }
 
   if (isMainPortalHost && normalizedPathname.startsWith('/crm')) {
