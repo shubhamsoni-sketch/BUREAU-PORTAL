@@ -50,12 +50,15 @@ function defaultTargeting(audience?: Record<string, unknown> | null) {
   const geo = audience?.geo_locations || { countries: ['IN'] };
   const ageMin = Number(audience?.age_min || 21);
   const ageMax = Number(audience?.age_max || 65);
+  const facebookPositions = Array.isArray(audience?.facebook_positions)
+    ? (audience.facebook_positions as unknown[]).map(clean).filter((item) => item && item !== 'video_feeds')
+    : ['feed', 'marketplace'];
   return {
     geo_locations: geo,
     age_min: Math.max(18, ageMin),
     age_max: Math.min(65, ageMax),
     publisher_platforms: audience?.publisher_platforms || ['facebook', 'instagram'],
-    facebook_positions: audience?.facebook_positions || ['feed', 'marketplace', 'video_feeds'],
+    facebook_positions: facebookPositions.length ? facebookPositions : ['feed', 'marketplace'],
     instagram_positions: audience?.instagram_positions || ['stream', 'story', 'reels'],
   };
 }
