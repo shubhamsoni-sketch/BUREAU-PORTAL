@@ -101,6 +101,7 @@ export async function createClickToWhatsAppAd(params: {
       objective: objective(campaign.objective),
       status: 'PAUSED',
       special_ad_categories: config.specialAdCategories,
+      is_adset_budget_sharing_enabled: false,
     },
   });
   if (!metaCampaign.ok || !metaCampaign.data?.id) {
