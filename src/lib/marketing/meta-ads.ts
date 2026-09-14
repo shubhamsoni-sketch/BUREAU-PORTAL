@@ -89,6 +89,7 @@ export async function createClickToWhatsAppAd(params: {
   const waNumber = resolveCreditTrustAdEnquiryWhatsAppNumber(campaign.whatsapp_number, config.whatsappAdEnquiryNumber);
   const waLink = whatsappDeepLink(waNumber, prefilledMessage);
   const creativeImageUrl = firstCreativeImageUrl(campaign, config.defaultCreativeImageUrl);
+  const metaObjective = 'OUTCOME_ENGAGEMENT';
   const budget = campaign.budget_type === 'lifetime'
     ? moneyToMinor(campaign.lifetime_budget)
     : moneyToMinor(campaign.daily_budget);
@@ -98,7 +99,7 @@ export async function createClickToWhatsAppAd(params: {
     token: config.accessToken,
     body: {
       name: `${campaign.name} (${campaign.campaign_code})`,
-      objective: objective(campaign.objective),
+      objective: metaObjective,
       status: 'PAUSED',
       special_ad_categories: config.specialAdCategories,
       is_adset_budget_sharing_enabled: false,
@@ -186,7 +187,7 @@ export async function createClickToWhatsAppAd(params: {
     meta_ad_id: ad.data.id,
     meta_creative_id: creative.data.id,
     status: 'paused',
-    objective: objective(campaign.objective),
+    objective: metaObjective,
     budget: Number(campaign.budget_type === 'lifetime' ? campaign.lifetime_budget : campaign.daily_budget) || null,
     start_time: campaign.start_at ?? null,
     end_time: campaign.end_at ?? null,
