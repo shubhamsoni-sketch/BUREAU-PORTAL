@@ -125,7 +125,11 @@ export default function CampaignDetailPage() {
               <p><span className="font-semibold text-slate-500">Platform:</span> {campaign?.platform || '-'}</p>
               <p><span className="font-semibold text-slate-500">WhatsApp:</span> {campaign?.whatsapp_number || adEnquiryWhatsAppNumber}</p>
               <p><span className="font-semibold text-slate-500">Prefill:</span> {campaign?.prefilled_message || '-'}</p>
+              <p><span className="font-semibold text-slate-500">Ad Code:</span> <span className="font-mono text-xs">{campaign?.ad_code || '-'}</span></p>
+              <p><span className="font-semibold text-slate-500">Tracking Token:</span> <span className="font-mono text-xs">{campaign?.tracking_token || '-'}</span></p>
               <p><span className="font-semibold text-slate-500">Meta Campaign ID:</span> <span className="font-mono text-xs">{meta?.meta_campaign_id || '-'}</span></p>
+              <p><span className="font-semibold text-slate-500">Meta Ad Set ID:</span> <span className="font-mono text-xs">{meta?.meta_adset_id || '-'}</span></p>
+              <p><span className="font-semibold text-slate-500">Meta Creative ID:</span> <span className="font-mono text-xs">{meta?.meta_creative_id || '-'}</span></p>
               <p><span className="font-semibold text-slate-500">Meta Ad ID:</span> <span className="font-mono text-xs">{meta?.meta_ad_id || '-'}</span></p>
               {campaign?.meta_error && <p className="rounded-lg bg-red-50 p-3 text-red-700">{campaign.meta_error}</p>}
             </div>
@@ -171,6 +175,9 @@ export default function CampaignDetailPage() {
                     <span className="text-xs text-slate-400">{formatDate(event.occurred_at)}</span>
                   </div>
                   <p className="mt-1 text-xs text-slate-500">{event.event_source}</p>
+                  {event.event_data_json && (
+                    <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-slate-50 p-3 text-[11px] text-slate-600">{JSON.stringify(event.event_data_json, null, 2)}</pre>
+                  )}
                 </div>
               ))}
               {!data?.events?.length && <p className="p-8 text-center text-sm text-slate-500">No events yet.</p>}

@@ -18,6 +18,7 @@ export type MetaConfig = {
   instagramUserId: string;
   appSecret: string;
   specialAdCategories: string[];
+  defaultCreativeImageUrl: string;
 };
 
 export type MetaFetchResult<T = any> = {
@@ -36,6 +37,11 @@ function clean(value: unknown) {
 
 function list(value: string) {
   return value.split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+function specialAdCategories(value: string) {
+  const categories = list(value || 'CREDIT').map((item) => item.toUpperCase());
+  return categories.includes('CREDIT') ? categories : ['CREDIT', ...categories];
 }
 
 export function normalizeCreditTrustWhatsAppNumber(
@@ -83,7 +89,8 @@ export function getMetaConfig(): MetaConfig {
     ),
     instagramUserId: clean(process.env.META_INSTAGRAM_USER_ID),
     appSecret: clean(process.env.META_APP_SECRET),
-    specialAdCategories: list(clean(process.env.META_SPECIAL_AD_CATEGORIES) || 'CREDIT'),
+    specialAdCategories: specialAdCategories(clean(process.env.META_SPECIAL_AD_CATEGORIES)),
+    defaultCreativeImageUrl: clean(process.env.META_DEFAULT_CREATIVE_IMAGE_URL),
   };
 }
 

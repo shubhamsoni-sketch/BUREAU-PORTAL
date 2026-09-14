@@ -26,7 +26,15 @@ export function generateTrackingToken(prefix = 'mkt') {
 }
 
 export function campaignPrefilledMessage(campaignCode: string) {
-  return `Hi Credit Trust, I want to check my credit report. Ref: ${campaignCode}`;
+  return `Hi Credit Trust, I am interested in this campaign. Ref: ${campaignCode}`;
+}
+
+export function normalizeCampaignPrefilledMessage(message: string, campaignCode: string) {
+  const value = String(message || '').trim();
+  const base = value || campaignPrefilledMessage(campaignCode);
+  return base.toUpperCase().includes(campaignCode.toUpperCase())
+    ? base
+    : `${base} Ref: ${campaignCode}`;
 }
 
 export function extractCampaignCode(text: unknown) {

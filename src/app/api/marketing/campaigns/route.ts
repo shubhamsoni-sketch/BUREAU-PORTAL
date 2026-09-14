@@ -4,6 +4,7 @@ import {
   generateAdCode,
   generateCampaignCode,
   generateTrackingToken,
+  normalizeCampaignPrefilledMessage,
 } from '@/lib/marketing/codes';
 import { clean, jsonError, numberValue, requireMarketingAdmin } from '@/lib/marketing/api';
 import {
@@ -23,6 +24,21 @@ function parseJsonObject(value: unknown, fallback: Record<string, unknown> | unk
     }
   }
   return value;
+}
+
+function parseOptionalDate(value: unknown, label: string) {
+  const raw = clean(value);
+  if (!raw) return null;
+  const hasTimezone = /[zZ]|[+-]\d{2}:?\d{2}$/.test(raw);
+  const hasSeconds = /T\d{2}:\d{2}:\d{2}/.test(raw);
+  const normalized = raw.includes('T') && !hasTimezone
+    ? `${raw}${hasSeconds ? '' : ':00'}+05:30`
+    : raw;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`${label} must be a valid date/time or left blank.`);
+  }
+  return date.toISOString();
 }
 
 function summarize(campaigns: any[], insights: any[], leads: any[], tracking: any[]) {
@@ -113,8 +129,16 @@ export async function POST(request: NextRequest) {
 
     const campaignCode = generateCampaignCode(name);
     const adCode = generateAdCode(campaignCode);
-    const prefilledMessage = clean(body.prefilled_message) || campaignPrefilledMessage(campaignCode);
+    const prefilledMessage = normalizeCampaignPrefilledMessage(
+      clean(body.prefilled_message) || campaignPrefilledMessage(campaignCode),
+      campaignCode,
+    );
     const trackingToken = generateTrackingToken('mkt');
+    const startAt = parseOptionalDate(body.start_at, 'Start date');
+    const endAt = parseOptionalDate(body.end_at, 'End date');
+    if (startAt && endAt && new Date(endAt).getTime() <= new Date(startAt).getTime()) {
+      return jsonError('End date must be after start date.');
+    }
 
     const row = {
       campaign_code: campaignCode,
@@ -129,8 +153,8 @@ export async function POST(request: NextRequest) {
       whatsapp_number: resolveCreditTrustAdEnquiryWhatsAppNumber(body.whatsapp_number),
       prefilled_message: prefilledMessage,
       tracking_token: trackingToken,
-      start_at: clean(body.start_at) || null,
-      end_at: clean(body.end_at) || null,
+      start_at: startAt,
+      end_at: endAt,
       budget_type: clean(body.budget_type) || 'daily',
       daily_budget: body.budget_type === 'lifetime' ? null : numberValue(body.daily_budget),
       lifetime_budget: body.budget_type === 'lifetime' ? numberValue(body.lifetime_budget || body.daily_budget) : null,
@@ -162,7 +186,11 @@ export async function POST(request: NextRequest) {
       event_data_json: {
         campaign_code: campaignCode,
         ad_code: adCode,
+        tracking_token: trackingToken,
         platform: row.platform,
+        status: row.status,
+        whatsapp_number: row.whatsapp_number,
+        prefilled_message: row.prefilled_message,
       },
     });
 

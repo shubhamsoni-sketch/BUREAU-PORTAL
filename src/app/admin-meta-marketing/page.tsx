@@ -31,6 +31,7 @@ type Campaign = {
   content_text?: string | null;
   whatsapp_number: string;
   prefilled_message?: string | null;
+  tracking_token?: string | null;
   daily_budget?: number | null;
   lifetime_budget?: number | null;
   budget_type?: string | null;
@@ -127,6 +128,7 @@ export default function AdminMetaMarketingPage() {
     objective: 'credit_report_lead',
     platform: 'whatsapp_ads',
     content_text: 'Check your Credit Trust financial health report and understand your credit profile insights.',
+    prefilled_message: 'Hi Credit Trust, I am interested in DSA Partner campaign. Please contact me.',
     media_url: '',
     whatsapp_number: adEnquiryWhatsAppNumber,
     budget_type: 'daily',
@@ -192,7 +194,7 @@ export default function AdminMetaMarketingPage() {
   }
 
   async function createCampaign() {
-    await runAction('/api/marketing/campaigns', 'Campaign created with tracking codes', {
+    await runAction('/api/marketing/campaigns', 'Draft campaign created with tracking codes', {
       body: JSON.stringify({
         ...form,
         daily_budget: Number(form.daily_budget || 0),
@@ -290,6 +292,7 @@ export default function AdminMetaMarketingPage() {
                 <input className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500" placeholder="Objective" value={form.objective} onChange={(e) => setForm({ ...form, objective: e.target.value })} />
               </div>
               <textarea className="min-h-24 rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500" placeholder="Post/ad content" value={form.content_text} onChange={(e) => setForm({ ...form, content_text: e.target.value })} />
+              <textarea className="min-h-20 rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500" placeholder="WhatsApp prefilled message" value={form.prefilled_message} onChange={(e) => setForm({ ...form, prefilled_message: e.target.value })} />
               <div className="grid gap-3 md:grid-cols-[1fr_auto]">
                 <input className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500" placeholder="Media URL" value={form.media_url} onChange={(e) => setForm({ ...form, media_url: e.target.value })} />
                 <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">
@@ -312,10 +315,10 @@ export default function AdminMetaMarketingPage() {
               <textarea className="min-h-28 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 font-mono text-xs outline-none focus:border-blue-500 focus:bg-white" value={form.audience_json} onChange={(e) => setForm({ ...form, audience_json: e.target.value })} />
               <textarea className="min-h-28 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 font-mono text-xs outline-none focus:border-blue-500 focus:bg-white" value={form.automation_rules_json} onChange={(e) => setForm({ ...form, automation_rules_json: e.target.value })} />
               <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-800">
-                Preview WhatsApp message: "Hi Credit Trust, I want to check my credit report. Ref: CT_META_[auto]"
+                Preview WhatsApp message: "{form.prefilled_message.trim() || 'Hi Credit Trust, I am interested in this campaign.'} Ref: CT_META_[auto]"
               </div>
               <button disabled={saving || !form.name.trim()} onClick={createCampaign} className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
-                <Megaphone size={16} /> Create Campaign
+                <Megaphone size={16} /> Create Draft Campaign
               </button>
             </div>
           </section>
@@ -347,6 +350,7 @@ export default function AdminMetaMarketingPage() {
                       <td className="px-4 py-4">
                         <p className="font-mono text-[11px] text-slate-700">{campaign.campaign_code}</p>
                         <p className="font-mono text-[11px] text-slate-500">{campaign.ad_code}</p>
+                        <p className="font-mono text-[11px] text-slate-400">{campaign.tracking_token || '-'}</p>
                       </td>
                       <td className="px-4 py-4 text-slate-700">{formatCurrency(campaign.budget_type === 'lifetime' ? campaign.lifetime_budget : campaign.daily_budget)}</td>
                       <td className="px-4 py-4">
@@ -356,9 +360,9 @@ export default function AdminMetaMarketingPage() {
                         <div className="flex flex-wrap justify-end gap-2">
                           <Link href={`/admin-meta-marketing/${campaign.id}`} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50">Detail</Link>
                           <button disabled={saving} onClick={() => runAction(`/api/marketing/campaigns/${campaign.id}/publish-post`, 'Post publish/schedule requested', { body: JSON.stringify({ post_text: campaign.content_text, media_url: firstAsset(campaign) }) })} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50">Post</button>
-                          <button disabled={saving} onClick={() => runAction(`/api/marketing/campaigns/${campaign.id}/create-ad`, 'Click-to-WhatsApp ad created in paused state')} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700">Create Ad</button>
+                          <button disabled={saving} onClick={() => runAction(`/api/marketing/campaigns/${campaign.id}/create-ad`, 'Draft Meta ad created in paused state')} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700">Create Draft Ad</button>
                           <button disabled={saving} onClick={() => runAction(`/api/marketing/campaigns/${campaign.id}/pause`, 'Campaign paused')} className="rounded-lg border border-amber-200 px-2.5 py-1.5 text-amber-700"><Pause size={13} /></button>
-                          <button disabled={saving} onClick={() => runAction(`/api/marketing/campaigns/${campaign.id}/resume`, 'Campaign resumed')} className="rounded-lg border border-emerald-200 px-2.5 py-1.5 text-emerald-700"><Play size={13} /></button>
+                          <button disabled={saving} onClick={() => runAction(`/api/marketing/campaigns/${campaign.id}/resume`, 'Campaign published live')} className="rounded-lg border border-emerald-200 px-2.5 py-1.5 text-emerald-700" title="Publish live"><Play size={13} /></button>
                         </div>
                       </td>
                     </tr>
