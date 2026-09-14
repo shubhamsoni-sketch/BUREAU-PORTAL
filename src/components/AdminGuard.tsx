@@ -45,6 +45,7 @@ const PUBLIC_PATHS = [
   '/api-console',
   '/crm',
   '/crm-website',
+  '/login',
   '/partner-program',
   '/partner-login',
   '/privacy-policy',

@@ -43,7 +43,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (isCrmHost && normalizedPathname === '/login') {
-    return NextResponse.rewrite(new URL('/crm/sign-up-login-screen', request.url));
+    return NextResponse.next();
   }
 
   if (

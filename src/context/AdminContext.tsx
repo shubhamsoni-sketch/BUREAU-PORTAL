@@ -118,6 +118,7 @@ const PUBLIC_CONTEXT_SKIP_PATHS = [
   '/about',
   '/contact',
   '/features',
+  '/login',
   '/pricing',
   '/privacy-policy',
   '/terms-and-conditions',
