@@ -34,9 +34,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
       } = await supabase.auth.getSession();
       if (cancelled) return;
       if (!session?.access_token) {
-        router.replace(
-          `/crm/sign-up-login-screen?next=${encodeURIComponent(pathname || '/crm')}`
-        );
+        const loginPath =
+          typeof window !== 'undefined' && window.location.hostname === 'crm.credittrust.in'
+            ? '/login'
+            : '/crm/sign-up-login-screen';
+        router.replace(`${loginPath}?next=${encodeURIComponent(pathname || '/crm')}`);
         return;
       }
       setAuthChecked(true);

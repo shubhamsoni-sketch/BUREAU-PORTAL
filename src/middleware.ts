@@ -46,6 +46,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (isCrmHost && normalizedPathname.startsWith('/crm/sign-up-login-screen')) {
+    return NextResponse.redirect(withSearch('/login', 'https://crm.credittrust.in'));
+  }
+
   if (
     isCrmHost &&
     (normalizedPathname === '/partner-login' || normalizedPathname.startsWith('/partner-dashboard'))
