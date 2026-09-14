@@ -46,7 +46,13 @@ async function loadCampaignAudience(supabase: any, campaign: Record<string, any>
     .limit(SEND_LIMIT);
 
   if (promotionError) throw new Error(promotionError.message);
-  if (promotionLeads?.length) return promotionLeads;
+  const selectedPromotionLeads = promotionLeads || [];
+  if (selectedPromotionLeads.length >= SEND_LIMIT) return selectedPromotionLeads;
+  const existingMobiles = new Set(
+    selectedPromotionLeads.map((lead: Record<string, unknown>) =>
+      normalizeWhatsAppPhone(lead.mobile)
+    )
+  );
 
   const { data: masterLeads, error: masterError } = await supabase
     .from('lead_finder_master')
@@ -58,7 +64,7 @@ async function loadCampaignAudience(supabase: any, campaign: Record<string, any>
     .limit(SEND_LIMIT);
 
   if (masterError) throw new Error(masterError.message);
-  if (!masterLeads?.length) return [];
+  if (!masterLeads?.length) return selectedPromotionLeads;
 
   const leadsToSync = masterLeads
     .map((lead: Record<string, unknown>) => ({
@@ -78,9 +84,12 @@ async function loadCampaignAudience(supabase: any, campaign: Record<string, any>
         synced_for_growth_campaigns: true,
       },
     }))
-    .filter((lead: { mobile: string }) => lead.mobile.length >= 11);
+    .filter(
+      (lead: { mobile: string }) => lead.mobile.length >= 11 && !existingMobiles.has(lead.mobile)
+    )
+    .slice(0, SEND_LIMIT - selectedPromotionLeads.length);
 
-  if (!leadsToSync.length) return [];
+  if (!leadsToSync.length) return selectedPromotionLeads;
 
   const { error: upsertError } = await supabase
     .from('promotion_leads')
@@ -94,7 +103,7 @@ async function loadCampaignAudience(supabase: any, campaign: Record<string, any>
     .in('mobile', mobiles)
     .limit(SEND_LIMIT);
   if (syncedError) throw new Error(syncedError.message);
-  return syncedLeads || [];
+  return [...selectedPromotionLeads, ...(syncedLeads || [])].slice(0, SEND_LIMIT);
 }
 
 async function loadData(supabase: any) {
