@@ -48,7 +48,7 @@ export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}
     signal: init.signal || controller.signal,
   }).finally(() => clearTimeout(timer));
 
-  if (typeof window !== 'undefined' && (response.status === 401 || response.status === 403)) {
+  if (typeof window !== 'undefined' && response.status === 401) {
     const supabase = createClient();
     await supabase.auth.signOut().catch(() => undefined);
     try {

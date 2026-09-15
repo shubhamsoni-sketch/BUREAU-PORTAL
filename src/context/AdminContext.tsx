@@ -125,6 +125,11 @@ const PUBLIC_CONTEXT_SKIP_PATHS = [
   '/crm-website',
 ];
 
+const ADMIN_CONTEXT_LOAD_PATHS = [
+  '/admin-agreements',
+  '/admin-partners',
+];
+
 function mapDbStatus(dbStatus: string): PartnerStatus {
   switch (dbStatus) {
     case 'approved': return 'Active';
@@ -190,12 +195,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     const isPublicMarketingPath = PUBLIC_CONTEXT_SKIP_PATHS.some(
       (path) => pathname === path || pathname.startsWith(`${path}/`)
     );
+    const shouldLoadAdminPartners = ADMIN_CONTEXT_LOAD_PATHS.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`)
+    );
 
     if (
       pathname === '/admin' ||
       pathname === '/partner-login' ||
       isCrmMarketingHost ||
-      isPublicMarketingPath
+      isPublicMarketingPath ||
+      !shouldLoadAdminPartners
     ) {
       setPartnersLoading(false);
       return;
