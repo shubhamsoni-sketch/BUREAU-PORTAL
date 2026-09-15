@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setIsLoading(false);
       resolvingRef.current = false;
-    }, 5000);
+    }, 20000);
 
     const loadInitialSession = async () => {
       try {
