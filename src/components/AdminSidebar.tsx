@@ -22,7 +22,6 @@ import {
   Network,
   FileSpreadsheet,
   Megaphone,
-  MessageCircleMore,
   BarChart3,
   SearchCheck,
 } from 'lucide-react';
@@ -59,8 +58,7 @@ const navGroups = [
   {
     label: 'Marketing',
     items: [
-      { label: 'Growth Campaigns', href: '/admin-growth-campaigns', icon: MessageCircleMore },
-      { label: 'Meta Marketing', href: '/admin-meta-marketing', icon: BarChart3 },
+      { label: 'Marketing Command', href: '/admin-meta-marketing', icon: BarChart3 },
       { label: 'Promotions', href: '/admin-promotions', icon: Megaphone },
       { label: 'WhatsApp Analytics', href: '/admin-whatsapp-analytics', icon: BarChart3 },
       { label: 'Lead Finder', href: '/admin-lead-finder', icon: SearchCheck },

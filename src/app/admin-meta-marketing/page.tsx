@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
 import { authFetch } from '@/lib/supabase/auth-fetch';
+import GrowthAddons from './components/GrowthAddons';
 import {
   BarChart3,
   Bot,
@@ -121,6 +122,7 @@ function statusClass(status: string) {
 }
 
 export default function AdminMetaMarketingPage() {
+  const [section, setSection] = useState<'meta' | 'ai'>('meta');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
@@ -167,6 +169,12 @@ export default function AdminMetaMarketingPage() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('section') === 'ai') setSection('ai');
   }, []);
 
   const cards = useMemo(() => [
@@ -240,7 +248,7 @@ export default function AdminMetaMarketingPage() {
   const firstAsset = (campaign: Campaign) => campaign.marketing_assets?.[0]?.file_url || '';
 
   return (
-    <AdminLayout title="Meta Marketing">
+    <AdminLayout title="Marketing">
       <div className="p-6 space-y-5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -276,6 +284,32 @@ export default function AdminMetaMarketingPage() {
         {notice && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{notice}</div>}
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div>}
 
+        <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+          {[
+            { id: 'meta' as const, label: 'Meta Campaigns', description: 'Draft, publish and track Click-to-WhatsApp campaigns' },
+            { id: 'ai' as const, label: 'AI Growth Add-ons', description: 'AI replies, conversations, knowledge base and campaign briefs' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setSection(item.id)}
+              className={`flex min-w-[240px] flex-1 flex-col rounded-xl px-4 py-3 text-left transition ${
+                section === item.id
+                  ? 'bg-slate-950 text-white shadow-sm'
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span className="text-sm font-black">{item.label}</span>
+              <span className={`mt-1 text-xs font-semibold ${section === item.id ? 'text-slate-300' : 'text-slate-500'}`}>
+                {item.description}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {section === 'ai' ? (
+          <GrowthAddons />
+        ) : (
+          <>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           {cards.map(({ label, value, Icon }) => (
             <div key={label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -439,6 +473,8 @@ export default function AdminMetaMarketingPage() {
             </div>
           </section>
         </div>
+          </>
+        )}
       </div>
     </AdminLayout>
   );
