@@ -9,17 +9,42 @@ import {
   Download,
   Globe2,
   KeyRound,
+  LockKeyhole,
   Plus,
   ShieldCheck,
   WalletCards,
   X,
 } from 'lucide-react';
 
-type NavItem = 'Overview' | 'Clients' | 'Environments' | 'API Keys' | 'IP Whitelist' | 'Credits' | 'Docs';
+type NavItem = 'Overview' | 'Onboarding' | 'Clients' | 'Environments' | 'API Keys' | 'IP Whitelist' | 'Credits' | 'Docs';
 type Environment = 'UAT' | 'Production';
 type ClientStatus = 'Production' | 'UAT' | 'Review' | 'Suspended';
 type ApiProduct = 'Bureau Standard' | 'Bureau Advanced' | 'Mobile Prefill';
 type ResponseMode = 'Full JSON' | 'CreditTrust Standard' | 'Custom';
+type GateStatus = 'pending' | 'in_progress' | 'done' | 'blocked';
+type OnboardingStage = 'CSR' | 'SSL' | 'UAT' | 'Sign-Off' | 'Production';
+
+type ClientOnboarding = {
+  stage: OnboardingStage;
+  techSpoc: string;
+  legalEntity: string;
+  uatStaticIps: string[];
+  productionStaticIps: string[];
+  csrStatus: GateStatus;
+  sslStatus: GateStatus;
+  uatIpStatus: GateStatus;
+  productionIpStatus: GateStatus;
+  uatCredentialsStatus: GateStatus;
+  payloadValidationStatus: GateStatus;
+  uatSignoffStatus: GateStatus;
+  productionCredentialsStatus: GateStatus;
+  goLiveStatus: GateStatus;
+  sslCommonName: string;
+  csrReference: string;
+  certificateExpiry: string;
+  uatSignoffBy: string;
+  uatSignoffAt: string;
+};
 
 type Client = {
   id: string;
@@ -31,6 +56,7 @@ type Client = {
   liveCredits: number;
   ipWhitelistingRequired: boolean;
   ips: string[];
+  onboarding: ClientOnboarding;
   apis: ApiProduct[];
   responseMode: ResponseMode;
   responseFields: string[];
@@ -60,7 +86,7 @@ type UsageLog = {
   ip: string;
 };
 
-const navItems: NavItem[] = ['Overview', 'Clients', 'Environments', 'API Keys', 'IP Whitelist', 'Credits', 'Docs'];
+const navItems: NavItem[] = ['Overview', 'Onboarding', 'Clients', 'Environments', 'API Keys', 'IP Whitelist', 'Credits', 'Docs'];
 const apiProducts: ApiProduct[] = ['Bureau Standard', 'Bureau Advanced', 'Mobile Prefill'];
 const environments: Environment[] = ['UAT', 'Production'];
 const standardResponseFields = ['success', 'request_id', 'score', 'status', 'report_id', 'customer_name', 'bureau_summary'];
@@ -96,7 +122,116 @@ const sampleFieldValues: Record<string, unknown> = {
   raw_report: { provider: 'cibil', response: 'full provider json' },
 };
 
+const onboardingSteps: Array<{ key: keyof ClientOnboarding; label: string; stage: OnboardingStage; description: string }> = [
+  { key: 'csrStatus', label: 'CSR received', stage: 'CSR', description: 'Client CSR or hosted certificate plan captured' },
+  { key: 'sslStatus', label: 'SSL/TLS issued', stage: 'SSL', description: 'Certificate provisioned and HTTPS path validated' },
+  { key: 'uatIpStatus', label: 'UAT IP whitelisted', stage: 'UAT', description: 'Reserved UAT static IPs approved' },
+  { key: 'uatCredentialsStatus', label: 'UAT credentials issued', stage: 'UAT', description: 'UAT API key and docs released' },
+  { key: 'payloadValidationStatus', label: 'Payload validation passed', stage: 'UAT', description: 'Mandatory fields, consent and schema verified' },
+  { key: 'uatSignoffStatus', label: 'UAT sign-off', stage: 'Sign-Off', description: 'Client confirms UAT request-response round trips' },
+  { key: 'productionIpStatus', label: 'Production IP whitelisted', stage: 'Production', description: 'Production static IPs approved' },
+  { key: 'productionCredentialsStatus', label: 'Production credentials issued', stage: 'Production', description: 'Live key released after UAT sign-off' },
+  { key: 'goLiveStatus', label: 'Go-live approved', stage: 'Production', description: 'Production traffic allowed and monitored' },
+];
+
+function defaultOnboarding(overrides: Partial<ClientOnboarding> = {}): ClientOnboarding {
+  return {
+    stage: 'CSR',
+    techSpoc: '',
+    legalEntity: '',
+    uatStaticIps: [],
+    productionStaticIps: [],
+    csrStatus: 'pending',
+    sslStatus: 'pending',
+    uatIpStatus: 'pending',
+    productionIpStatus: 'pending',
+    uatCredentialsStatus: 'pending',
+    payloadValidationStatus: 'pending',
+    uatSignoffStatus: 'pending',
+    productionCredentialsStatus: 'pending',
+    goLiveStatus: 'pending',
+    sslCommonName: 'api.credittrust.in',
+    csrReference: '',
+    certificateExpiry: '',
+    uatSignoffBy: '',
+    uatSignoffAt: '',
+    ...overrides,
+  };
+}
+
+function gateTone(status: GateStatus): 'blue' | 'green' | 'amber' | 'red' | 'slate' {
+  if (status === 'done') return 'green';
+  if (status === 'blocked') return 'red';
+  if (status === 'in_progress') return 'blue';
+  return 'amber';
+}
+
+function gateLabel(status: GateStatus) {
+  return status.replace(/_/g, ' ');
+}
+
+function onboardingProgress(client: Client) {
+  const done = onboardingSteps.filter((step) => client.onboarding[step.key] === 'done').length;
+  return Math.round((done / onboardingSteps.length) * 100);
+}
+
+function productionReady(client: Client) {
+  return [
+    'csrStatus',
+    'sslStatus',
+    'uatIpStatus',
+    'uatCredentialsStatus',
+    'payloadValidationStatus',
+    'uatSignoffStatus',
+    'productionIpStatus',
+    'productionCredentialsStatus',
+  ].every((key) => client.onboarding[key as keyof ClientOnboarding] === 'done');
+}
+
+function productionCredentialReady(client: Client) {
+  return [
+    'csrStatus',
+    'sslStatus',
+    'uatIpStatus',
+    'uatCredentialsStatus',
+    'payloadValidationStatus',
+    'uatSignoffStatus',
+    'productionIpStatus',
+  ].every((key) => client.onboarding[key as keyof ClientOnboarding] === 'done');
+}
+
 const initialClients: Client[] = [
+  {
+    id: 'client-binta',
+    name: 'Binta Financial Inc.',
+    country: 'Canada',
+    status: 'Review',
+    contactEmail: 'tech@bintafinancial.com',
+    uatCredits: 500,
+    liveCredits: 0,
+    ipWhitelistingRequired: true,
+    ips: ['Awaiting UAT static IP'],
+    onboarding: defaultOnboarding({
+      stage: 'CSR',
+      techSpoc: 'Binta Engineering',
+      legalEntity: 'Binta Financial Inc.',
+      csrStatus: 'in_progress',
+      sslStatus: 'pending',
+      uatIpStatus: 'pending',
+      productionIpStatus: 'pending',
+      uatCredentialsStatus: 'pending',
+      payloadValidationStatus: 'pending',
+      uatSignoffStatus: 'pending',
+      productionCredentialsStatus: 'pending',
+      goLiveStatus: 'pending',
+      sslCommonName: 'api.credittrust.in',
+      csrReference: 'Awaiting client CSR/static IP pack',
+    }),
+    apis: ['Bureau Standard', 'Bureau Advanced'],
+    responseMode: 'CreditTrust Standard',
+    responseFields: ['success', 'request_id', 'score', 'status', 'report_id', 'accounts_summary'],
+    successRate: '-',
+  },
   {
     id: 'client-ketav',
     name: 'Ketav Global Finance',
@@ -107,6 +242,26 @@ const initialClients: Client[] = [
     liveCredits: 1840,
     ipWhitelistingRequired: true,
     ips: ['103.82.44.18', '185.64.112.90'],
+    onboarding: defaultOnboarding({
+      stage: 'Production',
+      techSpoc: 'Ketav Tech Ops',
+      legalEntity: 'Ketav Global Finance',
+      uatStaticIps: ['103.82.44.18'],
+      productionStaticIps: ['185.64.112.90'],
+      csrStatus: 'done',
+      sslStatus: 'done',
+      uatIpStatus: 'done',
+      productionIpStatus: 'done',
+      uatCredentialsStatus: 'done',
+      payloadValidationStatus: 'done',
+      uatSignoffStatus: 'done',
+      productionCredentialsStatus: 'done',
+      goLiveStatus: 'done',
+      csrReference: 'Managed TLS on api.credittrust.in',
+      certificateExpiry: 'Auto-renewed',
+      uatSignoffBy: 'Ketav Ops',
+      uatSignoffAt: '04 Jul 2026',
+    }),
     apis: ['Bureau Standard', 'Bureau Advanced'],
     responseMode: 'CreditTrust Standard',
     responseFields: ['score', 'status', 'report_id', 'customer_name', 'accounts_summary'],
@@ -122,6 +277,18 @@ const initialClients: Client[] = [
     liveCredits: 0,
     ipWhitelistingRequired: true,
     ips: ['152.58.91.10'],
+    onboarding: defaultOnboarding({
+      stage: 'UAT',
+      techSpoc: 'Northstar API Team',
+      legalEntity: 'Northstar Capital',
+      uatStaticIps: ['152.58.91.10'],
+      csrStatus: 'done',
+      sslStatus: 'done',
+      uatIpStatus: 'done',
+      uatCredentialsStatus: 'done',
+      payloadValidationStatus: 'in_progress',
+      csrReference: 'Managed TLS on api.credittrust.in',
+    }),
     apis: ['Bureau Advanced'],
     responseMode: 'Full JSON',
     responseFields: ['full_response'],
@@ -137,6 +304,13 @@ const initialClients: Client[] = [
     liveCredits: 0,
     ipWhitelistingRequired: false,
     ips: [],
+    onboarding: defaultOnboarding({
+      stage: 'CSR',
+      techSpoc: 'Atlas Ops',
+      legalEntity: 'Atlas Credit Labs',
+      csrStatus: 'pending',
+      sslStatus: 'pending',
+    }),
     apis: ['Mobile Prefill'],
     responseMode: 'Custom',
     responseFields: ['full_name', 'dob', 'pan', 'addresses', 'emails'],
@@ -331,6 +505,124 @@ function StatusPill({ children, tone = 'blue' }: { children: React.ReactNode; to
   );
 }
 
+function SecurityGateCard({ client }: { client: Client }) {
+  const progress = onboardingProgress(client);
+  const blocked = onboardingSteps.filter((step) => client.onboarding[step.key] === 'blocked').length;
+  const nextStep = onboardingSteps.find((step) => client.onboarding[step.key] !== 'done');
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-900 text-foreground">{client.name}</p>
+          <p className="mt-1 text-xs font-700 text-muted-foreground">{client.onboarding.stage} - {client.onboarding.techSpoc || client.contactEmail}</p>
+        </div>
+        <StatusPill tone={productionReady(client) ? 'green' : blocked ? 'red' : 'blue'}>{progress}% ready</StatusPill>
+      </div>
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className={classNames('h-full rounded-full', productionReady(client) ? 'bg-emerald-500' : 'bg-blue-600')} style={{ width: `${progress}%` }} />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded-lg bg-slate-50 p-3">
+          <p className="font-900 uppercase tracking-wide text-muted-foreground">UAT IPs</p>
+          <p className="mt-1 font-900 text-foreground">{client.onboarding.uatStaticIps.length || client.ips.length}</p>
+        </div>
+        <div className="rounded-lg bg-slate-50 p-3">
+          <p className="font-900 uppercase tracking-wide text-muted-foreground">Prod IPs</p>
+          <p className="mt-1 font-900 text-foreground">{client.onboarding.productionStaticIps.length}</p>
+        </div>
+      </div>
+      <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3">
+        <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Next gate</p>
+        <p className="mt-1 text-sm font-900 text-foreground">{nextStep?.label || 'Production live'}</p>
+        <p className="mt-1 text-xs font-700 text-muted-foreground">{nextStep?.description || 'All security gates completed'}</p>
+      </div>
+    </div>
+  );
+}
+
+function OnboardingChecklist({ client, onUpdate }: { client: Client; onUpdate?: (client: Client) => void }) {
+  const updateGate = (key: keyof ClientOnboarding, status: GateStatus) => {
+    if (!onUpdate) return;
+    onUpdate({ ...client, onboarding: { ...client.onboarding, [key]: status } });
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-white">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div>
+          <p className="text-sm font-900 text-foreground">Secure onboarding gates</p>
+          <p className="text-xs font-700 text-muted-foreground">CSR to UAT sign-off to production go-live</p>
+        </div>
+        <StatusPill tone={productionReady(client) ? 'green' : 'blue'}>{onboardingProgress(client)}%</StatusPill>
+      </div>
+      <div className="divide-y divide-border">
+        {onboardingSteps.map((step) => {
+          const value = client.onboarding[step.key] as GateStatus;
+          return (
+            <div key={step.key} className="grid grid-cols-1 gap-3 px-4 py-3 lg:grid-cols-[0.9fr_1.2fr_auto] lg:items-center">
+              <div>
+                <p className="text-sm font-900 text-foreground">{step.label}</p>
+                <p className="text-[11px] font-800 uppercase tracking-wide text-muted-foreground">{step.stage}</p>
+              </div>
+              <p className="text-xs font-700 text-muted-foreground">{step.description}</p>
+              {onUpdate ? (
+                <select
+                  value={value}
+                  onChange={(event) => updateGate(step.key, event.target.value as GateStatus)}
+                  className="h-9 rounded-lg border border-border bg-white px-3 text-xs font-900 text-foreground"
+                >
+                  <option value="pending">pending</option>
+                  <option value="in_progress">in progress</option>
+                  <option value="done">done</option>
+                  <option value="blocked">blocked</option>
+                </select>
+              ) : (
+                <StatusPill tone={gateTone(value)}>{gateLabel(value)}</StatusPill>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OnboardingBoard({ clients, onManage }: { clients: Client[]; onManage: (clientId: string) => void }) {
+  return (
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1.25fr]">
+      <Panel title="Client Onboarding Command" subtitle="Track each client from CSR collection to production activation">
+        <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
+          {clients.map((client) => (
+            <button key={client.id} onClick={() => onManage(client.id)} className="text-left">
+              <SecurityGateCard client={client} />
+            </button>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Security Protocol" subtitle="What must be completed before production traffic is allowed">
+        <div className="grid grid-cols-1 gap-3 p-4">
+          {[
+            ['1', 'CSR / TLS validation', 'Capture CSR reference or managed TLS decision. No plain HTTP path is allowed.'],
+            ['2', 'Static IP reservation', 'UAT and production source IPs must be fixed, owned and documented.'],
+            ['3', 'UAT credentials', 'Issue UAT-only API key with UAT credits and schema validation scope.'],
+            ['4', 'Payload and consent validation', 'Mandatory fields and consent metadata must pass before sign-off.'],
+            ['5', 'Production promotion', 'Production key, production IP allowlist and go-live approval are separate gates.'],
+          ].map(([step, title, text]) => (
+            <div key={step} className="flex gap-3 rounded-lg border border-border bg-slate-50 p-4">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-xs font-900 text-white">{step}</span>
+              <div>
+                <p className="text-sm font-900 text-foreground">{title}</p>
+                <p className="mt-1 text-xs font-700 text-muted-foreground">{text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 function Panel({ title, subtitle, children, action }: { title: string; subtitle?: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-card shadow-sm">
@@ -389,7 +681,7 @@ function ClientsTable({
       <table className="w-full min-w-[980px]">
         <thead className="bg-slate-50">
           <tr>
-            {['Client', 'Status', 'APIs', 'Response', 'Credits', 'IP Policy', 'Whitelisted IPs', 'Action'].map((head) => (
+            {['Client', 'Status', 'Onboarding', 'APIs', 'Response', 'Credits', 'IP Policy', 'Whitelisted IPs', 'Action'].map((head) => (
               <th key={head} className="px-4 py-3 text-left text-[11px] font-900 uppercase tracking-wide text-slate-500">
                 {head}
               </th>
@@ -411,6 +703,17 @@ function ClientsTable({
                 <StatusPill tone={client.status === 'Production' ? 'green' : client.status === 'UAT' ? 'blue' : client.status === 'Suspended' ? 'red' : 'amber'}>
                   {client.status}
                 </StatusPill>
+              </td>
+              <td className="px-4 py-4">
+                <div className="min-w-36">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="text-xs font-900 text-foreground">{client.onboarding.stage}</span>
+                    <span className="text-[11px] font-900 text-muted-foreground">{onboardingProgress(client)}%</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                    <div className={classNames('h-full rounded-full', productionReady(client) ? 'bg-emerald-500' : 'bg-blue-600')} style={{ width: `${onboardingProgress(client)}%` }} />
+                  </div>
+                </div>
               </td>
               <td className="px-4 py-4">
                 <div className="flex flex-wrap gap-1.5">
@@ -668,6 +971,29 @@ function ClientDetailPanel({
       </div>
 
       <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-900 text-foreground">Production readiness</h3>
+            <p className="text-xs font-700 text-muted-foreground">{client.onboarding.stage} stage - {client.onboarding.legalEntity || client.name}</p>
+          </div>
+          <StatusPill tone={productionReady(client) ? 'green' : 'blue'}>{onboardingProgress(client)}%</StatusPill>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+          <div className={classNames('h-full rounded-full', productionReady(client) ? 'bg-emerald-500' : 'bg-blue-600')} style={{ width: `${onboardingProgress(client)}%` }} />
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">CSR/SSL</p>
+            <p className="mt-1 text-sm font-900 text-foreground">{gateLabel(client.onboarding.sslStatus)}</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">UAT Sign-off</p>
+            <p className="mt-1 text-sm font-900 text-foreground">{gateLabel(client.onboarding.uatSignoffStatus)}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
         <h3 className="text-sm font-900 text-foreground">Client Summary</h3>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div className="rounded-lg bg-slate-50 p-3">
@@ -718,11 +1044,16 @@ function ClientForm({
     name: '',
     country: '',
     contactEmail: '',
+    legalEntity: '',
+    techSpoc: '',
     status: 'UAT' as ClientStatus,
     uatCredits: '10',
     liveCredits: '0',
     ipWhitelistingRequired: true,
     ips: '',
+    productionIps: '',
+    csrReference: '',
+    sslCommonName: 'api.credittrust.in',
     apis: ['Bureau Advanced'] as ApiProduct[],
   });
 
@@ -737,6 +1068,8 @@ function ClientForm({
     event.preventDefault();
     const name = form.name.trim();
     if (!name || !form.country.trim()) return;
+    const uatIps = form.ips.split(',').map((ip) => ip.trim()).filter(Boolean);
+    const productionIps = form.productionIps.split(',').map((ip) => ip.trim()).filter(Boolean);
     onSubmit({
       id: randomId('client'),
       name,
@@ -746,7 +1079,19 @@ function ClientForm({
       uatCredits: Math.max(0, Number(form.uatCredits || 0)),
       liveCredits: Math.max(0, Number(form.liveCredits || 0)),
       ipWhitelistingRequired: form.ipWhitelistingRequired,
-      ips: form.ips.split(',').map((ip) => ip.trim()).filter(Boolean),
+      ips: [...uatIps, ...productionIps],
+      onboarding: defaultOnboarding({
+        stage: 'CSR',
+        legalEntity: form.legalEntity.trim() || name,
+        techSpoc: form.techSpoc.trim() || form.contactEmail.trim(),
+        uatStaticIps: uatIps,
+        productionStaticIps: productionIps,
+        csrStatus: form.csrReference.trim() ? 'in_progress' : 'pending',
+        uatIpStatus: uatIps.length ? 'in_progress' : 'pending',
+        productionIpStatus: productionIps.length ? 'in_progress' : 'pending',
+        csrReference: form.csrReference.trim(),
+        sslCommonName: form.sslCommonName.trim() || 'api.credittrust.in',
+      }),
       apis: form.apis.length ? form.apis : ['Bureau Advanced'],
       responseMode: 'CreditTrust Standard',
       responseFields: ['score', 'status', 'report_id', 'customer_name', 'accounts_summary'],
@@ -765,6 +1110,12 @@ function ClientForm({
         </Field>
         <Field label="Technical email">
           <input value={form.contactEmail} onChange={(event) => setForm({ ...form, contactEmail: event.target.value })} className="input-base" placeholder="tech@client.com" />
+        </Field>
+        <Field label="Legal entity">
+          <input value={form.legalEntity} onChange={(event) => setForm({ ...form, legalEntity: event.target.value })} className="input-base" placeholder="Binta Financial Inc." />
+        </Field>
+        <Field label="Technical SPOC">
+          <input value={form.techSpoc} onChange={(event) => setForm({ ...form, techSpoc: event.target.value })} className="input-base" placeholder="Engineering / DevOps owner" />
         </Field>
         <Field label="Status">
           <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as ClientStatus })} className="input-base">
@@ -798,6 +1149,19 @@ function ClientForm({
         <div className="mt-4">
           <Field label="Allowed IPs">
             <input value={form.ips} onChange={(event) => setForm({ ...form, ips: event.target.value })} className="input-base" placeholder="103.82.44.18, 185.64.112.90" />
+          </Field>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Field label="Production static IPs">
+            <input value={form.productionIps} onChange={(event) => setForm({ ...form, productionIps: event.target.value })} className="input-base" placeholder="Production IPs after UAT sign-off" />
+          </Field>
+          <Field label="SSL common name">
+            <input value={form.sslCommonName} onChange={(event) => setForm({ ...form, sslCommonName: event.target.value })} className="input-base" placeholder="api.credittrust.in" />
+          </Field>
+        </div>
+        <div className="mt-4">
+          <Field label="CSR reference / certificate note">
+            <input value={form.csrReference} onChange={(event) => setForm({ ...form, csrReference: event.target.value })} className="input-base" placeholder="CSR pending / managed TLS / client CSR ticket" />
           </Field>
         </div>
       </div>
@@ -844,10 +1208,12 @@ function KeyForm({
     label: '',
   });
   const selectedClient = clients.find((client) => client.id === form.clientId);
+  const productionBlocked = form.environment === 'Production' && selectedClient ? !productionCredentialReady(selectedClient) : false;
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!form.clientId) return;
+    if (productionBlocked) return;
     onSubmit({
       id: randomId('key'),
       clientId: form.clientId,
@@ -888,11 +1254,20 @@ function KeyForm({
           <p className="text-xs font-700 text-muted-foreground">
             IP policy: {selectedClient.ipWhitelistingRequired ? 'Required' : 'Optional'} - APIs: {selectedClient.apis.join(', ')}
           </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <StatusPill tone={productionCredentialReady(selectedClient) ? 'green' : 'blue'}>{onboardingProgress(selectedClient)}% onboarded</StatusPill>
+            <StatusPill tone={selectedClient.onboarding.uatSignoffStatus === 'done' ? 'green' : 'amber'}>UAT sign-off {gateLabel(selectedClient.onboarding.uatSignoffStatus)}</StatusPill>
+          </div>
+          {productionBlocked ? (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-800 text-amber-800">
+              Production credentials are locked until CSR, SSL, UAT IP, UAT credentials, payload validation, UAT sign-off and production IP gates are complete.
+            </div>
+          ) : null}
         </div>
       ) : null}
       <div className="flex justify-end gap-2 border-t border-border pt-4">
         <button type="button" onClick={onCancel} className="rounded-lg border border-border bg-white px-4 py-2 text-sm font-900 text-foreground">Cancel</button>
-        <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-900 text-white">Generate Key</button>
+        <button type="submit" disabled={productionBlocked} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-900 text-white disabled:cursor-not-allowed disabled:opacity-50">Generate Key</button>
       </div>
     </form>
   );
@@ -916,10 +1291,15 @@ function ManageClientModal({
   onCreateKey: (clientId: string) => void;
 }) {
   const [ip, setIp] = useState('');
+  const [prodIp, setProdIp] = useState('');
   const [credits, setCredits] = useState('10');
   const [creditEnv, setCreditEnv] = useState<Environment>('UAT');
   const effectiveFields = fieldsForMode(client.responseMode, client.responseFields);
   const preview = responsePreview(client.responseMode, client.responseFields);
+
+  const updateOnboarding = (patch: Partial<ClientOnboarding>) => {
+    onUpdate({ ...client, onboarding: { ...client.onboarding, ...patch } });
+  };
 
   const updateResponseMode = (mode: ResponseMode) => {
     onUpdate({
@@ -943,6 +1323,83 @@ function ManageClientModal({
           <MetricCard label="UAT Credits" value={String(client.uatCredits)} helper="sandbox balance" icon={WalletCards} tone="bg-blue-50 text-blue-700" />
           <MetricCard label="Live Credits" value={String(client.liveCredits)} helper="production balance" icon={WalletCards} tone="bg-emerald-50 text-emerald-700" />
           <MetricCard label="API Keys" value={client.apis.length.toString()} helper={client.apis.join(', ')} icon={KeyRound} tone="bg-violet-50 text-violet-700" />
+        </div>
+
+        <div className="rounded-lg border border-border p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-900 text-foreground">Bridge onboarding control</p>
+              <p className="mt-1 text-xs font-700 text-muted-foreground">CSR, SSL, UAT validation, sign-off and production promotion are tracked separately.</p>
+            </div>
+            <StatusPill tone={productionReady(client) ? 'green' : 'blue'}>{onboardingProgress(client)}% ready</StatusPill>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Current stage">
+              <select value={client.onboarding.stage} onChange={(event) => updateOnboarding({ stage: event.target.value as OnboardingStage })} className="input-base">
+                {(['CSR', 'SSL', 'UAT', 'Sign-Off', 'Production'] as OnboardingStage[]).map((stage) => <option key={stage}>{stage}</option>)}
+              </select>
+            </Field>
+            <Field label="Technical SPOC">
+              <input value={client.onboarding.techSpoc} onChange={(event) => updateOnboarding({ techSpoc: event.target.value })} className="input-base" />
+            </Field>
+            <Field label="Legal entity">
+              <input value={client.onboarding.legalEntity} onChange={(event) => updateOnboarding({ legalEntity: event.target.value })} className="input-base" />
+            </Field>
+            <Field label="SSL common name">
+              <input value={client.onboarding.sslCommonName} onChange={(event) => updateOnboarding({ sslCommonName: event.target.value })} className="input-base" />
+            </Field>
+            <Field label="CSR reference">
+              <input value={client.onboarding.csrReference} onChange={(event) => updateOnboarding({ csrReference: event.target.value })} className="input-base" placeholder="CSR ticket / managed TLS note" />
+            </Field>
+            <Field label="Certificate expiry">
+              <input value={client.onboarding.certificateExpiry} onChange={(event) => updateOnboarding({ certificateExpiry: event.target.value })} className="input-base" placeholder="Auto-renewed / YYYY-MM-DD" />
+            </Field>
+            <Field label="UAT sign-off by">
+              <input value={client.onboarding.uatSignoffBy} onChange={(event) => updateOnboarding({ uatSignoffBy: event.target.value })} className="input-base" placeholder="Client approver" />
+            </Field>
+            <Field label="UAT sign-off date">
+              <input value={client.onboarding.uatSignoffAt} onChange={(event) => updateOnboarding({ uatSignoffAt: event.target.value })} className="input-base" placeholder="DD MMM YYYY" />
+            </Field>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="rounded-lg border border-border bg-slate-50 p-3">
+              <p className="text-xs font-900 uppercase tracking-wide text-muted-foreground">UAT static IPs</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {client.onboarding.uatStaticIps.length ? client.onboarding.uatStaticIps.map((item) => (
+                  <span key={item} className="rounded-full bg-white px-3 py-1 text-xs font-800 text-slate-700">{item}</span>
+                )) : <StatusPill tone="amber">Awaiting UAT IP</StatusPill>}
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-slate-50 p-3">
+              <p className="text-xs font-900 uppercase tracking-wide text-muted-foreground">Production static IPs</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {client.onboarding.productionStaticIps.length ? client.onboarding.productionStaticIps.map((item) => (
+                  <span key={item} className="rounded-full bg-white px-3 py-1 text-xs font-800 text-slate-700">{item}</span>
+                )) : <StatusPill tone="amber">Awaiting production IP</StatusPill>}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <input value={prodIp} onChange={(event) => setProdIp(event.target.value)} className="input-base" placeholder="Add production IP" />
+                <button
+                  onClick={() => {
+                    const clean = prodIp.trim();
+                    if (!clean) return;
+                    updateOnboarding({ productionStaticIps: [...client.onboarding.productionStaticIps, clean] });
+                    onAddIp(client.id, clean);
+                    setProdIp('');
+                  }}
+                  className="rounded-lg bg-slate-950 px-4 text-sm font-900 text-white"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <OnboardingChecklist client={client} onUpdate={onUpdate} />
+          </div>
         </div>
 
         <div className="rounded-lg border border-border p-4">
@@ -971,6 +1428,9 @@ function ManageClientModal({
             <button
               onClick={() => {
                 onAddIp(client.id, ip);
+                if (!client.onboarding.uatStaticIps.includes(ip.trim()) && ip.trim()) {
+                  updateOnboarding({ uatStaticIps: [...client.onboarding.uatStaticIps, ip.trim()] });
+                }
                 setIp('');
               }}
               className="rounded-lg bg-slate-950 px-4 text-sm font-900 text-white"
@@ -1092,6 +1552,8 @@ function OverviewSection({
   onSelectClient: (clientId: string) => void;
 }) {
   const activeClients = clients.filter((client) => client.status !== 'Review' && client.status !== 'Suspended').length;
+  const productionReadyClients = clients.filter(productionReady).length;
+  const ipEnforcedClients = clients.filter((client) => client.ipWhitelistingRequired).length;
   const uatCredits = clients.reduce((sum, client) => sum + client.uatCredits, 0);
   const liveCredits = clients.reduce((sum, client) => sum + client.liveCredits, 0);
   const selectedClient = clients.find((client) => client.id === selectedClientId) || clients[0];
@@ -1101,16 +1563,25 @@ function OverviewSection({
         <div className="p-5">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-900 uppercase tracking-wide text-blue-700">
             <ShieldCheck size={13} />
-            Control Panel
+            Bridge API Control Plane
           </div>
-          <h2 className="text-2xl font-900 tracking-normal text-foreground">Client setup and API access</h2>
+          <h2 className="text-2xl font-900 tracking-normal text-foreground">Secure client onboarding and API access</h2>
+          <p className="mt-2 max-w-3xl text-sm font-700 text-muted-foreground">
+            Manage CSR, SSL, IP whitelisting, UAT keys, validation sign-off and production promotion for every Bridge API client.
+          </p>
           <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <MetricCard label="Clients" value={`${activeClients}`} helper={`${clients.length} total`} icon={Globe2} tone="bg-blue-50 text-blue-700" />
-            <MetricCard label="UAT Credits" value={uatCredits.toLocaleString('en-IN')} helper="available" icon={WalletCards} tone="bg-blue-50 text-blue-700" />
-            <MetricCard label="Live Credits" value={liveCredits.toLocaleString('en-IN')} helper="available" icon={WalletCards} tone="bg-emerald-50 text-emerald-700" />
+            <MetricCard label="Prod Ready" value={`${productionReadyClients}`} helper="fully gated clients" icon={LockKeyhole} tone="bg-emerald-50 text-emerald-700" />
+            <MetricCard label="IP Enforced" value={`${ipEnforcedClients}`} helper="static IP required" icon={ShieldCheck} tone="bg-amber-50 text-amber-700" />
             <MetricCard label="API Keys" value={keys.length.toString()} helper="issued" icon={KeyRound} tone="bg-violet-50 text-violet-700" />
           </div>
         </div>
+      </section>
+
+      <section className="mb-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <MetricCard label="UAT Credits" value={uatCredits.toLocaleString('en-IN')} helper="sandbox allocation" icon={WalletCards} tone="bg-blue-50 text-blue-700" />
+        <MetricCard label="Live Credits" value={liveCredits.toLocaleString('en-IN')} helper="production allocation" icon={WalletCards} tone="bg-emerald-50 text-emerald-700" />
+        <MetricCard label="SLA Window" value="99.0%" helper="03:00-04:00 IST excluded" icon={BarChart3} tone="bg-slate-100 text-slate-700" />
       </section>
 
       <section className="grid grid-cols-1 gap-5 2xl:grid-cols-[1fr_380px]">
@@ -1252,6 +1723,10 @@ function ActiveSection({
         onSelectClient={onSelectClient}
       />
     );
+  }
+
+  if (activeNav === 'Onboarding') {
+    return <OnboardingBoard clients={clients} onManage={onManage} />;
   }
 
   if (activeNav === 'Clients') {
@@ -1503,6 +1978,13 @@ export default function ApiConsolePage() {
   const createKey = (key: ApiKeyRecord) => {
     const secret = `${key.prefix}_${Math.random().toString(36).slice(2, 18)}`;
     setKeys((prev) => [{ ...key, secret }, ...prev]);
+    setClients((prev) => prev.map((client) => {
+      if (client.id !== key.clientId) return client;
+      const onboarding = key.environment === 'Production'
+        ? { ...client.onboarding, productionCredentialsStatus: 'done' as GateStatus, stage: 'Production' as OnboardingStage }
+        : { ...client.onboarding, uatCredentialsStatus: 'done' as GateStatus, stage: 'UAT' as OnboardingStage };
+      return { ...client, onboarding, status: key.environment === 'Production' ? 'Production' : client.status };
+    }));
     setLatestSecret(secret);
     setKeyModalClientId(undefined);
     setActiveNav('API Keys');
@@ -1512,10 +1994,10 @@ export default function ApiConsolePage() {
     <div className="min-h-screen bg-slate-50 text-foreground">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[260px] border-r border-slate-800 bg-slate-950 text-white lg:flex lg:flex-col">
         <div className="flex h-20 items-center gap-3 border-b border-white/10 px-5">
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-600 text-base font-900">CT</div>
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-500 text-base font-900 text-slate-950">CT</div>
           <div>
-            <p className="text-base font-900 leading-tight">CreditTrust</p>
-            <p className="text-xs font-600 text-slate-400">API Console</p>
+            <p className="text-base font-900 leading-tight">CreditTrust Bridge</p>
+            <p className="text-xs font-600 text-slate-400">Control Plane</p>
           </div>
         </div>
 
@@ -1537,10 +2019,14 @@ export default function ApiConsolePage() {
 
         <div className="border-t border-white/10 p-4">
           <div className="rounded-lg bg-white/5 p-3">
-            <p className="text-xs font-800 uppercase tracking-wide text-slate-400">Gateway</p>
+            <p className="text-xs font-800 uppercase tracking-wide text-slate-400">Security posture</p>
             <div className="mt-3 flex items-center gap-2 text-sm font-800 text-emerald-300">
               <CheckCircle2 size={16} />
-              Live
+              IP gated
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-sm font-800 text-blue-300">
+              <LockKeyhole size={16} />
+              2FA ready
             </div>
           </div>
         </div>
@@ -1551,9 +2037,14 @@ export default function ApiConsolePage() {
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <p className="text-xs font-900 uppercase tracking-wide text-blue-700">api.credittrust.in</p>
-              <h1 className="text-2xl font-900 tracking-normal text-foreground">API Console</h1>
+              <h1 className="text-2xl font-900 tracking-normal text-foreground">Bridge API Control Plane</h1>
+              <p className="mt-1 text-xs font-700 text-muted-foreground">Operator-only console for client onboarding, credentials, IP allowlisting and go-live controls.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex h-10 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-900 text-emerald-700">
+                <ShieldCheck size={15} />
+                Secure Session
+              </span>
               <button onClick={() => setClientModalOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-3 text-sm font-800 text-white shadow-sm">
                 <KeyRound size={16} />
                 Create Client
