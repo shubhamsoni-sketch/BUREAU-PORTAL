@@ -20,18 +20,6 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     this.state = { hasError: false, error: null, retryingChunkLoad: false };
   }
 
-  componentDidMount() {
-    window.setTimeout(() => {
-      if (!this.state.hasError) {
-        try {
-          window.sessionStorage.removeItem('bureau-portal-chunk-reload-attempted');
-        } catch {
-          // Ignore storage cleanup failures.
-        }
-      }
-    }, 5000);
-  }
-
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error, retryingChunkLoad: false };
   }

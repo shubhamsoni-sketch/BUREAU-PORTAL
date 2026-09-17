@@ -66,9 +66,6 @@ export default function RootLayout({
                 }
                 window.addEventListener('error', recover, true);
                 window.addEventListener('unhandledrejection', recover, true);
-                window.setTimeout(function () {
-                  try { window.sessionStorage.removeItem(KEY); } catch (e) {}
-                }, 8000);
               })();
             `,
           }}
