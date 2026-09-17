@@ -137,14 +137,7 @@ type UniversalForecast = {
 
 type LeadFinderTab = 'library' | 'settings';
 
-const defaultKeywords = [
-  'Loan DSA',
-  'Loan Agent',
-  'Personal Loan Agent',
-  'Business Loan Agent',
-  'Home Loan Agent',
-  'Mortgage Consultant',
-];
+const defaultKeywords: string[] = [];
 
 const emptySummary: Summary = {
   rawResults: 0,
@@ -350,6 +343,10 @@ export default function AdminLeadFinderPage() {
 
   async function runSearch() {
     if (runningSearch || reclassifying) return;
+    if (!keywords.length) {
+      setError('Please add at least one keyword, or use Find with AI to prepare a guided search.');
+      return;
+    }
     if (
       forceRefresh &&
       !window.confirm(
@@ -707,6 +704,7 @@ export default function AdminLeadFinderPage() {
                   <textarea
                     value={keywordsText}
                     onChange={(event) => setKeywordsText(event.target.value)}
+                    placeholder="Example: restaurants, salons, builders, loan consultants"
                     rows={5}
                     className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
                   />
@@ -865,9 +863,7 @@ function AIFinderDrawer({
   onClose: () => void;
   onRunComplete: (runId?: string) => Promise<void> | void;
 }) {
-  const [prompt, setPrompt] = useState(
-    'Find loan distribution fintech and DSA partners in Indore, Bhopal, Ahmedabad, and Surat. Exclude software companies, payment apps, and stock brokers.'
-  );
+  const [prompt, setPrompt] = useState('');
   const [plan, setPlan] = useState<UniversalPlan | null>(null);
   const [forecast, setForecast] = useState<UniversalForecast | null>(null);
   const [planSource, setPlanSource] = useState<'ai' | 'fallback' | null>(null);
@@ -1035,7 +1031,7 @@ function AIFinderDrawer({
                 <textarea
                   value={prompt}
                   onChange={(event) => setPrompt(event.target.value)}
-                  placeholder="Example: Find loan DSAs working with Andromeda and RU Loans in MP and Gujarat. Exclude software companies and payment apps."
+                  placeholder="Example: Find restaurant owners in Indore, Bhopal, Ahmedabad, and Surat. Exclude hotels and cloud kitchens."
                   className="min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-700 leading-6 text-slate-800 outline-none focus:border-blue-400"
                 />
               </label>

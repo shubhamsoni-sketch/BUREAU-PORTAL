@@ -36,11 +36,16 @@ function cleanPlan(value: any): UniversalLeadPlan {
         .filter(Boolean)
         .slice(0, 10)
     : [];
+  const fallbackKeyword = String(
+    value?.search_intent || leadType || value?.lead_type || 'custom discovery'
+  )
+    .replace(/_/g, ' ')
+    .trim();
   return {
     lead_type: leadType || 'custom',
     search_intent: String(value?.search_intent || `${leadType || 'custom'}_discovery`),
     locations: locations.length ? locations : [{ city: 'Indore', state: 'Madhya Pradesh' }],
-    keywords: keywords.length ? keywords : ['Loan DSA'],
+    keywords: keywords.length ? keywords : [fallbackKeyword || 'custom discovery'],
     required_fields: Array.isArray(value?.required_fields) ? value.required_fields : [],
     exclude_rules: Array.isArray(value?.exclude_rules) ? value.exclude_rules : [],
     confidence_rules: Array.isArray(value?.confidence_rules) ? value.confidence_rules : [],

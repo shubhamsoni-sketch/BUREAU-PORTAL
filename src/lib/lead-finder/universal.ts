@@ -125,13 +125,31 @@ function inferKeywords(prompt: string, leadType: string) {
     return ['real estate builder', 'property developer', 'construction company'];
   if (leadType === 'ca_finance')
     return ['chartered accountant loan consultant', 'finance consultant', 'tax consultant loan'];
-  return [
-    'Loan DSA',
-    'Loan Agent',
-    'Business Loan Agent',
-    'Home Loan Agent',
-    'Mortgage Consultant',
-  ];
+  return inferGenericKeywords(prompt, leadType);
+}
+
+function inferGenericKeywords(prompt: string, leadType: string) {
+  const cleaned = prompt
+    .replace(
+      /\b(find|search|show|get|give|need|want|leads?|data|details?|businesses?|owners?|companies?|shops?|stores?)\b/gi,
+      ' '
+    )
+    .replace(/\b(in|near|around|from|for|with|and|or|the|a|an|of|to|by)\b/gi, ' ')
+    .replace(/\b(exclude|excluding|without|except).*$/gi, ' ')
+    .replace(
+      /\b(india|mp|madhya pradesh|gujarat|maharashtra|delhi|karnataka|telangana|rajasthan|uttar pradesh|west bengal|tamil nadu)\b/gi,
+      ' '
+    )
+    .replace(
+      /\b(indore|bhopal|jabalpur|gwalior|ahmedabad|surat|vadodara|rajkot|mumbai|pune|delhi|gurgaon|noida|bangalore|bengaluru|hyderabad|chennai|kolkata|jaipur|lucknow)\b/gi,
+      ' '
+    )
+    .replace(/\b\d{1,6}\b/g, ' ')
+    .replace(/[^a-z0-9\s&/-]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const base = cleaned || leadType.replace(/_/g, ' ') || 'local business';
+  return Array.from(new Set([base, `${base} services`, `${base} consultant`])).slice(0, 3);
 }
 
 function inferLocations(prompt: string): UniversalLocation[] {

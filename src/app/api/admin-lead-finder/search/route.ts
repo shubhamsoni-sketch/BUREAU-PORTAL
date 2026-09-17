@@ -18,14 +18,7 @@ import { estimateGoogleCost, pricingConfig } from '@/lib/lead-finder/googlePlace
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DAILY_BUDGET_USD = 1;
 const DEFAULT_RUN_BUDGET_USD = 0.35;
-const DEFAULT_KEYWORDS = [
-  'Loan DSA',
-  'Loan Agent',
-  'Personal Loan Agent',
-  'Business Loan Agent',
-  'Home Loan Agent',
-  'Mortgage Consultant',
-];
+const DEFAULT_KEYWORDS: string[] = [];
 
 function cleanKeywords(value: unknown) {
   if (!Array.isArray(value)) return DEFAULT_KEYWORDS;
@@ -229,6 +222,16 @@ export async function POST(request: NextRequest) {
     const state = String(payload.state || 'Madhya Pradesh').trim();
     const count = Math.max(1, Math.min(1000, Number(payload.count || 100)));
     const keywords = cleanKeywords(payload.keywords);
+    if (!keywords.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'Please add at least one keyword. Blank runs are blocked to avoid accidental paid searches.',
+        },
+        { status: 400 }
+      );
+    }
     const forceRefresh = Boolean(payload.forceRefresh);
     const refreshExisting = Boolean(payload.refreshExisting);
     const useMaster = await hasLeadFinderMasterTable(auth.supabase);

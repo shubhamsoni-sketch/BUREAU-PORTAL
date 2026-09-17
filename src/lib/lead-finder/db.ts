@@ -91,8 +91,8 @@ export function prospectToMasterRow(
 ) {
   return {
     place_id: prospect.place_id,
-    lead_type: options?.leadType || prospect.lead_type || 'dsa',
-    search_intent: options?.searchIntent || 'loan_dsa',
+    lead_type: options?.leadType || prospect.lead_type || 'custom',
+    search_intent: options?.searchIntent || 'custom_discovery',
     search_prompt: options?.searchPrompt || null,
     search_keyword: options?.searchKeyword || prospect.matched_keywords?.[0] || null,
     business_name: prospect.business_name || null,
