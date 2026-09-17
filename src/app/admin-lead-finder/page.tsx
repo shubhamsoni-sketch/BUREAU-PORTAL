@@ -428,8 +428,8 @@ export default function AdminLeadFinderPage() {
     setActiveRunId(run.id);
     setDataScope(scope);
     setTab('library');
-    setView('sales_ready');
-    await loadResults('sales_ready', scope, run.id);
+    setView('all');
+    await loadResults('all', scope, run.id);
   }
 
   const primaryKpis = [
@@ -788,11 +788,11 @@ export default function AdminLeadFinderPage() {
           onClose={() => setAiDrawerOpen(false)}
           onRunComplete={async (runId) => {
             setTab('library');
-            setView('sales_ready');
+            setView('all');
             setDataScope('this_run');
             if (runId) setActiveRunId(runId);
             await loadRuns();
-            await loadResults('sales_ready', 'this_run', runId || activeRunId);
+            await loadResults('all', 'this_run', runId || activeRunId);
           }}
         />
       </div>
