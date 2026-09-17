@@ -878,6 +878,19 @@ function AIFinderDrawer({
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  function readableError(err: unknown, fallback: string) {
+    if (err instanceof Error) {
+      if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+        return 'The request took longer than expected. Please refresh the Lead Library; the run may still complete in the background.';
+      }
+      if (/aborted|abort/i.test(err.message)) {
+        return 'The request was interrupted. Please refresh the Lead Library; the run may still complete in the background.';
+      }
+      return err.message;
+    }
+    return fallback;
+  }
+
   useEffect(() => {
     if (!running || !runStartedAt) return;
     const interval = window.setInterval(() => {
@@ -897,6 +910,7 @@ function AIFinderDrawer({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
+        timeoutMs: 90000,
       });
       const json = await res.json();
       if (!res.ok || json.success === false)
@@ -909,7 +923,7 @@ function AIFinderDrawer({
       setCount(String(json.plan?.recommended_count || 100));
       if (json.warning) setMessage('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to generate plan');
+      setError(readableError(err, 'Unable to generate plan'));
     } finally {
       setLoadingPlan(false);
     }
@@ -934,6 +948,7 @@ function AIFinderDrawer({
       const res = await authFetch('/api/admin-lead-finder/universal-run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        timeoutMs: 180000,
         body: JSON.stringify({
           prompt,
           plan,
@@ -951,7 +966,7 @@ function AIFinderDrawer({
       await onRunComplete(json.runId);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Universal run failed');
+      setError(readableError(err, 'Universal run failed'));
     } finally {
       setRunning(false);
       setRunStartedAt(null);

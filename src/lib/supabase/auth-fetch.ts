@@ -38,12 +38,29 @@ export async function getAuthHeaders(extraHeaders: HeadersInit = {}) {
   return headers;
 }
 
-export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+type AuthFetchInit = RequestInit & {
+  timeoutMs?: number;
+};
+
+function abortWithReason(controller: AbortController, reason: string) {
+  try {
+    controller.abort(new DOMException(reason, 'TimeoutError'));
+  } catch {
+    controller.abort(reason);
+  }
+}
+
+export async function authFetch(input: RequestInfo | URL, init: AuthFetchInit = {}) {
   const headers = await getAuthHeaders(init.headers);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
+  const timeoutMs = init.timeoutMs ?? 45000;
+  const timer = setTimeout(
+    () => abortWithReason(controller, `Request timed out after ${Math.round(timeoutMs / 1000)} seconds`),
+    timeoutMs
+  );
+  const { timeoutMs: _timeoutMs, ...fetchInit } = init;
   const response = await fetch(input, {
-    ...init,
+    ...fetchInit,
     headers,
     signal: init.signal || controller.signal,
   }).finally(() => clearTimeout(timer));
