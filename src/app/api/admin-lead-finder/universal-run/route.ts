@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
     const forceRefresh = Boolean(payload.forceRefresh);
     const refreshExisting = Boolean(payload.refreshExisting);
     const requestedCount = Math.max(
-      10,
+      1,
       Math.min(1000, Number(payload.count || plan.recommended_count || 100))
     );
     const runBudgetInr = budgetNumber(
