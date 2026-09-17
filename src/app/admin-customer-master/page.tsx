@@ -27,7 +27,7 @@ interface AdminBureauPull extends BureauPull {
   partner_code: string | null;
 }
 
-type TabType = 'consumer' | 'commercial' | 'failed' | 'b2c';
+type TabType = 'consumer' | 'api' | 'commercial' | 'failed' | 'b2c';
 
 interface B2CReportRequest {
   id: string;
@@ -117,6 +117,10 @@ function formatDateTime(iso: string) {
 function truncate(str: string | null, max = 22) {
   if (!str) return '—';
   return str.length > max ? str.slice(0, max) + '...' : str;
+}
+
+function sourceOf(row: AdminBureauPull) {
+  return row.raw_json?.source === 'api_hub' ? 'api' : 'portal';
 }
 
 // ─── Export CSV ───────────────────────────────────────────────────────────────
@@ -242,8 +246,10 @@ export default function AdminCustomerMasterPage() {
 
     if (activeTab === 'failed') {
       rows = rows.filter(r => r.status === 'failed');
+    } else if (activeTab === 'api') {
+      rows = rows.filter(r => r.status !== 'failed' && sourceOf(r) === 'api');
     } else {
-      rows = rows.filter(r => r.status !== 'failed' && r.report_type === activeTab);
+      rows = rows.filter(r => r.status !== 'failed' && r.report_type === activeTab && sourceOf(r) === 'portal');
     }
 
     if (search.trim()) {
@@ -276,20 +282,23 @@ export default function AdminCustomerMasterPage() {
     return rows;
   }, [b2cData, search]);
 
-  const consumerCount = allData.filter(r => r.status !== 'failed' && r.report_type === 'consumer').length;
-  const commercialCount = allData.filter(r => r.status !== 'failed' && r.report_type === 'commercial').length;
+  const consumerCount = allData.filter(r => r.status !== 'failed' && r.report_type === 'consumer' && sourceOf(r) === 'portal').length;
+  const apiCount = allData.filter(r => r.status !== 'failed' && sourceOf(r) === 'api').length;
+  const commercialCount = allData.filter(r => r.status !== 'failed' && r.report_type === 'commercial' && sourceOf(r) === 'portal').length;
   const failedCount = allData.filter(r => r.status === 'failed').length;
   const b2cCount = b2cData.length;
 
   const tabCounts: Record<TabType, number> = {
     consumer: consumerCount,
+    api: apiCount,
     commercial: commercialCount,
     failed: failedCount,
     b2c: b2cCount,
   };
 
   const tabs: { key: TabType; label: string }[] = [
-    { key: 'consumer', label: 'Consumer' },
+    { key: 'consumer', label: 'Portal Pulls' },
+    { key: 'api', label: 'API Pulls' },
     { key: 'commercial', label: 'Commercial' },
     { key: 'failed', label: 'Failed Pulls' },
     { key: 'b2c', label: 'B2C' },

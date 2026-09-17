@@ -149,37 +149,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    // Immediately check for an existing session on mount
+    // Let Supabase emit INITIAL_SESSION as the single source of truth.
+    // Calling getSession() here as well can contend for the same browser
+    // storage lock and has caused partner sessions to disappear right after login.
     const supabase = createClient();
     let cancelled = false;
 
-    const loadInitialSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (cancelled) return;
-
-        if (session?.user) {
-          resolvingRef.current = true;
-          try {
-            const profile = await resolveStableAuthUser(session.user);
-            if (!cancelled) setUser(profile);
-          } finally {
-            resolvingRef.current = false;
-          }
-        } else {
-          setUser(null);
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-
-    loadInitialSession();
-
-    // Single source of truth: onAuthStateChange handles INITIAL_SESSION on mount.
-    // Do NOT call getSession() separately — that creates a competing lock on the same
-    // localStorage key and causes "lock stolen" / rate-limit errors.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (cancelled) return;
       console.log('[AuthContext] onAuthStateChange:', event, 'session user:', session?.user?.id ?? null);
 
       // INITIAL_SESSION fires on mount with the current session (or null if signed out)

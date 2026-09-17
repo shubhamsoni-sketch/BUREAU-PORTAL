@@ -1,354 +1,232 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import Link from 'next/link';
+import React, { useMemo, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import Topbar from '@/components/Topbar';
-import { useCustomerMaster, CustomerRecord, RiskLevel } from '@/context/CustomerMasterContext';
-import {
-  BookUser,
-  Search,
-  ChevronRight,
-  Filter,
-  X,
-  ArrowUpDown,
-} from 'lucide-react';
+import { CachedBureauPull, usePartnerReportsCache } from '@/hooks/usePartnerReportsCache';
+import { downloadAuthenticatedFile } from '@/lib/supabase/auth-fetch';
+import { ArrowUpDown, BookUser, ChevronRight, Download, RefreshCw, Search, X } from 'lucide-react';
+import BureauReportModal from '@/app/reports-history/components/BureauReportModal';
 
-// ─── Role simulation (in real app this comes from auth context) ───────────────
-// For demo: URL param ?role=admin shows admin view, default is partner view
-function useRole(): { role: 'admin' | 'partner'; partnerId: string } {
-  if (typeof window !== 'undefined') {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('role') === 'admin') return { role: 'admin', partnerId: '' };
-  }
-  return { role: 'partner', partnerId: 'partner-001' };
+type SourceTab = 'portal' | 'api' | 'failed';
+type SortField = 'created_at' | 'credit_score';
+
+function sourceOf(row: CachedBureauPull) {
+  return row.raw_json?.source === 'api_hub' ? 'api' : 'portal';
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function riskBadgeClass(level: RiskLevel) {
-  if (level === 'Low') return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-  if (level === 'Medium') return 'bg-amber-50 text-amber-700 border border-amber-200';
-  return 'bg-red-50 text-red-700 border border-red-200';
-}
-
-function scoreColor(score: number, reportType: string) {
-  if (reportType === 'Commercial Bureau') {
-    if (score >= 70) return 'text-emerald-600';
-    if (score >= 50) return 'text-amber-600';
-    return 'text-red-600';
-  }
+function scoreColor(score: number | null) {
+  if (!score) return 'text-slate-400';
   if (score >= 750) return 'text-emerald-600';
   if (score >= 650) return 'text-amber-600';
   return 'text-red-600';
 }
 
-// ─── Unique partners for filter dropdown ─────────────────────────────────────
-function uniquePartners(records: CustomerRecord[]) {
-  const map = new Map<string, string>();
-  records.forEach((r) => map.set(r.partnerId, r.partnerName));
-  return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString('en-IN', {
+    day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+  });
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+function truncate(value: string | null, max = 24) {
+  if (!value) return '-';
+  return value.length > max ? `${value.slice(0, max)}...` : value;
+}
+
+function sourceBadge(row: CachedBureauPull) {
+  if (sourceOf(row) === 'api') {
+    return <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">API</span>;
+  }
+  return <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Portal</span>;
+}
+
+function exportCSV(rows: CachedBureauPull[], tab: SourceTab) {
+  const headers = ['Source', 'Member Ref', 'Report ID', 'Name', 'PAN', 'Score', 'Status', 'Loan Types', 'Date'];
+  const csvRows = rows.map((row) => [
+    sourceOf(row), row.member_ref ?? '', row.report_id ?? '', row.customer_name ?? '', row.pan ?? '', row.credit_score ?? '', row.status,
+    row.loan_types ?? '', formatDateTime(row.created_at),
+  ]);
+  const content = [headers, ...csvRows]
+    .map((items) => items.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `customer-master-${tab}-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function CustomerMasterPage() {
-  const { records, getRecordsByPartner } = useCustomerMaster();
-  const { role, partnerId } = useRole();
-
-  const baseRecords = role === 'admin' ? records : getRecordsByPartner(partnerId);
-
-  // Filters
+  const { pulls, loading, refresh } = usePartnerReportsCache();
+  const [activeTab, setActiveTab] = useState<SourceTab>('portal');
   const [search, setSearch] = useState('');
-  const [filterPartner, setFilterPartner] = useState('');
-  const [filterDate, setFilterDate] = useState('');
-  const [filterScoreMin, setFilterScoreMin] = useState('');
-  const [filterScoreMax, setFilterScoreMax] = useState('');
-  const [filterRisk, setFilterRisk] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [sortField, setSortField] = useState<'pulledAt' | 'creditScore'>('pulledAt');
+  const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [selectedRow, setSelectedRow] = useState<CachedBureauPull | null>(null);
 
-  const partners = useMemo(() => uniquePartners(records), [records]);
+  const counts = useMemo(() => ({
+    portal: pulls.filter((row) => row.status !== 'failed' && sourceOf(row) === 'portal').length,
+    api: pulls.filter((row) => row.status !== 'failed' && sourceOf(row) === 'api').length,
+    failed: pulls.filter((row) => row.status === 'failed').length,
+  }), [pulls]);
 
   const filtered = useMemo(() => {
-    let list = [...baseRecords];
+    let rows = pulls.filter((row) => {
+      if (activeTab === 'failed') return row.status === 'failed';
+      return row.status !== 'failed' && sourceOf(row) === activeTab;
+    });
 
     if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (r) =>
-          r.customerName.toLowerCase().includes(q) ||
-          r.pan.toLowerCase().includes(q) ||
-          r.mobile.includes(q) ||
-          r.reportId.toLowerCase().includes(q)
+      const q = search.trim().toLowerCase();
+      rows = rows.filter((row) =>
+        row.customer_name?.toLowerCase().includes(q) ||
+        row.pan?.toLowerCase().includes(q) ||
+        row.member_ref?.toLowerCase().includes(q) ||
+        row.report_id?.toLowerCase().includes(q)
       );
     }
 
-    if (filterPartner) list = list.filter((r) => r.partnerId === filterPartner);
-    if (filterDate) list = list.filter((r) => r.pulledAt.startsWith(filterDate));
-    if (filterRisk) list = list.filter((r) => r.riskLevel === filterRisk);
-    if (filterScoreMin) list = list.filter((r) => r.creditScore >= Number(filterScoreMin));
-    if (filterScoreMax) list = list.filter((r) => r.creditScore <= Number(filterScoreMax));
-
-    list.sort((a, b) => {
-      if (sortField === 'pulledAt') {
-        return sortDir === 'desc'
-          ? b.pulledAt.localeCompare(a.pulledAt)
-          : a.pulledAt.localeCompare(b.pulledAt);
+    rows = [...rows].sort((a, b) => {
+      if (sortField === 'credit_score') {
+        const left = a.credit_score ?? -1;
+        const right = b.credit_score ?? -1;
+        return sortDir === 'desc' ? right - left : left - right;
       }
-      return sortDir === 'desc' ? b.creditScore - a.creditScore : a.creditScore - b.creditScore;
+      return sortDir === 'desc'
+        ? b.created_at.localeCompare(a.created_at)
+        : a.created_at.localeCompare(b.created_at);
     });
 
-    return list;
-  }, [baseRecords, search, filterPartner, filterDate, filterRisk, filterScoreMin, filterScoreMax, sortField, sortDir]);
+    return rows;
+  }, [activeTab, pulls, search, sortDir, sortField]);
 
-  function toggleSort(field: 'pulledAt' | 'creditScore') {
-    if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+  const tabs: Array<{ key: SourceTab; label: string }> = [
+    { key: 'portal', label: 'Portal Pulls' },
+    { key: 'api', label: 'API Pulls' },
+    { key: 'failed', label: 'Failed' },
+  ];
+
+  function toggleSort(field: SortField) {
+    if (sortField === field) setSortDir((value) => value === 'asc' ? 'desc' : 'asc');
     else { setSortField(field); setSortDir('desc'); }
   }
 
-  function clearFilters() {
-    setFilterPartner('');
-    setFilterDate('');
-    setFilterScoreMin('');
-    setFilterScoreMax('');
-    setFilterRisk('');
-    setSearch('');
+  function downloadPdf(row: CachedBureauPull) {
+    const filename = `${row.customer_name || 'bureau-report'}-${row.report_id || row.id}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-') + '.pdf';
+    downloadAuthenticatedFile(`/api/bureau-report-pdf?source=bureau_pulls&id=${encodeURIComponent(row.id)}`, filename)
+      .catch((error) => alert(error.message));
   }
 
-  const hasActiveFilters = filterPartner || filterDate || filterScoreMin || filterScoreMax || filterRisk;
-
   return (
-    <AppLayout role={role}>
-      <Topbar
-        title="Customer Master"
-        subtitle={role === 'admin' ? 'All customer Bureau records across partners' : 'Your customer Bureau records'}
-        role={role}
-      />
+    <AppLayout role="partner">
+      <Topbar title="Customer Master" subtitle="Portal and API pulled customer bureau reports" role="partner" />
 
-      <div className="p-6 fade-in">
-        {/* Header Row */}
-        <div className="flex items-center justify-between mb-5">
+      <div className="p-5 fade-in">
+        <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <BookUser size={20} className="text-primary" />
+            <BookUser size={20} className="text-blue-600" />
             <div>
-              <h2 className="text-base font-semibold text-foreground">
-                {role === 'admin' ? 'All Records' : 'My Customers'}
-              </h2>
-              <p className="text-xs text-muted-foreground">{filtered.length} record{filtered.length !== 1 ? 's' : ''} found</p>
+              <h1 className="text-lg font-semibold text-slate-800">Customer Master</h1>
+              <p className="text-xs text-slate-500">{filtered.length} records shown from {pulls.length} total pulls</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {role === 'admin' && (
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${showFilters || hasActiveFilters ? 'bg-primary text-white border-primary' : 'bg-white border-border text-foreground hover:border-primary'}`}
-              >
-                <Filter size={13} />
-                Filters
-                {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-white ml-0.5" />}
-              </button>
-            )}
-          </div>
+          <button
+            onClick={() => void refresh(true)}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
         </div>
 
-        {/* Search + Filters */}
-        <div className="bg-white rounded-xl border border-border p-4 mb-4 space-y-3">
-          {/* Search */}
-          <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <div className="mb-4 flex items-center gap-1 border-b border-slate-200">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-all ${
+                activeTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {tab.label}
+              <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${activeTab === tab.key ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+                {counts[tab.key]}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[240px] flex-1 max-w-md">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
-              type="text"
-              placeholder="Search by name, PAN, mobile, or report ID..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name, PAN, member ref, report ID..."
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-8 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
+            {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"><X size={13} /></button>}
           </div>
-
-          {/* Admin Filters */}
-          {role === 'admin' && showFilters && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-1">
-              {/* Partner Filter */}
-              <div>
-                <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Partner</label>
-                <select
-                  className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-                  value={filterPartner}
-                  onChange={(e) => setFilterPartner(e.target.value)}
-                >
-                  <option value="">All Partners</option>
-                  {partners.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Date Filter */}
-              <div>
-                <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Date</label>
-                <input
-                  type="date"
-                  className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                />
-              </div>
-
-              {/* Score Min */}
-              <div>
-                <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Score Min</label>
-                <input
-                  type="number"
-                  placeholder="e.g. 600"
-                  className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-                  value={filterScoreMin}
-                  onChange={(e) => setFilterScoreMin(e.target.value)}
-                />
-              </div>
-
-              {/* Score Max */}
-              <div>
-                <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Score Max</label>
-                <input
-                  type="number"
-                  placeholder="e.g. 900"
-                  className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-                  value={filterScoreMax}
-                  onChange={(e) => setFilterScoreMax(e.target.value)}
-                />
-              </div>
-
-              {/* Risk Filter */}
-              <div>
-                <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Risk Level</label>
-                <select
-                  className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-                  value={filterRisk}
-                  onChange={(e) => setFilterRisk(e.target.value)}
-                >
-                  <option value="">All Levels</option>
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* Clear Filters */}
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium"
-            >
-              <X size={12} /> Clear all filters
-            </button>
-          )}
+          <div className="flex-1" />
+          <button
+            onClick={() => exportCSV(filtered, activeTab)}
+            disabled={!filtered.length}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download size={14} /> Export CSV
+          </button>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl border border-border overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[980px] text-xs">
               <thead>
-                <tr className="bg-slate-50 border-b border-border">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Customer</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">PAN / Mobile</th>
-                  {role === 'admin' && (
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Partner</th>
-                  )}
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Report Type</th>
-                  <th
-                    className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer hover:text-foreground select-none"
-                    onClick={() => toggleSort('creditScore')}
-                  >
-                    <span className="flex items-center gap-1">
-                      Score <ArrowUpDown size={11} />
-                    </span>
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Risk</th>
-                  <th
-                    className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer hover:text-foreground select-none"
-                    onClick={() => toggleSort('pulledAt')}
-                  >
-                    <span className="flex items-center gap-1">
-                      Date / Time <ArrowUpDown size={11} />
-                    </span>
-                  </th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Action</th>
+                <tr className="border-b border-slate-200 bg-slate-50 text-left font-semibold text-slate-500">
+                  <th className="px-4 py-3">Source</th>
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">PAN / Ref</th>
+                  <th className="px-4 py-3">Report Type</th>
+                  <th className="px-4 py-3 cursor-pointer" onClick={() => toggleSort('credit_score')}><span className="inline-flex items-center gap-1">Score <ArrowUpDown size={11} /></span></th>
+                  <th className="px-4 py-3">Loan Types</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 cursor-pointer" onClick={() => toggleSort('created_at')}><span className="inline-flex items-center gap-1">Date <ArrowUpDown size={11} /></span></th>
+                  <th className="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={role === 'admin' ? 8 : 7} className="text-center py-12 text-muted-foreground text-sm">
-                      No records found. {hasActiveFilters && 'Try clearing filters.'}
+              <tbody className="divide-y divide-slate-100">
+                {loading ? [...Array(6)].map((_, index) => (
+                  <tr key={index}>{[...Array(9)].map((__, cell) => <td key={cell} className="px-4 py-3"><div className="h-4 rounded bg-slate-100 animate-pulse" /></td>)}</tr>
+                )) : filtered.length === 0 ? (
+                  <tr><td colSpan={9} className="py-16 text-center text-sm text-slate-400">No records found in this tab.</td></tr>
+                ) : filtered.map((row) => (
+                  <tr key={row.id} className="cursor-pointer hover:bg-blue-50/40" onClick={() => setSelectedRow(row)}>
+                    <td className="px-4 py-3">{sourceBadge(row)}</td>
+                    <td className="px-4 py-3"><p className="font-semibold text-slate-800">{truncate(row.customer_name)}</p><p className="font-mono text-[11px] text-slate-400">{row.report_id || '-'}</p></td>
+                    <td className="px-4 py-3"><p className="font-mono uppercase text-slate-700">{row.pan || '-'}</p><p className="font-mono text-[11px] text-slate-400">{row.member_ref || '-'}</p></td>
+                    <td className="px-4 py-3 capitalize text-slate-600">{row.report_type || 'consumer'}</td>
+                    <td className={`px-4 py-3 text-sm font-bold tabular-nums ${scoreColor(row.credit_score)}`}>{row.credit_score ?? '-'}</td>
+                    <td className="px-4 py-3 text-slate-600" title={row.loan_types ?? ''}>{truncate(row.loan_types, 30)}</td>
+                    <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">{row.status}</span></td>
+                    <td className="px-4 py-3 whitespace-nowrap text-slate-500">{formatDateTime(row.created_at)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="inline-flex items-center gap-2">
+                        <button type="button" onClick={(event) => { event.stopPropagation(); downloadPdf(row); }} className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:text-blue-600" title="Download PDF"><Download size={13} /></button>
+                        <ChevronRight size={14} className="text-slate-300" />
+                      </div>
                     </td>
                   </tr>
-                ) : (
-                  filtered.map((record) => (
-                    <tr
-                      key={record.id}
-                      className="hover:bg-slate-50 transition-colors cursor-pointer group"
-                    >
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-foreground">{record.customerName}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{record.reportId}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="font-mono text-xs text-foreground">{record.pan}</p>
-                        <p className="text-xs text-muted-foreground">+91 {record.mobile}</p>
-                      </td>
-                      {role === 'admin' && (
-                        <td className="px-4 py-3 text-xs text-foreground">{record.partnerName}</td>
-                      )}
-                      <td className="px-4 py-3">
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                          {record.reportType}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`text-base font-bold font-tabular ${scoreColor(record.creditScore, record.reportType)}`}>
-                          {record.creditScore}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${riskBadgeClass(record.riskLevel)}`}>
-                          {record.riskLevel}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{record.pulledAt}</td>
-                      <td className="px-4 py-3 text-right">
-                        <Link
-                          href={`/customer-master/${record.id}${role === 'admin' ? '?role=admin' : ''}`}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline group-hover:gap-2 transition-all"
-                        >
-                          View <ChevronRight size={13} />
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
-
-          {/* Footer */}
-          {filtered.length > 0 && (
-            <div className="px-4 py-3 border-t border-border bg-slate-50 flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
-                Showing <span className="font-semibold text-foreground">{filtered.length}</span> of{' '}
-                <span className="font-semibold text-foreground">{baseRecords.length}</span> records
-              </p>
-              {role === 'admin' && (
-                <p className="text-xs text-muted-foreground">
-                  Across <span className="font-semibold text-foreground">{partners.length}</span> partners
-                </p>
-              )}
-            </div>
-          )}
         </div>
       </div>
+
+      {selectedRow && <BureauReportModal pull={selectedRow} onClose={() => setSelectedRow(null)} />}
     </AppLayout>
   );
 }

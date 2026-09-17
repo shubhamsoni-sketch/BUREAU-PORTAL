@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getApiHubStore, hitMasterApi, saveApiHubStore } from '@/lib/api-hub/simple-store';
 import { hashApiKey, maskMobile, maskPan } from '@/lib/api-hub/keys';
 import { appendApiUsageLedger, requestEvidence } from '@/lib/api-hub/usage-ledger';
+import { archiveApiHubBureauPull } from '@/lib/api-hub/bureau-pull-archive';
 
 type JaadugarCibilPayload = {
   firstName: string;
@@ -214,6 +215,21 @@ export async function POST(request: NextRequest) {
       response_json: response.data,
       metadata: { normalized_provider_payload: payload },
     });
+
+    try {
+      await archiveApiHubBureauPull({
+        supabase,
+        client,
+        api,
+        requestId,
+        requestBody,
+        normalizedPayload: payload,
+        responseJson: response.data,
+        creditsDeducted: cost,
+      });
+    } catch (archiveError) {
+      console.warn('[api-hub:cibil] bureau pull archive skipped:', archiveError);
+    }
 
     return NextResponse.json({
       success: true,

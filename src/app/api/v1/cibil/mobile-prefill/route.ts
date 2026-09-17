@@ -4,6 +4,7 @@ import { getApiHubStore, hitMasterApi, saveApiHubStore, SimpleApiConfig } from '
 import { hashApiKey, maskMobile, maskPan } from '@/lib/api-hub/keys';
 import { getStateName } from '@/lib/bureau/state-codes';
 import { appendApiUsageLedger, requestEvidence } from '@/lib/api-hub/usage-ledger';
+import { archiveApiHubBureauPull } from '@/lib/api-hub/bureau-pull-archive';
 
 type CibilPayload = {
   firstName: string;
@@ -363,6 +364,21 @@ export async function POST(request: NextRequest) {
       response_json: bureauResponse.data,
       metadata: { prefill_response: prefillResponse.data },
     });
+
+    try {
+      await archiveApiHubBureauPull({
+        supabase,
+        client,
+        api: advancedApi,
+        requestId,
+        requestBody: bodyObject,
+        normalizedPayload: cibilPayload,
+        responseJson: bureauResponse.data,
+        creditsDeducted: cost,
+      });
+    } catch (archiveError) {
+      console.warn('[api-hub:cibil-mobile-prefill] bureau pull archive skipped:', archiveError);
+    }
 
     return NextResponse.json({
       success: true,
