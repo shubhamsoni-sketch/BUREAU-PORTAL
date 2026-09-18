@@ -38,7 +38,9 @@ function normalizeScore(value: unknown) {
   const raw = clean(value);
   if (!raw) return null;
   const parsed = Number(raw.replace(/^0+/, '') || '0');
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  if (!Number.isFinite(parsed)) return null;
+  if (parsed === -1) return -1;
+  return parsed > 0 ? parsed : null;
 }
 
 function normalizeGender(value: unknown) {

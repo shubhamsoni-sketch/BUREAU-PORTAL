@@ -141,6 +141,14 @@ function fmtMoney(value: unknown): string {
   return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(num);
 }
 
+function fmtScore(value: unknown): string {
+  const raw = clean(value);
+  if (!raw) return '';
+  if (raw === '-1') return '-1';
+  if (/^0+\d+$/.test(raw)) return String(Number(raw));
+  return raw;
+}
+
 function compactAddress(address: AnyRecord): string {
   return [address.line1, address.line2, address.line3, address.line4, address.line5, address.state, address.pinCode]
     .map((part) => clean(part))
@@ -308,7 +316,7 @@ export function generateBureauReportHtml(input: BureauReportInput): string {
   <table class="line"><tr><td>${infoLine('NAME', customerName)}<br>${infoLine('DATE OF BIRTH', fmtDate(dateOfBirth))}<br>${infoLine('GENDER', fmtGender(name.gender))}</td><td></td></tr></table>
 
   <div class="title">CIBIL TRANSUNION SCORE(S):</div>
-  <table><tr><th>SCORE NAME</th><th>SCORE</th><th>SCORING FACTORS</th></tr><tr class="shade"><td>${esc(clean(score.scoreName))}</td><td class="score">${esc(clean(score.score || asRecord(input.rawJson).data?.score))}</td><td>${asArray(score.reasonCodes).map((r) => esc(clean(r.reasonCodeValue))).join('<br>')}</td></tr></table>
+  <table><tr><th>SCORE NAME</th><th>SCORE</th><th>SCORING FACTORS</th></tr><tr class="shade"><td>${esc(clean(score.scoreName))}</td><td class="score">${esc(fmtScore(score.score || asRecord(input.rawJson).data?.score))}</td><td>${asArray(score.reasonCodes).map((r) => esc(clean(r.reasonCodeValue))).join('<br>')}</td></tr></table>
   <div class="range"><span class="blue">POSSIBLE RANGE FOR</span><br><br>
     Consumers with more than 6 months credit history* <span class="red">: 300 (high risk) to 900 (low risk)</span><br>
     Consumers having less than 6 months credit history* <span class="red">: ""</span><br>
