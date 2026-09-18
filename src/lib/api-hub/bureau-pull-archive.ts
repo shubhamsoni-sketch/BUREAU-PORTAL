@@ -16,6 +16,14 @@ function clean(value: unknown) {
   return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
 }
 
+function firstClean(record: AnyRecord, keys: string[]) {
+  for (const key of keys) {
+    const value = clean(record[key]);
+    if (value) return value;
+  }
+  return '';
+}
+
 function digits(value: unknown) {
   return clean(value).replace(/\D/g, '');
 }
@@ -212,7 +220,9 @@ export async function archiveApiHubBureauPull(params: {
       occupation_code: clean(employment.occupationCode) || null,
       gender: normalizeGender(name.gender || payload.gender),
       state: clean(addresses[0]?.state || payload.state) || null,
-      dob: clean(name.birthDate || payload.dob || payload.birthDate || payload.dateOfBirth) || null,
+      dob: firstClean(name, ['birthDate', 'dateOfBirth', 'date_of_birth', 'dob', 'DOB', 'DateOfBirth'])
+        || firstClean(payload, ['dob', 'birthDate', 'dateOfBirth', 'date_of_birth', 'DOB', 'DateOfBirth'])
+        || null,
       income: clean(employment.income) || null,
       total_trades: numberValue(accountSummary.totalAccounts),
       active_trade_lines: activeTradeLines,

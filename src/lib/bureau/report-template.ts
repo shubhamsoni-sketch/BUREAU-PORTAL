@@ -78,13 +78,17 @@ function unwrapBody(rawJson: unknown): AnyRecord {
   const raw = asRecord(rawJson);
   const candidates = [
     raw.body,
+    raw.response,
     raw.raw?.body,
     raw.response?.body,
     raw.response?.raw?.body,
     raw.raw_json?.body,
+    raw.raw_json?.response,
     raw.raw_json?.response?.body,
     raw.data?.raw?.body,
     raw.data?.body,
+    raw.providerResponse?.raw?.body,
+    raw.providerResponse?.data,
     raw,
   ];
   return asRecord(candidates.find((item) => asRecord(item).consumerCreditData));
@@ -101,7 +105,16 @@ function esc(value: unknown): string {
 
 function clean(value: unknown, fallback = ''): string {
   const text = String(value ?? '').trim();
-  return text || fallback;
+  if (!text || ['none', 'null', 'nan'].includes(text.toLowerCase())) return fallback;
+  return text;
+}
+
+function firstValue(obj: AnyRecord, keys: string[], fallback = ''): string {
+  for (const key of keys) {
+    const value = clean(obj[key]);
+    if (value) return value;
+  }
+  return fallback;
 }
 
 function fmtDate(value: unknown): string {
@@ -133,6 +146,15 @@ function compactAddress(address: AnyRecord): string {
     .map((part) => clean(part))
     .filter(Boolean)
     .join(' , ');
+}
+
+function safeLenderName(value: unknown): string {
+  const name = clean(value);
+  const normalized = name.replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!normalized || ['not disclosed', 'notdisclosed', 'not_disclosed', 'na', 'n/a', '-'].includes(normalized)) {
+    return '';
+  }
+  return name;
 }
 
 function paymentHistoryChunks(history: unknown, startDate?: unknown): string[] {
@@ -170,6 +192,7 @@ export function generateBureauReportHtml(input: BureauReportInput): string {
     || clean(asRecord(input.rawJson).reportId)
     || `RPT-${Date.now()}`;
   const customerName = clean(name.name, clean(input.fallbackName, 'NOT DISCLOSED'));
+  const dateOfBirth = firstValue(name, ['birthDate', 'dateOfBirth', 'date_of_birth', 'dob', 'DOB', 'DateOfBirth']);
   const processedDate = fmtDate(credit.tuefHeader?.dateProcessed) || fmtDate(input.createdAt) || fmtDate(new Date().toISOString().slice(0, 10));
   const processedTime = clean(credit.tuefHeader?.timeProcessed).replace(/^(\d{2})(\d{2})(\d{2})$/, '$1:$2:$3');
   const ids = asArray(credit.ids);
@@ -210,11 +233,12 @@ export function generateBureauReportHtml(input: BureauReportInput): string {
 
   const accountsHtml = accounts.map((account, idx) => {
     const history = paymentHistoryChunks(account.paymentHistory, account.paymentStartDate);
+    const lenderName = safeLenderName(account.memberShortName ?? account.memberName);
     return `
       <tr class="${idx % 2 ? '' : 'shade'} section-gap"><td colspan="4"></td></tr>
       <tr class="${idx % 2 ? '' : 'shade'} account-row">
         <td>
-          ${infoLine('MEMBER NAME', account.memberShortName)}<br>
+          ${infoLine('MEMBER NAME', lenderName || '-')}<br>
           ${infoLine('ACCOUNT NUMBER', account.accountNumber)}<br>
           ${infoLine('TYPE', ACCOUNT_TYPES[clean(account.accountType)] ?? account.accountType)}<br>
           ${infoLine('OWNERSHIP', OWNERSHIP[String(account.ownershipIndicator)] ?? account.ownershipIndicator)}
@@ -239,7 +263,7 @@ export function generateBureauReportHtml(input: BureauReportInput): string {
   }).join('');
 
   const enquiriesHtml = enquiries.map((enquiry, idx) => row([
-    `<b>${esc(clean(enquiry.memberShortName, 'NOT DISCLOSED'))}</b>`,
+    `<b>${esc(safeLenderName(enquiry.memberShortName ?? enquiry.memberName) || '-')}</b>`,
     `<b>${esc(fmtDate(enquiry.enquiryDate))}</b>`,
     `<b>${esc(ACCOUNT_TYPES[clean(enquiry.enquiryPurpose)] ?? clean(enquiry.enquiryPurpose, 'NOT DISCLOSED'))}</b>`,
     `<b>${esc(fmtMoney(enquiry.enquiryAmount))}</b>`,
@@ -281,7 +305,7 @@ export function generateBureauReportHtml(input: BureauReportInput): string {
   </div>
 
   <div class="title">CONSUMER INFORMATION:</div>
-  <table class="line"><tr><td>${infoLine('NAME', customerName)}<br>${infoLine('DATE OF BIRTH', fmtDate(name.birthDate))}<br>${infoLine('GENDER', fmtGender(name.gender))}</td><td></td></tr></table>
+  <table class="line"><tr><td>${infoLine('NAME', customerName)}<br>${infoLine('DATE OF BIRTH', fmtDate(dateOfBirth))}<br>${infoLine('GENDER', fmtGender(name.gender))}</td><td></td></tr></table>
 
   <div class="title">CIBIL TRANSUNION SCORE(S):</div>
   <table><tr><th>SCORE NAME</th><th>SCORE</th><th>SCORING FACTORS</th></tr><tr class="shade"><td>${esc(clean(score.scoreName))}</td><td class="score">${esc(clean(score.score || asRecord(input.rawJson).data?.score))}</td><td>${asArray(score.reasonCodes).map((r) => esc(clean(r.reasonCodeValue))).join('<br>')}</td></tr></table>
