@@ -71,7 +71,9 @@ export default function SignUpLoginContent() {
       router.replace(next);
       router.refresh();
     } catch (error) {
-      await supabase.auth.signOut();
+      // Do not globally sign out here. CRM access can be disabled for an otherwise
+      // valid partner/admin portal session, and signOut() would kick them out of
+      // the main CreditTrust portal too.
       loginForm.setError('email', {
         message: error instanceof Error ? error.message : 'CRM access is not enabled',
       });

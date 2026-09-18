@@ -142,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Track if we're currently resolving to prevent duplicate calls
   const resolvingRef = useRef(false);
   const userRef = useRef<AuthUser | null>(null);
+  const manualLogoutRef = useRef(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -207,7 +208,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (event === 'SIGNED_OUT') {
-        console.log('[AuthContext] SIGNED_OUT — clearing user');
+        if (!manualLogoutRef.current && userRef.current) {
+          const {
+            data: { session: recoveredSession },
+          } = await createClient().auth.getSession();
+          if (recoveredSession?.user) {
+            const profile = await resolveStableAuthUser(recoveredSession.user);
+            setUser(profile);
+            setIsLoading(false);
+            return;
+          }
+          console.warn('[AuthContext] Ignoring unexpected SIGNED_OUT after session recheck failed gracefully.');
+        }
+        console.log('[AuthContext] SIGNED_OUT - clearing user');
         setUser(null);
         setIsLoading(false);
         return;
@@ -256,6 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async (redirectTo = '/') => {
+    manualLogoutRef.current = true;
     setUser(null);
     setIsLoading(true);
     try {
@@ -274,6 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       resetClient();
       setUser(null);
       setIsLoading(false);
+      manualLogoutRef.current = false;
       router.replace(redirectTo);
       router.refresh();
     }

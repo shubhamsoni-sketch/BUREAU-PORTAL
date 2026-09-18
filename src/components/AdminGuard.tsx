@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Shield } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { createClient } from '@/lib/supabase/client';
 
 const ADMIN_ONLY_PATHS = [
   '/admin-partners',
@@ -72,7 +73,28 @@ export default function AdminGuard({ children }: AdminGuardProps) {
 
   useEffect(() => {
     if (isPublicPath || user || (isLoading && !timedOut)) return;
-    router.replace(isAdminRoute ? '/admin' : '/partner-login');
+
+    let cancelled = false;
+    const recheckBeforeRedirect = async () => {
+      try {
+        const {
+          data: { session },
+        } = await createClient().auth.getSession();
+        if (cancelled) return;
+        if (session?.user) {
+          // AuthContext will receive/resolve the session; avoid a false logout redirect.
+          return;
+        }
+      } catch {
+        if (cancelled) return;
+      }
+      router.replace(isAdminRoute ? '/admin' : '/partner-login');
+    };
+
+    recheckBeforeRedirect();
+    return () => {
+      cancelled = true;
+    };
   }, [isAdminRoute, isLoading, isPublicPath, router, timedOut, user]);
 
   // Public paths never need auth, render immediately with no spinner.
