@@ -65,7 +65,6 @@ interface PartnerRates {
 const DEFAULT_CONSUMER_RATE = 10;
 const DEFAULT_COMMERCIAL_RATE = 15;
 const HARD_CODED_CUSTOMER_DETAILS = {
-  dob: '2000-01-01',
   gender: 'Male',
   addressLine1: 'CreditTrust Verified Address',
   city: 'Indore',
@@ -153,6 +152,7 @@ function getCustomerName(details: CustomerDetails) {
 
 function formatDobForApi(dob: string) {
   const [year, month, day] = dob.split('-');
+  if (!year || !month || !day) return '';
   return `${day}${month}${year}`;
 }
 
@@ -214,6 +214,7 @@ export default function PullBureauPage() {
       errs.fullName = 'Enter full name with first and last name';
     }
     if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(details.pan.toUpperCase())) errs.pan = 'Enter valid PAN (e.g. ABCDE1234F)';
+    if (!details.dob) errs.dob = 'Date of birth is required';
     if (!/^[6-9]\d{9}$/.test(details.mobile)) errs.mobile = 'Enter valid 10-digit mobile number';
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
@@ -249,7 +250,7 @@ export default function PullBureauPage() {
           firstName: nameParts.firstName,
           middleName: nameParts.middleName,
           lastName: nameParts.lastName,
-          birthDate: formatDobForApi(HARD_CODED_CUSTOMER_DETAILS.dob),
+          birthDate: formatDobForApi(details.dob),
           gender: HARD_CODED_CUSTOMER_DETAILS.gender,
           idNumber: details.pan,
           state: HARD_CODED_CUSTOMER_DETAILS.state,
@@ -518,6 +519,18 @@ export default function PullBureauPage() {
                 />
                 {formErrors.pan && <p className="text-xs text-red-500 mt-1">{formErrors.pan}</p>}
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Date of Birth</label>
+                <input
+                  type="date"
+                  className="input-base"
+                  value={details.dob}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setDetails({ ...details, dob: e.target.value })}
+                />
+                {formErrors.dob && <p className="text-xs text-red-500 mt-1">{formErrors.dob}</p>}
+              </div>
             </div>
 
             <div className="flex justify-end mt-6">
@@ -583,6 +596,7 @@ export default function PullBureauPage() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><span className="text-muted-foreground">Name:</span> <span className="font-medium">{getCustomerName(details)}</span></div>
                 <div><span className="text-muted-foreground">PAN:</span> <span className="font-medium font-mono">{details.pan}</span></div>
+                <div><span className="text-muted-foreground">DOB:</span> <span className="font-medium font-mono">{details.dob}</span></div>
                 <div><span className="text-muted-foreground">Mobile:</span> <span className="font-medium font-mono">+91 {details.mobile}</span></div>
               </div>
             </div>
