@@ -18,9 +18,45 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://credittrust.in'),
   title: 'Credit Trust - Financial Health Analysis Platform',
   description:
     'Credit Trust helps individuals and financial partners generate clear financial health reports with credit score insights, repayment analysis, and wallet-based partner workflows.',
+  applicationName: 'Credit Trust',
+  authors: [{ name: 'Fin Coopers Tech India Private Limited' }],
+  creator: 'Fin Coopers Tech India Private Limited',
+  publisher: 'Fin Coopers Tech India Private Limited',
+  keywords: [
+    'Credit Trust',
+    'financial health report',
+    'credit score analysis',
+    'credit report insights',
+    'loan readiness',
+    'partner bureau portal',
+  ],
+  openGraph: {
+    type: 'website',
+    url: 'https://credittrust.in',
+    siteName: 'Credit Trust',
+    title: 'Credit Trust - Financial Health Analysis Platform',
+    description:
+      'Generate clear financial health reports with credit score insights, repayment analysis, and partner workflows.',
+    images: [
+      {
+        url: '/icon-512.png',
+        width: 512,
+        height: 512,
+        alt: 'Credit Trust',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Credit Trust - Financial Health Analysis Platform',
+    description:
+      'Generate clear financial health reports with credit score insights, repayment analysis, and partner workflows.',
+    images: ['/icon-512.png'],
+  },
   icons: {
     icon: [
       { url: '/favicon.svg?v=2', type: 'image/svg+xml' },

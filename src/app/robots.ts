@@ -5,7 +5,16 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/api/', '/_next/', '/admin/', '/crm/', '/partner-login', '/partner-dashboard'],
+      disallow: [
+        '/api/',
+        '/_next/',
+        '/admin/',
+        '/crm/',
+        '/partner-login',
+        '/partner-dashboard',
+        '/home/credittrust-preview',
+        '/credit-intelligence',
+      ],
     },
     sitemap: 'https://credittrust.in/sitemap.xml',
   };
