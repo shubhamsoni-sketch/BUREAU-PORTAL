@@ -27,6 +27,8 @@ type ApiClient = {
   contact_name: string | null;
   email: string | null;
   mobile: string | null;
+  allowed_ips?: string[];
+  metadata?: Record<string, unknown>;
   credits: number;
   status: 'active' | 'inactive';
   created_at: string;
@@ -185,6 +187,8 @@ export default function AdminApiHubPage() {
     contact_name: '',
     email: '',
     mobile: '',
+    allowed_ips: '',
+    metadata: '{}',
     credits: '10',
   });
   const [keyForm, setKeyForm] = useState({
@@ -366,7 +370,7 @@ export default function AdminApiHubPage() {
     const json = await authPost({ action: 'create_client', ...clientForm, credits: Number(clientForm.credits || 0) });
     if (json?.success) {
       setNotice('Client created.');
-      setClientForm({ name: '', company_name: '', contact_name: '', email: '', mobile: '', credits: '10' });
+      setClientForm({ name: '', company_name: '', contact_name: '', email: '', mobile: '', allowed_ips: '', metadata: '{}', credits: '10' });
       setActiveTab('Clients');
     }
   };
@@ -535,6 +539,8 @@ export default function AdminApiHubPage() {
                 <Input label="Contact person" value={clientForm.contact_name} onChange={(value) => setClientForm((prev) => ({ ...prev, contact_name: value }))} />
                 <Input label="Email" value={clientForm.email} onChange={(value) => setClientForm((prev) => ({ ...prev, email: value }))} />
                 <Input label="Mobile" value={clientForm.mobile} onChange={(value) => setClientForm((prev) => ({ ...prev, mobile: value }))} />
+                <Input label="Allowed IPs" value={clientForm.allowed_ips} onChange={(value) => setClientForm((prev) => ({ ...prev, allowed_ips: value }))} />
+                <JsonArea label="Client metadata" value={clientForm.metadata} onChange={(value) => setClientForm((prev) => ({ ...prev, metadata: value }))} rows={6} />
                 <Input label="Initial credits" type="number" value={clientForm.credits} onChange={(value) => setClientForm((prev) => ({ ...prev, credits: value }))} />
                 <PrimaryButton disabled={saving} icon={Plus}>Add Client</PrimaryButton>
               </form>
@@ -700,13 +706,14 @@ function ClientsTable({ clients }: { clients: ApiClient[] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
-          <tr><th className="py-2 pr-4">Client</th><th className="py-2 pr-4">Contact</th><th className="py-2 pr-4">Credits</th><th className="py-2">Status</th></tr>
+          <tr><th className="py-2 pr-4">Client</th><th className="py-2 pr-4">Contact</th><th className="py-2 pr-4">Allowed IPs</th><th className="py-2 pr-4">Credits</th><th className="py-2">Status</th></tr>
         </thead>
         <tbody>
           {clients.map((client) => (
             <tr key={client.id} className="border-b border-slate-100 last:border-0">
               <td className="py-3 pr-4"><p className="font-semibold text-slate-900">{client.name}</p><p className="text-xs text-slate-500">{client.company_name || 'No company'}</p></td>
               <td className="py-3 pr-4 text-slate-600"><p>{client.email || '-'}</p><p className="text-xs">{client.mobile || '-'}</p></td>
+              <td className="py-3 pr-4 text-xs font-mono text-slate-600">{client.allowed_ips?.length ? client.allowed_ips.join(', ') : 'Open'}</td>
               <td className="py-3 pr-4 font-bold text-slate-900">{client.credits}</td>
               <td className="py-3"><StatusPill value={client.status} /></td>
             </tr>

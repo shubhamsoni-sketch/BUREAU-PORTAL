@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getApiHubStore, hitMasterApi, saveApiHubStore, SimpleApiConfig } from '@/lib/api-hub/simple-store';
+import { getApiHubStore, hitMasterApi, saveApiHubStore, SimpleApiConfig, validateClientIp } from '@/lib/api-hub/simple-store';
 import { hashApiKey, maskMobile, maskPan } from '@/lib/api-hub/keys';
 import { getStateName } from '@/lib/bureau/state-codes';
 import { appendApiUsageLedger, requestEvidence } from '@/lib/api-hub/usage-ledger';
@@ -242,6 +242,8 @@ export async function POST(request: NextRequest) {
     if (!client) return jsonError('Client is not active', 403, requestId);
     if (!advancedApi) return jsonError('API key is not allowed for Bureau API Advanced', 403, requestId);
     if (!standardApi) return jsonError('Bureau API Standard is not configured', 500, requestId);
+    const ipError = validateClientIp(client, request);
+    if (ipError) return jsonError(ipError.message, 403, requestId);
 
     let body: unknown = {};
     let invalidJson = false;

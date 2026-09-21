@@ -399,6 +399,16 @@ export async function POST(request: NextRequest) {
     if (action === 'create_client') {
       const name = String(body.name || '').trim();
       if (!name) return jsonError('Client name is required');
+      const allowedIps = String(body.allowed_ips || '')
+        .split(/[\s,]+/)
+        .map((ip) => ip.trim())
+        .filter(Boolean);
+      let metadata: Record<string, unknown> = {};
+      try {
+        metadata = parseJson(body.metadata, {}) as Record<string, unknown>;
+      } catch (error) {
+        return jsonError(error instanceof Error ? error.message : 'Metadata must be valid JSON');
+      }
 
       const client = {
         id: crypto.randomUUID(),
@@ -407,6 +417,8 @@ export async function POST(request: NextRequest) {
         contact_name: String(body.contact_name || '').trim() || null,
         email: String(body.email || '').trim() || null,
         mobile: String(body.mobile || '').trim() || null,
+        allowed_ips: allowedIps,
+        metadata,
         credits: Math.max(0, Number(body.credits || 0)),
         status: 'active' as const,
         created_at: new Date().toISOString(),

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getApiHubStore, hitMasterApi, saveApiHubStore } from '@/lib/api-hub/simple-store';
+import { getApiHubStore, hitMasterApi, saveApiHubStore, validateClientIp } from '@/lib/api-hub/simple-store';
 import { hashApiKey, maskMobile, maskPan } from '@/lib/api-hub/keys';
 import { appendApiUsageLedger, requestEvidence } from '@/lib/api-hub/usage-ledger';
 import { archiveApiHubBureauPull } from '@/lib/api-hub/bureau-pull-archive';
@@ -90,6 +90,8 @@ export async function POST(request: NextRequest) {
     if (!['bureau', 'bureau-standard', 'cibil.consumer_score'].includes(api.code)) {
       return jsonError('API key is not allowed for Bureau API Standard', 403, requestId);
     }
+    const ipError = validateClientIp(client, request);
+    if (ipError) return jsonError(ipError.message, 403, requestId);
 
     let body: unknown = {};
     let invalidJson = false;

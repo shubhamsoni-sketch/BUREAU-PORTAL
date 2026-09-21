@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { NextRequest } from 'next/server';
 
 export const API_HUB_STORE_MOBILE = '0000000000';
 export const API_HUB_STORE_STATUS = 'api_hub_store';
@@ -26,6 +27,8 @@ export type SimpleApiClient = {
   contact_name?: string | null;
   email?: string | null;
   mobile?: string | null;
+  allowed_ips?: string[];
+  metadata?: Record<string, unknown>;
   credits: number;
   status: 'active' | 'inactive';
   created_at: string;
@@ -183,6 +186,15 @@ function normalizeApi(raw: Record<string, any>): SimpleApiConfig {
 
 function normalizeClient(raw: Record<string, any>): SimpleApiClient {
   const now = new Date().toISOString();
+  const allowedIps = Array.isArray(raw.allowed_ips)
+    ? raw.allowed_ips.map((ip: unknown) => cleanString(ip)).filter(Boolean)
+    : String(raw.allowed_ips || '')
+      .split(/[\s,]+/)
+      .map((ip) => ip.trim())
+      .filter(Boolean);
+  const metadata = raw.metadata && typeof raw.metadata === 'object' && !Array.isArray(raw.metadata)
+    ? raw.metadata as Record<string, unknown>
+    : {};
   return {
     id: String(raw.id || crypto.randomUUID()),
     name: String(raw.name || 'Client'),
@@ -190,6 +202,8 @@ function normalizeClient(raw: Record<string, any>): SimpleApiClient {
     contact_name: raw.contact_name || null,
     email: raw.email || null,
     mobile: raw.mobile || null,
+    allowed_ips: allowedIps,
+    metadata,
     credits: Math.max(0, Number(raw.credits || 0)),
     status: raw.status === 'inactive' || raw.status === 'suspended' ? 'inactive' : 'active',
     created_at: raw.created_at || now,
@@ -323,4 +337,26 @@ export async function hitMasterApi(api: SimpleApiConfig, payload: unknown) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export function getRequestIp(request: NextRequest) {
+  return (
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || request.headers.get('x-real-ip')?.trim()
+    || request.headers.get('cf-connecting-ip')?.trim()
+    || ''
+  );
+}
+
+export function validateClientIp(client: SimpleApiClient, request: NextRequest) {
+  const allowedIps = Array.isArray(client.allowed_ips) ? client.allowed_ips.filter(Boolean) : [];
+  if (!allowedIps.length) return null;
+  const requestIp = getRequestIp(request);
+  if (requestIp && allowedIps.includes(requestIp)) return null;
+  return {
+    requestIp,
+    message: requestIp
+      ? `IP ${requestIp} is not whitelisted for this API client`
+      : 'Unable to verify request IP for this API client',
+  };
 }

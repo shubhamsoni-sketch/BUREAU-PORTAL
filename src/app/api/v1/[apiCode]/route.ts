@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getApiHubStore, hitMasterApi, saveApiHubStore } from '@/lib/api-hub/simple-store';
+import { getApiHubStore, hitMasterApi, saveApiHubStore, validateClientIp } from '@/lib/api-hub/simple-store';
 import { hashApiKey, maskMobile, maskPan } from '@/lib/api-hub/keys';
 import { appendApiUsageLedger, requestEvidence } from '@/lib/api-hub/usage-ledger';
 
@@ -101,6 +101,8 @@ export async function POST(
     if (!client) return jsonError('Client is not active', 403, requestId);
     if (!api) return jsonError('API is not active', 403, requestId);
     if (api.code !== apiCode && api.id !== apiCode) return jsonError('API key is not allowed for this API', 403, requestId);
+    const ipError = validateClientIp(client, request);
+    if (ipError) return jsonError(ipError.message, 403, requestId);
 
     let payload: unknown = {};
     let invalidJson = false;
