@@ -72,6 +72,30 @@ type ApiHubData = {
 
 const tabs = ['APIs', 'Clients', 'API Keys', 'Credits', 'Usage', 'Docs'] as const;
 
+const clientMetadataTemplate = `{
+  "environment": "uat",
+  "access_type": "api_only",
+  "response_mode": "credittrust_standard",
+  "client_scope": "bureau_standard",
+  "spoc": {
+    "business_email": "",
+    "technical_email": "",
+    "escalation_email": ""
+  },
+  "security": {
+    "static_ip_required": true,
+    "mtls_required": true,
+    "csr_common_name": "",
+    "csr_key_type": "RSA 2048",
+    "certificate_status": "pending"
+  },
+  "contract": {
+    "schedule": "Schedule A",
+    "raw_provider_dump_allowed": false,
+    "score_output": "five_point_range"
+  }
+}`;
+
 const defaultPayload = `{
   "firstName": "HARSHAL",
   "lastName": "PAWAR",
@@ -102,7 +126,7 @@ const clientApiDocs = [
     code: 'bureau',
     title: 'Bureau API Standard',
     endpoint: '/api/v1/bureau',
-    summary: 'Client sends complete customer details. CreditTrust validates client key, checks credits, calls Jaadugar master API, deducts credits on success, and returns the provider response.',
+    summary: 'Client sends Schedule A customer fields. CreditTrust validates API key, whitelisted IP, credits, consent metadata, and returns a normalized Bureau Standard response when client metadata response_mode is credittrust_standard.',
     payload: `{
   "firstName": "HARSHAL",
   "lastName": "PAWAR",
@@ -112,13 +136,17 @@ const clientApiDocs = [
   "mobile": "7067384810",
   "address": "450221 MADHYA PRADESH",
   "state": "MADHYA PRADESH",
-  "pincode": "450221"
+  "pincode": "450221",
+  "consent": true,
+  "consent_timestamp": "1789012300"
 }`,
     notes: [
+      'This is API-only access. Do not provide platform, console, dashboard, or portal access to the client.',
       'dob accepts YYYY-MM-DD or DD/MM/YYYY.',
       'gender accepts male, female, or transgender.',
       'state must be the full state name, for example MADHYA PRADESH.',
       'pan, mobile, and pincode are validated before the vendor hit.',
+      'For Schedule A clients, set client metadata response_mode to credittrust_standard so raw provider dumps are not returned.',
     ],
   },
   {
@@ -131,6 +159,7 @@ const clientApiDocs = [
   "consent": true
 }`,
     notes: [
+      'This is API-only access. Do not provide platform, console, dashboard, or portal access to the client.',
       'Client sees one CreditTrust API call only; prefill stays internal.',
       'consent must be true before CreditTrust starts the bureau workflow.',
       'Prefill chooses the latest valid reported address with pincode and state.',
@@ -188,7 +217,7 @@ export default function AdminApiHubPage() {
     email: '',
     mobile: '',
     allowed_ips: '',
-    metadata: '{}',
+    metadata: clientMetadataTemplate,
     credits: '10',
   });
   const [keyForm, setKeyForm] = useState({
@@ -370,9 +399,47 @@ export default function AdminApiHubPage() {
     const json = await authPost({ action: 'create_client', ...clientForm, credits: Number(clientForm.credits || 0) });
     if (json?.success) {
       setNotice('Client created.');
-      setClientForm({ name: '', company_name: '', contact_name: '', email: '', mobile: '', allowed_ips: '', metadata: '{}', credits: '10' });
+      setClientForm({ name: '', company_name: '', contact_name: '', email: '', mobile: '', allowed_ips: '', metadata: clientMetadataTemplate, credits: '10' });
       setActiveTab('Clients');
     }
+  };
+
+  const applyBintaUatPreset = () => {
+    setClientForm({
+      name: 'Binta Financial UAT',
+      company_name: 'Binta Financial Inc.',
+      contact_name: 'Binta Engineering',
+      email: 'bureaus@bintafinancial.com',
+      mobile: '',
+      allowed_ips: '3.109.33.183',
+      metadata: JSON.stringify({
+        environment: 'uat',
+        access_type: 'api_only',
+        response_mode: 'credittrust_standard',
+        client_scope: 'bureau_standard',
+        country: 'Canada',
+        spoc: {
+          business_email: 'bureaus@bintafinancial.com',
+          technical_email: 'bmukeswe@bintafinancial.com',
+          escalation_email: 'pokwundu@bintafinancial.com',
+        },
+        security: {
+          static_ip_required: true,
+          mtls_required: true,
+          static_ip: '3.109.33.183',
+          csr_common_name: 'uat-fincoopers-client.bintafinancial.com',
+          csr_key_type: 'RSA 2048',
+          certificate_status: 'csr_received',
+        },
+        contract: {
+          schedule: 'Schedule A',
+          raw_provider_dump_allowed: false,
+          score_output: 'five_point_range',
+        },
+      }, null, 2),
+      credits: '100',
+    });
+    setNotice('Binta UAT API-only onboarding preset applied.');
   };
 
   const generateKey = async (event: React.FormEvent) => {
@@ -532,14 +599,22 @@ export default function AdminApiHubPage() {
         {activeTab === 'Clients' && (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
             <section className="rounded-lg border border-slate-200 bg-white p-5">
-              <h2 className="text-lg font-bold text-slate-900 mb-4">Add Client</h2>
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Add Client</h2>
+                  <p className="text-xs text-slate-500 mt-1">Internal onboarding only. Clients receive API access, not this portal.</p>
+                </div>
+                <button type="button" onClick={applyBintaUatPreset} className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100">
+                  Binta UAT preset
+                </button>
+              </div>
               <form onSubmit={createClientRecord} className="space-y-3">
                 <Input label="Client name" value={clientForm.name} onChange={(value) => setClientForm((prev) => ({ ...prev, name: value }))} required />
                 <Input label="Company" value={clientForm.company_name} onChange={(value) => setClientForm((prev) => ({ ...prev, company_name: value }))} />
                 <Input label="Contact person" value={clientForm.contact_name} onChange={(value) => setClientForm((prev) => ({ ...prev, contact_name: value }))} />
                 <Input label="Email" value={clientForm.email} onChange={(value) => setClientForm((prev) => ({ ...prev, email: value }))} />
                 <Input label="Mobile" value={clientForm.mobile} onChange={(value) => setClientForm((prev) => ({ ...prev, mobile: value }))} />
-                <Input label="Allowed IPs" value={clientForm.allowed_ips} onChange={(value) => setClientForm((prev) => ({ ...prev, allowed_ips: value }))} />
+                <Input label="Allowed static IPs" value={clientForm.allowed_ips} onChange={(value) => setClientForm((prev) => ({ ...prev, allowed_ips: value }))} required />
                 <JsonArea label="Client metadata" value={clientForm.metadata} onChange={(value) => setClientForm((prev) => ({ ...prev, metadata: value }))} rows={6} />
                 <Input label="Initial credits" type="number" value={clientForm.credits} onChange={(value) => setClientForm((prev) => ({ ...prev, credits: value }))} />
                 <PrimaryButton disabled={saving} icon={Plus}>Add Client</PrimaryButton>
@@ -806,7 +881,7 @@ function EmptyState({ text }: { text: string }) {
 }
 
 function ApiDocsPanel() {
-  const baseUrl = typeof window === 'undefined' ? 'https://credittrust.in' : window.location.origin;
+  const baseUrl = 'https://api.credittrust.in';
   const [copied, setCopied] = useState('');
 
   const copyText = async (label: string, value: string) => {
@@ -895,8 +970,43 @@ x-api-key: <client_api_key>`}</pre>
               <pre className="overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{`{
   "success": true,
   "request_id": "API-...",
-  "charged": { "credits": 1 },
-  "data": {}
+  "environment": "uat",
+  "status": "completed",
+  "bureau": "CIBIL",
+  "score": {
+    "available": true,
+    "score_range": "605-610",
+    "score_band": "fair"
+  },
+  "consumer": {
+    "first_name": "HARSHAL",
+    "last_name": "PAWAR",
+    "dob": "2000-12-13",
+    "mobile_masked": "70******10",
+    "pan_masked": "GEA****9H"
+  },
+  "summary": {
+    "total_accounts": 4,
+    "active_accounts": 2,
+    "closed_accounts": 2,
+    "total_current_balance": 125000,
+    "total_overdue_balance": 0,
+    "recent_enquiries_6_months": 2
+  },
+  "tradelines": [
+    {
+      "loan_type": "Personal Loan",
+      "account_status": "Active",
+      "current_balance": 45000,
+      "dpd_bucket": "0",
+      "delinquency_indicator": false
+    }
+  ],
+  "consent": {
+    "validated": true,
+    "consent_timestamp": "1789012300"
+  },
+  "generated_at": "2026-09-22T08:00:00.000Z"
 }`}</pre>
             </div>
           </section>

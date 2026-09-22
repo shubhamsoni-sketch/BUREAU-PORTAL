@@ -44,11 +44,17 @@ export function middleware(request: NextRequest) {
   }
 
   if (isApiConsoleHost && normalizedPathname === '/') {
-    return NextResponse.rewrite(new URL('/api-console', request.url));
+    return NextResponse.redirect(new URL('/admin-api-hub', request.url));
   }
 
-  if (isApiConsoleHost && !isAsset && !isApiRoute && !normalizedPathname.startsWith('/api-console')) {
-    return NextResponse.rewrite(new URL('/api-console', request.url));
+  if (
+    isApiConsoleHost &&
+    !isAsset &&
+    !isApiRoute &&
+    !normalizedPathname.startsWith('/admin-api-hub') &&
+    !normalizedPathname.startsWith('/admin')
+  ) {
+    return NextResponse.redirect(new URL('/admin-api-hub', request.url));
   }
 
   if (isCrmHost && normalizedPathname === '/login') {

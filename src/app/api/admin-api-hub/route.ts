@@ -403,6 +403,7 @@ export async function POST(request: NextRequest) {
         .split(/[\s,]+/)
         .map((ip) => ip.trim())
         .filter(Boolean);
+      if (!allowedIps.length) return jsonError('At least one allowed static IP is required for API client onboarding');
       let metadata: Record<string, unknown> = {};
       try {
         metadata = parseJson(body.metadata, {}) as Record<string, unknown>;

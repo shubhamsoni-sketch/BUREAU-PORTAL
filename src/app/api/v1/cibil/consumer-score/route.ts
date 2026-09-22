@@ -37,6 +37,126 @@ function digits(value: unknown) {
   return cleanString(value).replace(/\D/g, '');
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function collectValues(value: unknown, aliases: string[], found: string[] = []) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectValues(item, aliases, found));
+    return found;
+  }
+  if (!isRecord(value)) return found;
+  for (const [key, nested] of Object.entries(value)) {
+    if (aliases.some((alias) => alias.toLowerCase() === key.toLowerCase())) {
+      const text = cleanString(nested);
+      if (text) found.push(text);
+    }
+    collectValues(nested, aliases, found);
+  }
+  return found;
+}
+
+function firstValue(value: unknown, aliases: string[]) {
+  return collectValues(value, aliases)[0] || '';
+}
+
+function asNumber(value: unknown) {
+  const text = cleanString(value).replace(/,/g, '');
+  const number = Number(text);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function scoreRange(rawScore: string) {
+  const score = Number(rawScore);
+  if (!Number.isFinite(score)) return { available: false, score_range: 'not_available', score_band: 'unknown' };
+  if (score === -1) return { available: false, score_range: '-1', score_band: 'no-hit' };
+  const lower = Math.floor(score / 5) * 5;
+  const upper = lower + 5;
+  const band = score >= 750 ? 'excellent' : score >= 700 ? 'good' : score >= 650 ? 'fair' : score >= 600 ? 'weak' : 'poor';
+  return { available: true, score_range: `${lower}-${upper}`, score_band: band };
+}
+
+function collectTradelineCandidates(value: unknown, found: Record<string, unknown>[] = []) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectTradelineCandidates(item, found));
+    return found;
+  }
+  if (!isRecord(value)) return found;
+  const keys = Object.keys(value).map((key) => key.toLowerCase());
+  const looksLikeAccount = keys.some((key) => ['accounttype', 'account_type', 'loantype', 'loan_type', 'currentbalance', 'current_balance', 'amountoverdue', 'amount_overdue'].includes(key));
+  if (looksLikeAccount) found.push(value);
+  Object.values(value).forEach((nested) => collectTradelineCandidates(nested, found));
+  return found;
+}
+
+function normalizeBureauStandardResponse(params: {
+  requestId: string;
+  environment: string;
+  requestBody: Record<string, unknown>;
+  payload: JaadugarCibilPayload;
+  responseData: unknown;
+}) {
+  const { requestId, environment, requestBody, payload, responseData } = params;
+  const rawScore = firstValue(responseData, ['score', 'bureauScore', 'cibilScore', 'creditScore']) || firstValue(requestBody, ['score']);
+  const tradelines = collectTradelineCandidates(responseData).slice(0, 50).map((account) => {
+    const currentBalance = asNumber(account.currentBalance ?? account.current_balance ?? account.balance ?? account.balanceAmount);
+    const overdue = asNumber(account.amountOverdue ?? account.amount_overdue ?? account.overdueAmount ?? account.overdue);
+    const dpd = cleanString(account.dpd ?? account.dpdBucket ?? account.dpd_bucket ?? account.daysPastDue ?? account.paymentStatus) || '0';
+    return {
+      loan_type: cleanString(account.accountType ?? account.account_type ?? account.loanType ?? account.loan_type) || 'Not disclosed',
+      account_status: cleanString(account.accountStatus ?? account.account_status ?? account.status) || 'Not disclosed',
+      current_balance: currentBalance,
+      dpd_bucket: dpd,
+      delinquency_indicator: overdue > 0 || (dpd !== '0' && dpd !== '000' && dpd !== '-'),
+    };
+  });
+  const activeAccounts = tradelines.filter((item) => item.account_status.toLowerCase().includes('active')).length;
+  const totalCurrentBalance = tradelines.reduce((sum, item) => sum + item.current_balance, 0);
+
+  return {
+    success: true,
+    request_id: requestId,
+    environment,
+    status: 'completed',
+    bureau: 'CIBIL',
+    score: scoreRange(rawScore),
+    consumer: {
+      first_name: payload.firstName,
+      last_name: payload.lastName,
+      dob: payload.dob,
+      mobile_masked: maskMobile(payload.mobile),
+      pan_masked: maskPan(payload.pan),
+    },
+    summary: {
+      total_accounts: tradelines.length,
+      active_accounts: activeAccounts,
+      closed_accounts: Math.max(0, tradelines.length - activeAccounts),
+      total_current_balance: totalCurrentBalance,
+      total_overdue_balance: tradelines.reduce((sum, item) => sum + (item.delinquency_indicator ? item.current_balance : 0), 0),
+      recent_enquiries_6_months: asNumber(firstValue(responseData, ['recentEnquiries6Months', 'recent_enquiries_6_months', 'enquiryCount'])),
+    },
+    tradelines,
+    consent: {
+      validated: Boolean(requestBody.consent ?? requestBody.consent_given ?? true),
+      consent_timestamp: cleanString(requestBody.consent_timestamp || requestBody.consentTimestamp || requestBody.consent_timespamp),
+    },
+    generated_at: new Date().toISOString(),
+  };
+}
+
+function shouldReturnCreditTrustStandard(metadata: unknown) {
+  if (!isRecord(metadata)) return false;
+  const mode = cleanString(metadata.response_mode || metadata.responseMode || metadata.delivery_mode).toLowerCase();
+  return ['credittrust_standard', 'binta_standard', 'normalized'].includes(mode);
+}
+
+function clientEnvironment(metadata: unknown) {
+  if (!isRecord(metadata)) return 'production';
+  const environment = cleanString(metadata.environment || metadata.env).toLowerCase();
+  return environment === 'uat' ? 'uat' : 'production';
+}
+
 function splitName(value: unknown) {
   const parts = cleanString(value).toUpperCase().split(/\s+/).filter(Boolean);
   return {
@@ -231,6 +351,16 @@ export async function POST(request: NextRequest) {
       });
     } catch (archiveError) {
       console.warn('[api-hub:cibil] bureau pull archive skipped:', archiveError);
+    }
+
+    if (shouldReturnCreditTrustStandard(client.metadata)) {
+      return NextResponse.json(normalizeBureauStandardResponse({
+        requestId,
+        environment: clientEnvironment(client.metadata),
+        requestBody,
+        payload,
+        responseData: response.data,
+      }));
     }
 
     return NextResponse.json({
