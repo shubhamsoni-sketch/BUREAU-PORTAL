@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   LifeBuoy,
   LockKeyhole,
-  RefreshCw,
   Search,
   Settings,
   Server,
@@ -240,19 +239,23 @@ export default function ApiClientPortalPage() {
     message: '',
   });
 
-  const loadData = async () => {
-    setLoading(true);
-    setError('');
+  const loadData = async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setLoading(true);
+    if (!options?.silent) setError('');
     try {
       const response = await fetch('/api/api-client-portal?page_size=25');
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to open client portal');
       setData(json);
     } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to open client portal');
+      if (options?.silent) {
+        console.warn('[api-client-portal] auto refresh failed:', err);
+      } else {
+        setData(null);
+        setError(err instanceof Error ? err.message : 'Unable to open client portal');
+      }
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   };
 
@@ -326,6 +329,14 @@ export default function ApiClientPortalPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!data) return;
+    const intervalId = window.setInterval(() => {
+      loadData({ silent: true });
+    }, 30000);
+    return () => window.clearInterval(intervalId);
+  }, [data?.client?.name]);
+
   const filteredUsage = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return data?.usage || [];
@@ -391,13 +402,6 @@ export default function ApiClientPortalPage() {
             >
               <LifeBuoy size={15} />
               Support
-            </button>
-            <button
-              onClick={() => loadData()}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700"
-            >
-              <RefreshCw size={15} />
-              Refresh
             </button>
             <button
               onClick={() => setSettingsOpen(true)}
