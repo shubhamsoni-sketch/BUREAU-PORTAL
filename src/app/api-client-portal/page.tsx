@@ -13,6 +13,7 @@ import {
   LockKeyhole,
   RefreshCw,
   Search,
+  Settings,
   Server,
   ShieldCheck,
   Ticket,
@@ -224,7 +225,13 @@ export default function ApiClientPortalPage() {
   const [notice, setNotice] = useState('');
   const [search, setSearch] = useState('');
   const [supportOpen, setSupportOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [logPage, setLogPage] = useState(1);
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: '',
+  });
   const [ticketForm, setTicketForm] = useState({
     category: 'api_issue',
     priority: 'medium',
@@ -277,6 +284,29 @@ export default function ApiClientPortalPage() {
     setData(null);
     setNotice('');
     setError('');
+  };
+
+  const changePassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch('/api/api-client-portal-auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(passwordForm),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to change password');
+      setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+      setSettingsOpen(false);
+      setNotice('Password changed successfully.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to change password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -367,6 +397,14 @@ export default function ApiClientPortalPage() {
             >
               <RefreshCw size={15} />
               Refresh
+            </button>
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700"
+              aria-label="Open settings"
+              title="Settings"
+            >
+              <Settings size={16} />
             </button>
             <button
               onClick={logout}
@@ -621,6 +659,80 @@ export default function ApiClientPortalPage() {
                   </button>
                   <button disabled={loading} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white disabled:opacity-60">
                     Raise Ticket
+                    <ArrowRight size={17} />
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        ) : null}
+
+        {settingsOpen ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
+            <div className="w-full max-w-lg overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><Settings size={20} /></div>
+                  <div>
+                    <h2 className="text-xl font-black tracking-tight">Settings</h2>
+                    <p className="text-sm font-bold text-slate-500">Change client portal password securely.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSettingsOpen(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
+                  aria-label="Close settings"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <form onSubmit={changePassword} className="p-5">
+                <label className="block">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Current Password</span>
+                  <input
+                    value={passwordForm.current_password}
+                    onChange={(event) => setPasswordForm({ ...passwordForm, current_password: event.target.value })}
+                    className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold outline-none"
+                    type="password"
+                    autoComplete="current-password"
+                    placeholder="Enter current password"
+                  />
+                </label>
+                <label className="mt-3 block">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">New Password</span>
+                  <input
+                    value={passwordForm.new_password}
+                    onChange={(event) => setPasswordForm({ ...passwordForm, new_password: event.target.value })}
+                    className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold outline-none"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Minimum 10 characters"
+                  />
+                </label>
+                <label className="mt-3 block">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Confirm New Password</span>
+                  <input
+                    value={passwordForm.confirm_password}
+                    onChange={(event) => setPasswordForm({ ...passwordForm, confirm_password: event.target.value })}
+                    className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold outline-none"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Confirm new password"
+                  />
+                </label>
+                <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-xs font-bold leading-5 text-amber-800">
+                  Password must include uppercase, lowercase and number. We never show passwords again after saving.
+                </div>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSettingsOpen(false)}
+                    className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-5 text-sm font-black text-slate-700"
+                  >
+                    Cancel
+                  </button>
+                  <button disabled={loading} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-black text-white disabled:opacity-60">
+                    Change Password
                     <ArrowRight size={17} />
                   </button>
                 </div>

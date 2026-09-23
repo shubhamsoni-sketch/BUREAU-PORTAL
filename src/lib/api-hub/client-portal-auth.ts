@@ -78,6 +78,16 @@ export function findClientByPortalCredentials(store: SimpleApiHubStore, username
   return null;
 }
 
+export function verifyClientPortalPassword(client: SimpleApiClient, password: unknown) {
+  const inputPassword = typeof password === 'string' ? password : '';
+  if (!inputPassword) return false;
+  const portal = portalMetadata(client);
+  const salt = String(portal.password_salt || '');
+  const passwordHash = String(portal.password_hash || '');
+  if (!salt || !passwordHash) return false;
+  return safeEqual(hashClientPortalPassword(inputPassword, salt), passwordHash);
+}
+
 export function createClientPortalToken(client: SimpleApiClient) {
   const portal = portalMetadata(client);
   const username = String(portal.username || client.email || client.id);
