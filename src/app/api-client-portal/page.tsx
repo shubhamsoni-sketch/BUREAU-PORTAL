@@ -6,9 +6,6 @@ import {
   AlertCircle,
   ArrowRight,
   CheckCircle2,
-  Clock3,
-  Copy,
-  FileText,
   LifeBuoy,
   LockKeyhole,
   RefreshCw,
@@ -598,29 +595,6 @@ export default function ApiClientPortalPage() {
             </div>
           </div>
         </section>
-        <section className="mt-5 grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <FileText className="text-blue-700" size={22} />
-            <p className="mt-3 font-black">API Documentation</p>
-            <p className="mt-1 text-sm font-bold text-slate-500">Use the UAT documentation shared by CreditTrust for request schema and response format.</p>
-          </div>
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <Clock3 className="text-amber-600" size={22} />
-            <p className="mt-3 font-black">Support SLA</p>
-            <p className="mt-1 text-sm font-bold text-slate-500">Critical API issues are reviewed first. Add request ID for faster triage.</p>
-          </div>
-          <button
-            onClick={() => navigator.clipboard?.writeText(activeKeyValue || data.key.prefix)}
-            className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm"
-          >
-            <Copy className="text-slate-700" size={22} />
-            <p className="mt-3 font-black">{activeKeyValue ? 'Copy API Key' : 'Copy Key Prefix'}</p>
-            <p className="mt-1 text-sm font-bold text-slate-500">
-              {activeKeyValue ? 'Copy the active UAT key for integration use.' : 'Full key is unavailable for this legacy key. Regenerate it from operations.'}
-            </p>
-          </button>
-        </section>
-
         {supportOpen ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
             <div className="max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
