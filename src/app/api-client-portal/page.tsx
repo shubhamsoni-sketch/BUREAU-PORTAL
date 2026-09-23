@@ -470,13 +470,6 @@ export default function ApiClientPortalPage() {
                   placeholder="Search logs..."
                 />
               </div>
-              <button
-                onClick={() => setSupportOpen(true)}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white shadow-sm shadow-blue-600/20"
-              >
-                <Ticket size={17} />
-                Raise Support
-              </button>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -744,3 +737,4 @@ export default function ApiClientPortalPage() {
     </div>
   );
 }
+
