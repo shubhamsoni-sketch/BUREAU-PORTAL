@@ -428,38 +428,32 @@ export default function ApiClientPortalPage() {
               <p className="text-xs font-black uppercase tracking-[0.35em] text-emerald-300">Client Workspace</p>
               <h1 className="mt-2 text-2xl font-extrabold tracking-tight">{data.client.name}</h1>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1.45fr)_minmax(0,0.75fr)]">
               <button
                 type="button"
                 onClick={() => setShowKeyCard((value) => !value)}
-                className="min-h-24 rounded-2xl border border-white/10 bg-white/5 p-4 text-left transition hover:bg-white/10"
+                className="min-h-20 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left transition hover:border-emerald-300/30 hover:bg-white/[0.07]"
                 aria-pressed={showKeyCard}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Active key</p>
-                  <span className="rounded-full bg-emerald-300/10 px-2 py-1 text-[10px] font-black uppercase text-emerald-300">{showKeyCard ? 'Hide' : 'View'}</span>
-                </div>
-                <p className="mt-3 break-all font-mono text-xs font-extrabold leading-5 text-white">
+                <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Active key</p>
+                <p className="mt-2 break-all font-mono text-[13px] font-extrabold leading-5 text-white">
                   {showKeyCard
                     ? (activeKeyValue || 'Full key unavailable. Please request key regeneration.')
                     : `${data.key.prefix.slice(0, 8)}****`}
                 </p>
-                <p className="mt-1 text-xs font-bold capitalize text-emerald-300">{data.key.environment}</p>
+                <p className="mt-1 text-[11px] font-bold capitalize text-emerald-300">{data.key.environment}</p>
               </button>
               <button
                 type="button"
                 onClick={() => setShowIpCard((value) => !value)}
-                className="min-h-24 rounded-2xl border border-white/10 bg-white/5 p-4 text-left transition hover:bg-white/10"
+                className="min-h-20 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left transition hover:border-blue-300/30 hover:bg-white/[0.07]"
                 aria-pressed={showIpCard}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Allowed IPs</p>
-                  <span className="rounded-full bg-blue-300/10 px-2 py-1 text-[10px] font-black uppercase text-blue-200">{showIpCard ? 'Hide' : 'View'}</span>
-                </div>
-                <p className="mt-3 break-all text-xs font-extrabold leading-5 text-white">
+                <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Allowed IPs</p>
+                <p className="mt-2 break-all text-[13px] font-extrabold leading-5 text-white">
                   {showIpCard ? (data.client.allowed_ips.join(', ') || 'Not configured') : `${data.client.allowed_ips.length || 0} IP${data.client.allowed_ips.length === 1 ? '' : 's'}`}
                 </p>
-                <p className="mt-1 text-xs font-bold text-slate-300">{showIpCard ? 'Whitelisted access' : 'Click to reveal'}</p>
+                <p className="mt-1 text-[11px] font-bold text-slate-300">{showIpCard ? 'Whitelisted access' : 'Click to reveal'}</p>
               </button>
             </div>
           </div>
