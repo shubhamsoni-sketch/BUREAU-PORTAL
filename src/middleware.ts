@@ -60,11 +60,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (isApiHubHost && !isAsset && !isApiRoute) {
-    if (normalizedPathname.startsWith('/admin')) {
-      return NextResponse.next();
-    }
-
-    if (normalizedPathname === '/') {
+    if (normalizedPathname === '/' || normalizedPathname.startsWith('/admin')) {
       return NextResponse.rewrite(new URL('/api-console', request.url));
     }
 
