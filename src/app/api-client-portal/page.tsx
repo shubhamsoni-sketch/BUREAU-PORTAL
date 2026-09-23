@@ -226,6 +226,8 @@ export default function ApiClientPortalPage() {
   const [search, setSearch] = useState('');
   const [supportOpen, setSupportOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showKeyCard, setShowKeyCard] = useState(false);
+  const [showIpCard, setShowIpCard] = useState(false);
   const [logPage, setLogPage] = useState(1);
   const [passwordForm, setPasswordForm] = useState({
     current_password: '',
@@ -417,26 +419,43 @@ export default function ApiClientPortalPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-5 py-6">
-        <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-sm">
-          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
+        <section className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
+          <div className="grid gap-4 lg:grid-cols-[1fr_1fr] lg:items-center">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.35em] text-emerald-300">Client Workspace</p>
-              <h1 className="mt-3 text-4xl font-black tracking-tight">{data.client.name}</h1>
-              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-slate-300">
-                Monitor usage, check failed requests, track credit consumption and raise support tickets directly with the CreditTrust operations team.
-              </p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight">{data.client.name}</h1>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-400">Active key</p>
-                <p className="mt-2 font-mono text-sm font-black text-white">{data.key.prefix}******************</p>
+              <button
+                type="button"
+                onClick={() => setShowKeyCard((value) => !value)}
+                className="min-h-24 rounded-2xl border border-white/10 bg-white/5 p-4 text-left transition hover:bg-white/10"
+                aria-pressed={showKeyCard}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-black uppercase tracking-wide text-slate-400">Active key</p>
+                  <span className="rounded-full bg-emerald-300/10 px-2 py-1 text-[10px] font-black uppercase text-emerald-300">{showKeyCard ? 'Hide' : 'View'}</span>
+                </div>
+                <p className="mt-3 break-all font-mono text-sm font-black text-white">
+                  {showKeyCard ? `${data.key.prefix}******************` : `${data.key.prefix.slice(0, 8)}****`}
+                </p>
                 <p className="mt-1 text-xs font-bold capitalize text-emerald-300">{data.key.environment}</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-400">Allowed IPs</p>
-                <p className="mt-2 text-sm font-black text-white">{data.client.allowed_ips.length || 0}</p>
-                <p className="mt-1 text-xs font-bold text-slate-300">{data.client.allowed_ips[0] || 'Not configured'}</p>
-              </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowIpCard((value) => !value)}
+                className="min-h-24 rounded-2xl border border-white/10 bg-white/5 p-4 text-left transition hover:bg-white/10"
+                aria-pressed={showIpCard}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-black uppercase tracking-wide text-slate-400">Allowed IPs</p>
+                  <span className="rounded-full bg-blue-300/10 px-2 py-1 text-[10px] font-black uppercase text-blue-200">{showIpCard ? 'Hide' : 'View'}</span>
+                </div>
+                <p className="mt-3 break-all text-sm font-black text-white">
+                  {showIpCard ? (data.client.allowed_ips.join(', ') || 'Not configured') : `${data.client.allowed_ips.length || 0} IP${data.client.allowed_ips.length === 1 ? '' : 's'}`}
+                </p>
+                <p className="mt-1 text-xs font-bold text-slate-300">{showIpCard ? 'Whitelisted access' : 'Click to reveal'}</p>
+              </button>
             </div>
           </div>
         </section>
