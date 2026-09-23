@@ -64,10 +64,7 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/admin-api-hub', request.url));
     }
 
-    if (
-      !normalizedPathname.startsWith('/admin-api-hub') &&
-      !normalizedPathname.startsWith('/admin')
-    ) {
+    if (!normalizedPathname.startsWith('/admin-api-hub')) {
       return NextResponse.redirect(new URL('/admin-api-hub', request.url));
     }
   }
