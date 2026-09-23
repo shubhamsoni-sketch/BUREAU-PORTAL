@@ -74,17 +74,25 @@ const tabs = ['APIs', 'Clients', 'API Keys', 'Credits', 'Usage', 'Docs'] as cons
 
 const clientMetadataTemplate = `{
   "environment": "uat",
-  "access_type": "api_only",
   "response_mode": "credittrust_standard",
   "client_scope": "bureau_standard",
+  "legal": {
+    "legal_entity_name": "",
+    "brand_display_name": "",
+    "registered_business_address": "",
+    "country_of_operation": ""
+  },
   "spoc": {
     "business_email": "",
     "technical_email": "",
-    "escalation_email": ""
+    "escalation_email": "",
+    "support_availability_window": ""
   },
   "security": {
     "static_ip_required": true,
     "mtls_required": true,
+    "uat_static_ip": "",
+    "source_environment": "",
     "csr_common_name": "",
     "csr_key_type": "RSA 2048",
     "certificate_status": "pending"
@@ -141,7 +149,6 @@ const clientApiDocs = [
   "consent_timestamp": "1789012300"
 }`,
     notes: [
-      'This is API-only access. Do not provide platform, console, dashboard, or portal access to the client.',
       'dob accepts YYYY-MM-DD or DD/MM/YYYY.',
       'gender accepts male, female, or transgender.',
       'state must be the full state name, for example MADHYA PRADESH.',
@@ -159,7 +166,6 @@ const clientApiDocs = [
   "consent": true
 }`,
     notes: [
-      'This is API-only access. Do not provide platform, console, dashboard, or portal access to the client.',
       'Client sees one CreditTrust API call only; prefill stays internal.',
       'consent must be true before CreditTrust starts the bureau workflow.',
       'Prefill chooses the latest valid reported address with pincode and state.',
@@ -408,29 +414,65 @@ export default function AdminApiHubPage() {
     setClientForm({
       name: 'Binta Financial UAT',
       company_name: 'Binta Financial Inc.',
-      contact_name: 'Binta Engineering',
+      contact_name: 'Binta Engineering / Bureau Team',
       email: 'bureaus@bintafinancial.com',
       mobile: '',
       allowed_ips: '3.109.33.183',
       metadata: JSON.stringify({
         environment: 'uat',
-        access_type: 'api_only',
         response_mode: 'credittrust_standard',
         client_scope: 'bureau_standard',
-        country: 'Canada',
+        legal: {
+          legal_entity_name: 'Binta Financial Inc.',
+          brand_display_name: 'Binta Financial',
+          registered_business_address: '800 Robson street, Vancouver, BC V6E 1A7',
+          country_of_operation: 'Canada',
+          primary_business_email: 'bureaus@bintafinancial.com',
+          billing_contact_email_as_received: 'pokwundu@bintafianancial.com',
+        },
         spoc: {
           business_email: 'bureaus@bintafinancial.com',
           technical_email: 'bmukeswe@bintafinancial.com',
           escalation_email: 'pokwundu@bintafinancial.com',
+          support_availability_window: 'Thursday or Friday, Sept 24 or 25, 7:00 AM Pacific Time',
         },
         security: {
           static_ip_required: true,
           mtls_required: true,
-          static_ip: '3.109.33.183',
-          csr_common_name: 'uat-fincoopers-client.bintafinancial.com',
-          csr_key_type: 'RSA 2048',
-          certificate_status: 'csr_received',
+          uat_static_ip: '3.109.33.183',
+          source_environment: 'AWS Elastic IP, ap-south-1 Mumbai',
+          binta_client_csr: {
+            received: true,
+            common_name: 'uat-fincoopers-client.bintafinancial.com',
+            organization: 'Binta Financial Inc.',
+            organizational_unit: 'Engineering',
+            locality: 'Vancouver',
+            state: 'British Columbia',
+            country: 'CA',
+            email: 'bureaus@bintafinancial.com',
+            key_type: 'RSA 2048',
+            requested_validity: '1 year',
+          },
+          fincoopers_csr: {
+            sent_to_binta: true,
+            common_name: 'api.credittrust.in',
+            organization: 'Fin Coopers Tech India Private Limited',
+            san: ['api.credittrust.in', 'credittrust.in'],
+            key_type: 'RSA 2048',
+            hash_algorithm: 'SHA256',
+          },
+          certificate_status: 'csr_exchanged_waiting_for_signed_certificate',
         },
+        consent_metadata_sample_as_received: {
+          consent_timespamp: '1789012300',
+          first_name: 'Raj',
+          middle_name: '',
+          last_name: 'Patel',
+          date_of_birth: '1995-01-01',
+          email: 'raj.patel@example.com',
+          origin_country: 'IND',
+        },
+        consent_metadata_normalized_key: 'consent_timestamp',
         contract: {
           schedule: 'Schedule A',
           raw_provider_dump_allowed: false,
