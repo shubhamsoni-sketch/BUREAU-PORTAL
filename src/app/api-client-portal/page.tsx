@@ -9,7 +9,6 @@ import {
   Clock3,
   Copy,
   FileText,
-  KeyRound,
   LifeBuoy,
   LockKeyhole,
   RefreshCw,
@@ -116,8 +115,17 @@ function MetricCard({
   );
 }
 
-function LoginPanel({ onLogin, loading, error }: { onLogin: (key: string) => void; loading: boolean; error: string }) {
-  const [key, setKey] = useState('');
+function LoginPanel({
+  onLogin,
+  loading,
+  error,
+}: {
+  onLogin: (username: string, password: string) => void;
+  loading: boolean;
+  error: string;
+}) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   return (
     <div className="min-h-screen bg-[#07111f] px-5 py-8 text-white">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center">
@@ -152,25 +160,40 @@ function LoginPanel({ onLogin, loading, error }: { onLogin: (key: string) => voi
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              onLogin(key);
+              onLogin(username, password);
             }}
             className="bg-slate-50 p-8 text-slate-950 lg:p-12"
           >
             <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-700">Secure Access</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight">Sign in with API key</h2>
+            <h2 className="mt-3 text-3xl font-black tracking-tight">Client portal login</h2>
             <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">
-              Use the active UAT or production key shared by CreditTrust. Full keys are never shown back after creation.
+              Use the login ID and password shared by CreditTrust. API keys stay secured in the backend and are never exposed here.
             </p>
             {error ? <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div> : null}
             <label className="mt-6 block">
-              <span className="text-sm font-black text-slate-700">API Key</span>
+              <span className="text-sm font-black text-slate-700">Login ID</span>
               <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4">
-                <KeyRound size={18} className="text-slate-400" />
+                <ShieldCheck size={18} className="text-slate-400" />
                 <input
-                  value={key}
-                  onChange={(event) => setKey(event.target.value)}
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
                   className="h-14 min-w-0 flex-1 bg-transparent text-sm font-bold outline-none"
-                  placeholder="ctsand_xxxxxxxxx"
+                  placeholder="binta-uat"
+                  autoComplete="username"
+                  type="text"
+                />
+              </div>
+            </label>
+            <label className="mt-4 block">
+              <span className="text-sm font-black text-slate-700">Password</span>
+              <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4">
+                <LockKeyhole size={18} className="text-slate-400" />
+                <input
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="h-14 min-w-0 flex-1 bg-transparent text-sm font-bold outline-none"
+                  placeholder="Enter password"
+                  autoComplete="current-password"
                   type="password"
                 />
               </div>
@@ -193,8 +216,8 @@ function LoginPanel({ onLogin, loading, error }: { onLogin: (key: string) => voi
 }
 
 export default function ApiClientPortalPage() {
-  const [apiKey, setApiKey] = useState('');
   const [data, setData] = useState<ClientPortalData | null>(null);
+  const [checkedSession, setCheckedSession] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -207,23 +230,14 @@ export default function ApiClientPortalPage() {
     message: '',
   });
 
-  const loadData = async (key = apiKey) => {
-    const cleanKey = key.trim();
-    if (!cleanKey) {
-      setError('API key is required.');
-      return;
-    }
+  const loadData = async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/api-client-portal?page_size=25', {
-        headers: { 'x-api-key': cleanKey },
-      });
+      const response = await fetch('/api/api-client-portal?page_size=25');
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to open client portal');
-      setApiKey(cleanKey);
       setData(json);
-      if (typeof window !== 'undefined') window.localStorage.setItem('ct_client_portal_key', cleanKey);
     } catch (err) {
       setData(null);
       setError(err instanceof Error ? err.message : 'Unable to open client portal');
@@ -232,9 +246,51 @@ export default function ApiClientPortalPage() {
     }
   };
 
+  const login = async (username: string, password: string) => {
+    if (!username.trim() || !password) {
+      setError('Login ID and password are required.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/api-client-portal-auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Invalid client portal credentials');
+      await loadData();
+    } catch (err) {
+      setData(null);
+      setError(err instanceof Error ? err.message : 'Unable to login');
+      setLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    await fetch('/api/api-client-portal-auth/logout', { method: 'POST' }).catch(() => null);
+    setData(null);
+    setNotice('');
+    setError('');
+  };
+
   useEffect(() => {
-    const saved = window.localStorage.getItem('ct_client_portal_key');
-    if (saved) loadData(saved);
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const response = await fetch('/api/api-client-portal-auth/session');
+        const json = await response.json();
+        if (!cancelled && json.authenticated) await loadData();
+      } finally {
+        if (!cancelled) setCheckedSession(true);
+      }
+    };
+    check();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filteredUsage = useMemo(() => {
@@ -253,7 +309,6 @@ export default function ApiClientPortalPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': apiKey,
         },
         body: JSON.stringify(ticketForm),
       });
@@ -261,7 +316,7 @@ export default function ApiClientPortalPage() {
       if (!response.ok) throw new Error(json.error || 'Unable to raise support ticket');
       setNotice(`Ticket ${json.ticket?.ticket_number || ''} raised successfully.`);
       setTicketForm({ category: 'api_issue', priority: 'medium', request_id: '', subject: '', message: '' });
-      await loadData(apiKey);
+      await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to raise support ticket');
     } finally {
@@ -269,7 +324,15 @@ export default function ApiClientPortalPage() {
     }
   };
 
-  if (!data) return <LoginPanel onLogin={loadData} loading={loading} error={error} />;
+  if (!checkedSession && !data) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#07111f] text-white">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-emerald-300 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!data) return <LoginPanel onLogin={login} loading={loading} error={error} />;
 
   return (
     <div className="min-h-screen bg-[#f5f8fb] text-slate-950">
@@ -284,18 +347,14 @@ export default function ApiClientPortalPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => loadData(apiKey)}
+              onClick={() => loadData()}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700"
             >
               <RefreshCw size={15} />
               Refresh
             </button>
             <button
-              onClick={() => {
-                window.localStorage.removeItem('ct_client_portal_key');
-                setApiKey('');
-                setData(null);
-              }}
+              onClick={logout}
               className="inline-flex h-10 items-center rounded-xl bg-slate-950 px-3 text-xs font-black text-white"
             >
               Logout

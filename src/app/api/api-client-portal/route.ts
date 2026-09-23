@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getClientPortalSession } from '@/lib/api-hub/client-portal-auth';
 import { hashApiKey } from '@/lib/api-hub/keys';
 import { getApiHubStore, saveApiHubStore, SimpleSupportTicket } from '@/lib/api-hub/simple-store';
 import { listApiUsageLedger } from '@/lib/api-hub/usage-ledger';
@@ -26,11 +27,21 @@ function apiKeyFromRequest(request: NextRequest) {
 }
 
 async function clientContext(request: NextRequest) {
-  const apiKey = apiKeyFromRequest(request);
-  if (!apiKey) return { error: 'API key is required', status: 401 } as const;
-
   const supabase = createAdminClient();
   const { rowId, store } = await getApiHubStore(supabase);
+
+  const session = getClientPortalSession(request);
+  if (session?.client_id) {
+    const client = store.clients.find((item) => item.id === session.client_id && item.status === 'active');
+    if (!client) return { error: 'Client is inactive or unavailable', status: 403 } as const;
+    const key = store.keys.find((item) => item.client_id === client.id && item.status === 'active')
+      || store.keys.find((item) => item.client_id === client.id);
+    return { supabase, rowId, store, key, client } as const;
+  }
+
+  const apiKey = apiKeyFromRequest(request);
+  if (!apiKey) return { error: 'Client portal login is required', status: 401 } as const;
+
   const keyHash = hashApiKey(apiKey);
   const key = store.keys.find((item) => item.key_hash === keyHash && item.status === 'active');
   if (!key) return { error: 'Invalid or inactive API key', status: 401 } as const;
@@ -129,11 +140,11 @@ export async function GET(request: NextRequest) {
         status: auth.client.status,
       },
       key: {
-        id: auth.key.id,
-        environment: auth.key.environment || 'uat',
-        label: auth.key.label,
-        prefix: auth.key.key_prefix,
-        last_used_at: auth.key.last_used_at,
+        id: auth.key?.id || null,
+        environment: auth.key?.environment || 'uat',
+        label: auth.key?.label || 'Client API access',
+        prefix: auth.key?.key_prefix || '',
+        last_used_at: auth.key?.last_used_at || null,
       },
       metrics: {
         total_requests: ledger.total,
