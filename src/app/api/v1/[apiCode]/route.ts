@@ -64,7 +64,7 @@ export async function POST(
 
   try {
     const { apiCode } = await params;
-    if (['bureau', 'bureau-standard', 'cibil.consumer_score'].includes(apiCode)) {
+    if (['source', 'source-standard', 'bureau', 'bureau-standard', 'cibil.consumer_score'].includes(apiCode)) {
       const endpoint = new URL('/api/v1/cibil/consumer-score', request.url);
       const headers = new Headers(request.headers);
       headers.delete('host');

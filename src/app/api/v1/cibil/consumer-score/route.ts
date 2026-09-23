@@ -116,7 +116,7 @@ function normalizeBureauStandardResponse(params: {
     request_id: requestId,
     environment,
     status: 'completed',
-    bureau: 'CIBIL',
+    source: 'CREDIT_SOURCE',
     score: scoreRange(rawScore),
     consumer: {
       first_name: payload.firstName,
