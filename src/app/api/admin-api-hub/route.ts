@@ -555,6 +555,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'delete_key') {
+      const keyId = String(body.key_id || '').trim();
+      if (!keyId) return jsonError('API key is required');
+      store.keys = store.keys.filter((key) => key.id !== keyId);
+      await saveApiHubStore(auth.supabase, rowId, store);
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'delete_uat_keys') {
+      const clientId = String(body.client_id || '').trim();
+      const before = store.keys.length;
+      store.keys = store.keys.filter((key) => {
+        const isUat = key.environment !== 'production';
+        const matchesClient = clientId ? key.client_id === clientId : true;
+        return !(isUat && matchesClient);
+      });
+      await saveApiHubStore(auth.supabase, rowId, store);
+      return NextResponse.json({ success: true, deleted_count: before - store.keys.length });
+    }
+
     return jsonError('Unknown API Hub action');
   } catch (error) {
     console.error('[admin-api-hub] POST failed:', error);

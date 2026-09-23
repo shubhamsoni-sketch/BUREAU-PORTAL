@@ -7,6 +7,8 @@ import {
   CheckCircle2,
   Copy,
   Download,
+  Eye,
+  EyeOff,
   Globe2,
   KeyRound,
   LockKeyhole,
@@ -444,6 +446,11 @@ function keyValue(key: ApiKeyRecord) {
   return key.secret || `${key.prefix}...`;
 }
 
+function maskedKeyValue(key: ApiKeyRecord) {
+  const prefix = key.prefix || 'ct_key';
+  return `${prefix}${'*'.repeat(18)}`;
+}
+
 function endpointFor(api: ApiProduct, environment: Environment) {
   const envQuery = environment === 'UAT' ? '?env=uat' : '';
   if (api === 'Bureau Standard') return `POST https://api.credittrust.in/api/v1/bureau${envQuery}`;
@@ -855,13 +862,22 @@ function ClientKeyDirectory({
   keys,
   clients,
   onCreateKey,
+  onDeleteKey,
+  onDeleteUatKeys,
+  revealedSecrets,
 }: {
   keys: ApiKeyRecord[];
   clients: Client[];
   onCreateKey: (clientId?: string) => void;
+  onDeleteKey: (keyId: string) => void;
+  onDeleteUatKeys: (clientId: string) => void;
+  revealedSecrets: Record<string, string>;
 }) {
+  const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
+
   const copyKey = (key: ApiKeyRecord) => {
-    navigator.clipboard?.writeText(keyValue(key));
+    const value = revealedSecrets[key.id] || key.secret;
+    if (value) navigator.clipboard?.writeText(value);
   };
 
   return (
@@ -884,6 +900,7 @@ function ClientKeyDirectory({
                 <div className="flex flex-wrap gap-2">
                   <StatusPill tone={client.status === 'Production' ? 'green' : client.status === 'UAT' ? 'blue' : client.status === 'Suspended' ? 'red' : 'amber'}>{client.status}</StatusPill>
                   <StatusPill tone={client.responseMode === 'Full JSON' ? 'amber' : client.responseMode === 'Custom' ? 'blue' : 'green'}>{client.responseMode}</StatusPill>
+                  <button onClick={() => onDeleteUatKeys(client.id)} className="h-9 rounded-lg border border-red-100 bg-red-50 px-3 text-xs font-900 text-red-700">Clear UAT Keys</button>
                   <button onClick={() => onCreateKey(client.id)} className="h-9 rounded-lg border border-border bg-white px-3 text-xs font-900 text-foreground">Generate Key</button>
                 </div>
               </div>
@@ -906,11 +923,28 @@ function ClientKeyDirectory({
                             <StatusPill tone={key.status === 'Active' ? 'green' : 'red'}>{key.status}</StatusPill>
                             <span className="text-xs font-800 text-muted-foreground">{key.createdAt}</span>
                           </div>
-                          <div className="rounded-lg bg-slate-950 px-3 py-3 font-mono text-xs font-800 leading-5 text-white">
-                            <span className="break-all">{keyValue(key)}</span>
+                          <div className="flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-3 font-mono text-xs font-800 leading-5 text-white">
+                            <span className="min-w-0 flex-1 break-all">
+                              {visibleKeys[key.id] && (revealedSecrets[key.id] || key.secret)
+                                ? (revealedSecrets[key.id] || key.secret)
+                                : maskedKeyValue(key)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setVisibleKeys((current) => ({ ...current, [key.id]: !current[key.id] }))}
+                              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/10 text-white"
+                              title={(revealedSecrets[key.id] || key.secret) ? 'Show or hide full key' : 'Full key is available only immediately after generation'}
+                              aria-label={(visibleKeys[key.id] ? 'Hide' : 'Show') + ` API key for ${client.name}`}
+                            >
+                              {visibleKeys[key.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
                           </div>
                           <div className="mt-3 flex flex-wrap gap-2">
-                            <button onClick={() => copyKey(key)} className="inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-white px-3 text-xs font-900 text-foreground">
+                            <button
+                              onClick={() => copyKey(key)}
+                              disabled={!(revealedSecrets[key.id] || key.secret)}
+                              className="inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-white px-3 text-xs font-900 text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            >
                               <Copy size={13} />
                               Copy
                             </button>
@@ -921,7 +955,16 @@ function ClientKeyDirectory({
                               <Download size={13} />
                               Doc
                             </button>
+                            <button
+                              onClick={() => onDeleteKey(key.id)}
+                              className="inline-flex h-8 items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 text-xs font-900 text-red-700"
+                            >
+                              Delete
+                            </button>
                           </div>
+                          {!(revealedSecrets[key.id] || key.secret) ? (
+                            <p className="mt-2 text-[11px] font-800 text-slate-500">Full key is not stored. Generate a new key to reveal/copy it once.</p>
+                          ) : null}
                         </div>
                       )) : (
                         <div className="rounded-lg border border-dashed border-border bg-white px-4 py-6 text-sm font-800 text-muted-foreground">No {environment} key</div>
@@ -1705,7 +1748,7 @@ function DocsPanel({ clients, keys }: { clients: Client[]; keys: ApiKeyRecord[] 
                     <td className="px-4 py-4"><StatusPill tone="slate">{key.api}</StatusPill></td>
                     <td className="px-4 py-4">
                       <div className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-800 text-white">
-                        {keyValue(key)}
+                        {maskedKeyValue(key)}
                       </div>
                     </td>
                     <td className="px-4 py-4">
@@ -1740,12 +1783,15 @@ function ActiveSection({
   selectedClientId,
   onNewClient,
   onCreateKey,
+  onDeleteKey,
+  onDeleteUatKeys,
   onManage,
   onSelectClient,
   onRemoveIp,
   onAddIp,
   onUpdateClient,
   onAddCredits,
+  revealedSecrets,
 }: {
   activeNav: NavItem;
   clients: Client[];
@@ -1753,12 +1799,15 @@ function ActiveSection({
   selectedClientId?: string;
   onNewClient: () => void;
   onCreateKey: (clientId?: string) => void;
+  onDeleteKey: (keyId: string) => void;
+  onDeleteUatKeys: (clientId: string) => void;
   onManage: (clientId: string) => void;
   onSelectClient: (clientId: string) => void;
   onRemoveIp: (clientId: string, ip: string) => void;
   onAddIp: (clientId: string, ip: string) => void;
   onUpdateClient: (client: Client) => void;
   onAddCredits: (clientId: string, environment: Environment, credits: number) => void;
+  revealedSecrets: Record<string, string>;
 }) {
   if (activeNav === 'Overview') {
     return (
@@ -1881,7 +1930,7 @@ function ActiveSection({
                           <p className="text-sm font-900 text-foreground">{client?.name || 'Unknown client'}</p>
                           <p className="text-xs font-700 text-muted-foreground">{key.api}</p>
                         </div>
-                        <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-900 text-slate-700 break-all">{keyValue(key)}</span>
+                        <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-900 text-slate-700 break-all">{maskedKeyValue(key)}</span>
                       </div>
                     );
                   }) : (
@@ -1897,7 +1946,16 @@ function ActiveSection({
   }
 
   if (activeNav === 'API Keys') {
-    return <ClientKeyDirectory keys={keys} clients={clients} onCreateKey={onCreateKey} />;
+    return (
+      <ClientKeyDirectory
+        keys={keys}
+        clients={clients}
+        onCreateKey={onCreateKey}
+        onDeleteKey={onDeleteKey}
+        onDeleteUatKeys={onDeleteUatKeys}
+        revealedSecrets={revealedSecrets}
+      />
+    );
   }
 
   if (activeNav === 'IP Whitelist') {
@@ -1982,6 +2040,8 @@ export default function ApiConsolePage() {
   const [managedClientId, setManagedClientId] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState(initialClients[0]?.id);
   const [latestSecret, setLatestSecret] = useState('');
+  const [latestKeyId, setLatestKeyId] = useState('');
+  const [latestSecretVisible, setLatestSecretVisible] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [loginUsername, setLoginUsername] = useState('bridge-admin');
@@ -1989,6 +2049,9 @@ export default function ApiConsolePage() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const managedClient = clients.find((client) => client.id === managedClientId) || null;
+  const revealedSecrets = useMemo(() => (
+    latestKeyId && latestSecret ? { [latestKeyId]: latestSecret } : {}
+  ), [latestKeyId, latestSecret]);
 
   const loadData = async () => {
     setLoading(true);
@@ -2174,9 +2237,33 @@ export default function ApiConsolePage() {
     });
     if (!json?.success) return;
     setLatestSecret(json.secret_key || '');
+    setLatestKeyId(json.api_key?.id || '');
+    setLatestSecretVisible(false);
     setKeyModalClientId(undefined);
     setActiveNav('API Keys');
-    setNotice('Client API key generated. Full key is shown only once.');
+    setNotice('Client API key generated. Use the eye icon to reveal it only when needed.');
+  };
+
+  const deleteKey = async (keyId: string) => {
+    if (!window.confirm('Delete this API key from Bridge Console?')) return;
+    const json = await authPost({ action: 'delete_key', key_id: keyId });
+    if (json?.success) {
+      if (latestKeyId === keyId) {
+        setLatestSecret('');
+        setLatestKeyId('');
+      }
+      setNotice('API key deleted.');
+    }
+  };
+
+  const deleteUatKeys = async (clientId: string) => {
+    if (!window.confirm('Delete all UAT API keys for this client?')) return;
+    const json = await authPost({ action: 'delete_uat_keys', client_id: clientId });
+    if (json?.success) {
+      setLatestSecret('');
+      setLatestKeyId('');
+      setNotice(`${json.deleted_count || 0} UAT API key(s) deleted.`);
+    }
   };
 
   if (!authChecked || (loading && !authenticated)) {
@@ -2320,7 +2407,13 @@ export default function ApiConsolePage() {
           ) : null}
           {latestSecret ? (
             <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-800 text-emerald-800">
-              Key generated: <span className="font-900">{latestSecret}</span>
+              Key generated: <span className="font-mono font-900">{latestSecretVisible ? latestSecret : '*'.repeat(Math.min(32, latestSecret.length || 32))}</span>
+              <button
+                className="ml-3 rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs font-900 text-emerald-800"
+                onClick={() => setLatestSecretVisible((current) => !current)}
+              >
+                {latestSecretVisible ? 'Hide' : 'Show'}
+              </button>
               <button
                 className="ml-3 rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs font-900 text-emerald-800"
                 onClick={() => navigator.clipboard?.writeText(latestSecret)}
@@ -2344,6 +2437,8 @@ export default function ApiConsolePage() {
               selectedClientId={selectedClientId}
               onNewClient={() => setClientModalOpen(true)}
               onCreateKey={(clientId) => setKeyModalClientId(clientId || '')}
+              onDeleteKey={deleteKey}
+              onDeleteUatKeys={deleteUatKeys}
               onManage={(clientId) => {
                 setSelectedClientId(clientId);
                 setManagedClientId(clientId);
@@ -2353,6 +2448,7 @@ export default function ApiConsolePage() {
               onAddIp={addIp}
               onUpdateClient={updateClient}
               onAddCredits={addCredits}
+              revealedSecrets={revealedSecrets}
             />
           )}
         </div>
