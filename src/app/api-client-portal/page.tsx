@@ -161,17 +161,26 @@ function LoginPanel({
             }}
             className="bg-slate-50 p-8 text-slate-950 lg:p-12"
           >
+            <style>{`
+              .client-login-field input:-webkit-autofill,
+              .client-login-field input:-webkit-autofill:hover,
+              .client-login-field input:-webkit-autofill:focus {
+                -webkit-text-fill-color: #020617;
+                box-shadow: 0 0 0 1000px #ffffff inset;
+                transition: background-color 9999s ease-out 0s;
+              }
+            `}</style>
             <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-700">Secure Access</p>
             <h2 className="mt-3 text-2xl font-extrabold tracking-tight">Client portal login</h2>
             {error ? <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div> : null}
             <label className="mt-6 block">
-              <span className="text-sm font-black text-slate-700">Login ID</span>
-              <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4">
-                <ShieldCheck size={18} className="text-slate-400" />
+              <span className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Login ID</span>
+              <div className="client-login-field mt-2 flex h-12 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 shadow-sm transition focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-100">
+                <ShieldCheck size={16} className="shrink-0 text-slate-400" />
                 <input
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
-                  className="h-14 min-w-0 flex-1 bg-transparent text-sm font-bold outline-none"
+                  className="h-10 min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400"
                   placeholder="binta-uat"
                   autoComplete="username"
                   type="text"
@@ -179,13 +188,13 @@ function LoginPanel({
               </div>
             </label>
             <label className="mt-4 block">
-              <span className="text-sm font-black text-slate-700">Password</span>
-              <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4">
-                <LockKeyhole size={18} className="text-slate-400" />
+              <span className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Password</span>
+              <div className="client-login-field mt-2 flex h-12 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 shadow-sm transition focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-100">
+                <LockKeyhole size={16} className="shrink-0 text-slate-400" />
                 <input
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  className="h-14 min-w-0 flex-1 bg-transparent text-sm font-bold outline-none"
+                  className="h-10 min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400"
                   placeholder="Enter password"
                   autoComplete="current-password"
                   type="password"
