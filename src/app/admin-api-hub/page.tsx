@@ -105,15 +105,25 @@ const clientMetadataTemplate = `{
 }`;
 
 const defaultPayload = `{
-  "firstName": "HARSHAL",
-  "lastName": "PAWAR",
-  "dob": "2000-12-13",
+  "firstName": "Raj",
+  "lastName": "Patel",
+  "dob": "1995-01-01",
   "gender": "male",
-  "pan": "GEAPP1589H",
-  "mobile": "7067384810",
-  "address": "450221 MADHYA PRADESH",
-  "state": "MADHYA PRADESH",
-  "pincode": "450221"
+  "pan": "ABCDE1234F",
+  "mobile": "9899999999",
+  "address": "Andheri East, Mumbai, Maharashtra",
+  "state": "MAHARASHTRA",
+  "pincode": "400069",
+  "consent": true,
+  "consent_metadata": {
+    "consent_timestamp": "1789012300",
+    "first_name": "Raj",
+    "middle_name": "",
+    "last_name": "Patel",
+    "date_of_birth": "1995-01-01",
+    "email": "raj.patel@example.com",
+    "origin_country": "IND"
+  }
 }`;
 
 const blankPayload = `{
@@ -136,24 +146,33 @@ const clientApiDocs = [
     endpoint: '/api/v1/bureau',
     summary: 'Client sends Schedule A customer fields. CreditTrust validates API key, whitelisted IP, credits, consent metadata, and returns a normalized Bureau Standard response when client metadata response_mode is credittrust_standard.',
     payload: `{
-  "firstName": "HARSHAL",
-  "lastName": "PAWAR",
-  "dob": "2000-12-13",
+  "firstName": "Raj",
+  "lastName": "Patel",
+  "dob": "1995-01-01",
   "gender": "male",
-  "pan": "GEAPP1589H",
-  "mobile": "7067384810",
-  "address": "450221 MADHYA PRADESH",
-  "state": "MADHYA PRADESH",
-  "pincode": "450221",
+  "pan": "ABCDE1234F",
+  "mobile": "9899999999",
+  "address": "Andheri East, Mumbai, Maharashtra",
+  "state": "MAHARASHTRA",
+  "pincode": "400069",
   "consent": true,
-  "consent_timestamp": "1789012300"
+  "consent_metadata": {
+    "consent_timestamp": "1789012300",
+    "first_name": "Raj",
+    "middle_name": "",
+    "last_name": "Patel",
+    "date_of_birth": "1995-01-01",
+    "email": "raj.patel@example.com",
+    "origin_country": "IND"
+  }
 }`,
     notes: [
+      'Mandatory fields: firstName, lastName, dob, pan, mobile, gender, address, state, and pincode.',
       'dob accepts YYYY-MM-DD or DD/MM/YYYY.',
       'gender accepts male, female, or transgender.',
-      'state must be the full state name, for example MADHYA PRADESH.',
+      'consent_metadata.consent_timestamp is mandatory for UAT.',
       'pan, mobile, and pincode are validated before the vendor hit.',
-      'For Schedule A clients, set client metadata response_mode to credittrust_standard so raw provider dumps are not returned.',
+      'For Schedule A clients, response_mode stays credittrust_standard so raw provider dumps are not returned.',
     ],
   },
   {
@@ -481,7 +500,7 @@ export default function AdminApiHubPage() {
       }, null, 2),
       credits: '100',
     });
-    setNotice('Binta UAT API-only onboarding preset applied.');
+    setNotice('Binta UAT onboarding preset applied.');
   };
 
   const generateKey = async (event: React.FormEvent) => {
@@ -1017,15 +1036,15 @@ x-api-key: <client_api_key>`}</pre>
   "bureau": "CIBIL",
   "score": {
     "available": true,
-    "score_range": "605-610",
-    "score_band": "fair"
+    "score_range": "740-745",
+    "score_band": "good"
   },
   "consumer": {
-    "first_name": "HARSHAL",
-    "last_name": "PAWAR",
-    "dob": "2000-12-13",
-    "mobile_masked": "70******10",
-    "pan_masked": "GEA****9H"
+    "first_name": "Raj",
+    "last_name": "Patel",
+    "dob": "1995-01-01",
+    "mobile_masked": "98******99",
+    "pan_masked": "ABC****4F"
   },
   "summary": {
     "total_accounts": 4,

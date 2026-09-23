@@ -77,15 +77,25 @@ const defaultPrefillPayload = {
 };
 
 export const defaultBureauPayload = {
-  firstName: 'HARSHAL',
-  lastName: 'PAWAR',
-  dob: '2000-12-13',
+  firstName: 'Raj',
+  lastName: 'Patel',
+  dob: '1995-01-01',
   gender: 'male',
-  pan: 'GEAPP1589H',
-  mobile: '7067384810',
-  address: '450221 MADHYA PRADESH',
-  state: 'MADHYA PRADESH',
-  pincode: '450221',
+  pan: 'ABCDE1234F',
+  mobile: '9899999999',
+  address: 'Andheri East, Mumbai, Maharashtra',
+  state: 'MAHARASHTRA',
+  pincode: '400069',
+  consent: true,
+  consent_metadata: {
+    consent_timestamp: '1789012300',
+    first_name: 'Raj',
+    middle_name: '',
+    last_name: 'Patel',
+    date_of_birth: '1995-01-01',
+    email: 'raj.patel@example.com',
+    origin_country: 'IND',
+  },
 };
 
 export const defaultBureauApi: SimpleApiConfig = {

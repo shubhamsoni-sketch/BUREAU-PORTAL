@@ -18,11 +18,7 @@ type JaadugarCibilPayload = {
 };
 
 const PORTAL_DEFAULTS = {
-  dob: '2000-01-01',
   gender: 'male',
-  address: 'CreditTrust Verified Address',
-  state: 'MADHYA PRADESH',
-  pincode: '452001',
 };
 
 function jsonError(message: string, status = 400, requestId?: string) {
@@ -139,7 +135,7 @@ function normalizeBureauStandardResponse(params: {
     tradelines,
     consent: {
       validated: Boolean(requestBody.consent ?? requestBody.consent_given ?? true),
-      consent_timestamp: cleanString(requestBody.consent_timestamp || requestBody.consentTimestamp || requestBody.consent_timespamp),
+      consent_timestamp: consentTimestamp(requestBody),
     },
     generated_at: new Date().toISOString(),
   };
@@ -168,25 +164,52 @@ function splitName(value: unknown) {
 function normalizePayload(body: Record<string, unknown>): JaadugarCibilPayload {
   const fullName = splitName(body.name || body.fullName || body.customerName);
   return {
-    firstName: cleanString(body.firstName).toUpperCase() || fullName.firstName,
-    lastName: cleanString(body.lastName).toUpperCase() || fullName.lastName,
-    dob: cleanString(body.dob || body.birthDate || body.dateOfBirth) || PORTAL_DEFAULTS.dob,
+    firstName: cleanString(body.firstName || body.first_name).toUpperCase() || fullName.firstName,
+    lastName: cleanString(body.lastName || body.last_name).toUpperCase() || fullName.lastName,
+    dob: cleanString(body.dob || body.birthDate || body.dateOfBirth || body.date_of_birth),
     gender: cleanString(body.gender) || PORTAL_DEFAULTS.gender,
     pan: cleanString(body.pan || body.idNumber).toUpperCase(),
-    mobile: digits(body.mobile || body.telephoneNumber || body.mobile_number).slice(-10),
-    address: cleanString(body.address || body.detailed_address) || PORTAL_DEFAULTS.address,
-    state: cleanString(body.state || body.stateName).toUpperCase() || PORTAL_DEFAULTS.state,
-    pincode: digits(body.pincode || body.pinCode).slice(0, 6) || PORTAL_DEFAULTS.pincode,
+    mobile: digits(body.mobile || body.telephoneNumber || body.mobile_number || body.mobileNumber).slice(-10),
+    address: cleanString(body.address || body.detailed_address || body.detailedAddress),
+    state: cleanString(body.state || body.stateName || body.state_name).toUpperCase(),
+    pincode: digits(body.pincode || body.pinCode || body.pin_code).slice(0, 6),
   };
 }
 
 function validatePayload(payload: JaadugarCibilPayload) {
-  const required: Array<keyof JaadugarCibilPayload> = ['firstName', 'lastName', 'pan', 'mobile'];
+  const required: Array<keyof JaadugarCibilPayload> = ['firstName', 'lastName', 'dob', 'gender', 'pan', 'mobile', 'address', 'state', 'pincode'];
   const missing = required.filter((field) => !payload[field]);
   if (missing.includes('firstName') || missing.includes('lastName')) return 'name must include first and last name';
   if (missing.length) return `Missing required fields: ${missing.join(', ')}`;
+  if (!/^\d{4}-\d{2}-\d{2}$|^\d{2}\/\d{2}\/\d{4}$/.test(payload.dob)) return 'dob must be YYYY-MM-DD or DD/MM/YYYY';
+  if (!['male', 'female', 'transgender'].includes(payload.gender.toLowerCase())) return 'gender must be male, female, or transgender';
   if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(payload.pan)) return 'pan must be a valid PAN format';
   if (!/^\d{10}$/.test(payload.mobile)) return 'mobile must be 10 digits';
+  if (!/^\d{6}$/.test(payload.pincode)) return 'pincode must be 6 digits';
+  return null;
+}
+
+function consentSource(body: Record<string, unknown>) {
+  const nested = body.consent_metadata || body.consentMeta || body.consent;
+  return isRecord(nested) ? nested : body;
+}
+
+function consentTimestamp(body: Record<string, unknown>) {
+  const source = consentSource(body);
+  return cleanString(
+    source.consent_timestamp
+    || source.consentTimestamp
+    || source.consent_timespamp
+    || source.consentTime,
+  );
+}
+
+function validateConsent(body: Record<string, unknown>) {
+  const source = consentSource(body);
+  const consentValue = body.consent_given ?? body.consentGiven ?? body.consent ?? source.consent_given ?? source.consentGiven;
+  const hasConsentFlag = consentValue === true || String(consentValue).toLowerCase() === 'true' || String(consentValue).toUpperCase() === 'Y';
+  if (!hasConsentFlag) return 'consent must be true';
+  if (!consentTimestamp(body)) return 'consent_timestamp is required';
   return null;
 }
 
@@ -271,6 +294,10 @@ export async function POST(request: NextRequest) {
 
     const validationError = validatePayload(payload);
     if (validationError) return saveFailure(validationError, 400);
+    if (shouldReturnCreditTrustStandard(client.metadata)) {
+      const consentError = validateConsent(requestBody);
+      if (consentError) return saveFailure(consentError, 400);
+    }
 
     const response = await hitMasterApi(api, payload);
     const responseTime = Date.now() - startedAt;
