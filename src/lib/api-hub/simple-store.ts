@@ -40,6 +40,7 @@ export type SimpleApiKey = {
   client_id: string;
   api_id: string;
   label: string;
+  environment?: 'uat' | 'production';
   key_prefix: string;
   key_hash: string;
   status: 'active' | 'revoked';
@@ -222,11 +223,16 @@ function normalizeClient(raw: Record<string, any>): SimpleApiClient {
 }
 
 function normalizeKey(raw: Record<string, any>): SimpleApiKey {
+  const rawEnvironment = String(raw.environment || raw.env || '').toLowerCase();
+  const inferredEnvironment = String(raw.key_prefix || '').startsWith('ctlive') || rawEnvironment === 'live'
+    ? 'production'
+    : 'uat';
   return {
     id: String(raw.id || crypto.randomUUID()),
     client_id: String(raw.client_id || ''),
     api_id: String(raw.api_id || raw.product_id || defaultBureauApi.id),
     label: String(raw.label || 'API key'),
+    environment: rawEnvironment === 'production' || rawEnvironment === 'live' ? 'production' : inferredEnvironment,
     key_prefix: String(raw.key_prefix || ''),
     key_hash: String(raw.key_hash || ''),
     status: raw.status === 'revoked' ? 'revoked' : 'active',

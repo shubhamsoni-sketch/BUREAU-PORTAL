@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import {
   ArrowRight,
   BarChart3,
@@ -84,6 +85,46 @@ type UsageLog = {
   latency: string;
   charge: string;
   ip: string;
+};
+
+type HubApiConfig = {
+  id: string;
+  name: string;
+  code: string;
+  status: 'active' | 'inactive';
+};
+
+type HubClient = {
+  id: string;
+  name: string;
+  company_name: string | null;
+  contact_name: string | null;
+  email: string | null;
+  mobile: string | null;
+  allowed_ips?: string[];
+  metadata?: Record<string, unknown>;
+  credits: number;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
+};
+
+type HubKey = {
+  id: string;
+  client_id: string;
+  api_id: string;
+  label: string;
+  environment?: 'uat' | 'production';
+  key_prefix: string;
+  status: 'active' | 'revoked';
+  last_used_at: string | null;
+  created_at: string;
+};
+
+type HubData = {
+  apis: HubApiConfig[];
+  clients: HubClient[];
+  keys: HubKey[];
 };
 
 const navItems: NavItem[] = ['Overview', 'Onboarding', 'Clients', 'Environments', 'API Keys', 'IP Whitelist', 'Credits', 'Docs'];
@@ -200,166 +241,175 @@ function productionCredentialReady(client: Client) {
   ].every((key) => client.onboarding[key as keyof ClientOnboarding] === 'done');
 }
 
-const initialClients: Client[] = [
-  {
-    id: 'client-binta',
-    name: 'Binta Financial Inc.',
-    country: 'Canada',
-    status: 'Review',
-    contactEmail: 'tech@bintafinancial.com',
-    uatCredits: 500,
-    liveCredits: 0,
-    ipWhitelistingRequired: true,
-    ips: ['Awaiting UAT static IP'],
-    onboarding: defaultOnboarding({
-      stage: 'CSR',
-      techSpoc: 'Binta Engineering',
-      legalEntity: 'Binta Financial Inc.',
-      csrStatus: 'in_progress',
-      sslStatus: 'pending',
-      uatIpStatus: 'pending',
-      productionIpStatus: 'pending',
-      uatCredentialsStatus: 'pending',
-      payloadValidationStatus: 'pending',
-      uatSignoffStatus: 'pending',
-      productionCredentialsStatus: 'pending',
-      goLiveStatus: 'pending',
-      sslCommonName: 'api.credittrust.in',
-      csrReference: 'Awaiting client CSR/static IP pack',
-    }),
-    apis: ['Bureau Standard', 'Bureau Advanced'],
-    responseMode: 'CreditTrust Standard',
-    responseFields: ['success', 'request_id', 'score', 'status', 'report_id', 'accounts_summary'],
-    successRate: '-',
-  },
-  {
-    id: 'client-ketav',
-    name: 'Ketav Global Finance',
-    country: 'UAE',
-    status: 'Production',
-    contactEmail: 'tech@ketavglobal.com',
-    uatCredits: 240,
-    liveCredits: 1840,
-    ipWhitelistingRequired: true,
-    ips: ['103.82.44.18', '185.64.112.90'],
-    onboarding: defaultOnboarding({
-      stage: 'Production',
-      techSpoc: 'Ketav Tech Ops',
-      legalEntity: 'Ketav Global Finance',
-      uatStaticIps: ['103.82.44.18'],
-      productionStaticIps: ['185.64.112.90'],
-      csrStatus: 'done',
-      sslStatus: 'done',
-      uatIpStatus: 'done',
-      productionIpStatus: 'done',
-      uatCredentialsStatus: 'done',
-      payloadValidationStatus: 'done',
-      uatSignoffStatus: 'done',
-      productionCredentialsStatus: 'done',
-      goLiveStatus: 'done',
-      csrReference: 'Managed TLS on api.credittrust.in',
-      certificateExpiry: 'Auto-renewed',
-      uatSignoffBy: 'Ketav Ops',
-      uatSignoffAt: '04 Jul 2026',
-    }),
-    apis: ['Bureau Standard', 'Bureau Advanced'],
-    responseMode: 'CreditTrust Standard',
-    responseFields: ['score', 'status', 'report_id', 'customer_name', 'accounts_summary'],
-    successRate: '98.7%',
-  },
-  {
-    id: 'client-northstar',
-    name: 'Northstar Capital',
-    country: 'Singapore',
-    status: 'UAT',
-    contactEmail: 'api@northstar.sg',
-    uatCredits: 85,
-    liveCredits: 0,
-    ipWhitelistingRequired: true,
-    ips: ['152.58.91.10'],
-    onboarding: defaultOnboarding({
-      stage: 'UAT',
-      techSpoc: 'Northstar API Team',
-      legalEntity: 'Northstar Capital',
-      uatStaticIps: ['152.58.91.10'],
-      csrStatus: 'done',
-      sslStatus: 'done',
-      uatIpStatus: 'done',
-      uatCredentialsStatus: 'done',
-      payloadValidationStatus: 'in_progress',
-      csrReference: 'Managed TLS on api.credittrust.in',
-    }),
-    apis: ['Bureau Advanced'],
-    responseMode: 'Full JSON',
-    responseFields: ['full_response'],
-    successRate: '96.2%',
-  },
-  {
-    id: 'client-atlas',
-    name: 'Atlas Credit Labs',
-    country: 'UK',
-    status: 'Review',
-    contactEmail: 'ops@atlascredit.co.uk',
-    uatCredits: 25,
-    liveCredits: 0,
-    ipWhitelistingRequired: false,
-    ips: [],
-    onboarding: defaultOnboarding({
-      stage: 'CSR',
-      techSpoc: 'Atlas Ops',
-      legalEntity: 'Atlas Credit Labs',
-      csrStatus: 'pending',
-      sslStatus: 'pending',
-    }),
-    apis: ['Mobile Prefill'],
-    responseMode: 'Custom',
-    responseFields: ['full_name', 'dob', 'pan', 'addresses', 'emails'],
-    successRate: '-',
-  },
-];
+const initialClients: Client[] = [];
 
-const initialKeys: ApiKeyRecord[] = [
-  {
-    id: 'key-1',
-    clientId: 'client-ketav',
-    environment: 'UAT',
-    api: 'Bureau Advanced',
-    label: 'Ketav UAT advanced',
-    prefix: 'ctuat_x9f4a8d1',
-    secret: 'ctuat_x9f4a8d1_demo_key_7f42b91c',
-    status: 'Active',
-    createdAt: '04 Jul 2026',
-  },
-  {
-    id: 'key-2',
-    clientId: 'client-ketav',
-    environment: 'Production',
-    api: 'Bureau Advanced',
-    label: 'Ketav live advanced',
-    prefix: 'ctlive_81aa9c42',
-    secret: 'ctlive_81aa9c42_demo_key_51ca7d22',
-    status: 'Active',
-    createdAt: '04 Jul 2026',
-  },
-  {
-    id: 'key-3',
-    clientId: 'client-northstar',
-    environment: 'UAT',
-    api: 'Bureau Advanced',
-    label: 'Northstar sandbox',
-    prefix: 'ctuat_771e09bd',
-    secret: 'ctuat_771e09bd_demo_key_a9f4d017',
-    status: 'Active',
-    createdAt: '04 Jul 2026',
-  },
-];
+const initialKeys: ApiKeyRecord[] = [];
 
-const initialLogs: UsageLog[] = [
-  { id: 'ct_req_20260704_9121', clientId: 'client-ketav', environment: 'Production', api: 'Bureau Advanced', status: 'Success', latency: '812 ms', charge: '1 credit', ip: '103.82.44.18' },
-  { id: 'ct_req_20260704_9120', clientId: 'client-ketav', environment: 'Production', api: 'Bureau Standard', status: 'Success', latency: '684 ms', charge: '1 credit', ip: '185.64.112.90' },
-  { id: 'ct_req_20260704_9118', clientId: 'client-northstar', environment: 'UAT', api: 'Bureau Advanced', status: 'Failed', latency: '431 ms', charge: '0 credit', ip: '152.58.91.10' },
-  { id: 'ct_req_20260704_9114', clientId: 'client-ketav', environment: 'Production', api: 'Mobile Prefill', status: 'Success', latency: '390 ms', charge: '1 credit', ip: '103.82.44.18' },
-];
+const initialLogs: UsageLog[] = [];
+
+const apiProductMap: Record<ApiProduct, string> = {
+  'Bureau Standard': 'bureau-api',
+  'Bureau Advanced': 'bureau-advanced',
+  'Mobile Prefill': 'mobile-prefill',
+};
+
+function apiProductFromId(apiId: string, apis: HubApiConfig[] = []): ApiProduct {
+  const api = apis.find((item) => item.id === apiId || item.code === apiId);
+  const code = api?.code || api?.id || apiId;
+  if (code === 'mobile-prefill') return 'Mobile Prefill';
+  if (code === 'bureau-advanced') return 'Bureau Advanced';
+  return 'Bureau Standard';
+}
+
+function apiIdForProduct(product: ApiProduct, apis: HubApiConfig[] = []) {
+  const target = apiProductMap[product];
+  return apis.find((api) => api.id === target || api.code === target)?.id || target;
+}
+
+function asStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
+}
+
+function metadataObject(client: HubClient | Client) {
+  const metadata = 'metadata' in client ? client.metadata : undefined;
+  return metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+    ? metadata as Record<string, unknown>
+    : {};
+}
+
+function nestedRecord(source: Record<string, unknown>, key: string) {
+  const value = source[key];
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function mapHubClient(client: HubClient, keys: HubKey[], apis: HubApiConfig[]): Client {
+  const metadata = metadataObject(client);
+  const onboarding = nestedRecord(metadata, 'onboarding');
+  const legal = nestedRecord(metadata, 'legal');
+  const spoc = nestedRecord(metadata, 'spoc');
+  const security = nestedRecord(metadata, 'security');
+  const response = nestedRecord(metadata, 'response');
+  const enabledApiIds = new Set(keys.filter((key) => key.client_id === client.id && key.status === 'active').map((key) => key.api_id));
+  const products = Array.from(new Set(
+    (enabledApiIds.size ? Array.from(enabledApiIds) : ['bureau-api'])
+      .map((apiId) => apiProductFromId(apiId, apis)),
+  ));
+  const allowedIps = client.allowed_ips || [];
+  const uatIps = asStringArray(onboarding.uatStaticIps).length
+    ? asStringArray(onboarding.uatStaticIps)
+    : asStringArray(security.uat_static_ips).length
+      ? asStringArray(security.uat_static_ips)
+      : allowedIps;
+  const productionIps = asStringArray(onboarding.productionStaticIps).length
+    ? asStringArray(onboarding.productionStaticIps)
+    : asStringArray(security.production_static_ips);
+  const uatSignoffAt = String(onboarding.uatSignoffAt || '');
+
+  return {
+    id: client.id,
+    name: client.name,
+    country: String(legal.country_of_operation || metadata.country || '-'),
+    status: client.status === 'inactive' ? 'Suspended' : uatSignoffAt || onboarding.stage === 'Production' ? 'Production' : 'UAT',
+    contactEmail: client.email || String(spoc.technical_email || spoc.business_email || ''),
+    uatCredits: Number(client.credits || 0),
+    liveCredits: Number(metadata.live_credits || 0),
+    ipWhitelistingRequired: Boolean(security.static_ip_required ?? true),
+    ips: allowedIps,
+    onboarding: defaultOnboarding({
+      stage: (onboarding.stage as OnboardingStage) || 'UAT',
+      techSpoc: String(onboarding.techSpoc || spoc.technical_email || client.contact_name || client.email || ''),
+      legalEntity: String(onboarding.legalEntity || legal.legal_entity_name || client.company_name || client.name),
+      uatStaticIps: uatIps,
+      productionStaticIps: productionIps,
+      csrStatus: (onboarding.csrStatus as GateStatus) || (security.binta_client_csr ? 'done' : 'pending'),
+      sslStatus: (onboarding.sslStatus as GateStatus) || (security.certificate_status === 'active' ? 'done' : 'in_progress'),
+      uatIpStatus: (onboarding.uatIpStatus as GateStatus) || (uatIps.length ? 'done' : 'pending'),
+      productionIpStatus: (onboarding.productionIpStatus as GateStatus) || (productionIps.length ? 'done' : 'pending'),
+      uatCredentialsStatus: (onboarding.uatCredentialsStatus as GateStatus) || (keys.some((key) => key.client_id === client.id && key.environment !== 'production' && key.status === 'active') ? 'done' : 'pending'),
+      payloadValidationStatus: (onboarding.payloadValidationStatus as GateStatus) || 'pending',
+      uatSignoffStatus: (onboarding.uatSignoffStatus as GateStatus) || 'pending',
+      productionCredentialsStatus: (onboarding.productionCredentialsStatus as GateStatus) || (keys.some((key) => key.client_id === client.id && key.environment === 'production' && key.status === 'active') ? 'done' : 'pending'),
+      goLiveStatus: (onboarding.goLiveStatus as GateStatus) || 'pending',
+      sslCommonName: String(onboarding.sslCommonName || security.csr_common_name || nestedRecord(security, 'binta_client_csr').common_name || 'api.credittrust.in'),
+      csrReference: String(onboarding.csrReference || security.certificate_status || ''),
+      certificateExpiry: String(onboarding.certificateExpiry || security.certificate_expiry || ''),
+      uatSignoffBy: String(onboarding.uatSignoffBy || ''),
+      uatSignoffAt,
+    }),
+    apis: products.length ? products : ['Bureau Standard'],
+    responseMode: String(response.mode || metadata.response_mode || 'credittrust_standard') === 'custom'
+      ? 'Custom'
+      : String(response.mode || metadata.response_mode || '') === 'full_json'
+        ? 'Full JSON'
+        : 'CreditTrust Standard',
+    responseFields: asStringArray(response.fields).length ? asStringArray(response.fields) : standardResponseFields,
+    successRate: '-',
+  };
+}
+
+function mapHubKey(key: HubKey, apis: HubApiConfig[]): ApiKeyRecord {
+  return {
+    id: key.id,
+    clientId: key.client_id,
+    environment: key.environment === 'production' ? 'Production' : 'UAT',
+    api: apiProductFromId(key.api_id, apis),
+    label: key.label,
+    prefix: key.key_prefix,
+    status: key.status === 'revoked' ? 'Revoked' : 'Active',
+    createdAt: new Date(key.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+  };
+}
+
+function isBridgeConsoleClient(client: HubClient) {
+  const metadata = metadataObject(client);
+  const legal = nestedRecord(metadata, 'legal');
+  const scope = String(metadata.bridge_console_scope || metadata.console_scope || '').toLowerCase();
+  const name = `${client.name} ${client.company_name || ''} ${legal.legal_entity_name || ''}`.toLowerCase();
+
+  return scope === 'binta_bridge' || name.includes('binta financial');
+}
+
+function clientToHubPayload(client: Client) {
+  return {
+    action: 'update_client',
+    client_id: client.id,
+    name: client.name,
+    company_name: client.onboarding.legalEntity || client.name,
+    contact_name: client.onboarding.techSpoc || client.contactEmail,
+    email: client.contactEmail,
+    allowed_ips: client.ips.join(','),
+    credits: client.uatCredits,
+    status: client.status === 'Suspended' ? 'inactive' : 'active',
+    metadata: {
+      bridge_console_scope: 'binta_bridge',
+      country: client.country,
+      live_credits: client.liveCredits,
+      onboarding: client.onboarding,
+      response: {
+        mode: client.responseMode === 'Full JSON' ? 'full_json' : client.responseMode === 'Custom' ? 'custom' : 'credittrust_standard',
+        fields: client.responseFields,
+      },
+      security: {
+        static_ip_required: client.ipWhitelistingRequired,
+        uat_static_ips: client.onboarding.uatStaticIps,
+        production_static_ips: client.onboarding.productionStaticIps,
+        csr_common_name: client.onboarding.sslCommonName,
+        certificate_status: client.onboarding.csrReference,
+      },
+      legal: {
+        legal_entity_name: client.onboarding.legalEntity || client.name,
+        country_of_operation: client.country,
+      },
+      spoc: {
+        technical_email: client.onboarding.techSpoc || client.contactEmail,
+      },
+    },
+  };
+}
 
 const normalizedResponse = `{
   "success": true,
@@ -392,7 +442,7 @@ function todayLabel() {
 }
 
 function keyValue(key: ApiKeyRecord) {
-  return key.secret || `${key.prefix}_full_key`;
+  return key.secret || `${key.prefix}...`;
 }
 
 function endpointFor(api: ApiProduct, environment: Environment) {
@@ -1054,7 +1104,7 @@ function ClientForm({
     productionIps: '',
     csrReference: '',
     sslCommonName: 'api.credittrust.in',
-    apis: ['Bureau Advanced'] as ApiProduct[],
+    apis: ['Bureau Standard'] as ApiProduct[],
   });
 
   const toggleApi = (api: ApiProduct) => {
@@ -1092,7 +1142,7 @@ function ClientForm({
         csrReference: form.csrReference.trim(),
         sslCommonName: form.sslCommonName.trim() || 'api.credittrust.in',
       }),
-      apis: form.apis.length ? form.apis : ['Bureau Advanced'],
+      apis: form.apis.length ? form.apis : ['Bureau Standard'],
       responseMode: 'CreditTrust Standard',
       responseFields: ['score', 'status', 'report_id', 'customer_name', 'accounts_summary'],
       successRate: '-',
@@ -1103,10 +1153,10 @@ function ClientForm({
     <form onSubmit={submit} className="space-y-5">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Client name">
-          <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="input-base" placeholder="Ketav Global Finance" />
+          <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="input-base" placeholder="Binta Financial Inc." />
         </Field>
         <Field label="Country">
-          <input value={form.country} onChange={(event) => setForm({ ...form, country: event.target.value })} className="input-base" placeholder="UAE" />
+          <input value={form.country} onChange={(event) => setForm({ ...form, country: event.target.value })} className="input-base" placeholder="Canada" />
         </Field>
         <Field label="Technical email">
           <input value={form.contactEmail} onChange={(event) => setForm({ ...form, contactEmail: event.target.value })} className="input-base" placeholder="tech@client.com" />
@@ -1148,7 +1198,7 @@ function ClientForm({
         </div>
         <div className="mt-4">
           <Field label="Allowed IPs">
-            <input value={form.ips} onChange={(event) => setForm({ ...form, ips: event.target.value })} className="input-base" placeholder="103.82.44.18, 185.64.112.90" />
+            <input value={form.ips} onChange={(event) => setForm({ ...form, ips: event.target.value })} className="input-base" placeholder="3.109.33.183" />
           </Field>
         </div>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1204,7 +1254,7 @@ function KeyForm({
   const [form, setForm] = useState({
     clientId: initialClientId || clients[0]?.id || '',
     environment: 'UAT' as Environment,
-    api: 'Bureau Advanced' as ApiProduct,
+    api: 'Bureau Standard' as ApiProduct,
     label: '',
   });
   const selectedClient = clients.find((client) => client.id === form.clientId);
@@ -1923,6 +1973,11 @@ export default function ApiConsolePage() {
   const [clients, setClients] = useState<Client[]>(initialClients);
   const [keys, setKeys] = useState<ApiKeyRecord[]>(initialKeys);
   const [logs, setLogs] = useState<UsageLog[]>(initialLogs);
+  const [hubApis, setHubApis] = useState<HubApiConfig[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [clientModalOpen, setClientModalOpen] = useState(false);
   const [keyModalClientId, setKeyModalClientId] = useState<string | undefined>();
   const [managedClientId, setManagedClientId] = useState<string | null>(null);
@@ -1931,63 +1986,151 @@ export default function ApiConsolePage() {
 
   const managedClient = clients.find((client) => client.id === managedClientId) || null;
 
-  const addClient = (client: Client) => {
-    setClients((prev) => [client, ...prev]);
-    setSelectedClientId(client.id);
+  const authHeaders = async (): Promise<Record<string, string>> => {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const headers = await authHeaders();
+      const response = await fetch('/api/admin-api-hub?usage_page_size=10', { headers });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to load Bridge console data');
+      const data: HubData = {
+        apis: json.apis || [],
+        clients: json.clients || [],
+        keys: json.keys || [],
+      };
+      const bridgeClients = data.clients.filter(isBridgeConsoleClient);
+      const bridgeClientIds = new Set(bridgeClients.map((client) => client.id));
+      const bridgeKeys = data.keys.filter((key) => bridgeClientIds.has(key.client_id));
+      const mappedKeys = bridgeKeys.map((key) => mapHubKey(key, data.apis));
+      const mappedClients = bridgeClients.map((client) => mapHubClient(client, bridgeKeys, data.apis));
+      setHubApis(data.apis);
+      setKeys(mappedKeys);
+      setClients(mappedClients);
+      setLogs([]);
+      setSelectedClientId((current) => current && mappedClients.some((client) => client.id === current)
+        ? current
+        : mappedClients[0]?.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load Bridge console data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const [pendingClientSave, setPendingClientSave] = useState<Client | null>(null);
+
+  const authPost = async (
+    payload: Record<string, unknown>,
+    options: { reload?: boolean; quiet?: boolean } = {},
+  ) => {
+    const { reload = true, quiet = false } = options;
+    setSaving(true);
+    setError('');
+    if (!quiet) setNotice('');
+    try {
+      const headers = await authHeaders();
+      const response = await fetch('/api/admin-api-hub', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify(payload),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Bridge console action failed');
+      if (reload) await loadData();
+      return json;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bridge console action failed');
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!pendingClientSave) return;
+    const timeout = setTimeout(() => {
+      authPost(clientToHubPayload(pendingClientSave), { reload: false, quiet: true }).then((json) => {
+        if (json?.success) setNotice('Client setup autosaved.');
+      });
+      setPendingClientSave(null);
+    }, 650);
+    return () => clearTimeout(timeout);
+  }, [pendingClientSave]);
+
+  const addClient = async (client: Client) => {
+    const json = await authPost({
+      action: 'create_client',
+      name: client.name,
+      company_name: client.onboarding.legalEntity || client.name,
+      contact_name: client.onboarding.techSpoc || client.contactEmail,
+      email: client.contactEmail,
+      allowed_ips: client.ips.join(','),
+      credits: client.uatCredits,
+      metadata: clientToHubPayload(client).metadata,
+    });
+    if (!json?.success) return;
+    setSelectedClientId(json.client?.id);
     setClientModalOpen(false);
     setActiveNav('Clients');
+    setNotice('Client created in Bridge backend.');
   };
 
   const updateClient = (client: Client) => {
     setClients((prev) => prev.map((item) => item.id === client.id ? client : item));
+    setPendingClientSave(client);
   };
 
-  const addIp = (clientId: string, ip: string) => {
+  const addIp = async (clientId: string, ip: string) => {
     const cleanIp = ip.trim();
     if (!cleanIp) return;
-    setClients((prev) => prev.map((client) => client.id === clientId && !client.ips.includes(cleanIp)
-      ? { ...client, ips: [...client.ips, cleanIp] }
-      : client));
+    const client = clients.find((item) => item.id === clientId);
+    if (!client || client.ips.includes(cleanIp)) return;
+    updateClient({ ...client, ips: [...client.ips, cleanIp] });
   };
 
-  const removeIp = (clientId: string, ip: string) => {
-    setClients((prev) => prev.map((client) => client.id === clientId
-      ? { ...client, ips: client.ips.filter((item) => item !== ip) }
-      : client));
+  const removeIp = async (clientId: string, ip: string) => {
+    const client = clients.find((item) => item.id === clientId);
+    if (!client) return;
+    updateClient({ ...client, ips: client.ips.filter((item) => item !== ip) });
   };
 
-  const addCredits = (clientId: string, environment: Environment, credits: number) => {
-    setClients((prev) => prev.map((client) => {
-      if (client.id !== clientId) return client;
-      return environment === 'Production'
-        ? { ...client, liveCredits: client.liveCredits + credits }
-        : { ...client, uatCredits: client.uatCredits + credits };
-    }));
-    setLogs((prev) => [{
-      id: `ct_credit_${Date.now()}`,
-      clientId,
-      environment,
-      api: 'Bureau Advanced',
-      status: 'Success',
-      latency: '-',
-      charge: `+${credits} credits`,
-      ip: 'admin',
-    }, ...prev]);
+  const addCredits = async (clientId: string, environment: Environment, credits: number) => {
+    const json = await authPost({
+      action: 'add_credits',
+      client_id: clientId,
+      credits,
+      environment: environment === 'Production' ? 'production' : 'uat',
+    });
+    if (json?.success) setNotice(`${environment} credits added.`);
   };
 
-  const createKey = (key: ApiKeyRecord) => {
-    const secret = `${key.prefix}_${Math.random().toString(36).slice(2, 18)}`;
-    setKeys((prev) => [{ ...key, secret }, ...prev]);
-    setClients((prev) => prev.map((client) => {
-      if (client.id !== key.clientId) return client;
-      const onboarding = key.environment === 'Production'
-        ? { ...client.onboarding, productionCredentialsStatus: 'done' as GateStatus, stage: 'Production' as OnboardingStage }
-        : { ...client.onboarding, uatCredentialsStatus: 'done' as GateStatus, stage: 'UAT' as OnboardingStage };
-      return { ...client, onboarding, status: key.environment === 'Production' ? 'Production' : client.status };
-    }));
-    setLatestSecret(secret);
+  const createKey = async (key: ApiKeyRecord) => {
+    const json = await authPost({
+      action: 'generate_key',
+      client_id: key.clientId,
+      api_id: apiIdForProduct(key.api, hubApis),
+      environment: key.environment === 'Production' ? 'production' : 'uat',
+      label: key.label,
+    });
+    if (!json?.success) return;
+    setLatestSecret(json.secret_key || '');
     setKeyModalClientId(undefined);
     setActiveNav('API Keys');
+    setNotice('Client API key generated. Full key is shown only once.');
   };
 
   return (
@@ -2036,46 +2179,68 @@ export default function ApiConsolePage() {
         <header className="sticky top-0 z-10 border-b border-border bg-white/90 px-4 py-4 backdrop-blur lg:px-8">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <p className="text-xs font-900 uppercase tracking-wide text-blue-700">api.credittrust.in</p>
+              <p className="text-xs font-900 uppercase tracking-wide text-blue-700">hub.credittrust.in</p>
               <h1 className="text-2xl font-900 tracking-normal text-foreground">Bridge API Control Plane</h1>
               <p className="mt-1 text-xs font-700 text-muted-foreground">Operator-only console for client onboarding, credentials, IP allowlisting and go-live controls.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex h-10 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-900 text-emerald-700">
                 <ShieldCheck size={15} />
-                Secure Session
+                {loading ? 'Loading Backend' : 'Backend Synced'}
               </span>
-              <button onClick={() => setClientModalOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-3 text-sm font-800 text-white shadow-sm">
+              <button disabled={saving} onClick={() => setClientModalOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-3 text-sm font-800 text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60">
                 <KeyRound size={16} />
                 Create Client
               </button>
             </div>
           </div>
+          {error ? (
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-800 text-red-800">
+              {error}
+            </div>
+          ) : null}
+          {notice ? (
+            <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-800 text-blue-800">
+              {notice}
+            </div>
+          ) : null}
           {latestSecret ? (
             <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-800 text-emerald-800">
               Key generated: <span className="font-900">{latestSecret}</span>
+              <button
+                className="ml-3 rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs font-900 text-emerald-800"
+                onClick={() => navigator.clipboard?.writeText(latestSecret)}
+              >
+                Copy once
+              </button>
             </div>
           ) : null}
         </header>
 
         <div className="px-4 py-6 lg:px-8">
-          <ActiveSection
-            activeNav={activeNav}
-            clients={clients}
-            keys={keys}
-            selectedClientId={selectedClientId}
-            onNewClient={() => setClientModalOpen(true)}
-            onCreateKey={(clientId) => setKeyModalClientId(clientId || '')}
-            onManage={(clientId) => {
-              setSelectedClientId(clientId);
-              setManagedClientId(clientId);
-            }}
-            onSelectClient={setSelectedClientId}
-            onRemoveIp={removeIp}
-            onAddIp={addIp}
-            onUpdateClient={updateClient}
-            onAddCredits={addCredits}
-          />
+          {loading ? (
+            <div className="rounded-lg border border-border bg-white p-8 text-center text-sm font-900 text-muted-foreground shadow-sm">
+              Loading Bridge backend...
+            </div>
+          ) : (
+            <ActiveSection
+              activeNav={activeNav}
+              clients={clients}
+              keys={keys}
+              selectedClientId={selectedClientId}
+              onNewClient={() => setClientModalOpen(true)}
+              onCreateKey={(clientId) => setKeyModalClientId(clientId || '')}
+              onManage={(clientId) => {
+                setSelectedClientId(clientId);
+                setManagedClientId(clientId);
+              }}
+              onSelectClient={setSelectedClientId}
+              onRemoveIp={removeIp}
+              onAddIp={addIp}
+              onUpdateClient={updateClient}
+              onAddCredits={addCredits}
+            />
+          )}
         </div>
       </main>
 

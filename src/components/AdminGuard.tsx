@@ -63,6 +63,7 @@ export default function AdminGuard({ children }: AdminGuardProps) {
 
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
   const isAdminRoute = ADMIN_ONLY_PATHS.some((p) => pathname.startsWith(p));
+  const isLocalApiConsolePreview = process.env.NODE_ENV === 'development' && pathname === '/api-console';
 
   useEffect(() => {
     if (!isLoading) return;
@@ -71,7 +72,7 @@ export default function AdminGuard({ children }: AdminGuardProps) {
   }, [isLoading]);
 
   useEffect(() => {
-    if (isPublicPath || user || (isLoading && !timedOut)) return;
+    if (isLocalApiConsolePreview || isPublicPath || user || (isLoading && !timedOut)) return;
 
     let cancelled = false;
     const recheckBeforeRedirect = async () => {
@@ -94,9 +95,10 @@ export default function AdminGuard({ children }: AdminGuardProps) {
     return () => {
       cancelled = true;
     };
-  }, [isAdminRoute, isLoading, isPublicPath, router, timedOut, user]);
+  }, [isAdminRoute, isLoading, isLocalApiConsolePreview, isPublicPath, router, timedOut, user]);
 
   // Public paths never need auth, render immediately with no spinner.
+  if (isLocalApiConsolePreview) return <>{children}</>;
   if (isPublicPath) return <>{children}</>;
 
   const stillLoading = isLoading && !timedOut;
