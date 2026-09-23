@@ -540,6 +540,7 @@ export async function POST(request: NextRequest) {
         environment: normalizedEnvironment,
         key_prefix: generated.prefix,
         key_hash: generated.hash,
+        client_visible_key: generated.key,
         status: 'active' as const,
         last_used_at: null,
         created_at: new Date().toISOString(),

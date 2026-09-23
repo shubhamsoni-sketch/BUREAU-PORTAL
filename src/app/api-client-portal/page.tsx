@@ -34,6 +34,7 @@ type ClientPortalData = {
     environment: string;
     label: string;
     prefix: string;
+    value: string;
     last_used_at: string | null;
   };
   metrics: {
@@ -169,7 +170,7 @@ function LoginPanel({
             <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-700">Secure Access</p>
             <h2 className="mt-3 text-3xl font-black tracking-tight">Client portal login</h2>
             <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">
-              Use the login ID and password shared by CreditTrust. API keys stay secured in the backend and are never exposed here.
+              Use the login ID and password shared by CreditTrust. API credentials are visible only inside this secure client portal.
             </p>
             {error ? <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div> : null}
             <label className="mt-6 block">
@@ -333,6 +334,7 @@ export default function ApiClientPortalPage() {
     if (!term) return data?.usage || [];
     return (data?.usage || []).filter((row) => JSON.stringify(row).toLowerCase().includes(term));
   }, [data, search]);
+  const activeKeyValue = data?.key.value || '';
   const logPageSize = 10;
   const logPageCount = Math.max(1, Math.ceil(filteredUsage.length / logPageSize));
   const currentLogPage = Math.min(logPage, logPageCount);
@@ -437,7 +439,9 @@ export default function ApiClientPortalPage() {
                   <span className="rounded-full bg-emerald-300/10 px-2 py-1 text-[10px] font-black uppercase text-emerald-300">{showKeyCard ? 'Hide' : 'View'}</span>
                 </div>
                 <p className="mt-3 break-all font-mono text-sm font-black text-white">
-                  {showKeyCard ? `${data.key.prefix}******************` : `${data.key.prefix.slice(0, 8)}****`}
+                  {showKeyCard
+                    ? (activeKeyValue || 'Full key unavailable. Please request key regeneration.')
+                    : `${data.key.prefix.slice(0, 8)}****`}
                 </p>
                 <p className="mt-1 text-xs font-bold capitalize text-emerald-300">{data.key.environment}</p>
               </button>
@@ -606,12 +610,14 @@ export default function ApiClientPortalPage() {
             <p className="mt-1 text-sm font-bold text-slate-500">Critical API issues are reviewed first. Add request ID for faster triage.</p>
           </div>
           <button
-            onClick={() => navigator.clipboard?.writeText(data.key.prefix)}
+            onClick={() => navigator.clipboard?.writeText(activeKeyValue || data.key.prefix)}
             className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm"
           >
             <Copy className="text-slate-700" size={22} />
-            <p className="mt-3 font-black">Copy Key Prefix</p>
-            <p className="mt-1 text-sm font-bold text-slate-500">Share prefix only when asking for support. Never send full API key over email.</p>
+            <p className="mt-3 font-black">{activeKeyValue ? 'Copy API Key' : 'Copy Key Prefix'}</p>
+            <p className="mt-1 text-sm font-bold text-slate-500">
+              {activeKeyValue ? 'Copy the active UAT key for integration use.' : 'Full key is unavailable for this legacy key. Regenerate it from operations.'}
+            </p>
           </button>
         </section>
 

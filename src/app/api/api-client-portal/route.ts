@@ -144,6 +144,7 @@ export async function GET(request: NextRequest) {
         environment: auth.key?.environment || 'uat',
         label: auth.key?.label || 'Client API access',
         prefix: auth.key?.key_prefix || '',
+        value: auth.key?.client_visible_key || '',
         last_used_at: auth.key?.last_used_at || null,
       },
       metrics: {
