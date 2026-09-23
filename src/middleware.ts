@@ -7,6 +7,7 @@ export function middleware(request: NextRequest) {
     pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
   const hostname = host.split(':')[0];
   const isApiConsoleHost = hostname === 'api.credittrust.in';
+  const isApiHubHost = hostname === 'hub.credittrust.in';
   const isCrmHost = hostname === 'crm.credittrust.in';
   const isMainPortalHost = hostname === 'credittrust.in';
   const isWwwHost = hostname === 'www.credittrust.in';
@@ -56,6 +57,19 @@ export function middleware(request: NextRequest) {
         },
       },
     );
+  }
+
+  if (isApiHubHost && !isAsset && !isApiRoute) {
+    if (normalizedPathname === '/' || normalizedPathname === '/api-console') {
+      return NextResponse.redirect(new URL('/admin-api-hub', request.url));
+    }
+
+    if (
+      !normalizedPathname.startsWith('/admin-api-hub') &&
+      !normalizedPathname.startsWith('/admin')
+    ) {
+      return NextResponse.redirect(new URL('/admin-api-hub', request.url));
+    }
   }
 
   if (isCrmHost && normalizedPathname === '/login') {
