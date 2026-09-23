@@ -103,15 +103,15 @@ function MetricCard({
   tone: string;
 }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">{label}</p>
-          <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">{value}</p>
-          <p className="mt-1 text-sm font-bold text-slate-500">{helper}</p>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+          <p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">{value}</p>
+          <p className="mt-1 text-xs font-bold text-slate-500">{helper}</p>
         </div>
-        <div className={classNames('flex h-12 w-12 items-center justify-center rounded-2xl', tone)}>
-          <Icon size={21} />
+        <div className={classNames('flex h-10 w-10 items-center justify-center rounded-2xl', tone)}>
+          <Icon size={18} />
         </div>
       </div>
     </div>
@@ -139,8 +139,8 @@ function LoginPanel({
             <div className="relative">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-300 text-xl font-black text-slate-950">CT</div>
               <p className="mt-10 text-xs font-black uppercase tracking-[0.35em] text-emerald-300">CreditTrust Bridge</p>
-              <h1 className="mt-4 max-w-xl text-5xl font-black leading-tight tracking-tight">Binta API Client Portal</h1>
-              <p className="mt-5 max-w-xl text-base font-semibold leading-7 text-slate-300">
+              <h1 className="mt-4 max-w-xl text-4xl font-extrabold leading-tight tracking-tight">Binta API Client Portal</h1>
+              <p className="mt-5 max-w-xl text-sm font-semibold leading-6 text-slate-300">
                 View API consumption, request logs, IP status and raise support tickets without accessing the internal FinCoopers control plane.
               </p>
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -168,7 +168,7 @@ function LoginPanel({
             className="bg-slate-50 p-8 text-slate-950 lg:p-12"
           >
             <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-700">Secure Access</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight">Client portal login</h2>
+            <h2 className="mt-3 text-2xl font-extrabold tracking-tight">Client portal login</h2>
             <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">
               Use the login ID and password shared by CreditTrust. API credentials are visible only inside this secure client portal.
             </p>
@@ -425,7 +425,7 @@ export default function ApiClientPortalPage() {
           <div className="grid gap-4 lg:grid-cols-[1fr_1fr] lg:items-center">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.35em] text-emerald-300">Client Workspace</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">{data.client.name}</h1>
+              <h1 className="mt-2 text-2xl font-extrabold tracking-tight">{data.client.name}</h1>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <button
@@ -435,10 +435,10 @@ export default function ApiClientPortalPage() {
                 aria-pressed={showKeyCard}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-black uppercase tracking-wide text-slate-400">Active key</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Active key</p>
                   <span className="rounded-full bg-emerald-300/10 px-2 py-1 text-[10px] font-black uppercase text-emerald-300">{showKeyCard ? 'Hide' : 'View'}</span>
                 </div>
-                <p className="mt-3 break-all font-mono text-sm font-black text-white">
+                <p className="mt-3 break-all font-mono text-xs font-extrabold leading-5 text-white">
                   {showKeyCard
                     ? (activeKeyValue || 'Full key unavailable. Please request key regeneration.')
                     : `${data.key.prefix.slice(0, 8)}****`}
@@ -452,10 +452,10 @@ export default function ApiClientPortalPage() {
                 aria-pressed={showIpCard}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-black uppercase tracking-wide text-slate-400">Allowed IPs</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Allowed IPs</p>
                   <span className="rounded-full bg-blue-300/10 px-2 py-1 text-[10px] font-black uppercase text-blue-200">{showIpCard ? 'Hide' : 'View'}</span>
                 </div>
-                <p className="mt-3 break-all text-sm font-black text-white">
+                <p className="mt-3 break-all text-xs font-extrabold leading-5 text-white">
                   {showIpCard ? (data.client.allowed_ips.join(', ') || 'Not configured') : `${data.client.allowed_ips.length || 0} IP${data.client.allowed_ips.length === 1 ? '' : 's'}`}
                 </p>
                 <p className="mt-1 text-xs font-bold text-slate-300">{showIpCard ? 'Whitelisted access' : 'Click to reveal'}</p>
@@ -477,8 +477,8 @@ export default function ApiClientPortalPage() {
         <section className="mt-5 rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-xl font-black tracking-tight">Request Logs</h2>
-              <p className="mt-1 text-sm font-bold text-slate-500">Search request IDs, masked PAN/mobile, status and provider references.</p>
+              <h2 className="text-lg font-extrabold tracking-tight">Request Logs</h2>
+              <p className="mt-1 text-xs font-bold text-slate-500">Search request IDs, masked PAN/mobile, status and provider references.</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3">
@@ -553,8 +553,8 @@ export default function ApiClientPortalPage() {
           <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-black tracking-tight">Recent Tickets</h2>
-                <p className="mt-1 text-sm font-bold text-slate-500">Latest support status from CreditTrust operations.</p>
+                <h2 className="text-lg font-extrabold tracking-tight">Recent Tickets</h2>
+                <p className="mt-1 text-xs font-bold text-slate-500">Latest support status from CreditTrust operations.</p>
               </div>
               <button onClick={() => setSupportOpen(true)} className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-black text-blue-700">New Ticket</button>
             </div>
@@ -628,8 +628,8 @@ export default function ApiClientPortalPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700"><Ticket size={20} /></div>
                   <div>
-                    <h2 className="text-xl font-black tracking-tight">Raise Support Ticket</h2>
-                    <p className="text-sm font-bold text-slate-500">Add request ID if this is linked to a failed API call.</p>
+                    <h2 className="text-lg font-extrabold tracking-tight">Raise Support Ticket</h2>
+                    <p className="text-xs font-bold text-slate-500">Add request ID if this is linked to a failed API call.</p>
                   </div>
                 </div>
                 <button
@@ -692,8 +692,8 @@ export default function ApiClientPortalPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><Settings size={20} /></div>
                   <div>
-                    <h2 className="text-xl font-black tracking-tight">Settings</h2>
-                    <p className="text-sm font-bold text-slate-500">Change client portal password securely.</p>
+                    <h2 className="text-lg font-extrabold tracking-tight">Settings</h2>
+                    <p className="text-xs font-bold text-slate-500">Change client portal password securely.</p>
                   </div>
                 </div>
                 <button
