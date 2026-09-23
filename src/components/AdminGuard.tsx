@@ -45,6 +45,9 @@ const PUBLIC_PATHS = [
   '/partner-program',
   '/partner-login',
   '/sample-report',
+  '/api-console',
+  '/api-client-portal',
+  '/client',
   '/privacy-policy',
   '/refund-policy',
   '/usage-policy',
@@ -140,3 +143,4 @@ export default function AdminGuard({ children }: AdminGuardProps) {
 
   return <>{children}</>;
 }
+
