@@ -555,6 +555,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'set_key_status') {
+      const keyId = String(body.key_id || '').trim();
+      const status = String(body.status || '').trim().toLowerCase() === 'active' ? 'active' : 'inactive';
+      if (!keyId) return jsonError('API key is required');
+      store.keys = store.keys.map((key) => key.id === keyId ? { ...key, status } : key);
+      await saveApiHubStore(auth.supabase, rowId, store);
+      return NextResponse.json({ success: true, status });
+    }
+
     if (action === 'delete_key') {
       const keyId = String(body.key_id || '').trim();
       if (!keyId) return jsonError('API key is required');

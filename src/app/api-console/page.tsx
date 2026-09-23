@@ -73,7 +73,7 @@ type ApiKeyRecord = {
   label: string;
   prefix: string;
   secret?: string;
-  status: 'Active' | 'Revoked';
+  status: 'Active' | 'Inactive';
   createdAt: string;
 };
 
@@ -117,7 +117,7 @@ type HubKey = {
   label: string;
   environment?: 'uat' | 'production';
   key_prefix: string;
-  status: 'active' | 'revoked';
+  status: 'active' | 'inactive' | 'revoked';
   last_used_at: string | null;
   created_at: string;
 };
@@ -360,7 +360,7 @@ function mapHubKey(key: HubKey, apis: HubApiConfig[]): ApiKeyRecord {
     api: apiProductFromId(key.api_id, apis),
     label: key.label,
     prefix: key.key_prefix,
-    status: key.status === 'revoked' ? 'Revoked' : 'Active',
+    status: key.status === 'active' ? 'Active' : 'Inactive',
     createdAt: new Date(key.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
   };
 }
@@ -864,6 +864,7 @@ function ClientKeyDirectory({
   onCreateKey,
   onDeleteKey,
   onDeleteUatKeys,
+  onToggleKeyStatus,
   revealedSecrets,
 }: {
   keys: ApiKeyRecord[];
@@ -871,6 +872,7 @@ function ClientKeyDirectory({
   onCreateKey: (clientId?: string) => void;
   onDeleteKey: (keyId: string) => void;
   onDeleteUatKeys: (clientId: string) => void;
+  onToggleKeyStatus: (key: ApiKeyRecord) => void;
   revealedSecrets: Record<string, string>;
 }) {
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
@@ -960,6 +962,17 @@ function ClientKeyDirectory({
                               className="inline-flex h-8 items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 text-xs font-900 text-red-700"
                             >
                               Delete
+                            </button>
+                            <button
+                              onClick={() => onToggleKeyStatus(key)}
+                              className={classNames(
+                                'inline-flex h-8 items-center gap-2 rounded-lg border px-3 text-xs font-900',
+                                key.status === 'Active'
+                                  ? 'border-amber-100 bg-amber-50 text-amber-700'
+                                  : 'border-emerald-100 bg-emerald-50 text-emerald-700',
+                              )}
+                            >
+                              {key.status === 'Active' ? 'Make Inactive' : 'Make Active'}
                             </button>
                           </div>
                           {!(revealedSecrets[key.id] || key.secret) ? (
@@ -1785,6 +1798,7 @@ function ActiveSection({
   onCreateKey,
   onDeleteKey,
   onDeleteUatKeys,
+  onToggleKeyStatus,
   onManage,
   onSelectClient,
   onRemoveIp,
@@ -1801,6 +1815,7 @@ function ActiveSection({
   onCreateKey: (clientId?: string) => void;
   onDeleteKey: (keyId: string) => void;
   onDeleteUatKeys: (clientId: string) => void;
+  onToggleKeyStatus: (key: ApiKeyRecord) => void;
   onManage: (clientId: string) => void;
   onSelectClient: (clientId: string) => void;
   onRemoveIp: (clientId: string, ip: string) => void;
@@ -1953,6 +1968,7 @@ function ActiveSection({
         onCreateKey={onCreateKey}
         onDeleteKey={onDeleteKey}
         onDeleteUatKeys={onDeleteUatKeys}
+        onToggleKeyStatus={onToggleKeyStatus}
         revealedSecrets={revealedSecrets}
       />
     );
@@ -2266,6 +2282,12 @@ export default function ApiConsolePage() {
     }
   };
 
+  const toggleKeyStatus = async (key: ApiKeyRecord) => {
+    const nextStatus = key.status === 'Active' ? 'inactive' : 'active';
+    const json = await authPost({ action: 'set_key_status', key_id: key.id, status: nextStatus });
+    if (json?.success) setNotice(`API key marked ${nextStatus === 'active' ? 'active' : 'inactive'}.`);
+  };
+
   if (!authChecked || (loading && !authenticated)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
@@ -2439,6 +2461,7 @@ export default function ApiConsolePage() {
               onCreateKey={(clientId) => setKeyModalClientId(clientId || '')}
               onDeleteKey={deleteKey}
               onDeleteUatKeys={deleteUatKeys}
+              onToggleKeyStatus={toggleKeyStatus}
               onManage={(clientId) => {
                 setSelectedClientId(clientId);
                 setManagedClientId(clientId);

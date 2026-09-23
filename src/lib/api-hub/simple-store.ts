@@ -43,7 +43,7 @@ export type SimpleApiKey = {
   environment?: 'uat' | 'production';
   key_prefix: string;
   key_hash: string;
-  status: 'active' | 'revoked';
+  status: 'active' | 'inactive' | 'revoked';
   last_used_at: string | null;
   created_at: string;
 };
@@ -235,7 +235,7 @@ function normalizeKey(raw: Record<string, any>): SimpleApiKey {
     environment: rawEnvironment === 'production' || rawEnvironment === 'live' ? 'production' : inferredEnvironment,
     key_prefix: String(raw.key_prefix || ''),
     key_hash: String(raw.key_hash || ''),
-    status: raw.status === 'revoked' ? 'revoked' : 'active',
+    status: raw.status === 'revoked' || raw.status === 'inactive' ? raw.status : 'active',
     last_used_at: raw.last_used_at || null,
     created_at: raw.created_at || new Date().toISOString(),
   };
