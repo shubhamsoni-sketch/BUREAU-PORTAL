@@ -37,6 +37,10 @@ export const STATE_CODE_BY_NAME: Record<string, string> = {
   'West Bengal': '19',
 };
 
+export const STATE_NAME_BY_CODE: Record<string, string> = Object.fromEntries(
+  Object.entries(STATE_CODE_BY_NAME).map(([name, code]) => [code, name.toUpperCase()]),
+);
+
 export const STATE_NAME_BY_ABBREVIATION: Record<string, string> = {
   AN: 'ANDAMAN AND NICOBAR ISLANDS',
   AP: 'ANDHRA PRADESH',
@@ -128,5 +132,6 @@ export function getStateCode(stateName: string) {
 export function getStateName(stateNameOrAbbreviation: string) {
   const cleaned = stateNameOrAbbreviation.trim();
   if (!cleaned) return '';
+  if (STATE_NAME_BY_CODE[cleaned.padStart(2, '0')]) return STATE_NAME_BY_CODE[cleaned.padStart(2, '0')];
   return STATE_NAME_BY_ABBREVIATION[cleaned.toUpperCase()] ?? cleaned.toUpperCase();
 }

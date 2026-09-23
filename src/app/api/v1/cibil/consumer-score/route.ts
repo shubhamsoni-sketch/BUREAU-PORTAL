@@ -4,6 +4,7 @@ import { getApiHubStore, hitMasterApi, saveApiHubStore, validateClientIp } from 
 import { hashApiKey, maskMobile, maskPan } from '@/lib/api-hub/keys';
 import { appendApiUsageLedger, requestEvidence } from '@/lib/api-hub/usage-ledger';
 import { archiveApiHubBureauPull } from '@/lib/api-hub/bureau-pull-archive';
+import { getStateName, STATE_NAME_BY_CODE } from '@/lib/bureau/state-codes';
 
 type JaadugarCibilPayload = {
   firstName: string;
@@ -161,17 +162,34 @@ function splitName(value: unknown) {
   };
 }
 
+function normalizeGender(value: unknown) {
+  const gender = cleanString(value).toLowerCase();
+  if (['1', '01', 'f', 'female'].includes(gender)) return 'female';
+  if (['2', '02', 'm', 'male'].includes(gender)) return 'male';
+  if (['3', '03', 't', 'transgender'].includes(gender)) return 'transgender';
+  return gender;
+}
+
+function normalizeState(value: unknown) {
+  const state = cleanString(value);
+  if (!state) return '';
+  if (/^\d{1,2}$/.test(state)) return STATE_NAME_BY_CODE[state.padStart(2, '0')] || '';
+  return getStateName(state);
+}
+
 function normalizePayload(body: Record<string, unknown>): JaadugarCibilPayload {
   const fullName = splitName(body.name || body.fullName || body.customerName);
+  const rawGender = body.gender_code || body.genderCode || body.gender || body.sex;
+  const rawState = body.state_code || body.stateCode || body.state || body.stateName || body.state_name;
   return {
     firstName: cleanString(body.firstName || body.first_name).toUpperCase() || fullName.firstName,
     lastName: cleanString(body.lastName || body.last_name).toUpperCase() || fullName.lastName,
     dob: cleanString(body.dob || body.birthDate || body.dateOfBirth || body.date_of_birth),
-    gender: cleanString(body.gender) || PORTAL_DEFAULTS.gender,
+    gender: normalizeGender(rawGender) || PORTAL_DEFAULTS.gender,
     pan: cleanString(body.pan || body.idNumber).toUpperCase(),
     mobile: digits(body.mobile || body.telephoneNumber || body.mobile_number || body.mobileNumber).slice(-10),
     address: cleanString(body.address || body.detailed_address || body.detailedAddress),
-    state: cleanString(body.state || body.stateName || body.state_name).toUpperCase(),
+    state: normalizeState(rawState),
     pincode: digits(body.pincode || body.pinCode || body.pin_code).slice(0, 6),
   };
 }
