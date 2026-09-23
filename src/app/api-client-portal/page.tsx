@@ -136,10 +136,7 @@ function LoginPanel({
             <div className="relative">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-300 text-xl font-black text-slate-950">CT</div>
               <p className="mt-10 text-xs font-black uppercase tracking-[0.35em] text-emerald-300">CreditTrust Bridge</p>
-              <h1 className="mt-4 max-w-xl text-4xl font-extrabold leading-tight tracking-tight">Binta API Client Portal</h1>
-              <p className="mt-5 max-w-xl text-sm font-semibold leading-6 text-slate-300">
-                View API consumption, request logs, IP status and raise support tickets without accessing the internal FinCoopers control plane.
-              </p>
+              <h1 className="mt-4 max-w-xl text-4xl font-extrabold leading-tight tracking-tight">Client Workspace</h1>
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
                 {[
                   [Activity, 'Usage logs'],
@@ -166,9 +163,6 @@ function LoginPanel({
           >
             <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-700">Secure Access</p>
             <h2 className="mt-3 text-2xl font-extrabold tracking-tight">Client portal login</h2>
-            <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">
-              Use the login ID and password shared by CreditTrust. API credentials are visible only inside this secure client portal.
-            </p>
             {error ? <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div> : null}
             <label className="mt-6 block">
               <span className="text-sm font-black text-slate-700">Login ID</span>
@@ -205,9 +199,6 @@ function LoginPanel({
               {loading ? 'Verifying...' : 'Open Client Portal'}
               <ArrowRight size={18} />
             </button>
-            <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm font-bold leading-6 text-blue-800">
-              This portal is read-only for API controls. For key changes, production promotion or credit allocation, raise a support ticket.
-            </div>
           </form>
         </div>
       </div>
