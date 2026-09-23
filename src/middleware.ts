@@ -60,12 +60,12 @@ export function middleware(request: NextRequest) {
   }
 
   if (isApiHubHost && !isAsset && !isApiRoute) {
-    if (normalizedPathname === '/' || normalizedPathname === '/api-console') {
-      return NextResponse.redirect(new URL('/admin-api-hub', request.url));
+    if (normalizedPathname === '/' || normalizedPathname.startsWith('/admin')) {
+      return NextResponse.rewrite(new URL('/api-console', request.url));
     }
 
-    if (!normalizedPathname.startsWith('/admin-api-hub')) {
-      return NextResponse.redirect(new URL('/admin-api-hub', request.url));
+    if (!normalizedPathname.startsWith('/api-console')) {
+      return NextResponse.rewrite(new URL('/api-console', request.url));
     }
   }
 
