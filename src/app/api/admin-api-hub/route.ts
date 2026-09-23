@@ -308,6 +308,7 @@ export async function GET(request: NextRequest) {
       apis: store.apis.map(publicApi),
       clients: store.clients,
       keys: store.keys.map((key) => ({ ...key, key_hash: undefined })),
+      tickets: store.tickets || [],
       usage: ledger.rows,
       usage_pagination: {
         page,
@@ -582,6 +583,28 @@ export async function POST(request: NextRequest) {
       });
       await saveApiHubStore(auth.supabase, rowId, store);
       return NextResponse.json({ success: true, deleted_count: before - store.keys.length });
+    }
+
+    if (action === 'update_ticket') {
+      const ticketId = String(body.ticket_id || '').trim();
+      if (!ticketId) return jsonError('Ticket is required');
+      const rawStatus = String(body.status || '');
+      const status = ['open', 'in_progress', 'resolved', 'closed'].includes(rawStatus)
+        ? rawStatus as 'open' | 'in_progress' | 'resolved' | 'closed'
+        : undefined;
+      const existing = (store.tickets || []).find((ticket) => ticket.id === ticketId);
+      if (!existing) return jsonError('Ticket not found', 404);
+      store.tickets = (store.tickets || []).map((ticket) => ticket.id === ticketId
+        ? {
+          ...ticket,
+          status: status || ticket.status,
+          internal_note: body.internal_note !== undefined ? String(body.internal_note || '') : ticket.internal_note || null,
+          last_response: body.last_response !== undefined ? String(body.last_response || '') : ticket.last_response || null,
+          updated_at: new Date().toISOString(),
+        }
+        : ticket);
+      await saveApiHubStore(auth.supabase, rowId, store);
+      return NextResponse.json({ success: true, ticket: store.tickets.find((ticket) => ticket.id === ticketId) });
     }
 
     return jsonError('Unknown API Hub action');

@@ -63,11 +63,30 @@ export type SimpleUsageLog = {
   created_at: string;
 };
 
+export type SimpleSupportTicket = {
+  id: string;
+  ticket_number: string;
+  client_id: string;
+  category: 'api_issue' | 'auth_access' | 'response_mismatch' | 'credits_billing' | 'ip_certificate' | 'other';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  subject: string;
+  message: string;
+  request_id?: string | null;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  client_email?: string | null;
+  client_name?: string | null;
+  internal_note?: string | null;
+  last_response?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SimpleApiHubStore = {
   apis: SimpleApiConfig[];
   clients: SimpleApiClient[];
   keys: SimpleApiKey[];
   usage: SimpleUsageLog[];
+  tickets: SimpleSupportTicket[];
 };
 
 const defaultPrefillPayload = {
@@ -154,6 +173,7 @@ type LegacyStore = {
   usage?: SimpleUsageLog[];
   logs?: Array<Record<string, any>>;
   products?: Array<Record<string, any>>;
+  tickets?: Array<Record<string, any>>;
 };
 
 export function publicApi(api: SimpleApiConfig) {
@@ -241,6 +261,36 @@ function normalizeKey(raw: Record<string, any>): SimpleApiKey {
   };
 }
 
+function normalizeTicket(raw: Record<string, any>): SimpleSupportTicket {
+  const now = new Date().toISOString();
+  const status = ['open', 'in_progress', 'resolved', 'closed'].includes(String(raw.status))
+    ? String(raw.status) as SimpleSupportTicket['status']
+    : 'open';
+  const priority = ['low', 'medium', 'high', 'critical'].includes(String(raw.priority))
+    ? String(raw.priority) as SimpleSupportTicket['priority']
+    : 'medium';
+  const category = ['api_issue', 'auth_access', 'response_mismatch', 'credits_billing', 'ip_certificate', 'other'].includes(String(raw.category))
+    ? String(raw.category) as SimpleSupportTicket['category']
+    : 'api_issue';
+  return {
+    id: String(raw.id || crypto.randomUUID()),
+    ticket_number: String(raw.ticket_number || raw.ticketNumber || `CT-${Date.now().toString().slice(-6)}`),
+    client_id: String(raw.client_id || raw.clientId || ''),
+    category,
+    priority,
+    subject: String(raw.subject || 'Support request'),
+    message: String(raw.message || ''),
+    request_id: raw.request_id || raw.requestId || null,
+    status,
+    client_email: raw.client_email || raw.clientEmail || null,
+    client_name: raw.client_name || raw.clientName || null,
+    internal_note: raw.internal_note || raw.internalNote || null,
+    last_response: raw.last_response || raw.lastResponse || null,
+    created_at: raw.created_at || now,
+    updated_at: raw.updated_at || raw.created_at || now,
+  };
+}
+
 export function normalizeStore(raw: LegacyStore | null | undefined): SimpleApiHubStore {
   const sourceApis = raw?.apis?.length ? raw.apis : raw?.products;
   const apis = sourceApis?.length ? sourceApis.map(normalizeApi) : [defaultBureauApi, defaultBureauAdvancedApi, defaultMobilePrefillApi];
@@ -264,8 +314,9 @@ export function normalizeStore(raw: LegacyStore | null | undefined): SimpleApiHu
     error_message: log.error_message,
     created_at: log.created_at || new Date().toISOString(),
   }));
+  const tickets = (raw?.tickets || []).map(normalizeTicket).filter((ticket) => ticket.client_id);
 
-  return { apis, clients, keys, usage };
+  return { apis, clients, keys, usage, tickets };
 }
 
 export async function getApiHubStore(supabase: ReturnType<typeof createAdminClient>) {

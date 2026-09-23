@@ -11,6 +11,7 @@ import {
   EyeOff,
   Globe2,
   KeyRound,
+  LifeBuoy,
   LockKeyhole,
   Plus,
   ShieldCheck,
@@ -18,7 +19,7 @@ import {
   X,
 } from 'lucide-react';
 
-type NavItem = 'Overview' | 'Onboarding' | 'Clients' | 'Environments' | 'API Keys' | 'IP Whitelist' | 'Credits' | 'Docs';
+type NavItem = 'Overview' | 'Onboarding' | 'Clients' | 'Environments' | 'API Keys' | 'IP Whitelist' | 'Credits' | 'Support' | 'Docs';
 type Environment = 'UAT' | 'Production';
 type ClientStatus = 'Production' | 'UAT' | 'Review' | 'Suspended';
 type ApiProduct = 'Bureau Standard' | 'Bureau Advanced' | 'Mobile Prefill';
@@ -126,9 +127,28 @@ type HubData = {
   apis: HubApiConfig[];
   clients: HubClient[];
   keys: HubKey[];
+  tickets: SupportTicket[];
 };
 
-const navItems: NavItem[] = ['Overview', 'Onboarding', 'Clients', 'Environments', 'API Keys', 'IP Whitelist', 'Credits', 'Docs'];
+type SupportTicket = {
+  id: string;
+  ticket_number: string;
+  client_id: string;
+  category: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  subject: string;
+  message: string;
+  request_id?: string | null;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  client_email?: string | null;
+  client_name?: string | null;
+  internal_note?: string | null;
+  last_response?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+const navItems: NavItem[] = ['Overview', 'Onboarding', 'Clients', 'Environments', 'API Keys', 'IP Whitelist', 'Credits', 'Support', 'Docs'];
 const apiProducts: ApiProduct[] = ['Bureau Standard', 'Bureau Advanced', 'Mobile Prefill'];
 const environments: Environment[] = ['UAT', 'Production'];
 const standardResponseFields = ['success', 'request_id', 'score', 'status', 'report_id', 'customer_name', 'bureau_summary'];
@@ -1789,10 +1809,134 @@ function DocsPanel({ clients, keys }: { clients: Client[]; keys: ApiKeyRecord[] 
   );
 }
 
+function ticketTone(status: SupportTicket['status']): 'blue' | 'green' | 'amber' | 'red' | 'slate' {
+  if (status === 'resolved' || status === 'closed') return 'green';
+  if (status === 'in_progress') return 'blue';
+  if (status === 'open') return 'amber';
+  return 'slate';
+}
+
+function priorityTone(priority: SupportTicket['priority']): 'blue' | 'green' | 'amber' | 'red' | 'slate' {
+  if (priority === 'critical') return 'red';
+  if (priority === 'high') return 'amber';
+  if (priority === 'medium') return 'blue';
+  return 'slate';
+}
+
+function SupportPanel({
+  clients,
+  tickets,
+  onUpdateTicket,
+}: {
+  clients: Client[];
+  tickets: SupportTicket[];
+  onUpdateTicket: (ticketId: string, patch: Partial<SupportTicket>) => void;
+}) {
+  const [drafts, setDrafts] = useState<Record<string, { internal_note: string; last_response: string }>>({});
+  const clientById = new Map(clients.map((client) => [client.id, client]));
+  const openTickets = tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'in_progress');
+  const criticalTickets = tickets.filter((ticket) => ticket.priority === 'critical' && ticket.status !== 'closed');
+
+  const draftFor = (ticket: SupportTicket) => drafts[ticket.id] || {
+    internal_note: ticket.internal_note || '',
+    last_response: ticket.last_response || '',
+  };
+
+  const updateDraft = (ticket: SupportTicket, patch: Partial<{ internal_note: string; last_response: string }>) => {
+    setDrafts((current) => ({ ...current, [ticket.id]: { ...draftFor(ticket), ...patch } }));
+  };
+
+  return (
+    <div className="space-y-5">
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <MetricCard label="Open Tickets" value={openTickets.length.toString()} helper="needs action" icon={LifeBuoy} tone="bg-amber-50 text-amber-700" />
+        <MetricCard label="Critical" value={criticalTickets.length.toString()} helper="priority queue" icon={ShieldCheck} tone="bg-red-50 text-red-700" />
+        <MetricCard label="Total Tickets" value={tickets.length.toString()} helper="all client requests" icon={BarChart3} tone="bg-blue-50 text-blue-700" />
+      </section>
+
+      <Panel title="Support Tickets">
+        <div className="divide-y divide-border">
+          {tickets.length ? tickets.map((ticket) => {
+            const client = clientById.get(ticket.client_id);
+            const draft = draftFor(ticket);
+            return (
+              <div key={ticket.id} className="p-4">
+                <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusPill tone={ticketTone(ticket.status)}>{ticket.status.replace(/_/g, ' ')}</StatusPill>
+                      <StatusPill tone={priorityTone(ticket.priority)}>{ticket.priority}</StatusPill>
+                      <StatusPill tone="slate">{ticket.category.replace(/_/g, ' ')}</StatusPill>
+                      <span className="text-xs font-900 text-muted-foreground">{ticket.ticket_number}</span>
+                    </div>
+                    <h3 className="mt-3 text-lg font-900 text-foreground">{ticket.subject}</h3>
+                    <p className="mt-1 text-xs font-800 text-muted-foreground">
+                      {client?.name || ticket.client_name || 'Unknown client'} - {ticket.client_email || client?.contactEmail || '-'} - {new Date(ticket.created_at).toLocaleString('en-IN')}
+                    </p>
+                    {ticket.request_id ? <p className="mt-2 font-mono text-xs font-900 text-blue-700">Request ID: {ticket.request_id}</p> : null}
+                    <p className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-slate-50 p-3 text-sm font-700 leading-6 text-slate-700">{ticket.message}</p>
+                    {ticket.last_response ? (
+                      <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm font-800 leading-6 text-emerald-800">
+                        Last client response: {ticket.last_response}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="rounded-lg border border-border bg-slate-50 p-4">
+                    <label className="block">
+                      <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Status</span>
+                      <select
+                        value={ticket.status}
+                        onChange={(event) => onUpdateTicket(ticket.id, { status: event.target.value as SupportTicket['status'] })}
+                        className="mt-2 h-10 w-full rounded-lg border border-border bg-white px-3 text-sm font-900"
+                      >
+                        <option value="open">Open</option>
+                        <option value="in_progress">In progress</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="closed">Closed</option>
+                      </select>
+                    </label>
+                    <label className="mt-3 block">
+                      <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Internal note</span>
+                      <textarea
+                        value={draft.internal_note}
+                        onChange={(event) => updateDraft(ticket, { internal_note: event.target.value })}
+                        className="mt-2 min-h-20 w-full rounded-lg border border-border bg-white p-3 text-sm font-800"
+                        placeholder="Visible only to FinCoopers operators"
+                      />
+                    </label>
+                    <label className="mt-3 block">
+                      <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Client response</span>
+                      <textarea
+                        value={draft.last_response}
+                        onChange={(event) => updateDraft(ticket, { last_response: event.target.value })}
+                        className="mt-2 min-h-20 w-full rounded-lg border border-border bg-white p-3 text-sm font-800"
+                        placeholder="Visible to Binta in client portal"
+                      />
+                    </label>
+                    <button
+                      onClick={() => onUpdateTicket(ticket.id, draft)}
+                      className="mt-3 h-10 w-full rounded-lg bg-blue-600 text-xs font-900 text-white"
+                    >
+                      Save Ticket
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }) : (
+            <div className="px-4 py-8 text-center text-sm font-800 text-muted-foreground">No support tickets yet.</div>
+          )}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 function ActiveSection({
   activeNav,
   clients,
   keys,
+  tickets,
   selectedClientId,
   onNewClient,
   onCreateKey,
@@ -1805,11 +1949,13 @@ function ActiveSection({
   onAddIp,
   onUpdateClient,
   onAddCredits,
+  onUpdateTicket,
   revealedSecrets,
 }: {
   activeNav: NavItem;
   clients: Client[];
   keys: ApiKeyRecord[];
+  tickets: SupportTicket[];
   selectedClientId?: string;
   onNewClient: () => void;
   onCreateKey: (clientId?: string) => void;
@@ -1822,6 +1968,7 @@ function ActiveSection({
   onAddIp: (clientId: string, ip: string) => void;
   onUpdateClient: (client: Client) => void;
   onAddCredits: (clientId: string, environment: Environment, credits: number) => void;
+  onUpdateTicket: (ticketId: string, patch: Partial<SupportTicket>) => void;
   revealedSecrets: Record<string, string>;
 }) {
   if (activeNav === 'Overview') {
@@ -2034,6 +2181,10 @@ function ActiveSection({
     );
   }
 
+  if (activeNav === 'Support') {
+    return <SupportPanel clients={clients} tickets={tickets} onUpdateTicket={onUpdateTicket} />;
+  }
+
   if (activeNav === 'Docs') {
     return <DocsPanel clients={clients} keys={keys} />;
   }
@@ -2046,6 +2197,7 @@ export default function ApiConsolePage() {
   const [clients, setClients] = useState<Client[]>(initialClients);
   const [keys, setKeys] = useState<ApiKeyRecord[]>(initialKeys);
   const [logs, setLogs] = useState<UsageLog[]>(initialLogs);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [hubApis, setHubApis] = useState<HubApiConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -2081,6 +2233,7 @@ export default function ApiConsolePage() {
         apis: json.apis || [],
         clients: json.clients || [],
         keys: json.keys || [],
+        tickets: json.tickets || [],
       };
       const bridgeClients = data.clients.filter(isBridgeConsoleClient);
       const bridgeClientIds = new Set(bridgeClients.map((client) => client.id));
@@ -2090,6 +2243,7 @@ export default function ApiConsolePage() {
       setHubApis(data.apis);
       setKeys(mappedKeys);
       setClients(mappedClients);
+      setTickets(data.tickets);
       setLogs([]);
       setSelectedClientId((current) => current && mappedClients.some((client) => client.id === current)
         ? current
@@ -2151,6 +2305,7 @@ export default function ApiConsolePage() {
     setAuthenticated(false);
     setClients([]);
     setKeys([]);
+    setTickets([]);
     setLogs([]);
     setNotice('');
   };
@@ -2286,6 +2441,17 @@ export default function ApiConsolePage() {
     const nextStatus = key.status === 'Active' ? 'inactive' : 'active';
     const json = await authPost({ action: 'set_key_status', key_id: key.id, status: nextStatus });
     if (json?.success) setNotice(`API key marked ${nextStatus === 'active' ? 'active' : 'inactive'}.`);
+  };
+
+  const updateTicket = async (ticketId: string, patch: Partial<SupportTicket>) => {
+    const json = await authPost({
+      action: 'update_ticket',
+      ticket_id: ticketId,
+      status: patch.status,
+      internal_note: patch.internal_note,
+      last_response: patch.last_response,
+    });
+    if (json?.success) setNotice('Support ticket updated.');
   };
 
   if (!authChecked || (loading && !authenticated)) {
@@ -2456,6 +2622,7 @@ export default function ApiConsolePage() {
               activeNav={activeNav}
               clients={clients}
               keys={keys}
+              tickets={tickets}
               selectedClientId={selectedClientId}
               onNewClient={() => setClientModalOpen(true)}
               onCreateKey={(clientId) => setKeyModalClientId(clientId || '')}
@@ -2471,6 +2638,7 @@ export default function ApiConsolePage() {
               onAddIp={addIp}
               onUpdateClient={updateClient}
               onAddCredits={addCredits}
+              onUpdateTicket={updateTicket}
               revealedSecrets={revealedSecrets}
             />
           )}
