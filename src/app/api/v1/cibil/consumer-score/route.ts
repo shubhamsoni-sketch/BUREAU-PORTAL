@@ -199,7 +199,7 @@ function validatePayload(payload: JaadugarCibilPayload) {
   const missing = required.filter((field) => !payload[field]);
   if (missing.includes('firstName') || missing.includes('lastName')) return 'name must include first and last name';
   if (missing.length) return `Missing required fields: ${missing.join(', ')}`;
-  if (!/^\d{4}-\d{2}-\d{2}$|^\d{2}\/\d{2}\/\d{4}$/.test(payload.dob)) return 'dob must be YYYY-MM-DD or DD/MM/YYYY';
+  if (!/^\d{2}-\d{2}-\d{4}$/.test(payload.dob)) return 'dob must be DD-MM-YYYY';
   if (!['male', 'female', 'transgender'].includes(payload.gender.toLowerCase())) return 'gender must be male, female, or transgender';
   if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(payload.pan)) return 'pan must be a valid PAN format';
   if (!/^\d{10}$/.test(payload.mobile)) return 'mobile must be 10 digits';
