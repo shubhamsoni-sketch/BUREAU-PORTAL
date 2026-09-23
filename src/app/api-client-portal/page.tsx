@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Ticket,
   WalletCards,
+  X,
 } from 'lucide-react';
 
 type ClientPortalData = {
@@ -222,6 +223,8 @@ export default function ApiClientPortalPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [search, setSearch] = useState('');
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [logPage, setLogPage] = useState(1);
   const [ticketForm, setTicketForm] = useState({
     category: 'api_issue',
     priority: 'medium',
@@ -298,6 +301,10 @@ export default function ApiClientPortalPage() {
     if (!term) return data?.usage || [];
     return (data?.usage || []).filter((row) => JSON.stringify(row).toLowerCase().includes(term));
   }, [data, search]);
+  const logPageSize = 10;
+  const logPageCount = Math.max(1, Math.ceil(filteredUsage.length / logPageSize));
+  const currentLogPage = Math.min(logPage, logPageCount);
+  const paginatedUsage = filteredUsage.slice((currentLogPage - 1) * logPageSize, currentLogPage * logPageSize);
 
   const raiseTicket = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -316,6 +323,7 @@ export default function ApiClientPortalPage() {
       if (!response.ok) throw new Error(json.error || 'Unable to raise support ticket');
       setNotice(`Ticket ${json.ticket?.ticket_number || ''} raised successfully.`);
       setTicketForm({ category: 'api_issue', priority: 'medium', request_id: '', subject: '', message: '' });
+      setSupportOpen(false);
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to raise support ticket');
@@ -346,6 +354,13 @@ export default function ApiClientPortalPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSupportOpen(true)}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-3 text-xs font-black text-white shadow-sm shadow-blue-600/20"
+            >
+              <LifeBuoy size={15} />
+              Support
+            </button>
             <button
               onClick={() => loadData()}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700"
@@ -398,143 +413,137 @@ export default function ApiClientPortalPage() {
           <MetricCard label="Open Tickets" value={data.metrics.open_tickets.toString()} helper="support desk" icon={LifeBuoy} tone="bg-amber-50 text-amber-700" />
         </section>
 
-        <section className="mt-5 grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
-          <div className="rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-col gap-3 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-xl font-black tracking-tight">Request Logs</h2>
-                <p className="mt-1 text-sm font-bold text-slate-500">Search request IDs, masked PAN/mobile, status and provider references.</p>
-              </div>
+        <section className="mt-5 rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-black tracking-tight">Request Logs</h2>
+              <p className="mt-1 text-sm font-bold text-slate-500">Search request IDs, masked PAN/mobile, status and provider references.</p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3">
                 <Search size={16} className="text-slate-400" />
                 <input
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setLogPage(1);
+                  }}
                   className="w-64 bg-transparent text-sm font-bold outline-none"
                   placeholder="Search logs..."
                 />
               </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px]">
-                <thead className="bg-slate-50">
-                  <tr>
-                    {['Time', 'Request ID', 'API', 'Status', 'HTTP', 'Credits', 'Ref', 'Latency'].map((head) => (
-                      <th key={head} className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-400">{head}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredUsage.map((row) => (
-                    <tr key={String(row.id || row.request_id)} className="text-sm">
-                      <td className="px-4 py-3 font-bold text-slate-500">{formatDate(row.created_at)}</td>
-                      <td className="px-4 py-3 font-mono text-xs font-black text-slate-800">{row.request_id || '-'}</td>
-                      <td className="px-4 py-3 font-bold text-slate-700">{row.api_code || row.api_id || '-'}</td>
-                      <td className="px-4 py-3"><Badge tone={statusTone(row.status)}>{row.status || '-'}</Badge></td>
-                      <td className="px-4 py-3 font-bold text-slate-700">{row.http_status || '-'}</td>
-                      <td className="px-4 py-3 font-bold text-slate-700">{row.credits_deducted || 0}</td>
-                      <td className="px-4 py-3 font-mono text-xs font-bold text-slate-500">{row.provider_ref || '-'}</td>
-                      <td className="px-4 py-3 font-bold text-slate-700">{row.response_time_ms ? `${row.response_time_ms}ms` : '-'}</td>
-                    </tr>
-                  ))}
-                  {!filteredUsage.length ? (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-10 text-center text-sm font-bold text-slate-400">No request logs found.</td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
+              <button
+                onClick={() => setSupportOpen(true)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white shadow-sm shadow-blue-600/20"
+              >
+                <Ticket size={17} />
+                Raise Support
+              </button>
             </div>
           </div>
-
-          <div className="space-y-5">
-            <form onSubmit={raiseTicket} className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700"><Ticket size={20} /></div>
-                <div>
-                  <h2 className="text-xl font-black tracking-tight">Raise Support Ticket</h2>
-                  <p className="text-sm font-bold text-slate-500">Our team gets an email alert.</p>
-                </div>
-              </div>
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Category</span>
-                  <select value={ticketForm.category} onChange={(event) => setTicketForm({ ...ticketForm, category: event.target.value })} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none">
-                    {categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Priority</span>
-                  <select value={ticketForm.priority} onChange={(event) => setTicketForm({ ...ticketForm, priority: event.target.value })} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none">
-                    {priorities.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                </label>
-              </div>
-              <label className="mt-3 block">
-                <span className="text-xs font-black uppercase tracking-wide text-slate-400">Request ID optional</span>
-                <input value={ticketForm.request_id} onChange={(event) => setTicketForm({ ...ticketForm, request_id: event.target.value })} className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold outline-none" placeholder="ct_req_..." />
-              </label>
-              <label className="mt-3 block">
-                <span className="text-xs font-black uppercase tracking-wide text-slate-400">Subject</span>
-                <input value={ticketForm.subject} onChange={(event) => setTicketForm({ ...ticketForm, subject: event.target.value })} className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold outline-none" placeholder="Short issue summary" />
-              </label>
-              <label className="mt-3 block">
-                <span className="text-xs font-black uppercase tracking-wide text-slate-400">Message</span>
-                <textarea value={ticketForm.message} onChange={(event) => setTicketForm({ ...ticketForm, message: event.target.value })} className="mt-2 min-h-28 w-full rounded-xl border border-slate-200 p-3 text-sm font-bold outline-none" placeholder="Explain what happened..." />
-              </label>
-              <button disabled={loading} className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-black text-white disabled:opacity-60">
-                Raise Ticket
-                <ArrowRight size={17} />
-              </button>
-            </form>
-
-            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-xl font-black tracking-tight">Recent Tickets</h2>
-                <Badge>{data.tickets.length}</Badge>
-              </div>
-              <div className="mt-4 space-y-3">
-                {data.tickets.slice(0, 6).map((ticket) => (
-                  <div key={String(ticket.id)} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-black text-slate-900">{ticket.subject}</p>
-                        <p className="mt-1 text-xs font-bold text-slate-500">{ticket.ticket_number} · {formatDate(ticket.updated_at)}</p>
-                      </div>
-                      <Badge tone={statusTone(ticket.status)}>{String(ticket.status || '').replace(/_/g, ' ')}</Badge>
-                    </div>
-                    {ticket.last_response ? <p className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-slate-600">{ticket.last_response}</p> : null}
-                  </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px]">
+              <thead className="bg-slate-50">
+                <tr>
+                  {['Time', 'Request ID', 'API', 'Status', 'HTTP', 'Credits', 'Ref', 'Latency'].map((head) => (
+                    <th key={head} className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-400">{head}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paginatedUsage.map((row) => (
+                  <tr key={String(row.id || row.request_id)} className="text-sm">
+                    <td className="px-4 py-3 font-bold text-slate-500">{formatDate(row.created_at)}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-black text-slate-800">{row.request_id || '-'}</td>
+                    <td className="px-4 py-3 font-bold text-slate-700">{row.api_code || row.api_id || '-'}</td>
+                    <td className="px-4 py-3"><Badge tone={statusTone(row.status)}>{row.status || '-'}</Badge></td>
+                    <td className="px-4 py-3 font-bold text-slate-700">{row.http_status || '-'}</td>
+                    <td className="px-4 py-3 font-bold text-slate-700">{row.credits_deducted || 0}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-bold text-slate-500">{row.provider_ref || '-'}</td>
+                    <td className="px-4 py-3 font-bold text-slate-700">{row.response_time_ms ? `${row.response_time_ms}ms` : '-'}</td>
+                  </tr>
                 ))}
-                {!data.tickets.length ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 p-5 text-sm font-bold text-slate-400">No support tickets yet.</div>
+                {!paginatedUsage.length ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm font-bold text-slate-400">No request logs found.</td>
+                  </tr>
                 ) : null}
-              </div>
-            </div>
-
-            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <LockKeyhole className="text-emerald-700" size={20} />
-                <p className="font-black text-slate-900">Security status</p>
-              </div>
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                  <span className="text-sm font-bold text-slate-600">API key prefix</span>
-                  <span className="font-mono text-xs font-black">{data.key.prefix}****</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                  <span className="text-sm font-bold text-slate-600">Last used</span>
-                  <span className="text-xs font-black">{formatDate(data.key.last_used_at)}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                  <span className="text-sm font-bold text-slate-600">IP policy</span>
-                  <CheckCircle2 className="text-emerald-600" size={18} />
-                </div>
-              </div>
+              </tbody>
+            </table>
+          </div>
+          <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-bold text-slate-500">
+              Showing {paginatedUsage.length ? (currentLogPage - 1) * logPageSize + 1 : 0}-{Math.min(currentLogPage * logPageSize, filteredUsage.length)} of {filteredUsage.length} logs
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setLogPage((page) => Math.max(1, page - 1))}
+                disabled={currentLogPage <= 1}
+                className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-black text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-600">Page {currentLogPage} / {logPageCount}</span>
+              <button
+                onClick={() => setLogPage((page) => Math.min(logPageCount, page + 1))}
+                disabled={currentLogPage >= logPageCount}
+                className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-black text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+              </button>
             </div>
           </div>
         </section>
 
+        <section className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.8fr]">
+          <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black tracking-tight">Recent Tickets</h2>
+                <p className="mt-1 text-sm font-bold text-slate-500">Latest support status from CreditTrust operations.</p>
+              </div>
+              <button onClick={() => setSupportOpen(true)} className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-black text-blue-700">New Ticket</button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {data.tickets.slice(0, 4).map((ticket) => (
+                <div key={String(ticket.id)} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-black text-slate-900">{ticket.subject}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-500">{ticket.ticket_number} · {formatDate(ticket.updated_at)}</p>
+                    </div>
+                    <Badge tone={statusTone(ticket.status)}>{String(ticket.status || '').replace(/_/g, ' ')}</Badge>
+                  </div>
+                  {ticket.last_response ? <p className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-slate-600">{ticket.last_response}</p> : null}
+                </div>
+              ))}
+              {!data.tickets.length ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 p-5 text-sm font-bold text-slate-400 md:col-span-2">No support tickets yet.</div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <LockKeyhole className="text-emerald-700" size={20} />
+              <p className="font-black text-slate-900">Security status</p>
+            </div>
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                <span className="text-sm font-bold text-slate-600">API key prefix</span>
+                <span className="font-mono text-xs font-black">{data.key.prefix}****</span>
+              </div>
+              <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                <span className="text-sm font-bold text-slate-600">Last used</span>
+                <span className="text-xs font-black">{formatDate(data.key.last_used_at)}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                <span className="text-sm font-bold text-slate-600">IP policy</span>
+                <CheckCircle2 className="text-emerald-600" size={18} />
+              </div>
+            </div>
+          </div>
+        </section>
         <section className="mt-5 grid gap-4 md:grid-cols-3">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <FileText className="text-blue-700" size={22} />
@@ -555,6 +564,70 @@ export default function ApiClientPortalPage() {
             <p className="mt-1 text-sm font-bold text-slate-500">Share prefix only when asking for support. Never send full API key over email.</p>
           </button>
         </section>
+
+        {supportOpen ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
+            <div className="max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700"><Ticket size={20} /></div>
+                  <div>
+                    <h2 className="text-xl font-black tracking-tight">Raise Support Ticket</h2>
+                    <p className="text-sm font-bold text-slate-500">Add request ID if this is linked to a failed API call.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSupportOpen(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
+                  aria-label="Close support modal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <form onSubmit={raiseTicket} className="max-h-[calc(92vh-5rem)] overflow-y-auto p-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-400">Category</span>
+                    <select value={ticketForm.category} onChange={(event) => setTicketForm({ ...ticketForm, category: event.target.value })} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none">
+                      {categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-400">Priority</span>
+                    <select value={ticketForm.priority} onChange={(event) => setTicketForm({ ...ticketForm, priority: event.target.value })} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none">
+                      {priorities.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <label className="mt-3 block">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Request ID optional</span>
+                  <input value={ticketForm.request_id} onChange={(event) => setTicketForm({ ...ticketForm, request_id: event.target.value })} className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold outline-none" placeholder="ct_req_..." />
+                </label>
+                <label className="mt-3 block">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Subject</span>
+                  <input value={ticketForm.subject} onChange={(event) => setTicketForm({ ...ticketForm, subject: event.target.value })} className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold outline-none" placeholder="Short issue summary" />
+                </label>
+                <label className="mt-3 block">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-400">Message</span>
+                  <textarea value={ticketForm.message} onChange={(event) => setTicketForm({ ...ticketForm, message: event.target.value })} className="mt-2 min-h-32 w-full rounded-xl border border-slate-200 p-3 text-sm font-bold outline-none" placeholder="Explain what happened..." />
+                </label>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSupportOpen(false)}
+                    className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-5 text-sm font-black text-slate-700"
+                  >
+                    Cancel
+                  </button>
+                  <button disabled={loading} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white disabled:opacity-60">
+                    Raise Ticket
+                    <ArrowRight size={17} />
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        ) : null}
       </main>
     </div>
   );
