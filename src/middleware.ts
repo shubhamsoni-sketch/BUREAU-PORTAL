@@ -43,18 +43,19 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(sampleReportUrl);
   }
 
-  if (isApiConsoleHost && normalizedPathname === '/') {
-    return NextResponse.redirect(new URL('/admin-api-hub', request.url));
-  }
-
-  if (
-    isApiConsoleHost &&
-    !isAsset &&
-    !isApiRoute &&
-    !normalizedPathname.startsWith('/admin-api-hub') &&
-    !normalizedPathname.startsWith('/admin')
-  ) {
-    return NextResponse.redirect(new URL('/admin-api-hub', request.url));
+  if (isApiConsoleHost && !isAsset && !isApiRoute) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Not found',
+      },
+      {
+        status: 404,
+        headers: {
+          'cache-control': 'no-store',
+        },
+      },
+    );
   }
 
   if (isCrmHost && normalizedPathname === '/login') {
