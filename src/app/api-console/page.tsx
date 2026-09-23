@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import {
   ArrowRight,
   BarChart3,
@@ -1983,23 +1982,22 @@ export default function ApiConsolePage() {
   const [managedClientId, setManagedClientId] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState(initialClients[0]?.id);
   const [latestSecret, setLatestSecret] = useState('');
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [loginUsername, setLoginUsername] = useState('bridge-admin');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
 
   const managedClient = clients.find((client) => client.id === managedClientId) || null;
-
-  const authHeaders = async (): Promise<Record<string, string>> => {
-    const supabase = createClient();
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
-  };
 
   const loadData = async () => {
     setLoading(true);
     setError('');
     try {
-      const headers = await authHeaders();
-      const response = await fetch('/api/admin-api-hub?usage_page_size=10', { headers });
+      const response = await fetch('/api/admin-api-hub?usage_page_size=10');
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to load Bridge console data');
+      setAuthenticated(true);
       const data: HubData = {
         apis: json.apis || [],
         clients: json.clients || [],
@@ -2018,15 +2016,65 @@ export default function ApiConsolePage() {
         ? current
         : mappedClients[0]?.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load Bridge console data');
+      const message = err instanceof Error ? err.message : 'Unable to load Bridge console data';
+      if (message === 'Unauthorized') setAuthenticated(false);
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    const checkSession = async () => {
+      try {
+        const response = await fetch('/api/hub-console-auth/session');
+        const json = await response.json();
+        setAuthenticated(Boolean(json.authenticated));
+        if (!json.configured) setError('Bridge console login is not configured.');
+        if (json.authenticated) await loadData();
+        else setLoading(false);
+      } catch {
+        setError('Unable to verify Bridge console session.');
+        setLoading(false);
+      } finally {
+        setAuthChecked(true);
+      }
+    };
+    checkSession();
   }, []);
+
+  const login = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoginLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/hub-console-auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginUsername, password: loginPassword }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to login');
+      setAuthenticated(true);
+      setLoginPassword('');
+      await loadData();
+    } catch (err) {
+      setAuthenticated(false);
+      setError(err instanceof Error ? err.message : 'Bridge console login failed');
+    } finally {
+      setLoginLoading(false);
+      setAuthChecked(true);
+    }
+  };
+
+  const logout = async () => {
+    await fetch('/api/hub-console-auth/logout', { method: 'POST' });
+    setAuthenticated(false);
+    setClients([]);
+    setKeys([]);
+    setLogs([]);
+    setNotice('');
+  };
 
   const [pendingClientSave, setPendingClientSave] = useState<Client | null>(null);
 
@@ -2039,12 +2087,10 @@ export default function ApiConsolePage() {
     setError('');
     if (!quiet) setNotice('');
     try {
-      const headers = await authHeaders();
       const response = await fetch('/api/admin-api-hub', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...headers,
         },
         body: JSON.stringify(payload),
       });
@@ -2133,6 +2179,71 @@ export default function ApiConsolePage() {
     setNotice('Client API key generated. Full key is shown only once.');
   };
 
+  if (!authChecked || (loading && !authenticated)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-2 border-emerald-300 border-t-transparent" />
+          <p className="text-sm font-800 text-slate-300">Checking Bridge console session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authenticated) {
+    return (
+      <div className="min-h-screen bg-slate-950 px-5 py-10 text-white">
+        <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl items-center justify-center">
+          <div className="grid w-full overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl lg:grid-cols-[1fr_0.85fr]">
+            <div className="bg-slate-950 p-8 text-white lg:p-10">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400 text-lg font-900 text-slate-950">CT</div>
+              <p className="mt-8 text-xs font-900 uppercase tracking-[0.35em] text-emerald-300">hub.credittrust.in</p>
+              <h1 className="mt-3 text-4xl font-900 leading-tight">Bridge API Control Plane</h1>
+              <p className="mt-4 max-w-md text-sm font-600 leading-6 text-slate-300">
+                Separate operator access for Binta onboarding, API credentials, IP allowlisting, UAT validation and production promotion.
+              </p>
+              <div className="mt-8 grid gap-3 text-sm font-800 text-slate-200">
+                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4"><ShieldCheck size={18} className="text-emerald-300" /> Independent console login</div>
+                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4"><LockKeyhole size={18} className="text-blue-300" /> Signed httpOnly session cookie</div>
+                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4"><KeyRound size={18} className="text-amber-300" /> One-time API key reveal</div>
+              </div>
+            </div>
+            <form onSubmit={login} className="bg-slate-50 p-8 text-slate-950 lg:p-10">
+              <p className="text-xs font-900 uppercase tracking-[0.25em] text-blue-700">Operator Login</p>
+              <h2 className="mt-3 text-2xl font-900">Sign in to Bridge</h2>
+              <p className="mt-2 text-sm font-600 text-slate-500">Use the dedicated Bridge console credentials. CreditTrust portal login is not used here.</p>
+              {error ? (
+                <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-800 text-red-800">{error}</div>
+              ) : null}
+              <label className="mt-6 block text-sm font-900 text-slate-700">
+                Username
+                <input
+                  value={loginUsername}
+                  onChange={(event) => setLoginUsername(event.target.value)}
+                  className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-800 outline-none focus:border-blue-500"
+                  autoComplete="username"
+                />
+              </label>
+              <label className="mt-4 block text-sm font-900 text-slate-700">
+                Password
+                <input
+                  value={loginPassword}
+                  onChange={(event) => setLoginPassword(event.target.value)}
+                  type="password"
+                  className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-800 outline-none focus:border-blue-500"
+                  autoComplete="current-password"
+                />
+              </label>
+              <button disabled={loginLoading} className="mt-6 h-12 w-full rounded-xl bg-blue-600 text-sm font-900 text-white shadow-lg shadow-blue-600/20 disabled:cursor-not-allowed disabled:opacity-60">
+                {loginLoading ? 'Signing in...' : 'Open Bridge Console'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-foreground">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[260px] border-r border-slate-800 bg-slate-950 text-white lg:flex lg:flex-col">
@@ -2191,6 +2302,9 @@ export default function ApiConsolePage() {
               <button disabled={saving} onClick={() => setClientModalOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-3 text-sm font-800 text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60">
                 <KeyRound size={16} />
                 Create Client
+              </button>
+              <button onClick={logout} className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-900 text-slate-600 hover:bg-slate-50">
+                Logout
               </button>
             </div>
           </div>

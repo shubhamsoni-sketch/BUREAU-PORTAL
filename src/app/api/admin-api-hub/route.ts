@@ -11,6 +11,7 @@ import {
 } from '@/lib/api-hub/simple-store';
 import { getStateName } from '@/lib/bureau/state-codes';
 import { exportApiUsageLedger, listApiUsageLedger } from '@/lib/api-hub/usage-ledger';
+import { hasHubConsoleSession } from '@/lib/api-hub/console-auth';
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
@@ -26,6 +27,13 @@ async function adminContext(request: NextRequest) {
   if (isLocalDev && !bearerToken(request)) {
     return {
       user: { id: 'local-api-console-preview' },
+      supabase: createAdminClient(),
+    };
+  }
+
+  if (hasHubConsoleSession(request)) {
+    return {
+      user: { id: 'hub-console-operator' },
       supabase: createAdminClient(),
     };
   }
