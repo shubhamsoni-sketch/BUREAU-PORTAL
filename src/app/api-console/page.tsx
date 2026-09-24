@@ -1839,9 +1839,18 @@ function SupportPanel({
   onUpdateTicket: (ticketId: string, patch: Partial<SupportTicket>) => void;
 }) {
   const [drafts, setDrafts] = useState<Record<string, { internal_note: string; last_response: string }>>({});
+  const [selectedTicketId, setSelectedTicketId] = useState('');
   const clientById = new Map(clients.map((client) => [client.id, client]));
   const openTickets = tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'in_progress');
   const criticalTickets = tickets.filter((ticket) => ticket.priority === 'critical' && ticket.status !== 'closed');
+  const selectedTicket = tickets.find((ticket) => ticket.id === selectedTicketId) || tickets[0];
+
+  useEffect(() => {
+    if (!tickets.length) return;
+    if (!selectedTicketId || !tickets.some((ticket) => ticket.id === selectedTicketId)) {
+      setSelectedTicketId(tickets[0].id);
+    }
+  }, [tickets, selectedTicketId]);
 
   const draftFor = (ticket: SupportTicket) => drafts[ticket.id] || {
     internal_note: ticket.internal_note || '',
@@ -1852,6 +1861,10 @@ function SupportPanel({
     setDrafts((current) => ({ ...current, [ticket.id]: { ...draftFor(ticket), ...patch } }));
   };
 
+  const selectedClient = selectedTicket ? clientById.get(selectedTicket.client_id) : null;
+  const selectedClientName = selectedClient?.name || selectedTicket?.client_name || 'Client';
+  const selectedDraft = selectedTicket ? draftFor(selectedTicket) : null;
+
   return (
     <div className="space-y-5">
       <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -1861,52 +1874,80 @@ function SupportPanel({
       </section>
 
       <Panel title="Support Tickets">
-        <div className="divide-y divide-border">
-          {tickets.length ? tickets.map((ticket) => {
-            const client = clientById.get(ticket.client_id);
-            const clientName = client?.name || ticket.client_name || 'Client';
-            const draft = draftFor(ticket);
-            return (
-              <div key={ticket.id} className="p-4">
-                <div className="grid gap-3 xl:grid-cols-[1fr_300px]">
+        {!tickets.length ? (
+          <div className="px-4 py-8 text-center text-sm font-800 text-muted-foreground">No support tickets yet.</div>
+        ) : (
+          <div className="grid min-h-[520px] gap-0 lg:grid-cols-[360px_1fr]">
+            <div className="border-b border-border lg:border-b-0 lg:border-r">
+              <div className="max-h-[620px] overflow-y-auto p-3">
+                <div className="space-y-2">
+                  {tickets.map((ticket) => {
+                    const client = clientById.get(ticket.client_id);
+                    const clientName = client?.name || ticket.client_name || 'Client';
+                    const selected = selectedTicket?.id === ticket.id;
+                    return (
+                      <button
+                        key={ticket.id}
+                        onClick={() => setSelectedTicketId(ticket.id)}
+                        className={classNames(
+                          'w-full rounded-xl border p-3 text-left transition',
+                          selected ? 'border-blue-200 bg-blue-50 shadow-sm' : 'border-border bg-white hover:border-slate-300 hover:bg-slate-50',
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-900 text-foreground">{ticket.subject}</p>
+                            <p className="mt-1 truncate text-[11px] font-800 text-muted-foreground">{clientName}</p>
+                          </div>
+                          <StatusPill tone={ticketTone(ticket.status)}>{ticket.status.replace(/_/g, ' ')}</StatusPill>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <StatusPill tone={priorityTone(ticket.priority)}>{ticket.priority}</StatusPill>
+                          <span className="text-[11px] font-900 text-muted-foreground">{ticket.ticket_number}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {selectedTicket && selectedDraft ? (
+              <div className="p-4">
+                <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <StatusPill tone={ticketTone(ticket.status)}>{ticket.status.replace(/_/g, ' ')}</StatusPill>
-                      <StatusPill tone={priorityTone(ticket.priority)}>{ticket.priority}</StatusPill>
-                      <StatusPill tone="slate">{ticket.category.replace(/_/g, ' ')}</StatusPill>
-                      <span className="text-xs font-900 text-muted-foreground">{ticket.ticket_number}</span>
+                      <StatusPill tone={ticketTone(selectedTicket.status)}>{selectedTicket.status.replace(/_/g, ' ')}</StatusPill>
+                      <StatusPill tone={priorityTone(selectedTicket.priority)}>{selectedTicket.priority}</StatusPill>
+                      <StatusPill tone="slate">{selectedTicket.category.replace(/_/g, ' ')}</StatusPill>
+                      <span className="text-xs font-900 text-muted-foreground">{selectedTicket.ticket_number}</span>
                     </div>
-                    <h3 className="mt-2 text-base font-900 text-foreground">{ticket.subject}</h3>
+                    <h3 className="mt-2 text-xl font-900 text-foreground">{selectedTicket.subject}</h3>
                     <p className="mt-1 text-xs font-800 text-muted-foreground">
-                      {clientName} - {ticket.client_email || client?.contactEmail || '-'} - {new Date(ticket.created_at).toLocaleString('en-IN')}
+                      {selectedClientName} - {selectedTicket.client_email || selectedClient?.contactEmail || '-'} - {new Date(selectedTicket.created_at).toLocaleString('en-IN')}
                     </p>
-                    {ticket.request_id ? <p className="mt-2 font-mono text-xs font-900 text-blue-700">Request ID: {ticket.request_id}</p> : null}
-                    <p className="mt-3 max-h-24 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-slate-50 p-3 text-sm font-700 leading-5 text-slate-700">{ticket.message}</p>
-                    {ticket.last_response ? (
-                      <div className="mt-3 max-h-20 overflow-y-auto rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm font-800 leading-5 text-emerald-800">
-                        Last client response: {ticket.last_response}
-                      </div>
-                    ) : null}
-                    {ticket.thread?.length ? (
-                      <div className="mt-3 max-h-44 space-y-2 overflow-y-auto rounded-lg border border-border bg-white p-3">
-                        {ticket.thread.map((entry) => (
-                          <div key={entry.id} className="rounded-lg bg-slate-50 p-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] font-900 uppercase tracking-wide text-slate-500">{entry.author}</span>
-                              <span className="text-[10px] font-800 text-slate-400">{new Date(entry.created_at).toLocaleString('en-IN')}</span>
-                            </div>
-                            <p className="mt-1 whitespace-pre-wrap text-xs font-800 leading-5 text-slate-700">{entry.message}</p>
+                    {selectedTicket.request_id ? <p className="mt-2 font-mono text-xs font-900 text-blue-700">Request ID: {selectedTicket.request_id}</p> : null}
+                    <p className="mt-3 max-h-28 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-slate-50 p-3 text-sm font-700 leading-5 text-slate-700">{selectedTicket.message}</p>
+
+                    <div className="mt-3 max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border bg-white p-3">
+                      {(selectedTicket.thread?.length ? selectedTicket.thread : [{ id: 'initial', author: 'client' as const, message: selectedTicket.message, created_at: selectedTicket.created_at }]).map((entry) => (
+                        <div key={entry.id} className={classNames('rounded-lg p-2', entry.author === 'operator' ? 'bg-emerald-50' : entry.author === 'client' ? 'bg-blue-50' : 'bg-slate-50')}>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-900 uppercase tracking-wide text-slate-500">{entry.author === 'operator' ? 'CreditTrust' : entry.author}</span>
+                            <span className="text-[10px] font-800 text-slate-400">{new Date(entry.created_at).toLocaleString('en-IN')}</span>
                           </div>
-                        ))}
-                      </div>
-                    ) : null}
+                          <p className="mt-1 whitespace-pre-wrap text-xs font-800 leading-5 text-slate-700">{entry.message}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="rounded-lg border border-border bg-slate-50 p-3">
+
+                  <div className="rounded-xl border border-border bg-slate-50 p-3">
                     <label className="block">
                       <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Status</span>
                       <select
-                        value={ticket.status}
-                        onChange={(event) => onUpdateTicket(ticket.id, { status: event.target.value as SupportTicket['status'] })}
+                        value={selectedTicket.status}
+                        onChange={(event) => onUpdateTicket(selectedTicket.id, { status: event.target.value as SupportTicket['status'] })}
                         className="mt-1.5 h-9 w-full rounded-lg border border-border bg-white px-3 text-sm font-900"
                       >
                         <option value="open">Open</option>
@@ -1918,40 +1959,37 @@ function SupportPanel({
                     <label className="mt-2 block">
                       <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Internal note</span>
                       <textarea
-                        value={draft.internal_note}
-                        onChange={(event) => updateDraft(ticket, { internal_note: event.target.value })}
-                        className="mt-1.5 h-16 w-full resize-none rounded-lg border border-border bg-white p-2.5 text-sm font-800"
+                        value={selectedDraft.internal_note}
+                        onChange={(event) => updateDraft(selectedTicket, { internal_note: event.target.value })}
+                        className="mt-1.5 h-20 w-full resize-none rounded-lg border border-border bg-white p-2.5 text-sm font-800"
                         placeholder="Visible only to FinCoopers operators"
                       />
                     </label>
                     <label className="mt-2 block">
-                      <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Client response</span>
+                      <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Reply to client</span>
                       <textarea
-                        value={draft.last_response}
-                        onChange={(event) => updateDraft(ticket, { last_response: event.target.value })}
-                        className="mt-1.5 h-16 w-full resize-none rounded-lg border border-border bg-white p-2.5 text-sm font-800"
-                        placeholder={`Visible to ${clientName} in client portal`}
+                        value={selectedDraft.last_response}
+                        onChange={(event) => updateDraft(selectedTicket, { last_response: event.target.value })}
+                        className="mt-1.5 h-24 w-full resize-none rounded-lg border border-border bg-white p-2.5 text-sm font-800"
+                        placeholder={`Visible to ${selectedClientName} in client portal`}
                       />
                     </label>
                     <button
-                      onClick={() => onUpdateTicket(ticket.id, draft)}
+                      onClick={() => onUpdateTicket(selectedTicket.id, selectedDraft)}
                       className="mt-2 h-9 w-full rounded-lg bg-blue-600 text-xs font-900 text-white"
                     >
-                      Save Ticket
+                      Save Reply
                     </button>
                   </div>
                 </div>
               </div>
-            );
-          }) : (
-            <div className="px-4 py-8 text-center text-sm font-800 text-muted-foreground">No support tickets yet.</div>
-          )}
-        </div>
+            ) : null}
+          </div>
+        )}
       </Panel>
     </div>
   );
 }
-
 function ActiveSection({
   activeNav,
   clients,
@@ -2691,3 +2729,4 @@ export default function ApiConsolePage() {
     </div>
   );
 }
+

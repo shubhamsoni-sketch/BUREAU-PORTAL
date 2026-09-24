@@ -34,16 +34,20 @@ function ticketStatusLabel(status: SimpleSupportTicket['status']) {
   return status.replace(/_/g, ' ');
 }
 
-async function notifyTicketStatusUpdate(ticket: SimpleSupportTicket, clientName: string) {
+async function notifyTicketStatusUpdate(ticket: SimpleSupportTicket, clientName: string, mode: 'status' | 'response' = 'status') {
   const resendApiKey = process.env.RESEND_API_KEY;
   const recipient = String(ticket.client_email || '').trim();
   if (!resendApiKey) return { success: false, error: 'RESEND_API_KEY is missing' };
   if (!recipient) return { success: false, error: 'Client email is missing' };
+  const heading = mode === 'response' ? 'CreditTrust response added' : 'CreditTrust Bridge support ticket update';
+  const statusLine = mode === 'response'
+    ? 'CreditTrust has added a response to your support ticket.'
+    : `Your support ticket has been marked as <b>${escapeHtml(ticketStatusLabel(ticket.status))}</b>.`;
 
   const html = `
-    <h2>CreditTrust Bridge support ticket update</h2>
+    <h2>${escapeHtml(heading)}</h2>
     <p>Hello ${escapeHtml(ticket.client_name || clientName || 'there')},</p>
-    <p>Your support ticket has been marked as <b>${escapeHtml(ticketStatusLabel(ticket.status))}</b>.</p>
+    <p>${statusLine}</p>
     <p><b>Ticket:</b> ${escapeHtml(ticket.ticket_number)}</p>
     <p><b>Subject:</b> ${escapeHtml(ticket.subject)}</p>
     ${ticket.last_response ? `<p><b>CreditTrust response:</b><br/>${escapeHtml(ticket.last_response).replace(/\n/g, '<br/>')}</p>` : ''}
@@ -59,7 +63,7 @@ async function notifyTicketStatusUpdate(ticket: SimpleSupportTicket, clientName:
     body: JSON.stringify({
       from: FROM_EMAIL,
       to: [recipient],
-      subject: `Support Ticket ${ticket.ticket_number} ${ticketStatusLabel(ticket.status)} - CreditTrust Bridge`,
+      subject: `${heading} ${ticket.ticket_number} - CreditTrust Bridge`,
       html,
       reply_to: SUPPORT_EMAIL,
     }),
@@ -677,8 +681,13 @@ export async function POST(request: NextRequest) {
       await saveApiHubStore(auth.supabase, rowId, store);
       const updatedTicket = store.tickets.find((ticket) => ticket.id === ticketId);
       const client = store.clients.find((item) => item.id === updatedTicket?.client_id);
-      const emailResult = shouldNotifyClient && updatedTicket
-        ? await notifyTicketStatusUpdate(updatedTicket, client?.name || updatedTicket.client_name || 'API client')
+      const shouldEmailClient = Boolean(updatedTicket && (shouldNotifyClient || responseChanged));
+      const emailResult = shouldEmailClient && updatedTicket
+        ? await notifyTicketStatusUpdate(
+          updatedTicket,
+          client?.name || updatedTicket.client_name || 'API client',
+          responseChanged && !shouldNotifyClient ? 'response' : 'status',
+        )
         : null;
       if (emailResult && !emailResult.success) console.warn('[admin-api-hub] ticket status email failed:', emailResult.error);
       return NextResponse.json({
