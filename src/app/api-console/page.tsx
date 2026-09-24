@@ -1914,72 +1914,89 @@ function SupportPanel({
 
             {selectedTicket && selectedDraft ? (
               <div className="p-4">
-                <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StatusPill tone={ticketTone(selectedTicket.status)}>{selectedTicket.status.replace(/_/g, ' ')}</StatusPill>
-                      <StatusPill tone={priorityTone(selectedTicket.priority)}>{selectedTicket.priority}</StatusPill>
-                      <StatusPill tone="slate">{selectedTicket.category.replace(/_/g, ' ')}</StatusPill>
-                      <span className="text-xs font-900 text-muted-foreground">{selectedTicket.ticket_number}</span>
+                <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+                  <div className="flex flex-col gap-3 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusPill tone={ticketTone(selectedTicket.status)}>{selectedTicket.status.replace(/_/g, ' ')}</StatusPill>
+                        <StatusPill tone={priorityTone(selectedTicket.priority)}>{selectedTicket.priority}</StatusPill>
+                        <StatusPill tone="slate">{selectedTicket.category.replace(/_/g, ' ')}</StatusPill>
+                        <span className="text-xs font-900 text-muted-foreground">{selectedTicket.ticket_number}</span>
+                      </div>
+                      <h3 className="mt-2 text-xl font-900 leading-tight text-foreground">{selectedTicket.subject}</h3>
+                      <p className="mt-1 text-xs font-800 text-muted-foreground">
+                        {selectedClientName} - {selectedTicket.client_email || selectedClient?.contactEmail || '-'} - {new Date(selectedTicket.created_at).toLocaleString('en-IN')}
+                      </p>
+                      {selectedTicket.request_id ? <p className="mt-2 font-mono text-xs font-900 text-blue-700">Request ID: {selectedTicket.request_id}</p> : null}
                     </div>
-                    <h3 className="mt-2 text-xl font-900 text-foreground">{selectedTicket.subject}</h3>
-                    <p className="mt-1 text-xs font-800 text-muted-foreground">
-                      {selectedClientName} - {selectedTicket.client_email || selectedClient?.contactEmail || '-'} - {new Date(selectedTicket.created_at).toLocaleString('en-IN')}
-                    </p>
-                    {selectedTicket.request_id ? <p className="mt-2 font-mono text-xs font-900 text-blue-700">Request ID: {selectedTicket.request_id}</p> : null}
-                    <p className="mt-3 max-h-28 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-slate-50 p-3 text-sm font-700 leading-5 text-slate-700">{selectedTicket.message}</p>
-
-                    <div className="mt-3 max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border bg-white p-3">
-                      {(selectedTicket.thread?.length ? selectedTicket.thread : [{ id: 'initial', author: 'client' as const, message: selectedTicket.message, created_at: selectedTicket.created_at }]).map((entry) => (
-                        <div key={entry.id} className={classNames('rounded-lg p-2', entry.author === 'operator' ? 'bg-emerald-50' : entry.author === 'client' ? 'bg-blue-50' : 'bg-slate-50')}>
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] font-900 uppercase tracking-wide text-slate-500">{entry.author === 'operator' ? 'CreditTrust' : entry.author}</span>
-                            <span className="text-[10px] font-800 text-slate-400">{new Date(entry.created_at).toLocaleString('en-IN')}</span>
-                          </div>
-                          <p className="mt-1 whitespace-pre-wrap text-xs font-800 leading-5 text-slate-700">{entry.message}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-border bg-slate-50 p-3">
-                    <label className="block">
+                    <div className="w-full lg:w-44">
                       <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Status</span>
                       <select
                         value={selectedTicket.status}
                         onChange={(event) => onUpdateTicket(selectedTicket.id, { status: event.target.value as SupportTicket['status'] })}
-                        className="mt-1.5 h-9 w-full rounded-lg border border-border bg-white px-3 text-sm font-900"
+                        className="mt-1.5 h-10 w-full rounded-lg border border-border bg-white px-3 text-sm font-900"
                       >
                         <option value="open">Open</option>
                         <option value="in_progress">In progress</option>
                         <option value="resolved">Resolved</option>
                         <option value="closed">Closed</option>
                       </select>
-                    </label>
-                    <label className="mt-2 block">
-                      <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Internal note</span>
-                      <textarea
-                        value={selectedDraft.internal_note}
-                        onChange={(event) => updateDraft(selectedTicket, { internal_note: event.target.value })}
-                        className="mt-1.5 h-20 w-full resize-none rounded-lg border border-border bg-white p-2.5 text-sm font-800"
-                        placeholder="Visible only to FinCoopers operators"
-                      />
-                    </label>
-                    <label className="mt-2 block">
-                      <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Reply to client</span>
-                      <textarea
-                        value={selectedDraft.last_response}
-                        onChange={(event) => updateDraft(selectedTicket, { last_response: event.target.value })}
-                        className="mt-1.5 h-24 w-full resize-none rounded-lg border border-border bg-white p-2.5 text-sm font-800"
-                        placeholder={`Visible to ${selectedClientName} in client portal`}
-                      />
-                    </label>
-                    <button
-                      onClick={() => onUpdateTicket(selectedTicket.id, selectedDraft)}
-                      className="mt-2 h-9 w-full rounded-lg bg-blue-600 text-xs font-900 text-white"
-                    >
-                      Save Reply
-                    </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-border bg-slate-50 p-3">
+                        <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Original message</p>
+                        <p className="mt-2 max-h-24 overflow-y-auto whitespace-pre-wrap text-sm font-700 leading-5 text-slate-700">{selectedTicket.message}</p>
+                      </div>
+
+                      <div className="rounded-xl border border-border bg-white p-3">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <p className="text-sm font-900 text-foreground">Conversation</p>
+                          <span className="text-[11px] font-800 text-muted-foreground">{(selectedTicket.thread?.length || 1).toString()} messages</span>
+                        </div>
+                        <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+                          {(selectedTicket.thread?.length ? selectedTicket.thread : [{ id: 'initial', author: 'client' as const, message: selectedTicket.message, created_at: selectedTicket.created_at }]).map((entry) => (
+                            <div key={entry.id} className={classNames('rounded-xl p-3', entry.author === 'operator' ? 'bg-emerald-50' : entry.author === 'client' ? 'bg-blue-50' : 'bg-slate-50')}>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[10px] font-900 uppercase tracking-wide text-slate-500">{entry.author === 'operator' ? 'CreditTrust' : entry.author === 'client' ? selectedClientName : 'System'}</span>
+                                <span className="text-[10px] font-800 text-slate-400">{new Date(entry.created_at).toLocaleString('en-IN')}</span>
+                              </div>
+                              <p className="mt-1 whitespace-pre-wrap text-sm font-700 leading-5 text-slate-700">{entry.message}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="block rounded-xl border border-border bg-slate-50 p-3">
+                        <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Reply to client</span>
+                        <textarea
+                          value={selectedDraft.last_response}
+                          onChange={(event) => updateDraft(selectedTicket, { last_response: event.target.value })}
+                          className="mt-2 h-28 w-full resize-none rounded-lg border border-border bg-white p-2.5 text-sm font-800"
+                          placeholder={`Visible to ${selectedClientName} in client portal`}
+                        />
+                        <button
+                          onClick={() => onUpdateTicket(selectedTicket.id, selectedDraft)}
+                          className="mt-2 h-9 w-full rounded-lg bg-blue-600 text-xs font-900 text-white"
+                        >
+                          Save Reply
+                        </button>
+                      </label>
+
+                      <label className="block rounded-xl border border-border bg-slate-50 p-3">
+                        <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Internal note</span>
+                        <textarea
+                          value={selectedDraft.internal_note}
+                          onChange={(event) => updateDraft(selectedTicket, { internal_note: event.target.value })}
+                          className="mt-2 h-20 w-full resize-none rounded-lg border border-border bg-white p-2.5 text-sm font-800"
+                          placeholder="Only for operators"
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2729,4 +2746,5 @@ export default function ApiConsolePage() {
     </div>
   );
 }
+
 
