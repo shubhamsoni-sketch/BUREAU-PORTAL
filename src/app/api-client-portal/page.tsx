@@ -221,6 +221,7 @@ export default function ApiClientPortalPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [search, setSearch] = useState('');
+  const [activeView, setActiveView] = useState<'logs' | 'support'>('logs');
   const [supportOpen, setSupportOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showKeyCard, setShowKeyCard] = useState(false);
@@ -397,7 +398,7 @@ export default function ApiClientPortalPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setSupportOpen(true)}
+              onClick={() => setActiveView('support')}
               className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-3 text-xs font-black text-white shadow-sm shadow-blue-600/20"
             >
               <LifeBuoy size={15} />
@@ -469,6 +470,26 @@ export default function ApiClientPortalPage() {
           <MetricCard label="Open Tickets" value={data.metrics.open_tickets.toString()} helper="support desk" icon={LifeBuoy} tone="bg-amber-50 text-amber-700" />
         </section>
 
+        <section className="mt-5 flex flex-wrap items-center gap-2 rounded-[1.25rem] border border-slate-200 bg-white p-2 shadow-sm">
+          {[
+            ['logs', 'Request Logs'],
+            ['support', 'Support Tickets'],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setActiveView(value as 'logs' | 'support')}
+              className={classNames(
+                'inline-flex h-10 items-center rounded-xl px-4 text-xs font-black transition',
+                activeView === value ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </section>
+
+        {activeView === 'logs' ? (
+          <>
         <section className="mt-5 rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -544,40 +565,12 @@ export default function ApiClientPortalPage() {
           </div>
         </section>
 
-        <section className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.8fr]">
-          <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-extrabold tracking-tight">Recent Tickets</h2>
-                <p className="mt-1 text-xs font-bold text-slate-500">Latest support status from CreditTrust operations.</p>
-              </div>
-              <button onClick={() => setSupportOpen(true)} className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-black text-blue-700">New Ticket</button>
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {data.tickets.slice(0, 4).map((ticket) => (
-                <div key={String(ticket.id)} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-black text-slate-900">{ticket.subject}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">{ticket.ticket_number} · {formatDate(ticket.updated_at)}</p>
-                    </div>
-                    <Badge tone={statusTone(ticket.status)}>{String(ticket.status || '').replace(/_/g, ' ')}</Badge>
-                  </div>
-                  {ticket.last_response ? <p className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-slate-600">{ticket.last_response}</p> : null}
-                </div>
-              ))}
-              {!data.tickets.length ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 p-5 text-sm font-bold text-slate-400 md:col-span-2">No support tickets yet.</div>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="mt-5 rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <LockKeyhole className="text-emerald-700" size={20} />
               <p className="font-black text-slate-900">Security status</p>
             </div>
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
               <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
                 <span className="text-sm font-bold text-slate-600">API key prefix</span>
                 <span className="font-mono text-xs font-black">{data.key.prefix}****</span>
@@ -591,8 +584,43 @@ export default function ApiClientPortalPage() {
                 <CheckCircle2 className="text-emerald-600" size={18} />
               </div>
             </div>
-          </div>
         </section>
+          </>
+        ) : (
+          <section className="mt-5 rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-extrabold tracking-tight">Support Tickets</h2>
+                <p className="mt-1 text-xs font-bold text-slate-500">Track raised tickets and CreditTrust operations responses in one place.</p>
+              </div>
+              <button onClick={() => setSupportOpen(true)} className="inline-flex h-10 items-center justify-center rounded-xl bg-blue-600 px-4 text-xs font-black text-white shadow-sm shadow-blue-600/20">
+                New Ticket
+              </button>
+            </div>
+            <div className="mt-5 grid gap-3">
+              {data.tickets.map((ticket) => (
+                <div key={String(ticket.id)} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-black text-slate-900">{ticket.subject}</p>
+                        <Badge tone={statusTone(ticket.status)}>{String(ticket.status || '').replace(/_/g, ' ')}</Badge>
+                      </div>
+                      <p className="mt-1 text-xs font-bold text-slate-500">{ticket.ticket_number} · {formatDate(ticket.updated_at)}</p>
+                      {ticket.request_id ? <p className="mt-2 font-mono text-xs font-black text-blue-700">Request ID: {ticket.request_id}</p> : null}
+                    </div>
+                    <Badge tone={statusTone(ticket.priority)}>{String(ticket.priority || 'medium')}</Badge>
+                  </div>
+                  <p className="mt-3 whitespace-pre-wrap rounded-xl bg-white p-3 text-xs font-bold leading-5 text-slate-600">{ticket.message || '-'}</p>
+                  {ticket.last_response ? <p className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs font-bold leading-5 text-emerald-800">{ticket.last_response}</p> : null}
+                </div>
+              ))}
+              {!data.tickets.length ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm font-bold text-slate-400">No support tickets yet.</div>
+              ) : null}
+            </div>
+          </section>
+        )}
         {supportOpen ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
             <div className="max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
