@@ -144,6 +144,12 @@ type SupportTicket = {
   client_name?: string | null;
   internal_note?: string | null;
   last_response?: string | null;
+  thread?: Array<{
+    id: string;
+    author: 'client' | 'operator' | 'system';
+    message: string;
+    created_at: string;
+  }>;
   created_at: string;
   updated_at: string;
 };
@@ -1879,6 +1885,19 @@ function SupportPanel({
                     {ticket.last_response ? (
                       <div className="mt-3 max-h-20 overflow-y-auto rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm font-800 leading-5 text-emerald-800">
                         Last client response: {ticket.last_response}
+                      </div>
+                    ) : null}
+                    {ticket.thread?.length ? (
+                      <div className="mt-3 max-h-44 space-y-2 overflow-y-auto rounded-lg border border-border bg-white p-3">
+                        {ticket.thread.map((entry) => (
+                          <div key={entry.id} className="rounded-lg bg-slate-50 p-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-900 uppercase tracking-wide text-slate-500">{entry.author}</span>
+                              <span className="text-[10px] font-800 text-slate-400">{new Date(entry.created_at).toLocaleString('en-IN')}</span>
+                            </div>
+                            <p className="mt-1 whitespace-pre-wrap text-xs font-800 leading-5 text-slate-700">{entry.message}</p>
+                          </div>
+                        ))}
                       </div>
                     ) : null}
                   </div>

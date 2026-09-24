@@ -652,12 +652,25 @@ export async function POST(request: NextRequest) {
         status !== existing.status &&
         ['resolved', 'closed'].includes(status),
       );
+      const nextLastResponse = body.last_response !== undefined ? String(body.last_response || '') : existing.last_response || '';
+      const responseChanged = body.last_response !== undefined && nextLastResponse && nextLastResponse !== (existing.last_response || '');
       store.tickets = (store.tickets || []).map((ticket) => ticket.id === ticketId
         ? {
           ...ticket,
           status: status || ticket.status,
           internal_note: body.internal_note !== undefined ? String(body.internal_note || '') : ticket.internal_note || null,
-          last_response: body.last_response !== undefined ? String(body.last_response || '') : ticket.last_response || null,
+          last_response: nextLastResponse || null,
+          thread: responseChanged
+            ? [
+              ...(ticket.thread || []),
+              {
+                id: crypto.randomUUID(),
+                author: 'operator' as const,
+                message: nextLastResponse,
+                created_at: new Date().toISOString(),
+              },
+            ]
+            : ticket.thread || [],
           updated_at: new Date().toISOString(),
         }
         : ticket);

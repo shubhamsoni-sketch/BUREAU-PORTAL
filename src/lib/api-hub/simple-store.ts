@@ -78,6 +78,12 @@ export type SimpleSupportTicket = {
   client_name?: string | null;
   internal_note?: string | null;
   last_response?: string | null;
+  thread?: Array<{
+    id: string;
+    author: 'client' | 'operator' | 'system';
+    message: string;
+    created_at: string;
+  }>;
   created_at: string;
   updated_at: string;
 };
@@ -288,6 +294,14 @@ function normalizeTicket(raw: Record<string, any>): SimpleSupportTicket {
     client_name: raw.client_name || raw.clientName || null,
     internal_note: raw.internal_note || raw.internalNote || null,
     last_response: raw.last_response || raw.lastResponse || null,
+    thread: Array.isArray(raw.thread)
+      ? raw.thread.map((entry: Record<string, any>) => ({
+        id: String(entry.id || crypto.randomUUID()),
+        author: ['client', 'operator', 'system'].includes(String(entry.author)) ? entry.author : 'system',
+        message: String(entry.message || ''),
+        created_at: entry.created_at || entry.createdAt || now,
+      })).filter((entry) => entry.message)
+      : [],
     created_at: raw.created_at || now,
     updated_at: raw.updated_at || raw.created_at || now,
   };

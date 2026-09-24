@@ -227,6 +227,7 @@ export default function ApiClientPortalPage() {
   const [showKeyCard, setShowKeyCard] = useState(false);
   const [showIpCard, setShowIpCard] = useState(false);
   const [logPage, setLogPage] = useState(1);
+  const [ticketActionDrafts, setTicketActionDrafts] = useState<Record<string, { action: 'remind_ticket' | 'reopen_ticket'; message: string }>>({});
   const [passwordForm, setPasswordForm] = useState({
     current_password: '',
     new_password: '',
@@ -375,7 +376,7 @@ export default function ApiClientPortalPage() {
     }
   };
 
-  const updateTicketFromClient = async (ticketId: string, action: 'remind_ticket' | 'reopen_ticket') => {
+  const updateTicketFromClient = async (ticketId: string, action: 'remind_ticket' | 'reopen_ticket', message = '') => {
     setLoading(true);
     setError('');
     setNotice('');
@@ -383,11 +384,16 @@ export default function ApiClientPortalPage() {
       const response = await fetch('/api/api-client-portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ticket_id: ticketId }),
+        body: JSON.stringify({ action, ticket_id: ticketId, message }),
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to update support ticket');
       setNotice(action === 'reopen_ticket' ? 'Ticket reopened and sent to CreditTrust support.' : 'Reminder sent to CreditTrust support.');
+      setTicketActionDrafts((current) => {
+        const next = { ...current };
+        delete next[ticketId];
+        return next;
+      });
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update support ticket');
@@ -622,8 +628,10 @@ export default function ApiClientPortalPage() {
               {data.tickets.map((ticket) => {
                 const canRemind = ticket.status === 'open' || ticket.status === 'in_progress';
                 const canReopen = ticket.status === 'resolved' || ticket.status === 'closed';
+                const ticketId = String(ticket.id);
+                const draft = ticketActionDrafts[ticketId];
                 return (
-                <div key={String(ticket.id)} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div key={ticketId} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -637,10 +645,55 @@ export default function ApiClientPortalPage() {
                   </div>
                   <p className="mt-3 whitespace-pre-wrap rounded-xl bg-white p-3 text-xs font-bold leading-5 text-slate-600">{ticket.message || '-'}</p>
                   {ticket.last_response ? <p className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs font-bold leading-5 text-emerald-800">{ticket.last_response}</p> : null}
+                  {Array.isArray(ticket.thread) && ticket.thread.length ? (
+                    <div className="mt-3 space-y-2 rounded-xl border border-slate-100 bg-white p-3">
+                      {ticket.thread.map((entry: Record<string, any>) => (
+                        <div key={String(entry.id)} className={classNames('rounded-xl p-3 text-xs font-bold leading-5', entry.author === 'client' ? 'bg-blue-50 text-blue-900' : entry.author === 'operator' ? 'bg-emerald-50 text-emerald-900' : 'bg-slate-50 text-slate-600')}>
+                          <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wide opacity-70">
+                            <span>{entry.author === 'client' ? 'You' : entry.author === 'operator' ? 'CreditTrust' : 'System'}</span>
+                            <span>{formatDate(entry.created_at)}</span>
+                          </div>
+                          <p className="whitespace-pre-wrap">{entry.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {draft ? (
+                    <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                      <p className="text-xs font-black text-slate-700">{draft.action === 'reopen_ticket' ? 'Add reopen message' : 'Add reminder message optional'}</p>
+                      <textarea
+                        value={draft.message}
+                        onChange={(event) => setTicketActionDrafts((current) => ({ ...current, [ticketId]: { ...draft, message: event.target.value } }))}
+                        className="mt-2 min-h-24 w-full rounded-xl border border-slate-200 p-3 text-sm font-bold outline-none"
+                        placeholder={draft.action === 'reopen_ticket' ? 'Explain why this ticket needs to be reopened...' : 'Add any extra details for CreditTrust support...'}
+                      />
+                      <div className="mt-2 flex flex-wrap justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setTicketActionDrafts((current) => {
+                            const next = { ...current };
+                            delete next[ticketId];
+                            return next;
+                          })}
+                          className="inline-flex h-9 items-center rounded-xl border border-slate-200 px-3 text-xs font-black text-slate-600"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateTicketFromClient(ticketId, draft.action, draft.message)}
+                          disabled={loading || (draft.action === 'reopen_ticket' && !draft.message.trim())}
+                          className="inline-flex h-9 items-center rounded-xl bg-slate-950 px-3 text-xs font-black text-white disabled:opacity-50"
+                        >
+                          {draft.action === 'reopen_ticket' ? 'Reopen with Message' : 'Send Reminder'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {canRemind ? (
                       <button
-                        onClick={() => updateTicketFromClient(String(ticket.id), 'remind_ticket')}
+                        onClick={() => setTicketActionDrafts((current) => ({ ...current, [ticketId]: { action: 'remind_ticket', message: '' } }))}
                         disabled={loading}
                         className="inline-flex h-9 items-center rounded-xl border border-blue-100 bg-blue-50 px-3 text-xs font-black text-blue-700 disabled:opacity-50"
                       >
@@ -649,7 +702,7 @@ export default function ApiClientPortalPage() {
                     ) : null}
                     {canReopen ? (
                       <button
-                        onClick={() => updateTicketFromClient(String(ticket.id), 'reopen_ticket')}
+                        onClick={() => setTicketActionDrafts((current) => ({ ...current, [ticketId]: { action: 'reopen_ticket', message: '' } }))}
                         disabled={loading}
                         className="inline-flex h-9 items-center rounded-xl border border-amber-100 bg-amber-50 px-3 text-xs font-black text-amber-700 disabled:opacity-50"
                       >

@@ -54,7 +54,7 @@ function ticketStatusLabel(status: SimpleSupportTicket['status']) {
   return status.replace(/_/g, ' ');
 }
 
-async function notifySupport(ticket: SimpleSupportTicket, clientName: string, mode: 'new' | 'reminder' | 'reopened' = 'new') {
+async function notifySupport(ticket: SimpleSupportTicket, clientName: string, mode: 'new' | 'reminder' | 'reopened' = 'new', latestMessage?: string) {
   const resendApiKey = process.env.RESEND_API_KEY;
   if (!resendApiKey) return { success: false, error: 'RESEND_API_KEY is missing' };
   const heading = mode === 'new'
@@ -73,6 +73,7 @@ async function notifySupport(ticket: SimpleSupportTicket, clientName: string, mo
     <p><b>Request ID:</b> ${escapeHtml(ticket.request_id || '-')}</p>
     <p><b>Subject:</b> ${escapeHtml(ticket.subject)}</p>
     <p><b>Message:</b><br/>${escapeHtml(ticket.message).replace(/\n/g, '<br/>')}</p>
+    ${latestMessage ? `<p><b>Latest client update:</b><br/>${escapeHtml(latestMessage).replace(/\n/g, '<br/>')}</p>` : ''}
     <p><b>Raised At:</b> ${escapeHtml(ticket.created_at)}</p>
   `;
 
@@ -106,6 +107,7 @@ function publicTicket(ticket: SimpleSupportTicket) {
     request_id: ticket.request_id,
     status: ticket.status,
     last_response: ticket.last_response,
+    thread: ticket.thread || [],
     created_at: ticket.created_at,
     updated_at: ticket.updated_at,
   };
@@ -177,22 +179,40 @@ export async function POST(request: NextRequest) {
 
     if (action === 'remind_ticket' || action === 'reopen_ticket') {
       const ticketId = String(body.ticket_id || '').trim();
+      const clientMessage = String(body.message || '').trim();
       const existing = (auth.store.tickets || []).find((ticket) => ticket.id === ticketId && ticket.client_id === auth.client.id);
       if (!existing) return jsonError('Ticket not found', 404);
+      if (action === 'reopen_ticket' && !clientMessage) return jsonError('Please add a message before reopening the ticket');
 
       const now = new Date().toISOString();
       const note = action === 'reopen_ticket'
         ? `Client reopened ticket on ${new Date(now).toLocaleString('en-IN')}.`
         : `Client sent reminder on ${new Date(now).toLocaleString('en-IN')}.`;
+      const thread = [
+        ...(existing.thread || []),
+        ...(clientMessage ? [{
+          id: crypto.randomUUID(),
+          author: 'client' as const,
+          message: clientMessage,
+          created_at: now,
+        }] : []),
+        ...(!clientMessage ? [{
+          id: crypto.randomUUID(),
+          author: 'system' as const,
+          message: note,
+          created_at: now,
+        }] : []),
+      ];
       const updatedTicket: SimpleSupportTicket = {
         ...existing,
         status: action === 'reopen_ticket' ? 'open' : existing.status,
         internal_note: [existing.internal_note, note].filter(Boolean).join('\n'),
+        thread,
         updated_at: now,
       };
       auth.store.tickets = (auth.store.tickets || []).map((ticket) => ticket.id === ticketId ? updatedTicket : ticket);
       await saveApiHubStore(auth.supabase, auth.rowId, auth.store);
-      const emailResult = await notifySupport(updatedTicket, auth.client.name, action === 'reopen_ticket' ? 'reopened' : 'reminder');
+      const emailResult = await notifySupport(updatedTicket, auth.client.name, action === 'reopen_ticket' ? 'reopened' : 'reminder', clientMessage);
       if (!emailResult.success) console.warn('[api-client-portal] ticket action email failed:', emailResult.error);
       return NextResponse.json({
         success: true,
@@ -225,6 +245,12 @@ export async function POST(request: NextRequest) {
       client_name: auth.client.contact_name || auth.client.name,
       internal_note: null,
       last_response: null,
+      thread: [{
+        id: crypto.randomUUID(),
+        author: 'client',
+        message,
+        created_at: now,
+      }],
       created_at: now,
       updated_at: now,
     };
