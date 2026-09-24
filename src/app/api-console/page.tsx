@@ -1877,44 +1877,49 @@ function SupportPanel({
         {!tickets.length ? (
           <div className="px-4 py-8 text-center text-sm font-800 text-muted-foreground">No support tickets yet.</div>
         ) : (
-          <div className="grid min-h-[520px] gap-0 lg:grid-cols-[360px_1fr]">
-            <div className="border-b border-border lg:border-b-0 lg:border-r">
-              <div className="max-h-[620px] overflow-y-auto p-3">
-                <div className="space-y-2">
-                  {tickets.map((ticket) => {
-                    const client = clientById.get(ticket.client_id);
-                    const clientName = client?.name || ticket.client_name || 'Client';
-                    const selected = selectedTicket?.id === ticket.id;
-                    return (
-                      <button
-                        key={ticket.id}
-                        onClick={() => setSelectedTicketId(ticket.id)}
-                        className={classNames(
-                          'w-full rounded-xl border p-3 text-left transition',
-                          selected ? 'border-blue-200 bg-blue-50 shadow-sm' : 'border-border bg-white hover:border-slate-300 hover:bg-slate-50',
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-900 text-foreground">{ticket.subject}</p>
-                            <p className="mt-1 truncate text-[11px] font-800 text-muted-foreground">{clientName}</p>
-                          </div>
+          <div className="space-y-4 p-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {tickets.map((ticket) => {
+                const client = clientById.get(ticket.client_id);
+                const clientName = client?.name || ticket.client_name || 'Client';
+                const selected = selectedTicket?.id === ticket.id;
+                return (
+                  <button
+                    key={ticket.id}
+                    onClick={() => setSelectedTicketId(ticket.id)}
+                    className={classNames(
+                      'flex min-h-44 flex-col rounded-2xl border bg-slate-50/70 p-3 text-left shadow-sm transition hover:border-blue-100 hover:bg-white',
+                      selected ? 'border-blue-200 bg-blue-50/80 ring-1 ring-blue-100' : 'border-border',
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-900 text-foreground">{ticket.subject}</p>
+                        <p className="mt-1 truncate text-[11px] font-800 text-muted-foreground">{clientName}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           <StatusPill tone={ticketTone(ticket.status)}>{ticket.status.replace(/_/g, ' ')}</StatusPill>
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
                           <StatusPill tone={priorityTone(ticket.priority)}>{ticket.priority}</StatusPill>
-                          <span className="text-[11px] font-900 text-muted-foreground">{ticket.ticket_number}</span>
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                      </div>
+                      <span className="inline-flex h-8 shrink-0 items-center rounded-xl border border-border bg-white px-2.5 text-[11px] font-900 text-muted-foreground">
+                        View
+                      </span>
+                    </div>
+                    <div className="mt-3 space-y-1">
+                      <p className="text-[11px] font-900 text-muted-foreground">{ticket.ticket_number}</p>
+                      <p className="text-[11px] font-800 text-slate-400">{new Date(ticket.updated_at || ticket.created_at).toLocaleString('en-IN')}</p>
+                      {ticket.request_id ? <p className="truncate font-mono text-[11px] font-900 text-blue-700">Req: {ticket.request_id}</p> : null}
+                    </div>
+                    <p className="mt-auto h-12 overflow-hidden rounded-xl bg-white px-3 py-2 text-xs font-800 leading-5 text-slate-600">
+                      {ticket.message || '-'}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
 
             {selectedTicket && selectedDraft ? (
-              <div className="p-4">
-                <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
                   <div className="flex flex-col gap-3 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -1998,7 +2003,6 @@ function SupportPanel({
                       </label>
                     </div>
                   </div>
-                </div>
               </div>
             ) : null}
           </div>
