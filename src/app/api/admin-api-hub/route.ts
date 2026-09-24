@@ -8,6 +8,7 @@ import {
   publicApi,
   saveApiHubStore,
   SimpleApiConfig,
+  SimpleSupportTicket,
 } from '@/lib/api-hub/simple-store';
 import { getStateName } from '@/lib/bureau/state-codes';
 import { exportApiUsageLedger, listApiUsageLedger } from '@/lib/api-hub/usage-ledger';
@@ -15,6 +16,57 @@ import { hasHubConsoleSession } from '@/lib/api-hub/console-auth';
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
+}
+
+const SUPPORT_EMAIL = process.env.API_HUB_SUPPORT_EMAIL || process.env.SUPPORT_EMAIL || 'support@credittrust.in';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Credit Trust Bridge <support@credittrust.in>';
+
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function ticketStatusLabel(status: SimpleSupportTicket['status']) {
+  return status.replace(/_/g, ' ');
+}
+
+async function notifyTicketStatusUpdate(ticket: SimpleSupportTicket, clientName: string) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const recipient = String(ticket.client_email || '').trim();
+  if (!resendApiKey) return { success: false, error: 'RESEND_API_KEY is missing' };
+  if (!recipient) return { success: false, error: 'Client email is missing' };
+
+  const html = `
+    <h2>CreditTrust Bridge support ticket update</h2>
+    <p>Hello ${escapeHtml(ticket.client_name || clientName || 'there')},</p>
+    <p>Your support ticket has been marked as <b>${escapeHtml(ticketStatusLabel(ticket.status))}</b>.</p>
+    <p><b>Ticket:</b> ${escapeHtml(ticket.ticket_number)}</p>
+    <p><b>Subject:</b> ${escapeHtml(ticket.subject)}</p>
+    ${ticket.last_response ? `<p><b>CreditTrust response:</b><br/>${escapeHtml(ticket.last_response).replace(/\n/g, '<br/>')}</p>` : ''}
+    <p>If you still need help, please reply to this email or raise a new support ticket from the client portal.</p>
+  `;
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: FROM_EMAIL,
+      to: [recipient],
+      subject: `Support Ticket ${ticket.ticket_number} ${ticketStatusLabel(ticket.status)} - CreditTrust Bridge`,
+      html,
+      reply_to: SUPPORT_EMAIL,
+    }),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) return { success: false, error: data?.message || 'Resend send failed' };
+  return { success: true, emailId: data?.id as string | undefined };
 }
 
 async function adminContext(request: NextRequest) {
@@ -595,6 +647,11 @@ export async function POST(request: NextRequest) {
         : undefined;
       const existing = (store.tickets || []).find((ticket) => ticket.id === ticketId);
       if (!existing) return jsonError('Ticket not found', 404);
+      const shouldNotifyClient = Boolean(
+        status &&
+        status !== existing.status &&
+        ['resolved', 'closed'].includes(status),
+      );
       store.tickets = (store.tickets || []).map((ticket) => ticket.id === ticketId
         ? {
           ...ticket,
@@ -605,7 +662,18 @@ export async function POST(request: NextRequest) {
         }
         : ticket);
       await saveApiHubStore(auth.supabase, rowId, store);
-      return NextResponse.json({ success: true, ticket: store.tickets.find((ticket) => ticket.id === ticketId) });
+      const updatedTicket = store.tickets.find((ticket) => ticket.id === ticketId);
+      const client = store.clients.find((item) => item.id === updatedTicket?.client_id);
+      const emailResult = shouldNotifyClient && updatedTicket
+        ? await notifyTicketStatusUpdate(updatedTicket, client?.name || updatedTicket.client_name || 'API client')
+        : null;
+      if (emailResult && !emailResult.success) console.warn('[admin-api-hub] ticket status email failed:', emailResult.error);
+      return NextResponse.json({
+        success: true,
+        ticket: updatedTicket,
+        email_sent: emailResult?.success || false,
+        email_error: emailResult && !emailResult.success ? emailResult.error : undefined,
+      });
     }
 
     return jsonError('Unknown API Hub action');
