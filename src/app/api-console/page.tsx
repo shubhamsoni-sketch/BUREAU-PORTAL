@@ -1840,6 +1840,7 @@ function SupportPanel({
 }) {
   const [drafts, setDrafts] = useState<Record<string, { internal_note: string; last_response: string }>>({});
   const [selectedTicketId, setSelectedTicketId] = useState('');
+  const [detailTicketId, setDetailTicketId] = useState<string | null>(null);
   const clientById = new Map(clients.map((client) => [client.id, client]));
   const openTickets = tickets.filter((ticket) => ticket.status === 'open' || ticket.status === 'in_progress');
   const criticalTickets = tickets.filter((ticket) => ticket.priority === 'critical' && ticket.status !== 'closed');
@@ -1864,6 +1865,10 @@ function SupportPanel({
   const selectedClient = selectedTicket ? clientById.get(selectedTicket.client_id) : null;
   const selectedClientName = selectedClient?.name || selectedTicket?.client_name || 'Client';
   const selectedDraft = selectedTicket ? draftFor(selectedTicket) : null;
+  const detailTicket = detailTicketId ? tickets.find((ticket) => ticket.id === detailTicketId) : null;
+  const detailClient = detailTicket ? clientById.get(detailTicket.client_id) : null;
+  const detailClientName = detailClient?.name || detailTicket?.client_name || 'Client';
+  const detailDraft = detailTicket ? draftFor(detailTicket) : null;
 
   return (
     <div className="space-y-5">
@@ -1886,7 +1891,10 @@ function SupportPanel({
                 return (
                   <button
                     key={ticket.id}
-                    onClick={() => setSelectedTicketId(ticket.id)}
+                    onClick={() => {
+                      setSelectedTicketId(ticket.id);
+                      setDetailTicketId(ticket.id);
+                    }}
                     className={classNames(
                       'flex min-h-44 flex-col rounded-2xl border bg-slate-50/70 p-3 text-left shadow-sm transition hover:border-blue-100 hover:bg-white',
                       selected ? 'border-blue-200 bg-blue-50/80 ring-1 ring-blue-100' : 'border-border',
@@ -1918,54 +1926,65 @@ function SupportPanel({
               })}
             </div>
 
-            {selectedTicket && selectedDraft ? (
-              <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
-                  <div className="flex flex-col gap-3 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
+            {detailTicket && detailDraft ? (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
+                <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-3xl border border-border bg-white shadow-2xl">
+                  <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <StatusPill tone={ticketTone(selectedTicket.status)}>{selectedTicket.status.replace(/_/g, ' ')}</StatusPill>
-                        <StatusPill tone={priorityTone(selectedTicket.priority)}>{selectedTicket.priority}</StatusPill>
-                        <StatusPill tone="slate">{selectedTicket.category.replace(/_/g, ' ')}</StatusPill>
-                        <span className="text-xs font-900 text-muted-foreground">{selectedTicket.ticket_number}</span>
+                        <StatusPill tone={ticketTone(detailTicket.status)}>{detailTicket.status.replace(/_/g, ' ')}</StatusPill>
+                        <StatusPill tone={priorityTone(detailTicket.priority)}>{detailTicket.priority}</StatusPill>
+                        <StatusPill tone="slate">{detailTicket.category.replace(/_/g, ' ')}</StatusPill>
+                        <span className="text-xs font-900 text-muted-foreground">{detailTicket.ticket_number}</span>
                       </div>
-                      <h3 className="mt-2 text-xl font-900 leading-tight text-foreground">{selectedTicket.subject}</h3>
+                      <h3 className="mt-2 text-xl font-900 leading-tight text-foreground">{detailTicket.subject}</h3>
                       <p className="mt-1 text-xs font-800 text-muted-foreground">
-                        {selectedClientName} - {selectedTicket.client_email || selectedClient?.contactEmail || '-'} - {new Date(selectedTicket.created_at).toLocaleString('en-IN')}
+                        {detailClientName} - {detailTicket.client_email || detailClient?.contactEmail || '-'} - {new Date(detailTicket.created_at).toLocaleString('en-IN')}
                       </p>
-                      {selectedTicket.request_id ? <p className="mt-2 font-mono text-xs font-900 text-blue-700">Request ID: {selectedTicket.request_id}</p> : null}
+                      {detailTicket.request_id ? <p className="mt-2 font-mono text-xs font-900 text-blue-700">Request ID: {detailTicket.request_id}</p> : null}
                     </div>
-                    <div className="w-full lg:w-44">
-                      <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Status</span>
-                      <select
-                        value={selectedTicket.status}
-                        onChange={(event) => onUpdateTicket(selectedTicket.id, { status: event.target.value as SupportTicket['status'] })}
-                        className="mt-1.5 h-10 w-full rounded-lg border border-border bg-white px-3 text-sm font-900"
+                    <div className="flex w-full items-start gap-2 lg:w-auto">
+                      <label className="block min-w-44 flex-1 lg:flex-none">
+                        <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Status</span>
+                        <select
+                          value={detailTicket.status}
+                          onChange={(event) => onUpdateTicket(detailTicket.id, { status: event.target.value as SupportTicket['status'] })}
+                          className="mt-1.5 h-10 w-full rounded-lg border border-border bg-white px-3 text-sm font-900"
+                        >
+                          <option value="open">Open</option>
+                          <option value="in_progress">In progress</option>
+                          <option value="resolved">Resolved</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setDetailTicketId(null)}
+                        className="mt-5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-white text-muted-foreground hover:bg-slate-50"
+                        aria-label="Close ticket detail"
                       >
-                        <option value="open">Open</option>
-                        <option value="in_progress">In progress</option>
-                        <option value="resolved">Resolved</option>
-                        <option value="closed">Closed</option>
-                      </select>
+                        <X size={18} />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+                  <div className="grid max-h-[calc(92vh-7rem)] gap-4 overflow-y-auto p-4 xl:grid-cols-[minmax(0,1fr)_300px]">
                     <div className="space-y-3">
                       <div className="rounded-xl border border-border bg-slate-50 p-3">
                         <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Original message</p>
-                        <p className="mt-2 max-h-24 overflow-y-auto whitespace-pre-wrap text-sm font-700 leading-5 text-slate-700">{selectedTicket.message}</p>
+                        <p className="mt-2 max-h-24 overflow-y-auto whitespace-pre-wrap text-sm font-700 leading-5 text-slate-700">{detailTicket.message}</p>
                       </div>
 
                       <div className="rounded-xl border border-border bg-white p-3">
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <p className="text-sm font-900 text-foreground">Conversation</p>
-                          <span className="text-[11px] font-800 text-muted-foreground">{(selectedTicket.thread?.length || 1).toString()} messages</span>
+                          <span className="text-[11px] font-800 text-muted-foreground">{(detailTicket.thread?.length || 1).toString()} messages</span>
                         </div>
                         <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
-                          {(selectedTicket.thread?.length ? selectedTicket.thread : [{ id: 'initial', author: 'client' as const, message: selectedTicket.message, created_at: selectedTicket.created_at }]).map((entry) => (
+                          {(detailTicket.thread?.length ? detailTicket.thread : [{ id: 'initial', author: 'client' as const, message: detailTicket.message, created_at: detailTicket.created_at }]).map((entry) => (
                             <div key={entry.id} className={classNames('rounded-xl p-3', entry.author === 'operator' ? 'bg-emerald-50' : entry.author === 'client' ? 'bg-blue-50' : 'bg-slate-50')}>
                               <div className="flex items-center justify-between gap-2">
-                                <span className="text-[10px] font-900 uppercase tracking-wide text-slate-500">{entry.author === 'operator' ? 'CreditTrust' : entry.author === 'client' ? selectedClientName : 'System'}</span>
+                                <span className="text-[10px] font-900 uppercase tracking-wide text-slate-500">{entry.author === 'operator' ? 'CreditTrust' : entry.author === 'client' ? detailClientName : 'System'}</span>
                                 <span className="text-[10px] font-800 text-slate-400">{new Date(entry.created_at).toLocaleString('en-IN')}</span>
                               </div>
                               <p className="mt-1 whitespace-pre-wrap text-sm font-700 leading-5 text-slate-700">{entry.message}</p>
@@ -1979,13 +1998,13 @@ function SupportPanel({
                       <label className="block rounded-xl border border-border bg-slate-50 p-3">
                         <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Reply to client</span>
                         <textarea
-                          value={selectedDraft.last_response}
-                          onChange={(event) => updateDraft(selectedTicket, { last_response: event.target.value })}
+                          value={detailDraft.last_response}
+                          onChange={(event) => updateDraft(detailTicket, { last_response: event.target.value })}
                           className="mt-2 h-28 w-full resize-none rounded-lg border border-border bg-white p-2.5 text-sm font-800"
-                          placeholder={`Visible to ${selectedClientName} in client portal`}
+                          placeholder={`Visible to ${detailClientName} in client portal`}
                         />
                         <button
-                          onClick={() => onUpdateTicket(selectedTicket.id, selectedDraft)}
+                          onClick={() => onUpdateTicket(detailTicket.id, detailDraft)}
                           className="mt-2 h-9 w-full rounded-lg bg-blue-600 text-xs font-900 text-white"
                         >
                           Save Reply
@@ -1995,14 +2014,15 @@ function SupportPanel({
                       <label className="block rounded-xl border border-border bg-slate-50 p-3">
                         <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Internal note</span>
                         <textarea
-                          value={selectedDraft.internal_note}
-                          onChange={(event) => updateDraft(selectedTicket, { internal_note: event.target.value })}
+                          value={detailDraft.internal_note}
+                          onChange={(event) => updateDraft(detailTicket, { internal_note: event.target.value })}
                           className="mt-2 h-20 w-full resize-none rounded-lg border border-border bg-white p-2.5 text-sm font-800"
                           placeholder="Only for operators"
                         />
                       </label>
                     </div>
                   </div>
+                </div>
               </div>
             ) : null}
           </div>
