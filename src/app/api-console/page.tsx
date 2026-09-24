@@ -1858,10 +1858,11 @@ function SupportPanel({
         <div className="divide-y divide-border">
           {tickets.length ? tickets.map((ticket) => {
             const client = clientById.get(ticket.client_id);
+            const clientName = client?.name || ticket.client_name || 'Client';
             const draft = draftFor(ticket);
             return (
               <div key={ticket.id} className="p-4">
-                <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
+                <div className="grid gap-3 xl:grid-cols-[1fr_300px]">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusPill tone={ticketTone(ticket.status)}>{ticket.status.replace(/_/g, ' ')}</StatusPill>
@@ -1869,25 +1870,25 @@ function SupportPanel({
                       <StatusPill tone="slate">{ticket.category.replace(/_/g, ' ')}</StatusPill>
                       <span className="text-xs font-900 text-muted-foreground">{ticket.ticket_number}</span>
                     </div>
-                    <h3 className="mt-3 text-lg font-900 text-foreground">{ticket.subject}</h3>
+                    <h3 className="mt-2 text-base font-900 text-foreground">{ticket.subject}</h3>
                     <p className="mt-1 text-xs font-800 text-muted-foreground">
-                      {client?.name || ticket.client_name || 'Unknown client'} - {ticket.client_email || client?.contactEmail || '-'} - {new Date(ticket.created_at).toLocaleString('en-IN')}
+                      {clientName} - {ticket.client_email || client?.contactEmail || '-'} - {new Date(ticket.created_at).toLocaleString('en-IN')}
                     </p>
                     {ticket.request_id ? <p className="mt-2 font-mono text-xs font-900 text-blue-700">Request ID: {ticket.request_id}</p> : null}
-                    <p className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-slate-50 p-3 text-sm font-700 leading-6 text-slate-700">{ticket.message}</p>
+                    <p className="mt-3 max-h-24 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-slate-50 p-3 text-sm font-700 leading-5 text-slate-700">{ticket.message}</p>
                     {ticket.last_response ? (
-                      <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm font-800 leading-6 text-emerald-800">
+                      <div className="mt-3 max-h-20 overflow-y-auto rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm font-800 leading-5 text-emerald-800">
                         Last client response: {ticket.last_response}
                       </div>
                     ) : null}
                   </div>
-                  <div className="rounded-lg border border-border bg-slate-50 p-4">
+                  <div className="rounded-lg border border-border bg-slate-50 p-3">
                     <label className="block">
                       <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Status</span>
                       <select
                         value={ticket.status}
                         onChange={(event) => onUpdateTicket(ticket.id, { status: event.target.value as SupportTicket['status'] })}
-                        className="mt-2 h-10 w-full rounded-lg border border-border bg-white px-3 text-sm font-900"
+                        className="mt-1.5 h-9 w-full rounded-lg border border-border bg-white px-3 text-sm font-900"
                       >
                         <option value="open">Open</option>
                         <option value="in_progress">In progress</option>
@@ -1895,27 +1896,27 @@ function SupportPanel({
                         <option value="closed">Closed</option>
                       </select>
                     </label>
-                    <label className="mt-3 block">
+                    <label className="mt-2 block">
                       <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Internal note</span>
                       <textarea
                         value={draft.internal_note}
                         onChange={(event) => updateDraft(ticket, { internal_note: event.target.value })}
-                        className="mt-2 min-h-20 w-full rounded-lg border border-border bg-white p-3 text-sm font-800"
+                        className="mt-1.5 h-16 w-full resize-none rounded-lg border border-border bg-white p-2.5 text-sm font-800"
                         placeholder="Visible only to FinCoopers operators"
                       />
                     </label>
-                    <label className="mt-3 block">
+                    <label className="mt-2 block">
                       <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Client response</span>
                       <textarea
                         value={draft.last_response}
                         onChange={(event) => updateDraft(ticket, { last_response: event.target.value })}
-                        className="mt-2 min-h-20 w-full rounded-lg border border-border bg-white p-3 text-sm font-800"
-                        placeholder="Visible to Binta in client portal"
+                        className="mt-1.5 h-16 w-full resize-none rounded-lg border border-border bg-white p-2.5 text-sm font-800"
+                        placeholder={`Visible to ${clientName} in client portal`}
                       />
                     </label>
                     <button
                       onClick={() => onUpdateTicket(ticket.id, draft)}
-                      className="mt-3 h-10 w-full rounded-lg bg-blue-600 text-xs font-900 text-white"
+                      className="mt-2 h-9 w-full rounded-lg bg-blue-600 text-xs font-900 text-white"
                     >
                       Save Ticket
                     </button>

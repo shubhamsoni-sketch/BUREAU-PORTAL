@@ -375,6 +375,27 @@ export default function ApiClientPortalPage() {
     }
   };
 
+  const updateTicketFromClient = async (ticketId: string, action: 'remind_ticket' | 'reopen_ticket') => {
+    setLoading(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch('/api/api-client-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ticket_id: ticketId }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to update support ticket');
+      setNotice(action === 'reopen_ticket' ? 'Ticket reopened and sent to CreditTrust support.' : 'Reminder sent to CreditTrust support.');
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update support ticket');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!checkedSession && !data) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#07111f] text-white">
@@ -598,7 +619,10 @@ export default function ApiClientPortalPage() {
               </button>
             </div>
             <div className="mt-5 grid gap-3">
-              {data.tickets.map((ticket) => (
+              {data.tickets.map((ticket) => {
+                const canRemind = ticket.status === 'open' || ticket.status === 'in_progress';
+                const canReopen = ticket.status === 'resolved' || ticket.status === 'closed';
+                return (
                 <div key={String(ticket.id)} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
@@ -613,8 +637,29 @@ export default function ApiClientPortalPage() {
                   </div>
                   <p className="mt-3 whitespace-pre-wrap rounded-xl bg-white p-3 text-xs font-bold leading-5 text-slate-600">{ticket.message || '-'}</p>
                   {ticket.last_response ? <p className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs font-bold leading-5 text-emerald-800">{ticket.last_response}</p> : null}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {canRemind ? (
+                      <button
+                        onClick={() => updateTicketFromClient(String(ticket.id), 'remind_ticket')}
+                        disabled={loading}
+                        className="inline-flex h-9 items-center rounded-xl border border-blue-100 bg-blue-50 px-3 text-xs font-black text-blue-700 disabled:opacity-50"
+                      >
+                        Send Reminder
+                      </button>
+                    ) : null}
+                    {canReopen ? (
+                      <button
+                        onClick={() => updateTicketFromClient(String(ticket.id), 'reopen_ticket')}
+                        disabled={loading}
+                        className="inline-flex h-9 items-center rounded-xl border border-amber-100 bg-amber-50 px-3 text-xs font-black text-amber-700 disabled:opacity-50"
+                      >
+                        Reopen Ticket
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-              ))}
+                );
+              })}
               {!data.tickets.length ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm font-bold text-slate-400">No support tickets yet.</div>
               ) : null}

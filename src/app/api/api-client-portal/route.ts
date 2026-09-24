@@ -54,12 +54,17 @@ function ticketStatusLabel(status: SimpleSupportTicket['status']) {
   return status.replace(/_/g, ' ');
 }
 
-async function notifySupport(ticket: SimpleSupportTicket, clientName: string) {
+async function notifySupport(ticket: SimpleSupportTicket, clientName: string, mode: 'new' | 'reminder' | 'reopened' = 'new') {
   const resendApiKey = process.env.RESEND_API_KEY;
   if (!resendApiKey) return { success: false, error: 'RESEND_API_KEY is missing' };
+  const heading = mode === 'new'
+    ? 'New API Hub Support Ticket'
+    : mode === 'reopened'
+      ? 'API Hub Support Ticket Reopened'
+      : 'API Hub Support Ticket Reminder';
 
   const html = `
-    <h2>New API Hub Support Ticket</h2>
+    <h2>${escapeHtml(heading)}</h2>
     <p><b>Ticket:</b> ${escapeHtml(ticket.ticket_number)}</p>
     <p><b>Client:</b> ${escapeHtml(clientName)}</p>
     <p><b>Category:</b> ${escapeHtml(ticket.category)}</p>
@@ -80,7 +85,7 @@ async function notifySupport(ticket: SimpleSupportTicket, clientName: string) {
     body: JSON.stringify({
       from: FROM_EMAIL,
       to: [SUPPORT_EMAIL],
-      subject: `New Bridge Support Ticket ${ticket.ticket_number} - ${clientName}`,
+      subject: `${heading} ${ticket.ticket_number} - ${clientName}`,
       html,
       reply_to: ticket.client_email || undefined,
     }),
@@ -168,6 +173,35 @@ export async function POST(request: NextRequest) {
     const auth = await clientContext(request);
     if ('error' in auth) return jsonError(auth.error || 'Unauthorized', auth.status || 401);
     const body = await request.json();
+    const action = String(body.action || '').trim();
+
+    if (action === 'remind_ticket' || action === 'reopen_ticket') {
+      const ticketId = String(body.ticket_id || '').trim();
+      const existing = (auth.store.tickets || []).find((ticket) => ticket.id === ticketId && ticket.client_id === auth.client.id);
+      if (!existing) return jsonError('Ticket not found', 404);
+
+      const now = new Date().toISOString();
+      const note = action === 'reopen_ticket'
+        ? `Client reopened ticket on ${new Date(now).toLocaleString('en-IN')}.`
+        : `Client sent reminder on ${new Date(now).toLocaleString('en-IN')}.`;
+      const updatedTicket: SimpleSupportTicket = {
+        ...existing,
+        status: action === 'reopen_ticket' ? 'open' : existing.status,
+        internal_note: [existing.internal_note, note].filter(Boolean).join('\n'),
+        updated_at: now,
+      };
+      auth.store.tickets = (auth.store.tickets || []).map((ticket) => ticket.id === ticketId ? updatedTicket : ticket);
+      await saveApiHubStore(auth.supabase, auth.rowId, auth.store);
+      const emailResult = await notifySupport(updatedTicket, auth.client.name, action === 'reopen_ticket' ? 'reopened' : 'reminder');
+      if (!emailResult.success) console.warn('[api-client-portal] ticket action email failed:', emailResult.error);
+      return NextResponse.json({
+        success: true,
+        ticket: publicTicket(updatedTicket),
+        email_sent: emailResult.success,
+        action,
+      });
+    }
+
     const subject = String(body.subject || '').trim();
     const message = String(body.message || '').trim();
     if (!subject || !message) return jsonError('Subject and message are required');
