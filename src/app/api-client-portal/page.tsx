@@ -642,7 +642,7 @@ export default function ApiClientPortalPage() {
         </section>
           </>
         ) : (
-          <section className="mt-5 rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="mt-5 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-extrabold tracking-tight">Support Tickets</h2>
@@ -652,33 +652,34 @@ export default function ApiClientPortalPage() {
                 New Ticket
               </button>
             </div>
-            <div className="mt-5 grid gap-3">
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {data.tickets.map((ticket) => {
                 const canRemind = ticket.status === 'open' || ticket.status === 'in_progress';
                 const canReopen = ticket.status === 'resolved' || ticket.status === 'closed';
                 const ticketId = String(ticket.id);
                 const draft = ticketActionDrafts[ticketId];
                 return (
-                <div key={ticketId} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div key={ticketId} className="flex min-h-44 flex-col rounded-2xl border border-slate-200 bg-slate-50/70 p-3 shadow-sm transition hover:border-blue-100 hover:bg-white">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="max-w-2xl truncate text-sm font-black text-slate-900">{ticket.subject}</p>
+                      <p className="truncate text-sm font-black text-slate-950">{ticket.subject}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <Badge tone={statusTone(ticket.status)}>{String(ticket.status || '').replace(/_/g, ' ')}</Badge>
                         <Badge tone={statusTone(ticket.priority)}>{String(ticket.priority || 'medium')}</Badge>
                       </div>
-                      <p className="mt-1 text-[11px] font-bold text-slate-500">{ticket.ticket_number} · {formatDate(ticket.updated_at)}</p>
+                      <p className="mt-2 text-[11px] font-bold text-slate-500">{ticket.ticket_number}</p>
+                      <p className="text-[11px] font-bold text-slate-400">{formatDate(ticket.updated_at)}</p>
                       {ticket.request_id ? <p className="mt-1 font-mono text-[11px] font-black text-blue-700">Request ID: {ticket.request_id}</p> : null}
                     </div>
                     <button
                       type="button"
                       onClick={() => setThreadTicketId(ticketId)}
-                      className="inline-flex h-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 hover:border-blue-200 hover:text-blue-700"
+                      className="inline-flex h-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-black text-slate-700 hover:border-blue-200 hover:text-blue-700"
                     >
-                      View Thread
+                      View
                     </button>
                   </div>
-                  <p className="mt-3 max-h-12 overflow-hidden rounded-xl bg-white px-3 py-2 text-xs font-bold leading-5 text-slate-600">{ticket.message || '-'}</p>
+                  <p className="mt-3 h-12 overflow-hidden rounded-xl bg-white px-3 py-2 text-xs font-bold leading-5 text-slate-600">{ticket.message || '-'}</p>
                   {draft ? (
                     <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
                       <p className="text-xs font-black text-slate-700">{draft.action === 'reopen_ticket' ? 'Add reopen message' : 'Add reminder message optional'}</p>
@@ -711,7 +712,7 @@ export default function ApiClientPortalPage() {
                       </div>
                     </div>
                   ) : null}
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
                     {canRemind ? (
                       <button
                         onClick={() => setTicketActionDrafts((current) => ({ ...current, [ticketId]: { action: 'remind_ticket', message: '' } }))}
