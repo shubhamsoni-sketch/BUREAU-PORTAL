@@ -228,6 +228,7 @@ export default function ApiClientPortalPage() {
   const [showIpCard, setShowIpCard] = useState(false);
   const [logPage, setLogPage] = useState(1);
   const [ticketActionDrafts, setTicketActionDrafts] = useState<Record<string, { action: 'remind_ticket' | 'reopen_ticket'; message: string }>>({});
+  const [threadTicketId, setThreadTicketId] = useState<string | null>(null);
   const [passwordForm, setPasswordForm] = useState({
     current_password: '',
     new_password: '',
@@ -411,6 +412,33 @@ export default function ApiClientPortalPage() {
   }
 
   if (!data) return <LoginPanel onLogin={login} loading={loading} error={error} />;
+
+  const selectedThreadTicket = threadTicketId ? data.tickets.find((ticket) => String(ticket.id) === threadTicketId) : null;
+  const selectedThreadEntries = (() => {
+    if (!selectedThreadTicket) return [];
+    const baseEntries = Array.isArray(selectedThreadTicket.thread) && selectedThreadTicket.thread.length
+      ? selectedThreadTicket.thread
+      : [{
+          id: `${selectedThreadTicket.id || selectedThreadTicket.ticket_number}-initial`,
+          author: 'client',
+          message: selectedThreadTicket.message || '-',
+          created_at: selectedThreadTicket.created_at || selectedThreadTicket.updated_at,
+        }];
+    const hasLastResponse = Boolean(selectedThreadTicket.last_response);
+    const lastResponseAlreadyInThread = baseEntries.some((entry: Record<string, any>) => (
+      entry.author === 'operator' && String(entry.message || '').trim() === String(selectedThreadTicket.last_response || '').trim()
+    ));
+    if (!hasLastResponse || lastResponseAlreadyInThread) return baseEntries;
+    return [
+      ...baseEntries,
+      {
+        id: `${selectedThreadTicket.id || selectedThreadTicket.ticket_number}-last-response`,
+        author: 'operator',
+        message: selectedThreadTicket.last_response,
+        created_at: selectedThreadTicket.updated_at,
+      },
+    ];
+  })();
 
   return (
     <div className="min-h-screen bg-[#f5f8fb] text-slate-950">
@@ -631,33 +659,26 @@ export default function ApiClientPortalPage() {
                 const ticketId = String(ticket.id);
                 const draft = ticketActionDrafts[ticketId];
                 return (
-                <div key={ticketId} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div key={ticketId} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-black text-slate-900">{ticket.subject}</p>
+                        <p className="max-w-2xl truncate text-sm font-black text-slate-900">{ticket.subject}</p>
                         <Badge tone={statusTone(ticket.status)}>{String(ticket.status || '').replace(/_/g, ' ')}</Badge>
+                        <Badge tone={statusTone(ticket.priority)}>{String(ticket.priority || 'medium')}</Badge>
                       </div>
-                      <p className="mt-1 text-xs font-bold text-slate-500">{ticket.ticket_number} · {formatDate(ticket.updated_at)}</p>
-                      {ticket.request_id ? <p className="mt-2 font-mono text-xs font-black text-blue-700">Request ID: {ticket.request_id}</p> : null}
+                      <p className="mt-1 text-[11px] font-bold text-slate-500">{ticket.ticket_number} · {formatDate(ticket.updated_at)}</p>
+                      {ticket.request_id ? <p className="mt-1 font-mono text-[11px] font-black text-blue-700">Request ID: {ticket.request_id}</p> : null}
                     </div>
-                    <Badge tone={statusTone(ticket.priority)}>{String(ticket.priority || 'medium')}</Badge>
+                    <button
+                      type="button"
+                      onClick={() => setThreadTicketId(ticketId)}
+                      className="inline-flex h-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 hover:border-blue-200 hover:text-blue-700"
+                    >
+                      View Thread
+                    </button>
                   </div>
-                  <p className="mt-3 whitespace-pre-wrap rounded-xl bg-white p-3 text-xs font-bold leading-5 text-slate-600">{ticket.message || '-'}</p>
-                  {ticket.last_response ? <p className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs font-bold leading-5 text-emerald-800">{ticket.last_response}</p> : null}
-                  {Array.isArray(ticket.thread) && ticket.thread.length ? (
-                    <div className="mt-3 space-y-2 rounded-xl border border-slate-100 bg-white p-3">
-                      {ticket.thread.map((entry: Record<string, any>) => (
-                        <div key={String(entry.id)} className={classNames('rounded-xl p-3 text-xs font-bold leading-5', entry.author === 'client' ? 'bg-blue-50 text-blue-900' : entry.author === 'operator' ? 'bg-emerald-50 text-emerald-900' : 'bg-slate-50 text-slate-600')}>
-                          <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wide opacity-70">
-                            <span>{entry.author === 'client' ? 'You' : entry.author === 'operator' ? 'CreditTrust' : 'System'}</span>
-                            <span>{formatDate(entry.created_at)}</span>
-                          </div>
-                          <p className="whitespace-pre-wrap">{entry.message}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
+                  <p className="mt-3 max-h-12 overflow-hidden rounded-xl bg-white px-3 py-2 text-xs font-bold leading-5 text-slate-600">{ticket.message || '-'}</p>
                   {draft ? (
                     <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
                       <p className="text-xs font-black text-slate-700">{draft.action === 'reopen_ticket' ? 'Add reopen message' : 'Add reminder message optional'}</p>
@@ -719,6 +740,53 @@ export default function ApiClientPortalPage() {
             </div>
           </section>
         )}
+        {selectedThreadTicket ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
+            <div className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="truncate text-lg font-extrabold tracking-tight text-slate-950">{selectedThreadTicket.subject}</h2>
+                    <Badge tone={statusTone(selectedThreadTicket.status)}>{String(selectedThreadTicket.status || '').replace(/_/g, ' ')}</Badge>
+                    <Badge tone={statusTone(selectedThreadTicket.priority)}>{String(selectedThreadTicket.priority || 'medium')}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs font-bold text-slate-500">{selectedThreadTicket.ticket_number} · Updated {formatDate(selectedThreadTicket.updated_at)}</p>
+                  {selectedThreadTicket.request_id ? <p className="mt-1 font-mono text-xs font-black text-blue-700">Request ID: {selectedThreadTicket.request_id}</p> : null}
+                </div>
+                <button
+                  onClick={() => setThreadTicketId(null)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
+                  aria-label="Close ticket thread"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="max-h-[calc(92vh-6rem)] overflow-y-auto p-5">
+                <div className="space-y-3">
+                  {selectedThreadEntries.map((entry: Record<string, any>) => (
+                    <div
+                      key={String(entry.id)}
+                      className={classNames(
+                        'rounded-2xl border p-4 text-sm font-bold leading-6',
+                        entry.author === 'client'
+                          ? 'border-blue-100 bg-blue-50 text-blue-950'
+                          : entry.author === 'operator'
+                            ? 'border-emerald-100 bg-emerald-50 text-emerald-950'
+                            : 'border-slate-100 bg-slate-50 text-slate-700',
+                      )}
+                    >
+                      <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-[11px] font-black uppercase tracking-wide opacity-70">
+                        <span>{entry.author === 'client' ? 'You' : entry.author === 'operator' ? 'CreditTrust' : 'System'}</span>
+                        <span>{formatDate(entry.created_at)}</span>
+                      </div>
+                      <p className="whitespace-pre-wrap">{entry.message || '-'}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {supportOpen ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
             <div className="max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
