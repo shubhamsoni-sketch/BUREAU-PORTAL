@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { bearerToken, requireAdmin } from '@/lib/supabase/admin';
 import {
+  type EmailAttachment,
   MARKETING_FROM_EMAIL,
   MARKETING_REPLY_TO,
   replaceTokens,
@@ -9,6 +10,7 @@ import {
 } from '@/lib/email-marketing/resend';
 
 const SEND_LIMIT = Number(process.env.EMAIL_MARKETING_SEND_LIMIT ?? 100);
+const MAX_ATTACHMENT_BYTES = Number(process.env.EMAIL_MARKETING_MAX_ATTACHMENT_BYTES ?? 8 * 1024 * 1024);
 
 function jsonError(error: string, status = 400) {
   return NextResponse.json({ success: false, error }, { status });
@@ -32,6 +34,101 @@ function arrayValue(value: unknown) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeAttachment(value: unknown): EmailAttachment | null {
+  if (!value || typeof value !== 'object') return null;
+  const attachment = value as Record<string, unknown>;
+  const filename = clean(attachment.filename);
+  const content = clean(attachment.content);
+  const contentType = clean(attachment.content_type || attachment.contentType);
+  const size = Number(attachment.size || 0);
+
+  if (!filename || !content) return null;
+  if (size && size > MAX_ATTACHMENT_BYTES) {
+    throw new Error(`${filename} is too large. Max allowed size is ${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)} MB.`);
+  }
+
+  return {
+    filename,
+    content,
+    content_type: contentType || undefined,
+  };
+}
+
+function normalizeAttachments(value: unknown) {
+  const values = Array.isArray(value) ? value : [];
+  return values.map(normalizeAttachment).filter(Boolean) as EmailAttachment[];
+}
+
+function contactFromRow(row: Record<string, unknown>, source: string) {
+  const email = emailValue(row.email);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+
+  return {
+    email,
+    full_name: clean(row.full_name || row.name || row.customer_name) || null,
+    mobile: clean(row.mobile || row.phone) || null,
+    company_name: clean(row.company_name || row.company || row.business_name || row.partner_name) || null,
+    city: clean(row.city) || null,
+    source,
+    status: clean(row.status) || 'active',
+    opt_in: row.opt_in !== false && clean(row.opt_in).toLowerCase() !== 'false',
+    tags: arrayValue(row.tags),
+    metadata: { imported_from: source },
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function upsertContacts(supabase: any, rows: Array<Record<string, unknown>>, source: string) {
+  const contacts = rows
+    .map((row) => contactFromRow(row, source))
+    .filter(Boolean);
+
+  const unique = [...new Map(contacts.map((contact: any) => [contact.email, contact])).values()];
+  if (!unique.length) return { imported: 0 };
+
+  const { error } = await supabase
+    .from('email_marketing_contacts')
+    .upsert(unique, { onConflict: 'email', ignoreDuplicates: false });
+  if (error) throw new Error(error.message);
+
+  return { imported: unique.length };
+}
+
+async function loadLeadFunnelRows(supabase: any) {
+  const [crmResult, b2cResult, promotionResult] = await Promise.all([
+    supabase
+      .from('crm_leads')
+      .select('name,email,mobile,city,source,status,created_at')
+      .not('email', 'is', null)
+      .limit(1000),
+    supabase
+      .from('b2c_report_requests')
+      .select('full_name,email,mobile,state,status,created_at')
+      .not('email', 'is', null)
+      .limit(1000),
+    supabase
+      .from('promotion_leads')
+      .select('name,email,mobile,city,business_name,source,status,opt_in,created_at')
+      .not('email', 'is', null)
+      .limit(1000),
+  ]);
+
+  if (crmResult.error) throw new Error(crmResult.error.message);
+  if (b2cResult.error) throw new Error(b2cResult.error.message);
+  if (promotionResult.error) throw new Error(promotionResult.error.message);
+
+  return [
+    ...(crmResult.data || []).map((row: any) => ({ ...row, source: `crm_${row.source || 'lead_funnel'}` })),
+    ...(b2cResult.data || []).map((row: any) => ({
+      ...row,
+      city: row.state,
+      source: 'b2c_report_funnel',
+      opt_in: true,
+    })),
+    ...(promotionResult.data || []).map((row: any) => ({ ...row, source: `promotion_${row.source || 'lead_funnel'}` })),
+  ];
 }
 
 async function loadData(supabase: any) {
@@ -110,30 +207,18 @@ export async function POST(request: NextRequest) {
 
     if (action === 'import_contacts') {
       const rows = Array.isArray(body.contacts) ? body.contacts : [];
-      const contacts = rows
-        .map((row: Record<string, unknown>) => ({
-          email: emailValue(row.email),
-          full_name: clean(row.full_name || row.name) || null,
-          mobile: clean(row.mobile || row.phone) || null,
-          company_name: clean(row.company_name || row.company || row.business_name) || null,
-          city: clean(row.city) || null,
-          source: clean(row.source) || 'manual',
-          status: clean(row.status) || 'active',
-          opt_in: row.opt_in !== false && clean(row.opt_in).toLowerCase() !== 'false',
-          tags: arrayValue(row.tags),
-          metadata: { imported_from: 'admin_email_campaigns' },
-          updated_at: new Date().toISOString(),
-        }))
-        .filter((contact: { email: string }) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email));
+      const result = await upsertContacts(auth.supabase, rows, clean(body.source) || 'admin_file_import');
+      if (!result.imported) return jsonError('No valid email contacts found.');
 
-      if (!contacts.length) return jsonError('No valid email contacts found.');
+      return NextResponse.json({ success: true, imported: result.imported, ...(await loadData(auth.supabase)) });
+    }
 
-      const { error } = await auth.supabase
-        .from('email_marketing_contacts')
-        .upsert(contacts, { onConflict: 'email', ignoreDuplicates: false });
-      if (error) throw new Error(error.message);
+    if (action === 'import_lead_funnel') {
+      const rows = await loadLeadFunnelRows(auth.supabase);
+      const result = await upsertContacts(auth.supabase, rows, 'lead_funnel');
+      if (!result.imported) return jsonError('No email contacts found in lead funnel sources.');
 
-      return NextResponse.json({ success: true, imported: contacts.length, ...(await loadData(auth.supabase)) });
+      return NextResponse.json({ success: true, imported: result.imported, ...(await loadData(auth.supabase)) });
     }
 
     if (action === 'create_campaign') {
@@ -141,6 +226,7 @@ export async function POST(request: NextRequest) {
       const subject = clean(body.subject);
       const htmlBody = clean(body.html_body);
       const textBody = clean(body.text_body);
+      const attachments = normalizeAttachments(body.attachments);
       if (!name || !subject) return jsonError('Campaign name and subject are required.');
       if (!htmlBody && !textBody) return jsonError('Email body is required.');
 
@@ -155,7 +241,10 @@ export async function POST(request: NextRequest) {
           audience_status: clean(body.audience_status) || 'active',
           status: 'draft',
           created_by: auth.user.id,
-          metadata: { source: 'admin_email_campaigns' },
+          metadata: {
+            source: 'admin_email_campaigns',
+            attachments,
+          },
         })
         .select('*')
         .single();
@@ -193,6 +282,7 @@ export async function POST(request: NextRequest) {
         const subject = replaceTokens(campaign.subject, contact);
         const html = replaceTokens(campaign.html_body || '', contact);
         const text = campaign.text_body ? replaceTokens(campaign.text_body, contact) : null;
+        const attachments = normalizeAttachments(campaign.metadata?.attachments);
 
         const { data: message, error: messageError } = await auth.supabase
           .from('email_marketing_messages')
@@ -219,6 +309,7 @@ export async function POST(request: NextRequest) {
           html,
           text,
           replyTo: MARKETING_REPLY_TO,
+          attachments,
           tags: [
             { name: 'source', value: 'email_marketing' },
             { name: 'campaign_id', value: campaignId },

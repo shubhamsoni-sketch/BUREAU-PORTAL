@@ -6,8 +6,11 @@ import { authFetch } from '@/lib/supabase/auth-fetch';
 import {
   AlertCircle,
   CheckCircle2,
+  FileSpreadsheet,
+  Image,
   Inbox,
   Mail,
+  Paperclip,
   Plus,
   RefreshCw,
   Reply,
@@ -81,6 +84,13 @@ type Config = {
 
 type StatItem = [label: string, value: number, Icon: LucideIcon];
 
+type UploadedAttachment = {
+  filename: string;
+  content: string;
+  content_type: string;
+  size: number;
+};
+
 const sampleCsv = `full_name,email,mobile,company_name,city,source
 Rajesh Mehta,rajesh@example.com,9876543210,Mehta Finance,Indore,manual
 Priya Sharma,priya@example.com,9893332647,Sharma Loans,Bhopal,manual`;
@@ -96,6 +106,44 @@ function parseCsv(text: string) {
       return row;
     }, {});
   });
+}
+
+async function parseContactFile(file: File) {
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  if (extension === 'csv') {
+    return parseCsv(await file.text());
+  }
+
+  if (extension === 'xlsx' || extension === 'xls') {
+    const XLSX = await import('xlsx');
+    const bytes = await file.arrayBuffer();
+    const workbook = XLSX.read(bytes, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) return [];
+    return XLSX.utils.sheet_to_json<Record<string, string>>(workbook.Sheets[sheetName], {
+      defval: '',
+      raw: false,
+    });
+  }
+
+  throw new Error('Only CSV, XLS, and XLSX contact files are supported.');
+}
+
+async function toAttachment(file: File): Promise<UploadedAttachment> {
+  const bytes = await file.arrayBuffer();
+  let binary = '';
+  const chunkSize = 0x8000;
+  const array = new Uint8Array(bytes);
+  for (let index = 0; index < array.length; index += chunkSize) {
+    binary += String.fromCharCode(...array.subarray(index, index + chunkSize));
+  }
+
+  return {
+    filename: file.name,
+    content: btoa(binary),
+    content_type: file.type || 'application/octet-stream',
+    size: file.size,
+  };
 }
 
 function formatDate(value?: string | null) {
@@ -118,6 +166,9 @@ export default function AdminEmailCampaignsPage() {
   const [activeView, setActiveView] = useState<'campaigns' | 'inbox' | 'contacts'>('campaigns');
   const [activeThreadKey, setActiveThreadKey] = useState('');
   const [csvText, setCsvText] = useState(sampleCsv);
+  const [contactFileName, setContactFileName] = useState('');
+  const [attachmentFile, setAttachmentFile] = useState<UploadedAttachment | null>(null);
+  const [imageFile, setImageFile] = useState<UploadedAttachment | null>(null);
   const [search, setSearch] = useState('');
   const [replyText, setReplyText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -230,6 +281,29 @@ export default function AdminEmailCampaignsPage() {
     runAction({ action: 'import_contacts', contacts: parsed }, `${parsed.length} contacts processed`);
   }
 
+  async function importContactFile(file?: File) {
+    if (!file) return;
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      const parsed = await parseContactFile(file);
+      setContactFileName(file.name);
+      if (!parsed.length) throw new Error('No rows found in the selected file.');
+      await runAction(
+        { action: 'import_contacts', source: `file_${file.name}`, contacts: parsed },
+        `${parsed.length} contact rows processed from ${file.name}`,
+      );
+    } catch (fileError) {
+      setError(fileError instanceof Error ? fileError.message : 'Unable to import contact file');
+      setSaving(false);
+    }
+  }
+
+  function importLeadFunnel() {
+    runAction({ action: 'import_lead_funnel' }, 'Lead funnel contacts imported');
+  }
+
   function createCampaign() {
     runAction({
       action: 'create_campaign',
@@ -238,6 +312,7 @@ export default function AdminEmailCampaignsPage() {
       preview_text: form.preview_text,
       text_body: form.text_body,
       audience_status: form.audience_status,
+      attachments: [attachmentFile, imageFile].filter(Boolean),
     }, 'Email campaign draft created');
   }
 
@@ -329,6 +404,46 @@ export default function AdminEmailCampaignsPage() {
                 <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject, supports {name}" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
                 <input value={form.preview_text} onChange={(e) => setForm({ ...form, preview_text: e.target.value })} placeholder="Preview text" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
                 <textarea value={form.text_body} onChange={(e) => setForm({ ...form, text_body: e.target.value })} rows={9} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
+                    <span className="inline-flex items-center gap-2 font-bold text-slate-800">
+                      <FileSpreadsheet size={16} className="text-blue-600" /> Attach Excel
+                    </span>
+                    <span className="truncate text-xs text-slate-500">{attachmentFile?.filename || 'XLS, XLSX, CSV, PDF'}</span>
+                    <input
+                      type="file"
+                      accept=".xls,.xlsx,.csv,.pdf"
+                      className="hidden"
+                      onChange={async (event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        setAttachmentFile(await toAttachment(file));
+                      }}
+                    />
+                  </label>
+                  <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
+                    <span className="inline-flex items-center gap-2 font-bold text-slate-800">
+                      <Image size={16} className="text-blue-600" /> Attach image
+                    </span>
+                    <span className="truncate text-xs text-slate-500">{imageFile?.filename || 'PNG, JPG, WEBP'}</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={async (event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        setImageFile(await toAttachment(file));
+                      }}
+                    />
+                  </label>
+                </div>
+                {(attachmentFile || imageFile) && (
+                  <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                    <Paperclip size={13} className="mr-1 inline" />
+                    {[attachmentFile?.filename, imageFile?.filename].filter(Boolean).join(', ')}
+                  </div>
+                )}
                 <button disabled={saving || !schemaReady} onClick={createCampaign} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
                   <Plus size={16} /> Save draft
                 </button>
@@ -446,7 +561,30 @@ export default function AdminEmailCampaignsPage() {
                 <Upload size={17} className="text-blue-600" />
                 <h2 className="font-bold text-slate-900">Import contacts</h2>
               </div>
-              <p className="mt-2 text-sm text-slate-500">CSV headers: full_name, email, mobile, company_name, city, source.</p>
+              <p className="mt-2 text-sm text-slate-500">Upload Excel/CSV or paste CSV. Headers: full_name/name, email, mobile, company_name, city, source.</p>
+              <div className="mt-4 grid gap-3">
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm hover:border-blue-300 hover:bg-blue-50">
+                  <span className="inline-flex min-w-0 items-center gap-2">
+                    <FileSpreadsheet size={16} className="text-blue-600" />
+                    <span className="truncate font-bold text-slate-800">{contactFileName || 'Choose Excel / CSV contact file'}</span>
+                  </span>
+                  <span className="text-xs font-semibold text-blue-700">Browse</span>
+                  <input
+                    type="file"
+                    accept=".csv,.xls,.xlsx"
+                    className="hidden"
+                    onChange={(event) => importContactFile(event.target.files?.[0])}
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={saving || !schemaReady}
+                  onClick={importLeadFunnel}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-60"
+                >
+                  <Users size={16} /> Import from Lead Funnel
+                </button>
+              </div>
               <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={12} className="mt-4 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs" />
               <button disabled={saving || !schemaReady} onClick={importContacts} className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
                 <Upload size={16} /> Import / update contacts

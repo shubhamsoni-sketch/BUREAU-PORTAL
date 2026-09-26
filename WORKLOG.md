@@ -2,6 +2,21 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-09-26 - Developer - Email Marketing Import And Attachments
+
+Summary:
+
+- Added Excel/XLSX and CSV file import on the Email Campaigns contacts screen.
+- Added direct lead-funnel import from CRM leads, B2C report requests, and promotion leads into email marketing contacts.
+- Added campaign attachment controls for one Excel/document attachment and one image attachment.
+- Wired stored campaign attachments into Resend campaign sends.
+- Improved contact import source tagging and server-side validation.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed after build.
+
 ## 2026-09-26 - Developer - Admin Email Marketing Module
 
 Summary:

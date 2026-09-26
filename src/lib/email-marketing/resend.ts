@@ -6,6 +6,7 @@ type SendEmailInput = {
   replyTo?: string | null;
   headers?: Record<string, string>;
   tags?: Array<{ name: string; value: string }>;
+  attachments?: EmailAttachment[];
 };
 
 export type ResendSendResult = {
@@ -14,6 +15,12 @@ export type ResendSendResult = {
   messageId?: string | null;
   error?: string;
   response?: unknown;
+};
+
+export type EmailAttachment = {
+  filename: string;
+  content: string;
+  content_type?: string;
 };
 
 export const MARKETING_FROM_EMAIL =
@@ -68,6 +75,7 @@ export async function sendMarketingEmail(input: SendEmailInput): Promise<ResendS
       reply_to: input.replyTo || MARKETING_REPLY_TO,
       headers: input.headers && Object.keys(input.headers).length ? input.headers : undefined,
       tags: input.tags,
+      attachments: input.attachments?.length ? input.attachments : undefined,
     }),
   });
 
