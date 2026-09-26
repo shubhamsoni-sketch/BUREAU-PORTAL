@@ -18,45 +18,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://credittrust.in'),
   title: 'Credit Trust - Financial Health Analysis Platform',
   description:
     'Credit Trust helps individuals and financial partners generate clear financial health reports with credit score insights, repayment analysis, and wallet-based partner workflows.',
-  applicationName: 'Credit Trust',
-  authors: [{ name: 'Fin Coopers Tech India Private Limited' }],
-  creator: 'Fin Coopers Tech India Private Limited',
-  publisher: 'Fin Coopers Tech India Private Limited',
-  keywords: [
-    'Credit Trust',
-    'financial health report',
-    'credit score analysis',
-    'credit report insights',
-    'loan readiness',
-    'partner bureau portal',
-  ],
-  openGraph: {
-    type: 'website',
-    url: 'https://credittrust.in',
-    siteName: 'Credit Trust',
-    title: 'Credit Trust - Financial Health Analysis Platform',
-    description:
-      'Generate clear financial health reports with credit score insights, repayment analysis, and partner workflows.',
-    images: [
-      {
-        url: '/icon-512.png',
-        width: 512,
-        height: 512,
-        alt: 'Credit Trust',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary',
-    title: 'Credit Trust - Financial Health Analysis Platform',
-    description:
-      'Generate clear financial health reports with credit score insights, repayment analysis, and partner workflows.',
-    images: ['/icon-512.png'],
-  },
   icons: {
     icon: [
       { url: '/favicon.svg?v=2', type: 'image/svg+xml' },
@@ -76,6 +40,36 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-background text-foreground antialiased">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                var KEY = 'bureau-portal-root-chunk-reload-attempted';
+                function isChunkFailure(value) {
+                  var text = '';
+                  try {
+                    text = String(value && (value.message || value.reason && value.reason.message || value.filename || value.target && value.target.src) || value || '');
+                  } catch (e) {}
+                  return text.indexOf('ChunkLoadError') !== -1 ||
+                    text.indexOf('Loading chunk') !== -1 ||
+                    text.indexOf('/_next/static/chunks/') !== -1;
+                }
+                function recover(event) {
+                  if (!isChunkFailure(event && (event.error || event.reason || event))) return;
+                  try {
+                    if (window.sessionStorage.getItem(KEY) === '1') return;
+                    window.sessionStorage.setItem(KEY, '1');
+                  } catch (e) {}
+                  var url = new URL(window.location.href);
+                  url.searchParams.set('_reload', String(Date.now()));
+                  window.location.replace(url.toString());
+                }
+                window.addEventListener('error', recover, true);
+                window.addEventListener('unhandledrejection', recover, true);
+              })();
+            `,
+          }}
+        />
         <GoogleAnalytics />
         <MetaPixel />
         <ErrorBoundary label="App Root">
