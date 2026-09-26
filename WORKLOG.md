@@ -2,6 +2,22 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-09-26 - Developer - Admin Email Marketing Module
+
+Summary:
+
+- Added an `Email Campaigns` tab under the admin Marketing sidebar group.
+- Added a protected `/admin-email-campaigns` page with campaign drafting, contact CSV import, inbox/reply threads, and Resend configuration visibility.
+- Added admin APIs for contact import, campaign creation, campaign send, marking inbound messages read, and replying from the admin panel.
+- Added a Resend inbound webhook route for `email.received` events with optional `RESEND_WEBHOOK_SECRET` signature verification and reply-thread matching by message headers.
+- Added Supabase migration tables for email marketing contacts, campaigns, and messages.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed after build.
+- Local dev server started on `http://localhost:4028`; `/admin-email-campaigns` returned HTTP 200 and compiled cleanly. Browser session showed the existing protected admin auth spinner because no admin session was present.
+
 ## 2026-09-05 - Developer - B2C Credit Intelligence Dashboard
 
 Summary:
