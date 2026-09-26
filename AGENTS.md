@@ -6,6 +6,25 @@ This project can be handled by multiple specialized agents. Every agent must rea
 
 - Do not commit `.env` or print secrets.
 - Use `.env.enc` only through `scripts/decrypt-env.ps1`.
+- Production source of truth is `main`. Do not deploy production from feature branches, local throwaway branches, or stale Codex branches.
+- Before any production deploy, run `git fetch origin main` and verify:
+
+```bash
+git branch --show-current
+git rev-parse HEAD
+git rev-parse origin/main
+```
+
+The deploy branch must be `main`, and `HEAD` must equal `origin/main`.
+- The historical production branch `codex/credittrust-market-preview` was merged/aligned into `main` on 2026-09-26 after it caused missing routes/features on live. Do not revive that branch as a separate production source.
+- Deploy only the Bureau Portal Vercel project:
+
+```bash
+VERCEL_ORG_ID=team_WKMUBik54XIZ6F9mf0Scibij \
+VERCEL_PROJECT_ID=prj_Me7FNJHwlvwuLNpkIqWMHzDuPse5 \
+npx vercel --prod --yes --token="$VERCEL_TOKEN"
+```
+
 - Keep UI changes consistent with the existing portal style.
 - Do not redesign unrelated screens.
 - Do not revert unrelated user/agent changes.
@@ -293,4 +312,3 @@ Act as Coordinator. Read PROJECT_HANDOFF.md and AGENTS.md. Coordinate active wor
 ```text
 Act as Personal Assistant. Read PROJECT_HANDOFF.md and AGENTS.md. Give the owner a simple Hinglish status summary and action list.
 ```
-

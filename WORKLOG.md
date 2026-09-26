@@ -2,6 +2,22 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-09-26 - Developer - Production Branch Alignment And Lead Finder Stability
+
+Summary:
+
+- Restored Lead Finder route, APIs, sidebar entry, and admin guard protection on the branch that was actually deploying to production.
+- Aligned `origin/main` to the live production source commit so future agents do not build on a stale branch.
+- Created remote backup branch `backup/main-before-prod-unify-20260926-180700` before updating `main`.
+- Added production deployment rules to `AGENTS.md`, `PROJECT_HANDOFF.md`, and `README.md`: deploy production from `main` only.
+
+Verification:
+
+- `npm run build` passed.
+- `npm run type-check` passed.
+- `https://credittrust.in/admin-lead-finder` returned HTTP 200.
+- Browser verification showed Lead Finder loaded with KPI cards, sidebar entry, filters, and table data.
+
 ## 2026-09-26 - Developer - Email Campaign Inline Image Upload Fix
 
 Summary:

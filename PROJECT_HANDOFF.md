@@ -6,9 +6,21 @@ Use this file to onboard new agents/developers quickly. Keep implementation scop
 
 - GitHub: `https://github.com/shubhamsoni-sketch/BUREAU-PORTAL.git`
 - Main local dev URL: `http://127.0.0.1:4028`
-- Current Vercel demo URL: `https://bureau-portal.vercel.app`
+- Current production URL: `https://credittrust.in`
+- Vercel project: `bureau-portal` (`prj_Me7FNJHwlvwuLNpkIqWMHzDuPse5`)
 - Framework: Next.js 15 app router
 - Database/Auth/Storage: Supabase
+
+## Production Source Of Truth
+
+- Production code branch: `main`
+- `main` was aligned with the previously deployed `codex/credittrust-market-preview` branch on 2026-09-26 to stop repeated missing-route regressions.
+- Do not deploy production from feature branches or old Codex branches.
+- Before deploying, verify local `main` equals `origin/main`.
+- Live admin routes verified after the alignment:
+  - `https://credittrust.in/admin`
+  - `https://credittrust.in/admin-dashboard`
+  - `https://credittrust.in/admin-lead-finder`
 
 ## Local Setup
 
@@ -138,7 +150,8 @@ Current guard behavior:
 
 Current production deployment:
 
-- `https://bureau-portal.vercel.app`
+- `https://credittrust.in`
+- Vercel aliases also include `https://bureau-portal.vercel.app`, but the owner-facing live domain is `https://credittrust.in`.
 
 Vercel setup notes:
 

@@ -4,10 +4,12 @@ A modern Next.js 15 application built with TypeScript and Tailwind CSS.
 
 ## Bureau Portal Demo
 
-- Live demo: `https://bureau-portal.vercel.app`
-- Partner login: `https://bureau-portal.vercel.app/partner-login`
-- Admin login: `https://bureau-portal.vercel.app/admin`
+- Live production: `https://credittrust.in`
+- Partner login: `https://credittrust.in/partner-login`
+- Admin login: `https://credittrust.in/admin`
 - Main handoff notes: `PROJECT_HANDOFF.md`
+
+Production deploy rule: use `main` only. Do not deploy feature branches or old Codex branches to production.
 
 Current demo mode includes a single shared demo partner account, demo bureau report generation, wallet deduction, persistent login across refresh/navigation, and protected-route redirects without the old "Authentication Required" blocking screen.
 
