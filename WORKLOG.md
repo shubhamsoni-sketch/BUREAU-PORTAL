@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-09-26 - Developer - Generic Email Attachments
+
+Summary:
+
+- Replaced the specific Excel attachment control with one generic multi-file attachment button.
+- Allows multiple attachments in any file format while keeping promotional image as inline body content.
+- Added removable attachment chips in the campaign composer.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed after build.
+
 ## 2026-09-26 - Developer - Inline Promotional Email Image
 
 Summary:

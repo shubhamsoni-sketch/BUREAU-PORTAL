@@ -13,6 +13,7 @@ import {
   Paperclip,
   Plus,
   RefreshCw,
+  X,
   Reply,
   Search,
   Send,
@@ -167,7 +168,7 @@ export default function AdminEmailCampaignsPage() {
   const [activeThreadKey, setActiveThreadKey] = useState('');
   const [csvText, setCsvText] = useState(sampleCsv);
   const [contactFileName, setContactFileName] = useState('');
-  const [attachmentFile, setAttachmentFile] = useState<UploadedAttachment | null>(null);
+  const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [imageFile, setImageFile] = useState<UploadedAttachment | null>(null);
   const [search, setSearch] = useState('');
   const [replyText, setReplyText] = useState('');
@@ -312,7 +313,7 @@ export default function AdminEmailCampaignsPage() {
       preview_text: form.preview_text,
       text_body: form.text_body,
       audience_status: form.audience_status,
-      attachments: [attachmentFile].filter(Boolean),
+      attachments,
       inline_image: imageFile,
     }, 'Email campaign draft created');
   }
@@ -408,17 +409,19 @@ export default function AdminEmailCampaignsPage() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
                     <span className="inline-flex items-center gap-2 font-bold text-slate-800">
-                      <FileSpreadsheet size={16} className="text-blue-600" /> Attach Excel
+                      <Paperclip size={16} className="text-blue-600" /> Attach files
                     </span>
-                    <span className="truncate text-xs text-slate-500">{attachmentFile?.filename || 'XLS, XLSX, CSV, PDF'}</span>
+                    <span className="truncate text-xs text-slate-500">{attachments.length ? `${attachments.length} file(s) selected` : 'Any format, multiple files'}</span>
                     <input
                       type="file"
-                      accept=".xls,.xlsx,.csv,.pdf"
+                      multiple
                       className="hidden"
                       onChange={async (event) => {
-                        const file = event.target.files?.[0];
-                        if (!file) return;
-                        setAttachmentFile(await toAttachment(file));
+                        const files = Array.from(event.target.files || []);
+                        if (!files.length) return;
+                        const uploaded = await Promise.all(files.map((file) => toAttachment(file)));
+                        setAttachments((current) => [...current, ...uploaded]);
+                        event.target.value = '';
                       }}
                     />
                   </label>
@@ -439,10 +442,31 @@ export default function AdminEmailCampaignsPage() {
                     />
                   </label>
                 </div>
-                {(attachmentFile || imageFile) && (
-                  <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-                    <Paperclip size={13} className="mr-1 inline" />
-                    {[attachmentFile?.filename, imageFile ? `inline image: ${imageFile.filename}` : ''].filter(Boolean).join(', ')}
+                {(attachments.length > 0 || imageFile) && (
+                  <div className="space-y-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                    {attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {attachments.map((file, index) => (
+                          <button
+                            key={`${file.filename}-${index}`}
+                            type="button"
+                            onClick={() => setAttachments((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                            className="inline-flex max-w-full items-center gap-1 rounded-full border border-blue-200 bg-white px-2 py-1 text-blue-800"
+                            title="Remove attachment"
+                          >
+                            <Paperclip size={12} />
+                            <span className="truncate">{file.filename}</span>
+                            <X size={12} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {imageFile && (
+                      <div className="inline-flex max-w-full items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-1 text-emerald-800">
+                        <Image size={12} />
+                        <span className="truncate">inline image: {imageFile.filename}</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 <button disabled={saving || !schemaReady} onClick={createCampaign} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
