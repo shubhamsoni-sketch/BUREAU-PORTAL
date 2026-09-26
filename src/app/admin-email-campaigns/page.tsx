@@ -6,6 +6,7 @@ import { authFetch } from '@/lib/supabase/auth-fetch';
 import {
   AlertCircle,
   CheckCircle2,
+  Download,
   FileSpreadsheet,
   Image,
   Inbox,
@@ -99,21 +100,30 @@ type InlineImage = {
   size: number;
 };
 
-const sampleCsv = `full_name,email,mobile,company_name,city,source
-Rajesh Mehta,rajesh@example.com,9876543210,Mehta Finance,Indore,manual
-Priya Sharma,priya@example.com,9893332647,Sharma Loans,Bhopal,manual`;
+const sampleCsv = `name,email
+Shubham Soni,shubhamsoni@fincoopers.com
+Ketav,ketav@fincoopers.com`;
+
+function normalizeContactRows(rows: Array<Record<string, unknown>>) {
+  return rows
+    .map((row) => ({
+      name: String(row.name || row.full_name || row.customer_name || '').trim(),
+      email: String(row.email || row.mail || row.email_id || '').trim().toLowerCase(),
+    }))
+    .filter((row) => row.email);
+}
 
 function parseCsv(text: string) {
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   if (lines.length < 2) return [];
   const headers = lines[0].split(',').map((header) => header.trim().toLowerCase());
-  return lines.slice(1).map((line) => {
+  return normalizeContactRows(lines.slice(1).map((line) => {
     const cells = line.split(',').map((cell) => cell.trim());
     return headers.reduce<Record<string, string>>((row, header, index) => {
       row[header] = cells[index] || '';
       return row;
     }, {});
-  });
+  }));
 }
 
 async function parseContactFile(file: File) {
@@ -128,10 +138,11 @@ async function parseContactFile(file: File) {
     const workbook = XLSX.read(bytes, { type: 'array' });
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) return [];
-    return XLSX.utils.sheet_to_json<Record<string, string>>(workbook.Sheets[sheetName], {
+    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(workbook.Sheets[sheetName], {
       defval: '',
       raw: false,
     });
+    return normalizeContactRows(rows);
   }
 
   throw new Error('Only CSV, XLS, and XLSX contact files are supported.');
@@ -201,6 +212,15 @@ export default function AdminEmailCampaignsPage() {
     text_body: 'Hi {name},\n\nCreditTrust se aapke liye ek quick update hai.\n\nRegards,\nCreditTrust Team',
     audience_status: 'active',
   });
+
+  const sortedContacts = useMemo(() => {
+    return [...contacts].sort((a, b) => {
+      const aActive = a.opt_in && a.status === 'active' ? 0 : 1;
+      const bActive = b.opt_in && b.status === 'active' ? 0 : 1;
+      if (aActive !== bActive) return aActive - bActive;
+      return (a.full_name || a.email).localeCompare(b.full_name || b.email);
+    });
+  }, [contacts]);
 
   const stats = useMemo(() => {
     return {
@@ -325,6 +345,24 @@ export default function AdminEmailCampaignsPage() {
   function importContacts() {
     const parsed = parseCsv(csvText);
     runAction({ action: 'import_contacts', contacts: parsed }, `${parsed.length} contacts processed`);
+  }
+
+  async function downloadSampleExcel() {
+    const XLSX = await import('xlsx');
+    const sheet = XLSX.utils.json_to_sheet([
+      { name: 'Shubham Soni', email: 'shubhamsoni@fincoopers.com' },
+      { name: 'Ketav', email: 'ketav@fincoopers.com' },
+    ]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, 'Contacts');
+    const bytes = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'email-contact-sample.xlsx';
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   async function importContactFile(file?: File) {
@@ -626,13 +664,22 @@ export default function AdminEmailCampaignsPage() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
+          <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
             <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-2">
-                <Upload size={17} className="text-blue-600" />
-                <h2 className="font-bold text-slate-900">Import contacts</h2>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Upload size={17} className="text-blue-600" />
+                  <h2 className="font-bold text-slate-900">Import contacts</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={downloadSampleExcel}
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-300 hover:text-blue-700"
+                >
+                  <Download size={14} /> Sample
+                </button>
               </div>
-              <p className="mt-2 text-sm text-slate-500">Upload Excel/CSV or paste CSV. Headers: full_name/name, email, mobile, company_name, city, source.</p>
+              <p className="mt-2 text-sm text-slate-500">Upload Excel/CSV or paste contacts. Only two columns are needed: name and email.</p>
               <div className="mt-4 grid gap-3">
                 <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm hover:border-blue-300 hover:bg-blue-50">
                   <span className="inline-flex min-w-0 items-center gap-2">
@@ -656,40 +703,41 @@ export default function AdminEmailCampaignsPage() {
                   <Users size={16} /> Import from Lead Funnel
                 </button>
               </div>
-              <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={12} className="mt-4 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs" />
+              <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={8} className="mt-4 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs" />
               <button disabled={saving || !schemaReady} onClick={importContacts} className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
                 <Upload size={16} /> Import / update contacts
               </button>
             </div>
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h2 className="font-bold text-slate-900">Audience</h2>
+              <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+                <div>
+                  <h2 className="font-bold text-slate-900">Audience</h2>
+                  <p className="mt-1 text-xs text-slate-500">Active opted-in contacts show first.</p>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{stats.optedIn} active</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                     <tr>
-                      <th className="px-4 py-3">Contact</th>
-                      <th className="px-4 py-3">Company</th>
+                      <th className="px-4 py-3">Name</th>
+                      <th className="px-4 py-3">Email</th>
                       <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Source</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {contacts.map((contact) => (
+                    {sortedContacts.map((contact) => (
                       <tr key={contact.id} className="hover:bg-slate-50">
                         <td className="px-4 py-4">
                           <p className="font-bold text-slate-900">{contact.full_name || '-'}</p>
-                          <p className="text-xs text-slate-500">{contact.email}</p>
                         </td>
-                        <td className="px-4 py-4 text-slate-700">{contact.company_name || '-'}<br /><span className="text-xs text-slate-400">{contact.city || ''}</span></td>
+                        <td className="px-4 py-4 text-slate-700">{contact.email}</td>
                         <td className="px-4 py-4">
                           <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(contact.status)}`}>{contact.opt_in ? contact.status : 'opted_out'}</span>
                         </td>
-                        <td className="px-4 py-4 text-slate-500">{contact.source}</td>
                       </tr>
                     ))}
-                    {!contacts.length && <tr><td colSpan={4} className="px-4 py-10 text-center text-slate-500">No contacts imported.</td></tr>}
+                    {!contacts.length && <tr><td colSpan={3} className="px-4 py-10 text-center text-slate-500">No contacts imported.</td></tr>}
                   </tbody>
                 </table>
               </div>
