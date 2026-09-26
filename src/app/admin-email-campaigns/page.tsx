@@ -527,8 +527,8 @@ export default function AdminEmailCampaignsPage() {
         {loading ? (
           <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading email marketing...</div>
         ) : activeView === 'campaigns' ? (
-          <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
-            <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:order-2">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Plus size={17} className="text-blue-600" />
@@ -542,17 +542,17 @@ export default function AdminEmailCampaignsPage() {
                   <Plus size={14} /> New
                 </button>
               </div>
-              <div className="mt-4 space-y-3">
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Campaign name" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-                <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject, supports {name}" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-                <input value={form.preview_text} onChange={(e) => setForm({ ...form, preview_text: e.target.value })} placeholder="Preview text" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-                <textarea value={form.text_body} onChange={(e) => setForm({ ...form, text_body: e.target.value })} rows={9} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
+              <div className="mt-4 space-y-2.5">
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Campaign name" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" />
+                <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject, supports {name}" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" />
+                <input value={form.preview_text} onChange={(e) => setForm({ ...form, preview_text: e.target.value })} placeholder="Preview text" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" />
+                <textarea value={form.text_body} onChange={(e) => setForm({ ...form, text_body: e.target.value })} rows={5} className="max-h-44 min-h-32 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+                <div className="grid gap-2">
+                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
                     <span className="inline-flex items-center gap-2 font-bold text-slate-800">
                       <Paperclip size={16} className="text-blue-600" /> Attach files
                     </span>
-                    <span className="truncate text-xs text-slate-500">{attachments.length ? `${attachments.length} file(s) selected` : 'Any format, multiple files'}</span>
+                    <span className="truncate text-xs text-slate-500">{attachments.length ? `${attachments.length} selected` : 'Any format'}</span>
                     <input
                       type="file"
                       multiple
@@ -566,11 +566,11 @@ export default function AdminEmailCampaignsPage() {
                       }}
                     />
                   </label>
-                  <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
+                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
                     <span className="inline-flex items-center gap-2 font-bold text-slate-800">
                       <Image size={16} className="text-blue-600" /> Inline promo image
                     </span>
-                    <span className="truncate text-xs text-slate-500">{imageFile?.filename || 'Shows inside email body'}</span>
+                    <span className="truncate text-xs text-slate-500">{imageFile?.filename || 'Email body'}</span>
                     <input
                       type="file"
                       accept="image/png,image/jpeg,image/webp"
@@ -615,18 +615,18 @@ export default function AdminEmailCampaignsPage() {
                   <Plus size={16} /> Save draft
                 </button>
               </div>
-              <p className="mt-4 text-xs text-slate-500">
+              <p className="mt-3 text-xs leading-5 text-slate-500">
                 From: {config?.fromEmail || '-'}<br />Reply-to: {config?.replyTo || '-'}
               </p>
             </div>
 
-            <div className="space-y-5">
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="space-y-4 xl:order-1">
+              <div className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Send size={17} className="text-blue-600" />
                   <h2 className="font-bold text-slate-900">Run campaign</h2>
                 </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+                <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,280px)_140px]">
                   <select value={selectedCampaignId} onChange={(event) => setSelectedCampaignId(event.target.value)} className="h-10 rounded-lg border border-slate-200 px-3 text-sm">
                     <option value="">Select campaign</option>
                     {campaigns.map((campaign) => (
@@ -640,40 +640,39 @@ export default function AdminEmailCampaignsPage() {
                     ))}
                   </select>
                   <button disabled={saving || !schemaReady || !selectedCampaignId || !selectedAudienceId} onClick={sendSelectedCampaign} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
-                    <Send size={16} /> Send email
+                    <Send size={16} /> Send
                   </button>
                 </div>
-                <p className="mt-3 text-xs text-slate-500">Pehle campaign select karo, phir audience select karo. Mail sirf selected audience ko jayega.</p>
               </div>
 
               <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-200 px-5 py-4">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
                   <h2 className="font-bold text-slate-900">Saved campaigns</h2>
-                  <p className="text-sm text-slate-500">Send limit per click: {config?.sendLimit ?? 100}</p>
+                  <p className="text-xs font-semibold text-slate-500">Limit: {config?.sendLimit ?? 100}/click</p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                       <tr>
-                        <th className="px-4 py-3">Campaign</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Sent</th>
-                        <th className="px-4 py-3">Replies</th>
+                        <th className="px-4 py-2.5">Campaign</th>
+                        <th className="px-4 py-2.5">Status</th>
+                        <th className="px-4 py-2.5">Sent</th>
+                        <th className="px-4 py-2.5">Replies</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {campaigns.map((campaign) => (
                         <tr key={campaign.id} className="align-top hover:bg-slate-50">
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-3">
                             <p className="font-bold text-slate-900">{campaign.name}</p>
                             <p className="mt-1 text-xs text-slate-500">{campaign.subject}</p>
                             <p className="mt-1 text-[11px] text-slate-400">Created {formatDate(campaign.created_at)}</p>
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-3">
                             <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(campaign.status)}`}>{campaign.status}</span>
                           </td>
-                          <td className="px-4 py-4 text-slate-700">{campaign.sent_count} sent<br /><span className="text-xs text-red-600">{campaign.failed_count} failed</span></td>
-                          <td className="px-4 py-4 text-slate-700">{campaign.reply_count}</td>
+                          <td className="px-4 py-3 text-slate-700">{campaign.sent_count} sent<br /><span className="text-xs text-red-600">{campaign.failed_count} failed</span></td>
+                          <td className="px-4 py-3 text-slate-700">{campaign.reply_count}</td>
                         </tr>
                       ))}
                       {!campaigns.length && <tr><td colSpan={4} className="px-4 py-10 text-center text-slate-500">No email campaigns yet.</td></tr>}
