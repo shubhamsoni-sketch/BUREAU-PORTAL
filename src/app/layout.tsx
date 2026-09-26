@@ -18,9 +18,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'CreditTrust - Financial Health Analysis Platform',
+  title: 'CreditTrust | Credit Report Analysis & Financial Health Insights',
   description:
-    'CreditTrust helps individuals and financial partners generate clear financial health reports with credit score insights, repayment analysis, and wallet-based partner workflows.',
+    'CreditTrust is a credit report analysis and financial health insights platform owned and operated by Fin Coopers Tech India Private Limited. No loan approval, score improvement, or lender decision is guaranteed.',
   icons: {
     icon: [
       { url: '/favicon.svg?v=2', type: 'image/svg+xml' },

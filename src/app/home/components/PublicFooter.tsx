@@ -39,12 +39,16 @@ export default function PublicFooter() {
               Consent-based financial health reports for individuals and approved partner workflows.
             </p>
             <p className="mt-3 text-slate-500 text-sm leading-relaxed max-w-md">
-              CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. Fin Coopers Tech India Private Limited owns the CreditTrust website, platform, brand assets, reports, and related workflows.
+              CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited.
             </p>
             <p className="mt-2 text-slate-500 text-sm">
               Contact:{' '}
               <a href="mailto:support@credittrust.in" className="hover:text-slate-900 transition-colors">
                 support@credittrust.in
+              </a>
+              {' '}|{' '}
+              <a href="https://credittrust.in" className="hover:text-slate-900 transition-colors">
+                https://credittrust.in
               </a>
             </p>
           </div>

@@ -3,7 +3,7 @@ import LegalPage from '@/components/legal/LegalPage';
 const sections = [
   {
     title: 'Legal Entity',
-    body: 'CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. Fin Coopers Tech India Private Limited owns the CreditTrust website, platform, brand assets, reports, and related workflows.',
+    body: 'CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited.',
   },
   {
     title: 'Information We Collect',

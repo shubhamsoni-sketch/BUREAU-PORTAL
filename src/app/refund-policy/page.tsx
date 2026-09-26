@@ -2,6 +2,10 @@ import LegalPage from '@/components/legal/LegalPage';
 
 const sections = [
   {
+    title: 'Legal Entity',
+    body: 'CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited.',
+  },
+  {
     title: 'Digital Service Nature',
     body: 'CreditTrust provides digital financial health report services and partner platform services. Once a report request is processed, data-provider costs, payment gateway charges, technical processing, and compliance logging may already be incurred.',
   },

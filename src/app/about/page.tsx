@@ -55,7 +55,7 @@ export default function AboutPage() {
                   CreditTrust is a technology-driven financial analytics and assessment platform designed to simplify financial insights for individuals and business partners.
                 </p>
                 <p className="mt-5 text-fg-muted text-lg leading-relaxed">
-                  CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. Fin Coopers Tech India Private Limited owns the CreditTrust website, platform, brand assets, reports, and related workflows.
+                  CreditTrust is a customer-facing brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. Fin Coopers Tech India Private Limited owns the CreditTrust website, platform, brand assets, reports, and related workflows.
                 </p>
                 <p className="mt-5 text-fg-muted text-lg leading-relaxed">
                   Our platform enables users to securely access consent-based financial assessment workflows, digital onboarding services, and detailed financial health reports through a seamless online experience.
@@ -79,7 +79,7 @@ export default function AboutPage() {
                 </div>
                 <h2 className="text-lg font-bold text-fg mb-4">Operated by Fin Coopers Tech India Private Limited</h2>
                 <p className="text-sm text-fg-muted leading-relaxed mb-5">
-                  CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. Fin Coopers Tech India Private Limited owns the CreditTrust website, platform, brand assets, reports, and related workflows.
+                  CreditTrust is a customer-facing brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. Fin Coopers Tech India Private Limited owns the CreditTrust website, platform, brand assets, reports, and related workflows.
                 </p>
                 <div className="space-y-4">
                   {[
