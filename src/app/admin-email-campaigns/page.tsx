@@ -312,7 +312,8 @@ export default function AdminEmailCampaignsPage() {
       preview_text: form.preview_text,
       text_body: form.text_body,
       audience_status: form.audience_status,
-      attachments: [attachmentFile, imageFile].filter(Boolean),
+      attachments: [attachmentFile].filter(Boolean),
+      inline_image: imageFile,
     }, 'Email campaign draft created');
   }
 
@@ -423,9 +424,9 @@ export default function AdminEmailCampaignsPage() {
                   </label>
                   <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
                     <span className="inline-flex items-center gap-2 font-bold text-slate-800">
-                      <Image size={16} className="text-blue-600" /> Attach image
+                      <Image size={16} className="text-blue-600" /> Inline promo image
                     </span>
-                    <span className="truncate text-xs text-slate-500">{imageFile?.filename || 'PNG, JPG, WEBP'}</span>
+                    <span className="truncate text-xs text-slate-500">{imageFile?.filename || 'Shows inside email body'}</span>
                     <input
                       type="file"
                       accept="image/png,image/jpeg,image/webp"
@@ -441,7 +442,7 @@ export default function AdminEmailCampaignsPage() {
                 {(attachmentFile || imageFile) && (
                   <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
                     <Paperclip size={13} className="mr-1 inline" />
-                    {[attachmentFile?.filename, imageFile?.filename].filter(Boolean).join(', ')}
+                    {[attachmentFile?.filename, imageFile ? `inline image: ${imageFile.filename}` : ''].filter(Boolean).join(', ')}
                   </div>
                 )}
                 <button disabled={saving || !schemaReady} onClick={createCampaign} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">

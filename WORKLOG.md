@@ -2,6 +2,18 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-09-26 - Developer - Inline Promotional Email Image
+
+Summary:
+
+- Changed the campaign image picker from a Resend attachment to an inline promotional image rendered inside the email body.
+- Kept Excel/document upload as the only file attachment option for campaigns.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed after build.
+
 ## 2026-09-26 - Developer - Email Marketing Import And Attachments
 
 Summary:
