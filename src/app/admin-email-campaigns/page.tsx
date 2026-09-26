@@ -206,6 +206,7 @@ export default function AdminEmailCampaignsPage() {
   const [activeView, setActiveView] = useState<'campaigns' | 'inbox' | 'audiences'>('campaigns');
   const [activeThreadKey, setActiveThreadKey] = useState('');
   const [activeAudienceId, setActiveAudienceId] = useState('');
+  const [showCampaignForm, setShowCampaignForm] = useState(false);
   const [showAudienceForm, setShowAudienceForm] = useState(false);
   const [audienceName, setAudienceName] = useState('New audience');
   const [csvText, setCsvText] = useState(sampleCsv);
@@ -330,8 +331,10 @@ export default function AdminEmailCampaignsPage() {
       setMessages(json.messages || messages);
       setConfig(json.config || config);
       setNotice(successMessage);
+      return true;
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : 'Action failed');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -418,8 +421,8 @@ export default function AdminEmailCampaignsPage() {
     setShowAudienceForm(false);
   }
 
-  function createCampaign() {
-    runAction({
+  async function createCampaign() {
+    const saved = await runAction({
       action: 'create_campaign',
       name: form.name,
       subject: form.subject,
@@ -429,6 +432,10 @@ export default function AdminEmailCampaignsPage() {
       attachments,
       inline_image: imageFile,
     }, 'Email campaign draft created');
+    if (saved) {
+      setShowCampaignForm(false);
+      resetCampaignForm();
+    }
   }
 
   function resetCampaignForm() {
@@ -525,104 +532,24 @@ export default function AdminEmailCampaignsPage() {
         {loading ? (
           <div className="h-full rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading email marketing...</div>
         ) : activeView === 'campaigns' ? (
-          <div className="grid h-full min-h-0 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="flex min-h-0 flex-col rounded-lg border border-slate-200 bg-white p-3 shadow-sm xl:order-2">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Plus size={17} className="text-blue-600" />
-                  <h2 className="font-bold text-slate-900">Create campaign</h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={resetCampaignForm}
-                  className="inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-300 hover:text-blue-700"
-                >
-                  <Plus size={14} /> New
-                </button>
-              </div>
-              <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-hidden">
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Campaign name" className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm" />
-                <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject, supports {name}" className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm" />
-                <input value={form.preview_text} onChange={(e) => setForm({ ...form, preview_text: e.target.value })} placeholder="Preview text" className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm" />
-                <textarea value={form.text_body} onChange={(e) => setForm({ ...form, text_body: e.target.value })} rows={3} className="h-24 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-                <div className="grid gap-2">
-                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
-                    <span className="inline-flex items-center gap-2 font-bold text-slate-800">
-                      <Paperclip size={16} className="text-blue-600" /> Attach files
-                    </span>
-                    <span className="truncate text-xs text-slate-500">{attachments.length ? `${attachments.length} selected` : 'Any format'}</span>
-                    <input
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={async (event) => {
-                        const files = Array.from(event.target.files || []);
-                        if (!files.length) return;
-                        const uploaded = await Promise.all(files.map((file) => toAttachment(file)));
-                        setAttachments((current) => [...current, ...uploaded]);
-                        event.target.value = '';
-                      }}
-                    />
-                  </label>
-                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
-                    <span className="inline-flex items-center gap-2 font-bold text-slate-800">
-                      <Image size={16} className="text-blue-600" /> Inline promo image
-                    </span>
-                    <span className="truncate text-xs text-slate-500">{imageFile?.filename || 'Email body'}</span>
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      className="hidden"
-                      onChange={async (event) => {
-                          const file = event.target.files?.[0];
-                          if (!file) return;
-                          await uploadInlineImage(file);
-                          event.target.value = '';
-                        }}
-                      />
-                  </label>
-                </div>
-                {(attachments.length > 0 || imageFile) && (
-                  <div className="space-y-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-                    {attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {attachments.map((file, index) => (
-                          <button
-                            key={`${file.filename}-${index}`}
-                            type="button"
-                            onClick={() => setAttachments((current) => current.filter((_, fileIndex) => fileIndex !== index))}
-                            className="inline-flex max-w-full items-center gap-1 rounded-full border border-blue-200 bg-white px-2 py-1 text-blue-800"
-                            title="Remove attachment"
-                          >
-                            <Paperclip size={12} />
-                            <span className="truncate">{file.filename}</span>
-                            <X size={12} />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {imageFile && (
-                      <div className="inline-flex max-w-full items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-1 text-emerald-800">
-                        <Image size={12} />
-                        <span className="truncate">inline image: {imageFile.filename}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <button disabled={saving || !schemaReady} onClick={createCampaign} className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
-                  <Plus size={16} /> Save draft
-                </button>
-              </div>
-              <p className="mt-2 text-[11px] leading-4 text-slate-500">
-                From: {config?.fromEmail || '-'}<br />Reply-to: {config?.replyTo || '-'}
-              </p>
-            </div>
-
-            <div className="flex min-h-0 flex-col gap-3 xl:order-1">
+          <div className="flex h-full min-h-0 flex-col gap-3">
+            <div className="flex min-h-0 flex-col gap-3">
               <div className="rounded-lg border border-blue-100 bg-white p-3 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <Send size={17} className="text-blue-600" />
-                  <h2 className="font-bold text-slate-900">Run campaign</h2>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Send size={17} className="text-blue-600" />
+                    <h2 className="font-bold text-slate-900">Run campaign</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetCampaignForm();
+                      setShowCampaignForm(true);
+                    }}
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700"
+                  >
+                    <Plus size={16} /> Create new campaign
+                  </button>
                 </div>
                 <div className="mt-2 grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,260px)_120px]">
                   <select value={selectedCampaignId} onChange={(event) => setSelectedCampaignId(event.target.value)} className="h-9 rounded-lg border border-slate-200 px-3 text-sm">
@@ -868,6 +795,114 @@ export default function AdminEmailCampaignsPage() {
         )}
         </div>
       </div>
+      {showCampaignForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+              <div className="flex items-center gap-2">
+                <Plus size={18} className="text-blue-600" />
+                <div>
+                  <h2 className="font-bold text-slate-900">Create new campaign</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">Draft save hote hi saved campaigns list me aa jayega.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCampaignForm(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-800"
+                title="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Campaign name" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm md:col-span-2" />
+                <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject, supports {name}" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" />
+                <input value={form.preview_text} onChange={(e) => setForm({ ...form, preview_text: e.target.value })} placeholder="Preview text" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" />
+                <textarea value={form.text_body} onChange={(e) => setForm({ ...form, text_body: e.target.value })} rows={7} className="min-h-44 w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-sm md:col-span-2" />
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
+                  <span className="inline-flex min-w-0 items-center gap-2 font-bold text-slate-800">
+                    <Paperclip size={16} className="text-blue-600" /> Attach files
+                  </span>
+                  <span className="truncate text-xs text-slate-500">{attachments.length ? `${attachments.length} selected` : 'Any format'}</span>
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={async (event) => {
+                      const files = Array.from(event.target.files || []);
+                      if (!files.length) return;
+                      const uploaded = await Promise.all(files.map((file) => toAttachment(file)));
+                      setAttachments((current) => [...current, ...uploaded]);
+                      event.target.value = '';
+                    }}
+                  />
+                </label>
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
+                  <span className="inline-flex min-w-0 items-center gap-2 font-bold text-slate-800">
+                    <Image size={16} className="text-blue-600" /> Inline promo image
+                  </span>
+                  <span className="truncate text-xs text-slate-500">{imageFile?.filename || 'Email body'}</span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={async (event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      await uploadInlineImage(file);
+                      event.target.value = '';
+                    }}
+                  />
+                </label>
+                {(attachments.length > 0 || imageFile) && (
+                  <div className="space-y-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800 md:col-span-2">
+                    {attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {attachments.map((file, index) => (
+                          <button
+                            key={`${file.filename}-${index}`}
+                            type="button"
+                            onClick={() => setAttachments((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                            className="inline-flex max-w-full items-center gap-1 rounded-full border border-blue-200 bg-white px-2 py-1 text-blue-800"
+                            title="Remove attachment"
+                          >
+                            <Paperclip size={12} />
+                            <span className="truncate">{file.filename}</span>
+                            <X size={12} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {imageFile && (
+                      <div className="inline-flex max-w-full items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-1 text-emerald-800">
+                        <Image size={12} />
+                        <span className="truncate">inline image: {imageFile.filename}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs leading-5 text-slate-500 md:col-span-2">
+                  From: {config?.fromEmail || '-'}<br />Reply-to: {config?.replyTo || '-'}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-white px-5 py-4">
+              <button
+                type="button"
+                onClick={() => setShowCampaignForm(false)}
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:border-slate-300"
+              >
+                Cancel
+              </button>
+              <button disabled={saving || !schemaReady} onClick={createCampaign} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                <Plus size={16} /> Save draft
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
