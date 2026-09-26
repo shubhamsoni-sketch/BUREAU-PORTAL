@@ -195,7 +195,7 @@ async function loadData(supabase: any) {
       .limit(200),
     supabase
       .from('email_marketing_audiences')
-      .select('*, email_marketing_audience_contacts(count, email_marketing_contacts(*))')
+      .select('*, email_marketing_audience_contacts(email_marketing_contacts(*))')
       .order('created_at', { ascending: false })
       .limit(200),
     supabase
@@ -219,7 +219,7 @@ async function loadData(supabase: any) {
         .filter(Boolean);
       return {
         ...audience,
-        contact_count: audienceContacts.length || Number(audience.email_marketing_audience_contacts?.[0]?.count || 0),
+        contact_count: audienceContacts.length,
         contacts: audienceContacts,
       };
     }),
