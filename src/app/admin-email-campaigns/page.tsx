@@ -459,24 +459,21 @@ export default function AdminEmailCampaignsPage() {
 
   return (
     <AdminLayout title="Email Campaigns">
-      <div className="space-y-5 p-4 sm:p-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Email marketing</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-900">Campaigns, inbox and replies</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Send campaigns through Resend, capture inbound replies, and respond from the admin panel.
-            </p>
+      <div className="space-y-3 p-3 sm:p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-600">Email marketing</p>
+            <h1 className="truncate text-xl font-bold text-slate-900">Campaigns, inbox and replies</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => loadData(true)}
-              className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
             >
-              <RefreshCw size={15} /> Refresh
+              <RefreshCw size={14} /> Refresh
             </button>
-            <span className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold ${config?.resendConfigured ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+            <span className={`inline-flex h-8 items-center gap-2 rounded-lg border px-3 text-xs font-bold ${config?.resendConfigured ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
               {config?.resendConfigured ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
               Resend {config?.resendConfigured ? 'ready' : 'env missing'}
             </span>
@@ -489,7 +486,7 @@ export default function AdminEmailCampaignsPage() {
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {([
             ['Contacts', stats.contacts, Users],
             ['Audiences', stats.audiences, Users],
@@ -497,12 +494,12 @@ export default function AdminEmailCampaignsPage() {
             ['Sent', stats.sent, Send],
             ['Replies', stats.replies, Reply],
           ] as StatItem[]).map(([label, value, Icon]) => (
-            <div key={String(label)} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div key={String(label)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-500">{label as string}</p>
-                <Icon size={17} className="text-blue-600" />
+                <p className="text-xs font-bold text-slate-500">{label as string}</p>
+                <Icon size={15} className="text-blue-600" />
               </div>
-              <p className="mt-3 text-2xl font-bold text-slate-900">{Number(value).toLocaleString('en-IN')}</p>
+              <p className="mt-1 text-xl font-bold text-slate-900">{Number(value).toLocaleString('en-IN')}</p>
             </div>
           ))}
         </div>
@@ -517,7 +514,7 @@ export default function AdminEmailCampaignsPage() {
               key={String(id)}
               type="button"
               onClick={() => setActiveView(id as typeof activeView)}
-              className={`inline-flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-bold ${activeView === id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+              className={`inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-bold ${activeView === id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
             >
               <Icon size={16} /> {label as string}
             </button>
@@ -527,8 +524,8 @@ export default function AdminEmailCampaignsPage() {
         {loading ? (
           <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading email marketing...</div>
         ) : activeView === 'campaigns' ? (
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:order-2">
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm xl:order-2">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Plus size={17} className="text-blue-600" />
@@ -537,18 +534,18 @@ export default function AdminEmailCampaignsPage() {
                 <button
                   type="button"
                   onClick={resetCampaignForm}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-300 hover:text-blue-700"
+                  className="inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-300 hover:text-blue-700"
                 >
                   <Plus size={14} /> New
                 </button>
               </div>
-              <div className="mt-4 space-y-2.5">
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Campaign name" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" />
-                <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject, supports {name}" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" />
-                <input value={form.preview_text} onChange={(e) => setForm({ ...form, preview_text: e.target.value })} placeholder="Preview text" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" />
-                <textarea value={form.text_body} onChange={(e) => setForm({ ...form, text_body: e.target.value })} rows={5} className="max-h-44 min-h-32 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <div className="mt-3 space-y-2">
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Campaign name" className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm" />
+                <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject, supports {name}" className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm" />
+                <input value={form.preview_text} onChange={(e) => setForm({ ...form, preview_text: e.target.value })} placeholder="Preview text" className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm" />
+                <textarea value={form.text_body} onChange={(e) => setForm({ ...form, text_body: e.target.value })} rows={3} className="max-h-28 min-h-24 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
                 <div className="grid gap-2">
-                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
+                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
                     <span className="inline-flex items-center gap-2 font-bold text-slate-800">
                       <Paperclip size={16} className="text-blue-600" /> Attach files
                     </span>
@@ -566,7 +563,7 @@ export default function AdminEmailCampaignsPage() {
                       }}
                     />
                   </label>
-                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
+                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
                     <span className="inline-flex items-center gap-2 font-bold text-slate-800">
                       <Image size={16} className="text-blue-600" /> Inline promo image
                     </span>
@@ -611,42 +608,42 @@ export default function AdminEmailCampaignsPage() {
                     )}
                   </div>
                 )}
-                <button disabled={saving || !schemaReady} onClick={createCampaign} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                <button disabled={saving || !schemaReady} onClick={createCampaign} className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
                   <Plus size={16} /> Save draft
                 </button>
               </div>
-              <p className="mt-3 text-xs leading-5 text-slate-500">
+              <p className="mt-2 text-[11px] leading-4 text-slate-500">
                 From: {config?.fromEmail || '-'}<br />Reply-to: {config?.replyTo || '-'}
               </p>
             </div>
 
-            <div className="space-y-4 xl:order-1">
-              <div className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm">
+            <div className="space-y-3 xl:order-1">
+              <div className="rounded-lg border border-blue-100 bg-white p-3 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Send size={17} className="text-blue-600" />
                   <h2 className="font-bold text-slate-900">Run campaign</h2>
                 </div>
-                <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,280px)_140px]">
-                  <select value={selectedCampaignId} onChange={(event) => setSelectedCampaignId(event.target.value)} className="h-10 rounded-lg border border-slate-200 px-3 text-sm">
+                <div className="mt-2 grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,260px)_120px]">
+                  <select value={selectedCampaignId} onChange={(event) => setSelectedCampaignId(event.target.value)} className="h-9 rounded-lg border border-slate-200 px-3 text-sm">
                     <option value="">Select campaign</option>
                     {campaigns.map((campaign) => (
                       <option key={campaign.id} value={campaign.id}>{campaign.name} - {campaign.subject}</option>
                     ))}
                   </select>
-                  <select value={selectedAudienceId} onChange={(event) => setSelectedAudienceId(event.target.value)} className="h-10 rounded-lg border border-slate-200 px-3 text-sm">
+                  <select value={selectedAudienceId} onChange={(event) => setSelectedAudienceId(event.target.value)} className="h-9 rounded-lg border border-slate-200 px-3 text-sm">
                     <option value="">Select audience</option>
                     {audiences.map((audience) => (
                       <option key={audience.id} value={audience.id}>{audience.name} ({audience.contact_count})</option>
                     ))}
                   </select>
-                  <button disabled={saving || !schemaReady || !selectedCampaignId || !selectedAudienceId} onClick={sendSelectedCampaign} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                  <button disabled={saving || !schemaReady || !selectedCampaignId || !selectedAudienceId} onClick={sendSelectedCampaign} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
                     <Send size={16} /> Send
                   </button>
                 </div>
               </div>
 
               <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
                   <h2 className="font-bold text-slate-900">Saved campaigns</h2>
                   <p className="text-xs font-semibold text-slate-500">Limit: {config?.sendLimit ?? 100}/click</p>
                 </div>
