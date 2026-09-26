@@ -16,6 +16,7 @@ const ADMIN_ONLY_PATHS = [
   '/admin-bulk-cibil',
   '/admin-meta-marketing',
   '/admin-email-campaigns',
+  '/admin-lead-finder',
   '/admin-promotions',
   '/admin-whatsapp-analytics',
   '/admin-audit-logs',
@@ -144,4 +145,3 @@ export default function AdminGuard({ children }: AdminGuardProps) {
 
   return <>{children}</>;
 }
-
