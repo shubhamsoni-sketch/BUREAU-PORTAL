@@ -52,6 +52,16 @@ type Campaign = {
   sent_at?: string | null;
 };
 
+type Audience = {
+  id: string;
+  name: string;
+  source: string;
+  status: string;
+  contact_count: number;
+  created_at: string;
+  contacts?: Contact[];
+};
+
 type Message = {
   id: string;
   campaign_id?: string | null;
@@ -190,12 +200,18 @@ function statusClass(status: string) {
 export default function AdminEmailCampaignsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [audiences, setAudiences] = useState<Audience[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [config, setConfig] = useState<Config | null>(null);
-  const [activeView, setActiveView] = useState<'campaigns' | 'inbox' | 'contacts'>('campaigns');
+  const [activeView, setActiveView] = useState<'campaigns' | 'inbox' | 'audiences'>('campaigns');
   const [activeThreadKey, setActiveThreadKey] = useState('');
+  const [activeAudienceId, setActiveAudienceId] = useState('');
+  const [showAudienceForm, setShowAudienceForm] = useState(false);
+  const [audienceName, setAudienceName] = useState('New audience');
   const [csvText, setCsvText] = useState(sampleCsv);
   const [contactFileName, setContactFileName] = useState('');
+  const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [selectedAudienceId, setSelectedAudienceId] = useState('');
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [imageFile, setImageFile] = useState<InlineImage | null>(null);
   const [search, setSearch] = useState('');
@@ -225,12 +241,13 @@ export default function AdminEmailCampaignsPage() {
   const stats = useMemo(() => {
     return {
       contacts: contacts.length,
+      audiences: audiences.length,
       optedIn: contacts.filter((contact) => contact.opt_in && contact.status === 'active').length,
       sent: campaigns.reduce((sum, campaign) => sum + Number(campaign.sent_count || 0), 0),
       replies: campaigns.reduce((sum, campaign) => sum + Number(campaign.reply_count || 0), 0),
       unread: messages.filter((message) => message.direction === 'inbound' && !message.read_at).length,
     };
-  }, [campaigns, contacts, messages]);
+  }, [audiences.length, campaigns, contacts, messages]);
 
   const threads = useMemo(() => {
     const byKey = new Map<string, Message[]>();
@@ -261,10 +278,18 @@ export default function AdminEmailCampaignsPage() {
   }, [campaigns, messages, search]);
 
   const activeThread = threads.find((thread) => thread.key === activeThreadKey) || threads[0];
+  const activeAudience = audiences.find((audience) => audience.id === activeAudienceId) || audiences[0];
+  const activeAudienceContacts = useMemo(() => {
+    return [...(activeAudience?.contacts || [])].sort((a, b) => (a.full_name || a.email).localeCompare(b.full_name || b.email));
+  }, [activeAudience]);
 
   useEffect(() => {
     if (!activeThreadKey && threads[0]) setActiveThreadKey(threads[0].key);
   }, [activeThreadKey, threads]);
+
+  useEffect(() => {
+    if (!activeAudienceId && audiences[0]) setActiveAudienceId(audiences[0].id);
+  }, [activeAudienceId, audiences]);
 
   async function loadData(silent = false) {
     if (!silent) setLoading(true);
@@ -276,6 +301,7 @@ export default function AdminEmailCampaignsPage() {
       setSchemaReady(json.schemaReady !== false);
       setContacts(json.contacts || []);
       setCampaigns(json.campaigns || []);
+      setAudiences(json.audiences || []);
       setMessages(json.messages || []);
       setConfig(json.config || null);
       if (json.warning) setNotice(json.warning);
@@ -300,6 +326,7 @@ export default function AdminEmailCampaignsPage() {
       if (!response.ok || !json.success) throw new Error(json.error || 'Action failed');
       setContacts(json.contacts || contacts);
       setCampaigns(json.campaigns || campaigns);
+      setAudiences(json.audiences || audiences);
       setMessages(json.messages || messages);
       setConfig(json.config || config);
       setNotice(successMessage);
@@ -342,9 +369,10 @@ export default function AdminEmailCampaignsPage() {
     loadData();
   }, []);
 
-  function importContacts() {
+  function createAudienceFromText() {
     const parsed = parseCsv(csvText);
-    runAction({ action: 'import_contacts', contacts: parsed }, `${parsed.length} contacts processed`);
+    runAction({ action: 'create_audience', name: audienceName, contacts: parsed }, `${parsed.length} contacts saved in audience`);
+    setShowAudienceForm(false);
   }
 
   async function downloadSampleExcel() {
@@ -375,9 +403,10 @@ export default function AdminEmailCampaignsPage() {
       setContactFileName(file.name);
       if (!parsed.length) throw new Error('No rows found in the selected file.');
       await runAction(
-        { action: 'import_contacts', source: `file_${file.name}`, contacts: parsed },
-        `${parsed.length} contact rows processed from ${file.name}`,
+        { action: 'create_audience', name: audienceName || file.name.replace(/\.(csv|xls|xlsx)$/i, ''), source: `file_${file.name}`, contacts: parsed },
+        `${parsed.length} contacts saved in audience`,
       );
+      setShowAudienceForm(false);
     } catch (fileError) {
       setError(fileError instanceof Error ? fileError.message : 'Unable to import contact file');
       setSaving(false);
@@ -385,7 +414,8 @@ export default function AdminEmailCampaignsPage() {
   }
 
   function importLeadFunnel() {
-    runAction({ action: 'import_lead_funnel' }, 'Lead funnel contacts imported');
+    runAction({ action: 'import_lead_funnel', name: audienceName || `Lead funnel ${new Date().toLocaleDateString('en-IN')}` }, 'Lead funnel audience created');
+    setShowAudienceForm(false);
   }
 
   function createCampaign() {
@@ -399,6 +429,25 @@ export default function AdminEmailCampaignsPage() {
       attachments,
       inline_image: imageFile,
     }, 'Email campaign draft created');
+  }
+
+  function resetCampaignForm() {
+    setForm({
+      name: '',
+      subject: '',
+      preview_text: '',
+      text_body: 'Hi {name},\n\nCreditTrust se aapke liye ek quick update hai.\n\nRegards,\nCreditTrust Team',
+      audience_status: 'active',
+    });
+    setAttachments([]);
+    setImageFile(null);
+  }
+
+  function sendSelectedCampaign() {
+    runAction(
+      { action: 'send_campaign', campaign_id: selectedCampaignId, audience_id: selectedAudienceId },
+      'Campaign send completed',
+    );
   }
 
   async function replyToThread() {
@@ -443,10 +492,10 @@ export default function AdminEmailCampaignsPage() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {([
             ['Contacts', stats.contacts, Users],
+            ['Audiences', stats.audiences, Users],
             ['Opted in', stats.optedIn, CheckCircle2],
             ['Sent', stats.sent, Send],
             ['Replies', stats.replies, Reply],
-            ['Unread', stats.unread, Inbox],
           ] as StatItem[]).map(([label, value, Icon]) => (
             <div key={String(label)} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
@@ -462,7 +511,7 @@ export default function AdminEmailCampaignsPage() {
           {[
             ['campaigns', 'Campaigns', Mail],
             ['inbox', 'Inbox', Inbox],
-            ['contacts', 'Contacts', Users],
+            ['audiences', 'Audiences', Users],
           ].map(([id, label, Icon]) => (
             <button
               key={String(id)}
@@ -480,9 +529,18 @@ export default function AdminEmailCampaignsPage() {
         ) : activeView === 'campaigns' ? (
           <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
             <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-2">
-                <Plus size={17} className="text-blue-600" />
-                <h2 className="font-bold text-slate-900">Create campaign</h2>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Plus size={17} className="text-blue-600" />
+                  <h2 className="font-bold text-slate-900">Create campaign</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={resetCampaignForm}
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-300 hover:text-blue-700"
+                >
+                  <Plus size={14} /> New
+                </button>
               </div>
               <div className="mt-4 space-y-3">
                 <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Campaign name" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
@@ -562,45 +620,66 @@ export default function AdminEmailCampaignsPage() {
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h2 className="font-bold text-slate-900">Campaign list</h2>
-                <p className="text-sm text-slate-500">Send limit per click: {config?.sendLimit ?? 100}</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3">Campaign</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Sent</th>
-                      <th className="px-4 py-3">Replies</th>
-                      <th className="px-4 py-3">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
+            <div className="space-y-5">
+              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <Send size={17} className="text-blue-600" />
+                  <h2 className="font-bold text-slate-900">Run campaign</h2>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+                  <select value={selectedCampaignId} onChange={(event) => setSelectedCampaignId(event.target.value)} className="h-10 rounded-lg border border-slate-200 px-3 text-sm">
+                    <option value="">Select campaign</option>
                     {campaigns.map((campaign) => (
-                      <tr key={campaign.id} className="align-top hover:bg-slate-50">
-                        <td className="px-4 py-4">
-                          <p className="font-bold text-slate-900">{campaign.name}</p>
-                          <p className="mt-1 text-xs text-slate-500">{campaign.subject}</p>
-                          <p className="mt-1 text-[11px] text-slate-400">Created {formatDate(campaign.created_at)}</p>
-                        </td>
-                        <td className="px-4 py-4">
-                          <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(campaign.status)}`}>{campaign.status}</span>
-                        </td>
-                        <td className="px-4 py-4 text-slate-700">{campaign.sent_count} sent<br /><span className="text-xs text-red-600">{campaign.failed_count} failed</span></td>
-                        <td className="px-4 py-4 text-slate-700">{campaign.reply_count}</td>
-                        <td className="px-4 py-4">
-                          <button disabled={saving || !schemaReady} onClick={() => runAction({ action: 'send_campaign', campaign_id: campaign.id }, 'Campaign send completed')} className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60">
-                            <Send size={13} /> Send
-                          </button>
-                        </td>
-                      </tr>
+                      <option key={campaign.id} value={campaign.id}>{campaign.name} - {campaign.subject}</option>
                     ))}
-                    {!campaigns.length && <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-500">No email campaigns yet.</td></tr>}
-                  </tbody>
-                </table>
+                  </select>
+                  <select value={selectedAudienceId} onChange={(event) => setSelectedAudienceId(event.target.value)} className="h-10 rounded-lg border border-slate-200 px-3 text-sm">
+                    <option value="">Select audience</option>
+                    {audiences.map((audience) => (
+                      <option key={audience.id} value={audience.id}>{audience.name} ({audience.contact_count})</option>
+                    ))}
+                  </select>
+                  <button disabled={saving || !schemaReady || !selectedCampaignId || !selectedAudienceId} onClick={sendSelectedCampaign} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                    <Send size={16} /> Send email
+                  </button>
+                </div>
+                <p className="mt-3 text-xs text-slate-500">Pehle campaign select karo, phir audience select karo. Mail sirf selected audience ko jayega.</p>
+              </div>
+
+              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-200 px-5 py-4">
+                  <h2 className="font-bold text-slate-900">Saved campaigns</h2>
+                  <p className="text-sm text-slate-500">Send limit per click: {config?.sendLimit ?? 100}</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="px-4 py-3">Campaign</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Sent</th>
+                        <th className="px-4 py-3">Replies</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {campaigns.map((campaign) => (
+                        <tr key={campaign.id} className="align-top hover:bg-slate-50">
+                          <td className="px-4 py-4">
+                            <p className="font-bold text-slate-900">{campaign.name}</p>
+                            <p className="mt-1 text-xs text-slate-500">{campaign.subject}</p>
+                            <p className="mt-1 text-[11px] text-slate-400">Created {formatDate(campaign.created_at)}</p>
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(campaign.status)}`}>{campaign.status}</span>
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">{campaign.sent_count} sent<br /><span className="text-xs text-red-600">{campaign.failed_count} failed</span></td>
+                          <td className="px-4 py-4 text-slate-700">{campaign.reply_count}</td>
+                        </tr>
+                      ))}
+                      {!campaigns.length && <tr><td colSpan={4} className="px-4 py-10 text-center text-slate-500">No email campaigns yet.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -664,84 +743,130 @@ export default function AdminEmailCampaignsPage() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
-            <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Upload size={17} className="text-blue-600" />
-                  <h2 className="font-bold text-slate-900">Import contacts</h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={downloadSampleExcel}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-300 hover:text-blue-700"
-                >
-                  <Download size={14} /> Sample
-                </button>
-              </div>
-              <p className="mt-2 text-sm text-slate-500">Upload Excel/CSV or paste contacts. Only two columns are needed: name and email.</p>
-              <div className="mt-4 grid gap-3">
-                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm hover:border-blue-300 hover:bg-blue-50">
-                  <span className="inline-flex min-w-0 items-center gap-2">
-                    <FileSpreadsheet size={16} className="text-blue-600" />
-                    <span className="truncate font-bold text-slate-800">{contactFileName || 'Choose Excel / CSV contact file'}</span>
-                  </span>
-                  <span className="text-xs font-semibold text-blue-700">Browse</span>
-                  <input
-                    type="file"
-                    accept=".csv,.xls,.xlsx"
-                    className="hidden"
-                    onChange={(event) => importContactFile(event.target.files?.[0])}
-                  />
-                </label>
-                <button
-                  type="button"
-                  disabled={saving || !schemaReady}
-                  onClick={importLeadFunnel}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-60"
-                >
-                  <Users size={16} /> Import from Lead Funnel
-                </button>
-              </div>
-              <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={8} className="mt-4 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs" />
-              <button disabled={saving || !schemaReady} onClick={importContacts} className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
-                <Upload size={16} /> Import / update contacts
-              </button>
-            </div>
+          <div className="grid min-h-[620px] gap-5 xl:grid-cols-[340px_1fr]">
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
               <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
                 <div>
-                  <h2 className="font-bold text-slate-900">Audience</h2>
-                  <p className="mt-1 text-xs text-slate-500">Active opted-in contacts show first.</p>
+                  <h2 className="font-bold text-slate-900">Audiences</h2>
+                  <p className="mt-1 text-xs text-slate-500">Saved contact groups</p>
                 </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{stats.optedIn} active</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAudienceName('New audience');
+                    setContactFileName('');
+                    setCsvText(sampleCsv);
+                    setShowAudienceForm(true);
+                  }}
+                  className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white hover:bg-blue-700"
+                >
+                  <Plus size={14} /> New
+                </button>
               </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3">Name</th>
-                      <th className="px-4 py-3">Email</th>
-                      <th className="px-4 py-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {sortedContacts.map((contact) => (
-                      <tr key={contact.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-4">
-                          <p className="font-bold text-slate-900">{contact.full_name || '-'}</p>
-                        </td>
-                        <td className="px-4 py-4 text-slate-700">{contact.email}</td>
-                        <td className="px-4 py-4">
-                          <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(contact.status)}`}>{contact.opt_in ? contact.status : 'opted_out'}</span>
-                        </td>
-                      </tr>
-                    ))}
-                    {!contacts.length && <tr><td colSpan={3} className="px-4 py-10 text-center text-slate-500">No contacts imported.</td></tr>}
-                  </tbody>
-                </table>
+              <div className="max-h-[560px] overflow-y-auto">
+                {audiences.map((audience) => (
+                  <button
+                    key={audience.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveAudienceId(audience.id);
+                      setShowAudienceForm(false);
+                    }}
+                    className={`block w-full border-b border-slate-100 px-5 py-4 text-left hover:bg-slate-50 ${activeAudience?.id === audience.id && !showAudienceForm ? 'bg-blue-50' : ''}`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate text-sm font-bold text-slate-900">{audience.name}</p>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{audience.contact_count}</span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-400">Created {formatDate(audience.created_at)}</p>
+                  </button>
+                ))}
+                {!audiences.length && <div className="p-8 text-center text-sm text-slate-500">No audiences yet.</div>}
               </div>
             </div>
+
+            {showAudienceForm ? (
+              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Upload size={17} className="text-blue-600" />
+                    <h2 className="font-bold text-slate-900">Create new audience</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={downloadSampleExcel}
+                    className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-300 hover:text-blue-700"
+                  >
+                    <Download size={14} /> Sample
+                  </button>
+                </div>
+                <div className="mt-4 max-w-xl space-y-3">
+                  <input value={audienceName} onChange={(event) => setAudienceName(event.target.value)} placeholder="Audience name" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" />
+                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm hover:border-blue-300 hover:bg-blue-50">
+                    <span className="inline-flex min-w-0 items-center gap-2">
+                      <FileSpreadsheet size={16} className="text-blue-600" />
+                      <span className="truncate font-bold text-slate-800">{contactFileName || 'Choose Excel / CSV contact file'}</span>
+                    </span>
+                    <span className="text-xs font-semibold text-blue-700">Browse</span>
+                    <input
+                      type="file"
+                      accept=".csv,.xls,.xlsx"
+                      className="hidden"
+                      onChange={(event) => importContactFile(event.target.files?.[0])}
+                    />
+                  </label>
+                  <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={8} className="w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs" />
+                  <div className="flex flex-wrap gap-3">
+                    <button disabled={saving || !schemaReady} onClick={createAudienceFromText} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                      <Upload size={16} /> Save audience
+                    </button>
+                    <button
+                      type="button"
+                      disabled={saving || !schemaReady}
+                      onClick={importLeadFunnel}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-60"
+                    >
+                      <Users size={16} /> Create from Lead Funnel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+                  <div>
+                    <h2 className="font-bold text-slate-900">{activeAudience?.name || 'Audience detail'}</h2>
+                    <p className="mt-1 text-xs text-slate-500">{activeAudience ? `${activeAudience.contact_count} contacts` : 'Select an audience from the list'}</p>
+                  </div>
+                  {activeAudience && <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(activeAudience.status)}`}>{activeAudience.status}</span>}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="px-4 py-3">Name</th>
+                        <th className="px-4 py-3">Email</th>
+                        <th className="px-4 py-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {activeAudienceContacts.map((contact) => (
+                        <tr key={contact.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-4">
+                            <p className="font-bold text-slate-900">{contact.full_name || '-'}</p>
+                          </td>
+                          <td className="px-4 py-4 text-slate-700">{contact.email}</td>
+                          <td className="px-4 py-4">
+                            <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(contact.status)}`}>{contact.opt_in ? contact.status : 'opted_out'}</span>
+                          </td>
+                        </tr>
+                      ))}
+                      {!activeAudienceContacts.length && <tr><td colSpan={3} className="px-4 py-10 text-center text-slate-500">No contacts in this audience.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

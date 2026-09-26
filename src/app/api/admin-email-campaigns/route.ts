@@ -107,12 +107,43 @@ async function upsertContacts(supabase: any, rows: Array<Record<string, unknown>
   const unique = [...new Map(contacts.map((contact: any) => [contact.email, contact])).values()];
   if (!unique.length) return { imported: 0 };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('email_marketing_contacts')
-    .upsert(unique, { onConflict: 'email', ignoreDuplicates: false });
+    .upsert(unique, { onConflict: 'email', ignoreDuplicates: false })
+    .select('*');
   if (error) throw new Error(error.message);
 
-  return { imported: unique.length };
+  return { imported: unique.length, contacts: data ?? [] };
+}
+
+async function createAudience(supabase: any, userId: string, name: string, rows: Array<Record<string, unknown>>, source: string) {
+  if (!name) throw new Error('Audience name is required.');
+  const result = await upsertContacts(supabase, rows, source);
+  if (!result.imported || !result.contacts.length) return { imported: 0 };
+
+  const { data: audience, error: audienceError } = await supabase
+    .from('email_marketing_audiences')
+    .insert({
+      name,
+      source,
+      status: 'active',
+      created_by: userId,
+      metadata: { imported_from: source },
+    })
+    .select('*')
+    .single();
+  if (audienceError) throw new Error(audienceError.message);
+
+  const links = result.contacts.map((contact: any) => ({
+    audience_id: audience.id,
+    contact_id: contact.id,
+  }));
+  const { error: linkError } = await supabase
+    .from('email_marketing_audience_contacts')
+    .upsert(links, { onConflict: 'audience_id,contact_id', ignoreDuplicates: false });
+  if (linkError) throw new Error(linkError.message);
+
+  return { imported: result.imported, audience };
 }
 
 async function loadLeadFunnelRows(supabase: any) {
@@ -151,7 +182,7 @@ async function loadLeadFunnelRows(supabase: any) {
 }
 
 async function loadData(supabase: any) {
-  const [contactsResult, campaignsResult, messagesResult] = await Promise.all([
+  const [contactsResult, campaignsResult, audiencesResult, messagesResult] = await Promise.all([
     supabase
       .from('email_marketing_contacts')
       .select('*')
@@ -163,19 +194,35 @@ async function loadData(supabase: any) {
       .order('created_at', { ascending: false })
       .limit(200),
     supabase
+      .from('email_marketing_audiences')
+      .select('*, email_marketing_audience_contacts(count, email_marketing_contacts(*))')
+      .order('created_at', { ascending: false })
+      .limit(200),
+    supabase
       .from('email_marketing_messages')
-      .select('*, email_marketing_contacts(full_name,email,company_name,city)')
+      .select('*, email_marketing_contacts(full_name,email,company_name,city), email_marketing_audiences(name)')
       .order('created_at', { ascending: false })
       .limit(1000),
   ]);
 
   if (contactsResult.error) throw new Error(contactsResult.error.message);
   if (campaignsResult.error) throw new Error(campaignsResult.error.message);
+  if (audiencesResult.error) throw new Error(audiencesResult.error.message);
   if (messagesResult.error) throw new Error(messagesResult.error.message);
 
   return {
     contacts: contactsResult.data ?? [],
     campaigns: campaignsResult.data ?? [],
+    audiences: (audiencesResult.data ?? []).map((audience: any) => {
+      const audienceContacts = (audience.email_marketing_audience_contacts || [])
+        .map((link: any) => link.email_marketing_contacts)
+        .filter(Boolean);
+      return {
+        ...audience,
+        contact_count: audienceContacts.length || Number(audience.email_marketing_audience_contacts?.[0]?.count || 0),
+        contacts: audienceContacts,
+      };
+    }),
     messages: messagesResult.data ?? [],
     config: {
       fromEmail: MARKETING_FROM_EMAIL,
@@ -201,6 +248,7 @@ export async function GET(request: NextRequest) {
         warning: 'Email marketing tables are not available yet. Run the latest Supabase migration.',
         contacts: [],
         campaigns: [],
+        audiences: [],
         messages: [],
         config: {
           fromEmail: MARKETING_FROM_EMAIL,
@@ -232,9 +280,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, imported: result.imported, ...(await loadData(auth.supabase)) });
     }
 
+    if (action === 'create_audience') {
+      const rows = Array.isArray(body.contacts) ? body.contacts : [];
+      const source = clean(body.source) || 'admin_audience_import';
+      const result = await createAudience(auth.supabase, auth.user.id, clean(body.name), rows, source);
+      if (!result.imported) return jsonError('No valid email contacts found.');
+
+      return NextResponse.json({ success: true, imported: result.imported, audience: result.audience, ...(await loadData(auth.supabase)) });
+    }
+
     if (action === 'import_lead_funnel') {
       const rows = await loadLeadFunnelRows(auth.supabase);
-      const result = await upsertContacts(auth.supabase, rows, 'lead_funnel');
+      const result = await createAudience(auth.supabase, auth.user.id, clean(body.name) || `Lead funnel ${new Date().toLocaleDateString('en-IN')}`, rows, 'lead_funnel');
       if (!result.imported) return jsonError('No email contacts found in lead funnel sources.');
 
       return NextResponse.json({ success: true, imported: result.imported, ...(await loadData(auth.supabase)) });
@@ -278,7 +335,9 @@ export async function POST(request: NextRequest) {
 
     if (action === 'send_campaign') {
       const campaignId = clean(body.campaign_id);
+      const audienceId = clean(body.audience_id);
       if (!campaignId) return jsonError('campaign_id is required.');
+      if (!audienceId) return jsonError('Please select an audience before sending.');
 
       const { data: campaign, error: campaignError } = await auth.supabase
         .from('email_marketing_campaigns')
@@ -287,16 +346,25 @@ export async function POST(request: NextRequest) {
         .single();
       if (campaignError || !campaign) return jsonError('Campaign not found.', 404);
 
-      const { data: contacts, error: contactsError } = await auth.supabase
-        .from('email_marketing_contacts')
-        .select('*')
-        .eq('status', campaign.audience_status || 'active')
-        .eq('opt_in', true)
+      const { data: audience, error: audienceError } = await auth.supabase
+        .from('email_marketing_audiences')
+        .select('id,name')
+        .eq('id', audienceId)
+        .single();
+      if (audienceError || !audience) return jsonError('Audience not found.', 404);
+
+      const { data: links, error: contactsError } = await auth.supabase
+        .from('email_marketing_audience_contacts')
+        .select('email_marketing_contacts(*)')
+        .eq('audience_id', audienceId)
         .limit(SEND_LIMIT);
       if (contactsError) throw new Error(contactsError.message);
+      const contacts = (links || [])
+        .map((link: any) => link.email_marketing_contacts)
+        .filter((contact: any) => contact?.opt_in && contact.status === 'active');
       if (!contacts?.length) return jsonError('No opted-in contacts found for this audience.');
 
-      await auth.supabase.from('email_marketing_campaigns').update({ status: 'sending' }).eq('id', campaignId);
+      await auth.supabase.from('email_marketing_campaigns').update({ status: 'sending', last_audience_id: audienceId }).eq('id', campaignId);
 
       let sent = 0;
       let failed = 0;
@@ -311,6 +379,7 @@ export async function POST(request: NextRequest) {
           .from('email_marketing_messages')
           .insert({
             campaign_id: campaignId,
+            audience_id: audienceId,
             contact_id: contact.id,
             direction: 'outbound',
             sender_email: MARKETING_FROM_EMAIL,
@@ -320,7 +389,7 @@ export async function POST(request: NextRequest) {
             text_body: text,
             status: 'pending',
             created_by: auth.user.id,
-            metadata: { source: 'campaign_send' },
+            metadata: { source: 'campaign_send', audience_name: audience.name },
           })
           .select('*')
           .single();
@@ -336,6 +405,7 @@ export async function POST(request: NextRequest) {
           tags: [
             { name: 'source', value: 'email_marketing' },
             { name: 'campaign_id', value: campaignId },
+            { name: 'audience_id', value: audienceId },
           ],
         });
 
@@ -350,7 +420,7 @@ export async function POST(request: NextRequest) {
             resend_message_id: result.messageId ?? null,
             error: result.error ?? null,
             sent_at: result.success ? new Date().toISOString() : null,
-            metadata: { source: 'campaign_send', resend_response: result.response ?? null },
+            metadata: { source: 'campaign_send', audience_name: audience.name, resend_response: result.response ?? null },
           })
           .eq('id', message.id);
       }
