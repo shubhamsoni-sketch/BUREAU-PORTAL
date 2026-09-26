@@ -62,15 +62,20 @@ function normalizeAttachments(value: unknown) {
 }
 
 function inlineImageHtml(value: unknown) {
-  const image = normalizeAttachment(value);
-  if (!image) return '';
-  if (!image.content_type?.startsWith('image/')) {
+  if (!value || typeof value !== 'object') return '';
+  const image = value as Record<string, unknown>;
+  const url = clean(image.url || image.file_url);
+  const filename = clean(image.filename) || 'Promotional image';
+  const contentType = clean(image.content_type || image.contentType);
+
+  if (!url) return '';
+  if (contentType && !contentType.startsWith('image/')) {
     throw new Error('Promotional image must be PNG, JPG, or WEBP.');
   }
 
   return [
     '<div style="margin:0 0 20px 0;text-align:center">',
-    `<img src="data:${image.content_type};base64,${image.content}" alt="${image.filename}" style="display:block;width:100%;max-width:680px;height:auto;margin:0 auto;border:0;border-radius:10px" />`,
+    `<img src="${url}" alt="${filename}" style="display:block;width:100%;max-width:680px;height:auto;margin:0 auto;border:0;border-radius:10px" />`,
     '</div>',
   ].join('');
 }
@@ -241,7 +246,7 @@ export async function POST(request: NextRequest) {
       const htmlBody = clean(body.html_body);
       const textBody = clean(body.text_body);
       const attachments = normalizeAttachments(body.attachments);
-      const inlineImage = normalizeAttachment(body.inline_image);
+      const inlineImage = typeof body.inline_image === 'object' ? body.inline_image : null;
       const bodyHtml = htmlBody || textToHtml(textBody);
       const campaignHtml = `${inlineImageHtml(inlineImage)}${bodyHtml}`;
       if (!name || !subject) return jsonError('Campaign name and subject are required.');

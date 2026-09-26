@@ -92,6 +92,13 @@ type UploadedAttachment = {
   size: number;
 };
 
+type InlineImage = {
+  filename: string;
+  url: string;
+  content_type: string;
+  size: number;
+};
+
 const sampleCsv = `full_name,email,mobile,company_name,city,source
 Rajesh Mehta,rajesh@example.com,9876543210,Mehta Finance,Indore,manual
 Priya Sharma,priya@example.com,9893332647,Sharma Loans,Bhopal,manual`;
@@ -152,6 +159,16 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+async function parseApiResponse(response: Response) {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { success: false, error: text };
+  }
+}
+
 function statusClass(status: string) {
   if (['sent', 'received', 'completed'].includes(status)) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
   if (['failed', 'completed_with_errors'].includes(status)) return 'bg-red-50 text-red-700 border-red-200';
@@ -169,7 +186,7 @@ export default function AdminEmailCampaignsPage() {
   const [csvText, setCsvText] = useState(sampleCsv);
   const [contactFileName, setContactFileName] = useState('');
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
-  const [imageFile, setImageFile] = useState<UploadedAttachment | null>(null);
+  const [imageFile, setImageFile] = useState<InlineImage | null>(null);
   const [search, setSearch] = useState('');
   const [replyText, setReplyText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -234,7 +251,7 @@ export default function AdminEmailCampaignsPage() {
     if (!silent) setError('');
     try {
       const response = await authFetch('/api/admin-email-campaigns', { cache: 'no-store' });
-      const json = await response.json();
+      const json = await parseApiResponse(response);
       if (!response.ok || !json.success) throw new Error(json.error || 'Unable to load email marketing');
       setSchemaReady(json.schemaReady !== false);
       setContacts(json.contacts || []);
@@ -259,7 +276,7 @@ export default function AdminEmailCampaignsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const json = await response.json();
+      const json = await parseApiResponse(response);
       if (!response.ok || !json.success) throw new Error(json.error || 'Action failed');
       setContacts(json.contacts || contacts);
       setCampaigns(json.campaigns || campaigns);
@@ -268,6 +285,34 @@ export default function AdminEmailCampaignsPage() {
       setNotice(successMessage);
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : 'Action failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function uploadInlineImage(file: File) {
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('caption', 'email campaign inline image');
+      const response = await authFetch('/api/marketing/assets/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const json = await parseApiResponse(response);
+      if (!response.ok || !json?.success) throw new Error(json?.error || 'Unable to upload image');
+      setImageFile({
+        filename: file.name,
+        url: json.file_url,
+        content_type: file.type,
+        size: file.size,
+      });
+      setNotice('Promotional image uploaded and will appear inside the email body');
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'Unable to upload promotional image');
     } finally {
       setSaving(false);
     }
@@ -435,11 +480,12 @@ export default function AdminEmailCampaignsPage() {
                       accept="image/png,image/jpeg,image/webp"
                       className="hidden"
                       onChange={async (event) => {
-                        const file = event.target.files?.[0];
-                        if (!file) return;
-                        setImageFile(await toAttachment(file));
-                      }}
-                    />
+                          const file = event.target.files?.[0];
+                          if (!file) return;
+                          await uploadInlineImage(file);
+                          event.target.value = '';
+                        }}
+                      />
                   </label>
                 </div>
                 {(attachments.length > 0 || imageFile) && (

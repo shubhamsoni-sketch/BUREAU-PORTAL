@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-09-26 - Developer - Email Campaign Inline Image Upload Fix
+
+Summary:
+
+- Fixed Save Draft failures caused by sending inline promotional images as large base64 JSON payloads.
+- Uploads the promotional image to the existing marketing-assets storage path first, then embeds the public image URL in the email body.
+- Improved frontend API error parsing so plain text server errors show as readable messages instead of JSON parser errors.
+
+Verification:
+
+- `npm run build -- --no-lint` passed.
+- `npm run type-check -- --pretty false` passed after build.
+
 ## 2026-09-26 - Developer - Generic Email Attachments
 
 Summary:
