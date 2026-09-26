@@ -459,7 +459,7 @@ export default function AdminEmailCampaignsPage() {
 
   return (
     <AdminLayout title="Email Campaigns">
-      <div className="space-y-3 p-3 sm:p-4">
+      <div className="flex h-[calc(100vh-5.5rem)] flex-col gap-3 overflow-hidden p-3 sm:p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-600">Email marketing</p>
@@ -521,11 +521,12 @@ export default function AdminEmailCampaignsPage() {
           ))}
         </div>
 
+        <div className="min-h-0 flex-1 overflow-hidden">
         {loading ? (
-          <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading email marketing...</div>
+          <div className="h-full rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading email marketing...</div>
         ) : activeView === 'campaigns' ? (
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm xl:order-2">
+          <div className="grid h-full min-h-0 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="flex min-h-0 flex-col rounded-lg border border-slate-200 bg-white p-3 shadow-sm xl:order-2">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Plus size={17} className="text-blue-600" />
@@ -539,11 +540,11 @@ export default function AdminEmailCampaignsPage() {
                   <Plus size={14} /> New
                 </button>
               </div>
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-hidden">
                 <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Campaign name" className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm" />
                 <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject, supports {name}" className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm" />
                 <input value={form.preview_text} onChange={(e) => setForm({ ...form, preview_text: e.target.value })} placeholder="Preview text" className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm" />
-                <textarea value={form.text_body} onChange={(e) => setForm({ ...form, text_body: e.target.value })} rows={3} className="max-h-28 min-h-24 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+                <textarea value={form.text_body} onChange={(e) => setForm({ ...form, text_body: e.target.value })} rows={3} className="h-24 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm" />
                 <div className="grid gap-2">
                   <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
                     <span className="inline-flex items-center gap-2 font-bold text-slate-800">
@@ -617,7 +618,7 @@ export default function AdminEmailCampaignsPage() {
               </p>
             </div>
 
-            <div className="space-y-3 xl:order-1">
+            <div className="flex min-h-0 flex-col gap-3 xl:order-1">
               <div className="rounded-lg border border-blue-100 bg-white p-3 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Send size={17} className="text-blue-600" />
@@ -642,12 +643,12 @@ export default function AdminEmailCampaignsPage() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
                   <h2 className="font-bold text-slate-900">Saved campaigns</h2>
                   <p className="text-xs font-semibold text-slate-500">Limit: {config?.sendLimit ?? 100}/click</p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="h-full overflow-auto">
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                       <tr>
@@ -680,15 +681,15 @@ export default function AdminEmailCampaignsPage() {
             </div>
           </div>
         ) : activeView === 'inbox' ? (
-          <div className="grid min-h-[620px] gap-5 xl:grid-cols-[360px_1fr]">
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="grid h-full min-h-0 gap-3 xl:grid-cols-[340px_1fr]">
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-200 p-4">
                 <div className="relative">
                   <Search size={15} className="absolute left-3 top-2.5 text-slate-400" />
                   <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search inbox" className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm" />
                 </div>
               </div>
-              <div className="max-h-[560px] overflow-y-auto">
+              <div className="min-h-0 flex-1 overflow-y-auto">
                 {threads.map((thread) => (
                   <button key={thread.key} onClick={() => setActiveThreadKey(thread.key)} className={`block w-full border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50 ${activeThread?.key === thread.key ? 'bg-blue-50' : ''}`}>
                     <div className="flex items-center justify-between gap-3">
@@ -703,14 +704,14 @@ export default function AdminEmailCampaignsPage() {
               </div>
             </div>
 
-            <div className="flex min-h-[620px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
               {activeThread ? (
                 <>
                   <div className="border-b border-slate-200 px-5 py-4">
                     <p className="font-bold text-slate-900">{activeThread.customer}</p>
                     <p className="text-sm text-slate-500">{activeThread.campaign?.name || activeThread.last.subject}</p>
                   </div>
-                  <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-5">
+                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4">
                     {activeThread.messages.map((message) => (
                       <div key={message.id} className={`max-w-3xl rounded-lg border p-4 shadow-sm ${message.direction === 'inbound' ? 'border-blue-100 bg-white' : 'ml-auto border-emerald-100 bg-emerald-50'}`}>
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -739,8 +740,8 @@ export default function AdminEmailCampaignsPage() {
             </div>
           </div>
         ) : (
-          <div className="grid min-h-[620px] gap-5 xl:grid-cols-[340px_1fr]">
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="grid h-full min-h-0 gap-3 xl:grid-cols-[320px_1fr]">
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
               <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
                 <div>
                   <h2 className="font-bold text-slate-900">Audiences</h2>
@@ -759,7 +760,7 @@ export default function AdminEmailCampaignsPage() {
                   <Plus size={14} /> New
                 </button>
               </div>
-              <div className="max-h-[560px] overflow-y-auto">
+              <div className="min-h-0 flex-1 overflow-y-auto">
                 {audiences.map((audience) => (
                   <button
                     key={audience.id}
@@ -782,7 +783,7 @@ export default function AdminEmailCampaignsPage() {
             </div>
 
             {showAudienceForm ? (
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="h-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <Upload size={17} className="text-blue-600" />
@@ -828,7 +829,7 @@ export default function AdminEmailCampaignsPage() {
                 </div>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
                   <div>
                     <h2 className="font-bold text-slate-900">{activeAudience?.name || 'Audience detail'}</h2>
@@ -836,7 +837,7 @@ export default function AdminEmailCampaignsPage() {
                   </div>
                   {activeAudience && <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(activeAudience.status)}`}>{activeAudience.status}</span>}
                 </div>
-                <div className="overflow-x-auto">
+                <div className="min-h-0 flex-1 overflow-auto">
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                       <tr>
@@ -865,6 +866,7 @@ export default function AdminEmailCampaignsPage() {
             )}
           </div>
         )}
+        </div>
       </div>
     </AdminLayout>
   );
