@@ -55,7 +55,13 @@ export default function AboutPage() {
                   CreditTrust is a technology-driven financial analytics and assessment platform designed to simplify financial insights for individuals and business partners.
                 </p>
                 <p className="mt-5 text-fg-muted text-lg leading-relaxed">
+                  CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. Fin Coopers Tech India Private Limited owns the CreditTrust website, platform, brand assets, reports, and related workflows.
+                </p>
+                <p className="mt-5 text-fg-muted text-lg leading-relaxed">
                   Our platform enables users to securely access consent-based financial assessment workflows, digital onboarding services, and detailed financial health reports through a seamless online experience.
+                </p>
+                <p className="mt-5 text-fg-muted text-lg leading-relaxed">
+                  CreditTrust provides credit report analysis and financial health insights. It does not guarantee loan approval, credit score improvement, or lender decisions.
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row gap-3">
                   <Link href="/get-my-report" className="btn-primary inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl">
@@ -73,7 +79,7 @@ export default function AboutPage() {
                 </div>
                 <h2 className="text-lg font-bold text-fg mb-4">Operated by Fin Coopers Tech India Private Limited</h2>
                 <p className="text-sm text-fg-muted leading-relaxed mb-5">
-                  CreditTrust is operated and managed by Fin Coopers Tech India Private Limited, working as a technology and sourcing partner within the financial ecosystem.
+                  CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. Fin Coopers Tech India Private Limited owns the CreditTrust website, platform, brand assets, reports, and related workflows.
                 </p>
                 <div className="space-y-4">
                   {[

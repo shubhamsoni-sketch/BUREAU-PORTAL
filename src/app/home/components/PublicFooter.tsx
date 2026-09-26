@@ -33,10 +33,19 @@ export default function PublicFooter() {
               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
                 <span className="text-white font-bold text-sm">I</span>
               </div>
-              <span className="text-slate-900 font-bold text-lg tracking-tight">Credit Trust</span>
+              <span className="text-slate-900 font-bold text-lg tracking-tight">CreditTrust</span>
             </Link>
             <p className="text-slate-500 text-sm leading-relaxed max-w-xs">
               Consent-based financial health reports for individuals and approved partner workflows.
+            </p>
+            <p className="mt-3 text-slate-500 text-sm leading-relaxed max-w-md">
+              CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. Fin Coopers Tech India Private Limited owns the CreditTrust website, platform, brand assets, reports, and related workflows.
+            </p>
+            <p className="mt-2 text-slate-500 text-sm">
+              Contact:{' '}
+              <a href="mailto:support@credittrust.in" className="hover:text-slate-900 transition-colors">
+                support@credittrust.in
+              </a>
             </p>
           </div>
 
@@ -61,7 +70,7 @@ export default function PublicFooter() {
 
         <div className="mt-12 pt-8 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-400 text-sm">
-            © {new Date().getFullYear()} CreditTrust. All rights reserved by Fin Coopers Tech India Private Limited.
+            © 2026 CreditTrust. A brand/platform owned and operated by Fin Coopers Tech India Private Limited. All rights reserved.
           </p>
           <div className="flex items-center gap-6 flex-wrap justify-center">
             <Link href="/privacy-policy" className="text-slate-400 hover:text-slate-600 text-sm transition-colors">

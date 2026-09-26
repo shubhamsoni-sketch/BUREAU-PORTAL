@@ -48,7 +48,7 @@ const AppLogo = memo(function AppLogo({
       {logoSrc ? (
         <AppImage
           src={logoSrc}
-          alt="Credit Trust Logo"
+          alt="CreditTrust"
           width={width ?? Math.round(size * 3.1)}
           height={height ?? size}
           className={`flex-shrink-0 object-contain ${imageClassName}`}

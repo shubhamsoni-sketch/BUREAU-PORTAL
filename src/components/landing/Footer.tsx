@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import AppLogo from '@/components/ui/AppLogo';
 
 const footerLinks = [
@@ -16,12 +16,6 @@ const footerLinks = [
 ];
 
 export default function Footer() {
-  const [year, setYear] = useState('');
-
-  useEffect(() => {
-    setYear(new Date().getFullYear().toString());
-  }, []);
-
   return (
     <footer className="border-t border-white/5 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -31,6 +25,9 @@ export default function Footer() {
             <div className="sm:border-l sm:border-white/10 sm:pl-3">
               <p className="text-fg-subtle text-xs">
                 Financial health reports for individuals and partners.
+              </p>
+              <p className="mt-1 text-xs text-fg-muted max-w-xl">
+                CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. Fin Coopers Tech India Private Limited owns the CreditTrust website, platform, brand assets, reports, and related workflows.
               </p>
               <p className="mt-1 text-xs text-fg-muted">
                 To know more, mail us at{' '}
@@ -61,9 +58,7 @@ export default function Footer() {
 
         <div className="mt-5 pt-5 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-fg-subtle">
           <span>
-            {year
-              ? `© ${year} CreditTrust. All rights reserved by Fin Coopers Tech India Private Limited.`
-              : '© CreditTrust. All rights reserved by Fin Coopers Tech India Private Limited.'}
+            © 2026 CreditTrust. A brand/platform owned and operated by Fin Coopers Tech India Private Limited. All rights reserved.
           </span>
           <span className="text-center">Independent financial intelligence platform for credit health workflows.</span>
         </div>

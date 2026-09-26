@@ -3,7 +3,7 @@ import LegalPage from '@/components/legal/LegalPage';
 const sections = [
   {
     title: 'Legal Entity',
-    body: 'CreditTrust is operated and managed by Fin Coopers Tech India Private Limited. References to Credit Trust, CreditTrust, the website, partner portal, customer journey, and related services mean services operated by Fin Coopers Tech India Private Limited.',
+    body: 'CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. Fin Coopers Tech India Private Limited owns the CreditTrust website, platform, brand assets, reports, and related workflows.',
   },
   {
     title: 'Acceptance Of Terms',
@@ -12,8 +12,8 @@ const sections = [
   {
     title: 'Services',
     bullets: [
-      'Credit Trust provides digital financial health report workflows for individuals.',
-      'Credit Trust provides partner tools for approved partners, including wallet, invoices, report requests, report history, agreements, and customer master workflows.',
+      'CreditTrust provides digital financial health report workflows for individuals.',
+      'CreditTrust provides partner tools for approved partners, including wallet, invoices, report requests, report history, agreements, and customer master workflows.',
       'Services may depend on third-party payment gateways, data providers, banks, cloud infrastructure, communication providers, and verification systems.',
       'Availability of any service may depend on user eligibility, payment status, consent, provider response, account status, and compliance checks.',
     ],
@@ -28,7 +28,7 @@ const sections = [
   },
   {
     title: 'Consent Requirement',
-    body: 'Financial health report processing is consent-based. By submitting your details, verifying your mobile number, accepting consent, making payment, or asking an approved partner to process your request, you expressly authorize Credit Trust and its authorized service/data partners to use the submitted information to create, fetch, process, store, and display your financial health report for the requested purpose. A report request must not be initiated for any person without valid authorization. Unauthorized report access is strictly prohibited and may lead to account suspension, denial of refund, legal action, and reporting to relevant parties.',
+    body: 'Financial health report processing is consent-based. By submitting your details, verifying your mobile number, accepting consent, making payment, or asking an approved partner to process your request, you expressly authorize CreditTrust and its authorized service/data partners to use the submitted information to create, fetch, process, store, and display your financial health report for the requested purpose. A report request must not be initiated for any person without valid authorization. Unauthorized report access is strictly prohibited and may lead to account suspension, denial of refund, legal action, and reporting to relevant parties.',
   },
   {
     title: 'Credit Information And Consent Compliance',
@@ -91,7 +91,7 @@ export default function TermsAndConditionsPage() {
     <LegalPage
       eyebrow="Terms"
       title="Terms And Conditions"
-      intro="These Terms and Conditions govern access to Credit Trust website, customer financial health report journey, partner portal, admin-supported workflows, payments, invoices, and related services."
+      intro="These Terms and Conditions govern access to the CreditTrust website, customer financial health report journey, partner portal, admin-supported workflows, payments, invoices, and related services."
       updatedAt="12 May 2026"
       sections={sections}
     />

@@ -36,7 +36,7 @@ export default function PublicNav() {
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
               <span className="text-white font-bold text-sm">I</span>
             </div>
-            <span className="text-slate-900 font-bold text-lg tracking-tight">Credit Trust</span>
+            <span className="text-slate-900 font-bold text-lg tracking-tight">CreditTrust</span>
           </Link>
 
           {/* Desktop Nav */}

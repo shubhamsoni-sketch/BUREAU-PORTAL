@@ -74,7 +74,7 @@ export default function GetReportSection({ formRef }: GetReportSectionProps) {
                   Your report should be simple enough to act on.
                 </h3>
                 <p className="text-fg-muted mt-4 max-w-xl leading-relaxed">
-                  Credit Trust turns credit and repayment data into a clean financial health view, so you know what looks strong and what needs attention.
+                  CreditTrust turns credit and repayment data into a clean financial health view, so you know what looks strong and what needs attention.
                 </p>
               </div>
 

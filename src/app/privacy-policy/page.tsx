@@ -3,7 +3,7 @@ import LegalPage from '@/components/legal/LegalPage';
 const sections = [
   {
     title: 'Legal Entity',
-    body: 'CreditTrust is operated and managed by Fin Coopers Tech India Private Limited. All rights in the CreditTrust platform, website, brand materials, and related workflows are reserved by Fin Coopers Tech India Private Limited.',
+    body: 'CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. Fin Coopers Tech India Private Limited owns the CreditTrust website, platform, brand assets, reports, and related workflows.',
   },
   {
     title: 'Information We Collect',
@@ -79,7 +79,7 @@ export default function PrivacyPolicyPage() {
     <LegalPage
       eyebrow="Privacy Policy"
       title="Privacy Policy"
-      intro="This Privacy Policy explains how Credit Trust collects, uses, protects, stores, and shares information when individuals, partners, admins, or website visitors use our financial health report and partner workflow platform."
+      intro="This Privacy Policy explains how CreditTrust collects, uses, protects, stores, and shares information when individuals, partners, admins, or website visitors use our financial health report and partner workflow platform."
       updatedAt="12 May 2026"
       sections={sections}
     />

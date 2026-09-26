@@ -18,9 +18,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Credit Trust - Financial Health Analysis Platform',
+  title: 'CreditTrust - Financial Health Analysis Platform',
   description:
-    'Credit Trust helps individuals and financial partners generate clear financial health reports with credit score insights, repayment analysis, and wallet-based partner workflows.',
+    'CreditTrust helps individuals and financial partners generate clear financial health reports with credit score insights, repayment analysis, and wallet-based partner workflows.',
   icons: {
     icon: [
       { url: '/favicon.svg?v=2', type: 'image/svg+xml' },
