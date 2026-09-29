@@ -19,7 +19,11 @@ type JaadugarCibilPayload = {
 };
 
 const PORTAL_DEFAULTS = {
+  dob: '2000-01-01',
   gender: 'male',
+  address: 'CreditTrust Verified Address',
+  state: 'MADHYA PRADESH',
+  pincode: '452001',
 };
 
 function jsonError(message: string, status = 400, requestId?: string) {
@@ -177,33 +181,36 @@ function normalizeState(value: unknown) {
   return getStateName(state);
 }
 
-function normalizePayload(body: Record<string, unknown>): JaadugarCibilPayload {
+function normalizePayload(body: Record<string, unknown>, options: { useLegacyDefaults?: boolean } = {}): JaadugarCibilPayload {
   const fullName = splitName(body.name || body.fullName || body.customerName);
   const rawGender = body.gender_code || body.genderCode || body.gender || body.sex;
   const rawState = body.state_code || body.stateCode || body.state || body.stateName || body.state_name;
+  const useLegacyDefaults = Boolean(options.useLegacyDefaults);
   return {
     firstName: cleanString(body.firstName || body.first_name).toUpperCase() || fullName.firstName,
     lastName: cleanString(body.lastName || body.last_name).toUpperCase() || fullName.lastName,
-    dob: cleanString(body.dob || body.birthDate || body.dateOfBirth || body.date_of_birth),
+    dob: cleanString(body.dob || body.birthDate || body.dateOfBirth || body.date_of_birth) || (useLegacyDefaults ? PORTAL_DEFAULTS.dob : ''),
     gender: normalizeGender(rawGender) || PORTAL_DEFAULTS.gender,
     pan: cleanString(body.pan || body.idNumber).toUpperCase(),
     mobile: digits(body.mobile || body.telephoneNumber || body.mobile_number || body.mobileNumber).slice(-10),
-    address: cleanString(body.address || body.detailed_address || body.detailedAddress),
-    state: normalizeState(rawState),
-    pincode: digits(body.pincode || body.pinCode || body.pin_code).slice(0, 6),
+    address: cleanString(body.address || body.detailed_address || body.detailedAddress) || (useLegacyDefaults ? PORTAL_DEFAULTS.address : ''),
+    state: normalizeState(rawState) || (useLegacyDefaults ? PORTAL_DEFAULTS.state : ''),
+    pincode: digits(body.pincode || body.pinCode || body.pin_code).slice(0, 6) || (useLegacyDefaults ? PORTAL_DEFAULTS.pincode : ''),
   };
 }
 
-function validatePayload(payload: JaadugarCibilPayload) {
-  const required: Array<keyof JaadugarCibilPayload> = ['firstName', 'lastName', 'dob', 'gender', 'pan', 'mobile', 'address', 'state', 'pincode'];
+function validatePayload(payload: JaadugarCibilPayload, options: { requireFullPayload?: boolean } = {}) {
+  const required: Array<keyof JaadugarCibilPayload> = options.requireFullPayload
+    ? ['firstName', 'lastName', 'dob', 'gender', 'pan', 'mobile', 'address', 'state', 'pincode']
+    : ['firstName', 'lastName', 'pan', 'mobile'];
   const missing = required.filter((field) => !payload[field]);
   if (missing.includes('firstName') || missing.includes('lastName')) return 'name must include first and last name';
   if (missing.length) return `Missing required fields: ${missing.join(', ')}`;
-  if (!/^\d{2}-\d{2}-\d{4}$/.test(payload.dob)) return 'dob must be DD-MM-YYYY';
-  if (!['male', 'female', 'transgender'].includes(payload.gender.toLowerCase())) return 'gender must be male, female, or transgender';
+  if (options.requireFullPayload && !/^\d{2}-\d{2}-\d{4}$/.test(payload.dob)) return 'dob must be DD-MM-YYYY';
+  if (options.requireFullPayload && !['male', 'female', 'transgender'].includes(payload.gender.toLowerCase())) return 'gender must be male, female, or transgender';
   if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(payload.pan)) return 'pan must be a valid PAN format';
   if (!/^\d{10}$/.test(payload.mobile)) return 'mobile must be 10 digits';
-  if (!/^\d{6}$/.test(payload.pincode)) return 'pincode must be 6 digits';
+  if (options.requireFullPayload && !/^\d{6}$/.test(payload.pincode)) return 'pincode must be 6 digits';
   return null;
 }
 
@@ -264,7 +271,8 @@ export async function POST(request: NextRequest) {
     const requestBody = body && typeof body === 'object' && !Array.isArray(body)
       ? body as Record<string, unknown>
       : {};
-    const payload = normalizePayload(requestBody);
+    const requiresStandardResponse = shouldReturnCreditTrustStandard(client.metadata);
+    const payload = normalizePayload(requestBody, { useLegacyDefaults: !requiresStandardResponse });
     const baseLog = {
       id: crypto.randomUUID(),
       request_id: requestId,
@@ -310,9 +318,9 @@ export async function POST(request: NextRequest) {
     const cost = Math.max(1, Number(api.per_hit_credits || 1));
     if (Number(client.credits || 0) < cost) return saveFailure('Insufficient credits', 402);
 
-    const validationError = validatePayload(payload);
+    const validationError = validatePayload(payload, { requireFullPayload: requiresStandardResponse });
     if (validationError) return saveFailure(validationError, 400);
-    if (shouldReturnCreditTrustStandard(client.metadata)) {
+    if (requiresStandardResponse) {
       const consentError = validateConsent(requestBody);
       if (consentError) return saveFailure(consentError, 400);
     }
@@ -398,7 +406,7 @@ export async function POST(request: NextRequest) {
       console.warn('[api-hub:cibil] bureau pull archive skipped:', archiveError);
     }
 
-    if (shouldReturnCreditTrustStandard(client.metadata)) {
+    if (requiresStandardResponse) {
       return NextResponse.json(normalizeBureauStandardResponse({
         requestId,
         environment: clientEnvironment(client.metadata),
