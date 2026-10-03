@@ -148,11 +148,33 @@ function normalizeBureauStandardResponse(params: {
 
 function shouldReturnCreditTrustStandard(metadata: unknown) {
   if (!isRecord(metadata)) return false;
-  const mode = cleanString(metadata.response_mode || metadata.responseMode || metadata.delivery_mode).toLowerCase();
+  const response = isRecord(metadata.response) ? metadata.response : {};
+  const mode = cleanString(
+    metadata.response_mode
+    || metadata.responseMode
+    || metadata.delivery_mode
+    || response.mode,
+  ).toLowerCase();
   return ['credittrust_standard', 'binta_standard', 'normalized'].includes(mode);
 }
 
-function clientEnvironment(metadata: unknown) {
+function isBintaClient(client: { name?: unknown; company_name?: unknown; metadata?: unknown }) {
+  const metadata = isRecord(client.metadata) ? client.metadata : {};
+  const legal = isRecord(metadata.legal) ? metadata.legal : {};
+  const scope = cleanString(metadata.bridge_console_scope || metadata.console_scope).toLowerCase();
+  const identity = [
+    client.name,
+    client.company_name,
+    legal.legal_entity_name,
+  ].map(cleanString).join(' ').toLowerCase();
+
+  return scope === 'binta_bridge' || identity.includes('binta financial');
+}
+
+function clientEnvironment(metadata: unknown, keyEnvironment?: string) {
+  const keyEnv = cleanString(keyEnvironment).toLowerCase();
+  if (keyEnv === 'uat') return 'uat';
+  if (keyEnv === 'production' || keyEnv === 'live') return 'production';
   if (!isRecord(metadata)) return 'production';
   const environment = cleanString(metadata.environment || metadata.env).toLowerCase();
   return environment === 'uat' ? 'uat' : 'production';
@@ -271,7 +293,13 @@ export async function POST(request: NextRequest) {
     const requestBody = body && typeof body === 'object' && !Array.isArray(body)
       ? body as Record<string, unknown>
       : {};
-    const requiresStandardResponse = shouldReturnCreditTrustStandard(client.metadata);
+    const isBintaBureauRequest = request.headers.get('x-credittrust-bureau-mode') === 'binta'
+      || request.nextUrl.pathname.includes('/bureau-binta');
+    if (isBintaBureauRequest && !isBintaClient(client)) {
+      return jsonError('API key is not allowed for Binta Bureau API', 403, requestId);
+    }
+
+    const requiresStandardResponse = isBintaBureauRequest || shouldReturnCreditTrustStandard(client.metadata);
     const payload = normalizePayload(requestBody, { useLegacyDefaults: !requiresStandardResponse });
     const baseLog = {
       id: crypto.randomUUID(),
@@ -283,7 +311,7 @@ export async function POST(request: NextRequest) {
       masked_mobile: maskMobile(payload.mobile),
       created_at: new Date().toISOString(),
     };
-    const apiCode = api.code;
+    const apiCode = isBintaBureauRequest ? 'bureau-binta' : api.code;
     const currentBalance = () => Number(client.credits || 0);
 
     async function saveFailure(message: string, status = 400, responseJson?: unknown, providerStatus?: number) {
@@ -409,7 +437,7 @@ export async function POST(request: NextRequest) {
     if (requiresStandardResponse) {
       return NextResponse.json(normalizeBureauStandardResponse({
         requestId,
-        environment: clientEnvironment(client.metadata),
+        environment: clientEnvironment(client.metadata, keyRecord.environment),
         requestBody,
         payload,
         responseData: response.data,
