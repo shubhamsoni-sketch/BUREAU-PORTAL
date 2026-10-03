@@ -295,11 +295,15 @@ export async function POST(request: NextRequest) {
       : {};
     const isBintaBureauRequest = request.headers.get('x-credittrust-bureau-mode') === 'binta'
       || request.nextUrl.pathname.includes('/bureau-binta');
-    if (isBintaBureauRequest && !isBintaClient(client)) {
+    const isBintaContractClient = isBintaClient(client);
+    if (isBintaBureauRequest && !isBintaContractClient) {
       return jsonError('API key is not allowed for Binta Bureau API', 403, requestId);
     }
 
-    const requiresStandardResponse = isBintaBureauRequest || shouldReturnCreditTrustStandard(client.metadata);
+    // Binta has already received docs for /api/v1/source, so keep that endpoint
+    // compatible while still enforcing the dedicated normalized response contract.
+    const usesBintaContract = isBintaBureauRequest || isBintaContractClient;
+    const requiresStandardResponse = usesBintaContract || shouldReturnCreditTrustStandard(client.metadata);
     const payload = normalizePayload(requestBody, { useLegacyDefaults: !requiresStandardResponse });
     const baseLog = {
       id: crypto.randomUUID(),
@@ -311,7 +315,7 @@ export async function POST(request: NextRequest) {
       masked_mobile: maskMobile(payload.mobile),
       created_at: new Date().toISOString(),
     };
-    const apiCode = isBintaBureauRequest ? 'bureau-binta' : api.code;
+    const apiCode = usesBintaContract ? 'bureau-binta' : api.code;
     const currentBalance = () => Number(client.credits || 0);
 
     async function saveFailure(message: string, status = 400, responseJson?: unknown, providerStatus?: number) {
