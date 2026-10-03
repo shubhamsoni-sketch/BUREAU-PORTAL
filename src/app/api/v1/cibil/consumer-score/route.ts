@@ -200,7 +200,8 @@ function normalizeState(value: unknown) {
   const state = cleanString(value);
   if (!state) return '';
   if (/^\d{1,2}$/.test(state)) return STATE_NAME_BY_CODE[state.padStart(2, '0')] || '';
-  return getStateName(state);
+  const normalizedState = getStateName(state);
+  return Object.values(STATE_NAME_BY_CODE).includes(normalizedState) ? normalizedState : '';
 }
 
 function normalizePayload(body: Record<string, unknown>, options: { useLegacyDefaults?: boolean } = {}): JaadugarCibilPayload {
