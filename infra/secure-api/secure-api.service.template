@@ -1,0 +1,22 @@
+[Unit]
+Description=CreditTrust secure API mTLS attestation proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=credittrust-proxy
+Group=credittrust-proxy
+EnvironmentFile=/etc/credittrust/secure-api/proxy.env
+ExecStart=/usr/bin/node /opt/credittrust/secure-api/proxy.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/credittrust/secure-api
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

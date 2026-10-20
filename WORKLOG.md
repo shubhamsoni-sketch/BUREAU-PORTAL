@@ -971,3 +971,10 @@ Verification:
 
 - `npm run build -- --no-lint` passed.
 - `npm run type-check -- --pretty false` passed.
+
+# 2026-10-20 Binta production release staging
+
+- Prepared an isolated release checkout from `origin/main` with only the Binta API contract commits and production implementation; did not deploy the dirty development checkout.
+- Kept the legacy non-Binta standard response normalizer identical to the release baseline. Added separate Binta production normalization, mTLS attestation, atomic live-credit migration, and console certificate/IP/key gates.
+- Verified synthetic Binta contract and proxy tests, TypeScript type-check, and optimized Next.js build. No live bureau call, production key, credits, database migration, or app deployment occurred.
+- Release remains blocked by Supabase migration-history divergence, blocked rollback-check command, Vercel project authorization, unconfigured app-side proxy secret, and positive Binta client-certificate testing. See `docs/tasks/binta-production-readiness.md`.

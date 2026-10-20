@@ -4,6 +4,7 @@ import { getClientPortalSession } from '@/lib/api-hub/client-portal-auth';
 import { hashApiKey } from '@/lib/api-hub/keys';
 import { getApiHubStore, saveApiHubStore, SimpleSupportTicket } from '@/lib/api-hub/simple-store';
 import { listApiUsageLedger } from '@/lib/api-hub/usage-ledger';
+import { getBintaLiveBalance } from '@/lib/api-hub/binta-live-ledger';
 
 const SUPPORT_EMAIL = process.env.API_HUB_SUPPORT_EMAIL || process.env.SUPPORT_EMAIL || 'support@credittrust.in';
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Credit Trust Bridge <support@credittrust.in>';
@@ -132,7 +133,12 @@ export async function GET(request: NextRequest) {
     const usage = ledger.rows || [];
     const successCount = usage.filter((row: Record<string, unknown>) => row.status === 'success').length;
     const failedCount = usage.filter((row: Record<string, unknown>) => row.status === 'failed').length;
-    const liveCredits = Number((auth.client.metadata as Record<string, unknown> | undefined)?.live_credits || 0);
+    const metadata = (auth.client.metadata || {}) as Record<string, unknown>;
+    const isBridgeClient = metadata.bridge_console_scope === 'binta_bridge'
+      || `${auth.client.name} ${auth.client.company_name || ''}`.toLowerCase().includes('binta financial');
+    const liveCredits = isBridgeClient
+      ? await getBintaLiveBalance(auth.supabase, auth.client.id)
+      : Number(metadata.live_credits || 0);
 
     return NextResponse.json({
       success: true,

@@ -1,0 +1,291 @@
+{
+  "success": true,
+  "request_id": "ct_uat_req_20260926_0001",
+  "environment": "uat",
+  "response_version": "binta-schedule-a-v1",
+  "status": "completed",
+  "source": "BUREAU",
+  "processing": {
+    "response_time_ms": 1840,
+    "generated_at": "2026-09-26T14:35:22+05:30",
+    "source_raw_json_included": false,
+    "normalization_policy": "schedule_a_normalized_bureau_report"
+  },
+  "consent": {
+    "validated": true,
+    "consent_timestamp": "1789012300",
+    "consent_reference": "binta-consent-uat-0001"
+  },
+  "input": {
+    "mandatory_fields_received": [
+      "firstName",
+      "lastName",
+      "dob",
+      "pan",
+      "mobile",
+      "gender",
+      "address",
+      "state",
+      "pincode"
+    ],
+    "identity": {
+      "first_name": "RAJ",
+      "middle_name": "",
+      "last_name": "PATEL",
+      "dob": "1995-01-01",
+      "gender": "male",
+      "pan_masked": "ABCDE****F",
+      "mobile_masked": "98******99"
+    }
+  },
+  "score": {
+    "available": true,
+    "score_range": "740-745",
+    "score_band": "good"
+  },
+  "account_summary": {
+    "total_accounts": 12,
+    "active_accounts": 6,
+    "closed_or_zero_balance_accounts": 6,
+    "overdue_accounts": 0,
+    "delinquent_accounts": 0,
+    "total_current_balance": 6869544,
+    "total_overdue_balance": 0,
+    "high_credit_amount_total": 8237316,
+    "oldest_account_opened_on": "1994-01-12",
+    "recent_account_opened_on": "2026-08-22"
+  },
+  "inquiry_summary": {
+    "total_inquiries": 7,
+    "inquiries_past_30_days": 0,
+    "inquiries_past_12_months": 7,
+    "inquiries_past_24_months": 0,
+    "recent_inquiry_date": "2026-08-17"
+  },
+  "identities": [
+    {
+      "type": "PAN",
+      "id_masked": "ABCDE****F"
+    }
+  ],
+  "contacts": {
+    "mobiles": [
+      {
+        "mobile_masked": "98******99",
+        "type": "mobile"
+      }
+    ],
+    "emails": []
+  },
+  "addresses": [
+    {
+      "sequence": 1,
+      "address_line_1": "221B EXAMPLE ROAD",
+      "address_line_2": "EXAMPLE AREA",
+      "address_line_3": "EXAMPLE CITY",
+      "state_code": "27",
+      "state": "MAHARASHTRA",
+      "pincode": "400059",
+      "address_category": "residence",
+      "date_reported": "2026-09-16"
+    }
+  ],
+  "employment": [
+    {
+      "sequence": 1,
+      "occupation_code": "01",
+      "income": 75000,
+      "income_type": "gross",
+      "income_frequency": "monthly",
+      "date_reported": "2026-09-16"
+    }
+  ],
+  "tradelines": [
+    {
+      "sequence": 1,
+      "loan_type": "Credit Card",
+      "account_category": "revolving_credit",
+      "ownership": "Individual",
+      "account_status": "Active or reported open",
+      "date_opened": "2026-08-22",
+      "date_closed": null,
+      "last_payment_date": null,
+      "date_reported": "2026-09-16",
+      "current_balance": 12920,
+      "high_credit_amount": 12919,
+      "credit_limit": 20000,
+      "amount_overdue": 0,
+      "emi_amount": null,
+      "dpd": {
+        "max_days_last_36_months": 0,
+        "bucket": "0",
+        "delinquency_indicator": false
+      },
+      "payment_history": [
+        {
+          "month": "2026-09",
+          "dpd": "000"
+        },
+        {
+          "month": "2026-08",
+          "dpd": "000"
+        },
+        {
+          "month": "2026-07",
+          "dpd": "000"
+        }
+      ]
+    },
+    {
+      "sequence": 2,
+      "loan_type": "Housing Loan",
+      "account_category": "installment_or_term_credit",
+      "ownership": "Joint",
+      "account_status": "Active or reported open",
+      "date_opened": "2026-05-12",
+      "date_closed": null,
+      "last_payment_date": null,
+      "date_reported": "2026-08-31",
+      "current_balance": 6683726,
+      "high_credit_amount": 6700000,
+      "credit_limit": null,
+      "amount_overdue": 0,
+      "emi_amount": null,
+      "dpd": {
+        "max_days_last_36_months": 0,
+        "bucket": "0",
+        "delinquency_indicator": false
+      },
+      "payment_history": [
+        {
+          "month": "2026-08",
+          "dpd": "000"
+        },
+        {
+          "month": "2026-07",
+          "dpd": "000"
+        },
+        {
+          "month": "2026-06",
+          "dpd": "000"
+        }
+      ]
+    },
+    {
+      "sequence": 3,
+      "loan_type": "Personal Loan",
+      "account_category": "installment_or_term_credit",
+      "ownership": "Joint",
+      "account_status": "Active or reported open",
+      "date_opened": "2026-05-12",
+      "date_closed": null,
+      "last_payment_date": null,
+      "date_reported": "2026-08-31",
+      "current_balance": 127215,
+      "high_credit_amount": 127524,
+      "credit_limit": null,
+      "amount_overdue": 0,
+      "emi_amount": null,
+      "dpd": {
+        "max_days_last_36_months": 0,
+        "bucket": "0",
+        "delinquency_indicator": false
+      },
+      "payment_history": [
+        {
+          "month": "2026-08",
+          "dpd": "000"
+        },
+        {
+          "month": "2026-07",
+          "dpd": "000"
+        },
+        {
+          "month": "2026-06",
+          "dpd": "000"
+        }
+      ]
+    },
+    {
+      "sequence": 4,
+      "loan_type": "Overdraft",
+      "account_category": "installment_or_term_credit",
+      "ownership": "Individual",
+      "account_status": "Active or reported open",
+      "date_opened": "2024-03-21",
+      "date_closed": null,
+      "last_payment_date": null,
+      "date_reported": "2026-09-20",
+      "current_balance": -971,
+      "high_credit_amount": 41250,
+      "credit_limit": null,
+      "amount_overdue": 0,
+      "emi_amount": null,
+      "dpd": {
+        "max_days_last_36_months": 0,
+        "bucket": "0",
+        "delinquency_indicator": false
+      },
+      "payment_history": [
+        {
+          "month": "2026-09",
+          "dpd": "000"
+        },
+        {
+          "month": "2026-08",
+          "dpd": "000"
+        },
+        {
+          "month": "2026-07",
+          "dpd": "000"
+        }
+      ]
+    },
+    {
+      "sequence": 5,
+      "loan_type": "Credit Card",
+      "account_category": "revolving_credit",
+      "ownership": "Individual",
+      "account_status": "Closed or zero-balance",
+      "date_opened": "2023-03-19",
+      "date_closed": null,
+      "last_payment_date": null,
+      "date_reported": "2025-07-31",
+      "current_balance": 0,
+      "high_credit_amount": 369,
+      "credit_limit": 50000,
+      "amount_overdue": 0,
+      "emi_amount": null,
+      "dpd": {
+        "max_days_last_36_months": 0,
+        "bucket": "0",
+        "delinquency_indicator": false
+      },
+      "payment_history": [
+        {
+          "month": "2025-07",
+          "dpd": "000"
+        },
+        {
+          "month": "2025-06",
+          "dpd": "000"
+        },
+        {
+          "month": "2025-05",
+          "dpd": "000"
+        }
+      ]
+    }
+  ],
+  "enquiries": [
+    {
+      "sequence": 1,
+      "enquiry_date": "2026-08-17",
+      "purpose_code": "10",
+      "purpose": "credit card",
+      "amount": 101000
+    }
+  ],
+  "disputes": []
+}
+

@@ -37,6 +37,7 @@ type ClientOnboarding = {
   sslStatus: GateStatus;
   uatIpStatus: GateStatus;
   productionIpStatus: GateStatus;
+  productionCertificateStatus: GateStatus;
   uatCredentialsStatus: GateStatus;
   payloadValidationStatus: GateStatus;
   uatSignoffStatus: GateStatus;
@@ -45,6 +46,7 @@ type ClientOnboarding = {
   sslCommonName: string;
   csrReference: string;
   certificateExpiry: string;
+  productionCertificateFingerprint: string;
   uatSignoffBy: string;
   uatSignoffAt: string;
 };
@@ -198,6 +200,7 @@ const onboardingSteps: Array<{ key: keyof ClientOnboarding; label: string; stage
   { key: 'payloadValidationStatus', label: 'Payload validation passed', stage: 'UAT', description: 'Mandatory fields, consent and schema verified' },
   { key: 'uatSignoffStatus', label: 'UAT sign-off', stage: 'Sign-Off', description: 'Client confirms UAT request-response round trips' },
   { key: 'productionIpStatus', label: 'Production IP whitelisted', stage: 'Production', description: 'Production static IPs approved' },
+  { key: 'productionCertificateStatus', label: 'Production mTLS installed', stage: 'Production', description: 'Client certificate pinned at the secure edge and independently verified' },
   { key: 'productionCredentialsStatus', label: 'Production credentials issued', stage: 'Production', description: 'Live key released after UAT sign-off' },
   { key: 'goLiveStatus', label: 'Go-live approved', stage: 'Production', description: 'Production traffic allowed and monitored' },
 ];
@@ -213,6 +216,7 @@ function defaultOnboarding(overrides: Partial<ClientOnboarding> = {}): ClientOnb
     sslStatus: 'pending',
     uatIpStatus: 'pending',
     productionIpStatus: 'pending',
+    productionCertificateStatus: 'pending',
     uatCredentialsStatus: 'pending',
     payloadValidationStatus: 'pending',
     uatSignoffStatus: 'pending',
@@ -221,6 +225,7 @@ function defaultOnboarding(overrides: Partial<ClientOnboarding> = {}): ClientOnb
     sslCommonName: 'api.credittrust.in',
     csrReference: '',
     certificateExpiry: '',
+    productionCertificateFingerprint: '',
     uatSignoffBy: '',
     uatSignoffAt: '',
     ...overrides,
@@ -252,6 +257,7 @@ function productionReady(client: Client) {
     'payloadValidationStatus',
     'uatSignoffStatus',
     'productionIpStatus',
+    'productionCertificateStatus',
     'productionCredentialsStatus',
   ].every((key) => client.onboarding[key as keyof ClientOnboarding] === 'done');
 }
@@ -265,6 +271,7 @@ function productionCredentialReady(client: Client) {
     'payloadValidationStatus',
     'uatSignoffStatus',
     'productionIpStatus',
+    'productionCertificateStatus',
   ].every((key) => client.onboarding[key as keyof ClientOnboarding] === 'done');
 }
 
@@ -356,6 +363,7 @@ function mapHubClient(client: HubClient, keys: HubKey[], apis: HubApiConfig[]): 
       sslStatus: (onboarding.sslStatus as GateStatus) || (security.certificate_status === 'active' ? 'done' : 'in_progress'),
       uatIpStatus: (onboarding.uatIpStatus as GateStatus) || (uatIps.length ? 'done' : 'pending'),
       productionIpStatus: (onboarding.productionIpStatus as GateStatus) || (productionIps.length ? 'done' : 'pending'),
+      productionCertificateStatus: (onboarding.productionCertificateStatus as GateStatus) || 'pending',
       uatCredentialsStatus: (onboarding.uatCredentialsStatus as GateStatus) || (keys.some((key) => key.client_id === client.id && key.environment !== 'production' && key.status === 'active') ? 'done' : 'pending'),
       payloadValidationStatus: (onboarding.payloadValidationStatus as GateStatus) || 'pending',
       uatSignoffStatus: (onboarding.uatSignoffStatus as GateStatus) || 'pending',
@@ -364,6 +372,7 @@ function mapHubClient(client: HubClient, keys: HubKey[], apis: HubApiConfig[]): 
       sslCommonName: String(onboarding.sslCommonName || security.csr_common_name || nestedRecord(security, 'binta_client_csr').common_name || 'api.credittrust.in'),
       csrReference: String(onboarding.csrReference || security.certificate_status || ''),
       certificateExpiry: String(onboarding.certificateExpiry || security.certificate_expiry || ''),
+      productionCertificateFingerprint: String(onboarding.productionCertificateFingerprint || security.production_certificate_fingerprint || ''),
       uatSignoffBy: String(onboarding.uatSignoffBy || ''),
       uatSignoffAt,
     }),
@@ -424,6 +433,7 @@ function clientToHubPayload(client: Client) {
         static_ip_required: client.ipWhitelistingRequired,
         uat_static_ips: client.onboarding.uatStaticIps,
         production_static_ips: client.onboarding.productionStaticIps,
+        production_certificate_fingerprint: client.onboarding.productionCertificateFingerprint,
         csr_common_name: client.onboarding.sslCommonName,
         certificate_status: client.onboarding.csrReference,
       },
@@ -1485,6 +1495,9 @@ function ManageClientModal({
             </Field>
             <Field label="Certificate expiry">
               <input value={client.onboarding.certificateExpiry} onChange={(event) => updateOnboarding({ certificateExpiry: event.target.value })} className="input-base" placeholder="Auto-renewed / YYYY-MM-DD" />
+            </Field>
+            <Field label="Production client certificate SHA-256">
+              <input value={client.onboarding.productionCertificateFingerprint} onChange={(event) => updateOnboarding({ productionCertificateFingerprint: event.target.value })} className="input-base" placeholder="Verified certificate fingerprint" />
             </Field>
             <Field label="UAT sign-off by">
               <input value={client.onboarding.uatSignoffBy} onChange={(event) => updateOnboarding({ uatSignoffBy: event.target.value })} className="input-base" placeholder="Client approver" />
