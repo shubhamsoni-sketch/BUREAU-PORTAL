@@ -2337,7 +2337,10 @@ export default function ApiConsolePage() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/admin-api-hub?usage_page_size=10');
+      const response = await fetch('/api/admin-api-hub?usage_page_size=10', {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15000),
+      });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to load Bridge console data');
       setAuthenticated(true);
@@ -2361,7 +2364,9 @@ export default function ApiConsolePage() {
         ? current
         : mappedClients[0]?.id);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unable to load Bridge console data';
+      const message = err instanceof Error && err.name === 'TimeoutError'
+        ? 'Bridge backend timed out. Please refresh and try again.'
+        : err instanceof Error ? err.message : 'Unable to load Bridge console data';
       if (message === 'Unauthorized') setAuthenticated(false);
       setError(message);
     } finally {
@@ -2372,11 +2377,16 @@ export default function ApiConsolePage() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await fetch('/api/hub-console-auth/session');
+        const response = await fetch('/api/hub-console-auth/session', {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!response.ok) throw new Error('Unable to verify Bridge console session.');
         const json = await response.json();
         setAuthenticated(Boolean(json.authenticated));
         if (!json.configured) setError('Bridge console login is not configured.');
-        if (json.authenticated) await loadData();
+        setAuthChecked(true);
+        if (json.authenticated) void loadData();
         else setLoading(false);
       } catch {
         setError('Unable to verify Bridge console session.');

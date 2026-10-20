@@ -984,3 +984,9 @@ Verification:
 - Verified the exact Bureau Portal Supabase project and Vercel project/team. Applied only the Binta atomic migration after a transaction-rollback dry execution; verified the new tables, reservation RPC and migration-history entry.
 - Backfilled nine zero-credit live wallets. No production key, credits, live bureau call or production traffic switch was issued. Unrelated Supabase migration-history divergence remains and was not modified.
 - Vercel CLI access is restored. The release still requires a clean-main production-off deploy, app/proxy secret pairing, positive Binta mTLS test and response-archive/concurrency verification before go-live.
+
+# 2026-10-20 Bridge admin loading fix
+
+- Decoupled the Bridge session check from the admin data fetch so a slow backend cannot leave the page on the initial session spinner indefinitely. Both requests now have bounded timeouts and surface a visible error.
+- Removed the API Hub admin GET's unconditional store write. Repeated reads were updating the store timestamp and could overwrite concurrent onboarding edits with stale normalized data.
+- Kept Binta production disabled; no production key, credit allocation, or live bureau request is part of this fix.

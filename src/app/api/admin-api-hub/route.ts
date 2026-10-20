@@ -343,8 +343,7 @@ export async function GET(request: NextRequest) {
     const auth = await adminContext(request);
     if ('error' in auth) return jsonError(auth.error || 'Unauthorized', auth.status);
 
-    const { rowId, store } = await getApiHubStore(auth.supabase);
-    await saveApiHubStore(auth.supabase, rowId, store);
+    const { store } = await getApiHubStore(auth.supabase);
     if (request.nextUrl.searchParams.get('usage_export') === 'csv') {
       const rows = await exportApiUsageLedger(auth.supabase);
       const columns = ['request_id', 'client_id', 'api_id', 'key_id', 'api_code', 'environment', 'method', 'request_path', 'status', 'http_status', 'provider_status', 'credits_deducted', 'balance_after', 'masked_pan', 'masked_mobile', 'ip_address', 'user_agent', 'response_time_ms', 'provider_ref', 'error_message', 'request_json', 'response_json', 'metadata', 'created_at'];
