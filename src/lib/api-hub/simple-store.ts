@@ -106,7 +106,7 @@ const defaultPrefillPayload = {
 export const defaultBureauPayload = {
   firstName: 'Raj',
   lastName: 'Patel',
-  dob: '1995-01-01',
+  dob: '01-01-1995',
   gender: 'male',
   pan: 'ABCDE1234F',
   mobile: '9899999999',
@@ -119,7 +119,7 @@ export const defaultBureauPayload = {
     first_name: 'Raj',
     middle_name: '',
     last_name: 'Patel',
-    date_of_birth: '1995-01-01',
+    date_of_birth: '01-01-1995',
     email: 'raj.patel@example.com',
     origin_country: 'IND',
   },

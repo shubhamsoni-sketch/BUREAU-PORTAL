@@ -64,11 +64,12 @@ export async function POST(
 
   try {
     const { apiCode } = await params;
-    if (['source', 'source-standard', 'bureau', 'bureau-standard', 'cibil.consumer_score'].includes(apiCode)) {
+    if (['source', 'source-standard', 'bureau', 'bureau-standard', 'bureau-binta', 'cibil.consumer_score'].includes(apiCode)) {
       const endpoint = new URL('/api/v1/cibil/consumer-score', request.url);
       const headers = new Headers(request.headers);
       headers.delete('host');
       headers.delete('content-length');
+      if (apiCode === 'bureau-binta') headers.set('x-credittrust-bureau-mode', 'binta');
       return fetch(endpoint, {
         method: 'POST',
         headers,

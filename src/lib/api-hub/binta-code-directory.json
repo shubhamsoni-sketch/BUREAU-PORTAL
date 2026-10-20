@@ -1,0 +1,253 @@
+{
+  "document_name": "FinCoopers UAT Code Directory",
+  "version": "uat-v1",
+  "environment": "uat",
+  "prepared_for": "Binta Financial Inc.",
+  "prepared_by": "FinCoopers / CreditTrust",
+  "last_updated": "2026-09-26",
+  "notes": [
+    "This file lists the coded fields used in the UAT API request and normalized bureau response.",
+    "The response sample provides normalized bureau report data generated from source bureau JSON.",
+    "Exact source score is not exposed; score is returned as a range such as 740-745. If source score is -1, response returns -1.",
+    "Raw source/provider JSON, control numbers, lender/member names, and unmasked identifiers are not included in the normalized response."
+  ],
+  "directories": {
+    "gender_code": {
+      "field_usage": "request.gender_code / normalized identity.gender",
+      "values": {
+        "1": "Female",
+        "2": "Male",
+        "3": "Transgender"
+      }
+    },
+    "state_code": {
+      "field_usage": "request.state_code / addresses[].state_code",
+      "values": {
+        "01": "Jammu & Kashmir",
+        "02": "Himachal Pradesh",
+        "03": "Punjab",
+        "04": "Chandigarh",
+        "05": "Uttarakhand",
+        "06": "Haryana",
+        "07": "Delhi",
+        "08": "Rajasthan",
+        "09": "Uttar Pradesh",
+        "10": "Bihar",
+        "11": "Sikkim",
+        "12": "Arunachal Pradesh",
+        "13": "Nagaland",
+        "14": "Manipur",
+        "15": "Mizoram",
+        "16": "Tripura",
+        "17": "Meghalaya",
+        "18": "Assam",
+        "19": "West Bengal",
+        "20": "Jharkhand",
+        "21": "Odisha",
+        "22": "Chhattisgarh",
+        "23": "Madhya Pradesh",
+        "24": "Gujarat",
+        "25": "Daman & Diu",
+        "26": "Dadra & Nagar Haveli",
+        "27": "Maharashtra",
+        "28": "Andhra Pradesh",
+        "29": "Karnataka",
+        "30": "Goa",
+        "31": "Lakshadweep",
+        "32": "Kerala",
+        "33": "Tamil Nadu",
+        "34": "Puducherry",
+        "35": "Andaman & Nicobar Islands",
+        "36": "Telangana",
+        "37": "Andhra Pradesh - New",
+        "99": "Others / Outside India"
+      }
+    },
+    "occupation_code": {
+      "field_usage": "employment[].occupation_code",
+      "values": {
+        "01": "Salaried",
+        "02": "Self Employed Professional",
+        "03": "Self Employed Business",
+        "04": "Others"
+      }
+    },
+    "income_type": {
+      "field_usage": "employment[].income_type",
+      "values": {
+        "G": "Gross Income",
+        "N": "Net Income"
+      },
+      "normalized_response_values": {
+        "gross": "Gross Income",
+        "net": "Net Income"
+      }
+    },
+    "income_frequency": {
+      "field_usage": "employment[].income_frequency",
+      "values": {
+        "M": "Monthly",
+        "A": "Annual"
+      },
+      "normalized_response_values": {
+        "monthly": "Monthly",
+        "annual": "Annual"
+      }
+    },
+    "address_category": {
+      "field_usage": "addresses[].address_category",
+      "values": {
+        "01": "Permanent Address",
+        "02": "Residence Address",
+        "03": "Office Address",
+        "04": "Not Categorized"
+      },
+      "normalized_response_values": {
+        "permanent": "Permanent Address",
+        "residence": "Residence Address",
+        "office": "Office Address",
+        "other": "Not Categorized / Other"
+      }
+    },
+    "telephone_type": {
+      "field_usage": "contacts.mobiles[].type when source provides telephone type",
+      "values": {
+        "01": "Mobile Phone",
+        "02": "Residence Phone",
+        "03": "Office Phone",
+        "04": "Other Phone"
+      }
+    },
+    "ownership_indicator": {
+      "field_usage": "tradelines[].ownership",
+      "values": {
+        "1": "Individual",
+        "2": "Authorised User",
+        "3": "Guarantor",
+        "4": "Joint"
+      }
+    },
+    "account_type_or_enquiry_purpose_code": {
+      "field_usage": "tradelines[].loan_type / enquiries[].purpose_code",
+      "values": {
+        "01": "Auto Loan",
+        "02": "Housing Loan",
+        "03": "Property Loan",
+        "04": "Loan Against Shares / Securities",
+        "05": "Personal Loan",
+        "06": "Consumer Loan",
+        "07": "Gold Loan",
+        "08": "Education Loan",
+        "09": "Loan to Professional",
+        "10": "Credit Card",
+        "11": "Leasing",
+        "12": "Overdraft",
+        "13": "Two Wheeler Loan",
+        "14": "Non-Funded Credit Facility",
+        "15": "Loan Against Bank Deposits",
+        "16": "Fleet Card",
+        "17": "Commercial Vehicle Loan",
+        "18": "Telco Wireless",
+        "19": "Telco Broadband",
+        "20": "Telco Landline",
+        "31": "Secured Credit Card",
+        "32": "Used Car Loan",
+        "33": "Construction Equipment Loan",
+        "34": "Tractor Loan",
+        "35": "Corporate Credit Card",
+        "36": "Kisan Credit Card",
+        "37": "Loan on Credit Card",
+        "38": "Prime Minister Jaan Dhan Yojana - Overdraft",
+        "39": "Mudra Loans - Shishu / Kishor / Tarun",
+        "40": "Microfinance Business Loan",
+        "41": "Microfinance Personal Loan",
+        "42": "Microfinance Housing Loan",
+        "43": "Microfinance Other",
+        "44": "Pradhan Mantri Awas Yojana - Credit Link Subsidy Scheme",
+        "45": "P2P Personal Loan",
+        "46": "P2P Auto Loan",
+        "47": "P2P Education Loan",
+        "50": "Business Loan - Secured",
+        "51": "Business Loan - General",
+        "52": "Business Loan - Priority Sector - Small Business",
+        "53": "Business Loan - Priority Sector - Agriculture",
+        "54": "Business Loan - Priority Sector - Others",
+        "55": "Business Non-Funded Credit Facility - General",
+        "56": "Business Non-Funded Credit Facility - Priority Sector - Small Business",
+        "57": "Business Non-Funded Credit Facility - Priority Sector - Agriculture",
+        "58": "Business Non-Funded Credit Facility - Priority Sector - Others",
+        "59": "Business Loan Against Bank Deposits",
+        "61": "Business Loan - Unsecured",
+        "69": "Short Term Personal Loan",
+        "70": "Priority Sector Gold Loan",
+        "71": "Temporary Overdraft",
+        "80": "Other"
+      }
+    },
+    "account_status": {
+      "field_usage": "tradelines[].account_status",
+      "values": {
+        "active_or_reported_open": "Active or reported open",
+        "closed_or_zero_balance": "Closed or zero-balance",
+        "settled": "Settled",
+        "written_off": "Written-off",
+        "suit_filed": "Suit filed",
+        "wilful_default": "Wilful default",
+        "unknown": "Unknown / not reported"
+      }
+    },
+    "score_band": {
+      "field_usage": "score.score_band",
+      "values": {
+        "excellent": "Low risk score band",
+        "good": "Good score band",
+        "fair": "Moderate score band",
+        "poor": "High risk score band",
+        "no_hit_or_not_available": "Score unavailable / no hit / source returned -1"
+      }
+    },
+    "dpd_code": {
+      "field_usage": "tradelines[].payment_history[].dpd / tradelines[].dpd.bucket",
+      "values": {
+        "000": "No days past due / current",
+        "001-029": "1 to 29 days past due",
+        "030-059": "30 to 59 days past due",
+        "060-089": "60 to 89 days past due",
+        "090-119": "90 to 119 days past due",
+        "120-179": "120 to 179 days past due",
+        "180+": "180 or more days past due",
+        "STD": "Standard / current as reported by source",
+        "SMA": "Special Mention Account",
+        "SUB": "Sub-standard",
+        "DBT": "Doubtful",
+        "LSS": "Loss",
+        "XXX": "Not reported / no data for the month"
+      }
+    },
+    "api_status": {
+      "field_usage": "status",
+      "values": {
+        "completed": "Request completed and normalized response generated",
+        "pending": "Request accepted and processing is pending",
+        "failed": "Request failed validation or source processing",
+        "no_hit": "No matching bureau record found",
+        "partial": "Response generated with partial source data"
+      }
+    },
+    "api_error_code": {
+      "field_usage": "error.code when success=false",
+      "values": {
+        "AUTH_001": "Missing or invalid API key",
+        "AUTH_002": "Client certificate validation failed",
+        "AUTH_003": "Source IP is not whitelisted",
+        "REQ_001": "Missing mandatory field",
+        "REQ_002": "Invalid field format",
+        "REQ_003": "Invalid consent metadata",
+        "SRC_001": "Source service unavailable",
+        "SRC_002": "Source timeout",
+        "SRC_003": "No bureau record found",
+        "SYS_001": "Internal processing error"
+      }
+    }
+  }
+}

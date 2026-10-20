@@ -8,11 +8,19 @@ import {
   publicApi,
   saveApiHubStore,
   SimpleApiConfig,
+  SimpleApiClient,
   SimpleSupportTicket,
 } from '@/lib/api-hub/simple-store';
 import { getStateName } from '@/lib/bureau/state-codes';
 import { exportApiUsageLedger, listApiUsageLedger } from '@/lib/api-hub/usage-ledger';
 import { hasHubConsoleSession } from '@/lib/api-hub/console-auth';
+import { addBintaLiveCredits, getBintaLiveBalance, listBintaLiveBalances } from '@/lib/api-hub/binta-live-ledger';
+
+function isBridgeClient(client: SimpleApiClient) {
+  const metadata = client.metadata || {};
+  return metadata.bridge_console_scope === 'binta_bridge'
+    || `${client.name} ${client.company_name || ''}`.toLowerCase().includes('binta financial');
+}
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
@@ -358,11 +366,15 @@ export async function GET(request: NextRequest) {
     const clientId = request.nextUrl.searchParams.get('usage_client_id') || undefined;
     const status = request.nextUrl.searchParams.get('usage_status') || undefined;
     const ledger = await listApiUsageLedger(auth.supabase, { page, pageSize, clientId, status });
+    const balances = await listBintaLiveBalances(auth.supabase,
+      store.clients.filter(isBridgeClient).map((client) => client.id));
 
     return NextResponse.json({
       success: true,
       apis: store.apis.map(publicApi),
-      clients: store.clients,
+      clients: store.clients.map((client) => isBridgeClient(client)
+        ? { ...client, metadata: { ...(client.metadata || {}), live_credits: balances.get(client.id) || 0 } }
+        : client),
       keys: store.keys.map((key) => ({ ...key, key_hash: undefined })),
       tickets: store.tickets || [],
       usage: ledger.rows,
@@ -561,6 +573,11 @@ export async function POST(request: NextRequest) {
 
       const client = store.clients.find((item) => item.id === clientId);
       if (!client) return jsonError('Client not found', 404);
+      if ((environment === 'production' || environment === 'live') && isBridgeClient(client)) {
+        if (!Number.isInteger(credits)) return jsonError('Production credits must be a whole number');
+        const balance = await addBintaLiveCredits(auth.supabase, clientId, credits);
+        return NextResponse.json({ success: true, live_credits: balance });
+      }
       store.clients = store.clients.map((item) => item.id === clientId
         ? environment === 'production' || environment === 'live'
           ? {
@@ -587,6 +604,24 @@ export async function POST(request: NextRequest) {
 
       const environment = String(body.environment || body.env || 'uat').toLowerCase();
       const normalizedEnvironment: 'uat' | 'production' = environment === 'production' || environment === 'live' ? 'production' : 'uat';
+      if (normalizedEnvironment === 'production' && isBridgeClient(client)) {
+        const metadata = client.metadata || {};
+        const onboarding = metadata.onboarding && typeof metadata.onboarding === 'object'
+          ? metadata.onboarding as Record<string, unknown> : {};
+        const security = metadata.security && typeof metadata.security === 'object'
+          ? metadata.security as Record<string, unknown> : {};
+        const fingerprint = String(security.production_certificate_fingerprint || '').replace(/[^a-f0-9]/gi, '').toUpperCase();
+        const deployedFingerprint = String(process.env.BINTA_PRODUCTION_CERT_SHA256 || '').replace(/[^a-f0-9]/gi, '').toUpperCase();
+        if (onboarding.uatSignoffStatus !== 'done' || onboarding.payloadValidationStatus !== 'done'
+          || onboarding.productionIpStatus !== 'done' || onboarding.productionCertificateStatus !== 'done'
+          || !Array.isArray(security.production_static_ips) || !security.production_static_ips.length
+          || fingerprint.length !== 64 || fingerprint !== deployedFingerprint) {
+          return jsonError('Production certificate, IP and UAT sign-off must be verified in the hub console', 409);
+        }
+        if (await getBintaLiveBalance(auth.supabase, clientId) <= 0) {
+          return jsonError('Allocate production credits in the hub console first', 409);
+        }
+      }
       const generated = createApiKey(normalizedEnvironment === 'production' ? 'live' : 'sandbox');
       const apiKey = {
         id: crypto.randomUUID(),
