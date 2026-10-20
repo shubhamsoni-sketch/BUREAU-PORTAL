@@ -990,3 +990,4 @@ Verification:
 - Decoupled the Bridge session check from the admin data fetch so a slow backend cannot leave the page on the initial session spinner indefinitely. Both requests now have bounded timeouts and surface a visible error.
 - Removed the API Hub admin GET's unconditional store write. Repeated reads were updating the store timestamp and could overwrite concurrent onboarding edits with stale normalized data.
 - Kept Binta production disabled; no production key, credit allocation, or live bureau request is part of this fix.
+- Live browser verification exposed a second issue: the global partner AdminProvider received a 401 on the Bridge host, and shared authFetch signed out and reloaded `/admin` repeatedly. Hub-host 401/403 responses now return to their caller without triggering the unrelated Supabase logout redirect; non-hub behavior is unchanged.

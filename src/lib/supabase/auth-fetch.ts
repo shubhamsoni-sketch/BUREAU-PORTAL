@@ -65,7 +65,8 @@ export async function authFetch(input: RequestInfo | URL, init: AuthFetchInit = 
     signal: init.signal || controller.signal,
   }).finally(() => clearTimeout(timer));
 
-  if (typeof window !== 'undefined' && (response.status === 401 || response.status === 403)) {
+  // The Bridge hub uses its own cookie session; a background portal request must not log it out.
+  if (typeof window !== 'undefined' && window.location.hostname !== 'hub.credittrust.in' && (response.status === 401 || response.status === 403)) {
     const supabase = createClient();
     await supabase.auth.signOut().catch(() => undefined);
     try {
