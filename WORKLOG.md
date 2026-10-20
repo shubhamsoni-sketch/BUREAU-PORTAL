@@ -991,3 +991,9 @@ Verification:
 - Removed the API Hub admin GET's unconditional store write. Repeated reads were updating the store timestamp and could overwrite concurrent onboarding edits with stale normalized data.
 - Kept Binta production disabled; no production key, credit allocation, or live bureau request is part of this fix.
 - Live browser verification exposed a second issue: the global partner AdminProvider received a 401 on the Bridge host, and shared authFetch signed out and reloaded `/admin` repeatedly. Hub-host 401/403 responses now return to their caller without triggering the unrelated Supabase logout redirect; non-hub behavior is unchanged.
+
+# 2026-10-20 Binta production environment staging
+
+- Set the approved Binta production certificate SHA-256 in the exact Bureau Portal Vercel Production environment and explicitly set the global production switch to false. Deployed unchanged `main` as `dpl_GVLQFqHyJbtxgSSMAGWCWztvDxNB` (READY).
+- Confirmed Binta's production IP and UAT sign-off in the authenticated Bridge console. Allocated exactly five live credits at the owner's request; the refreshed console showed `Live 5` and UAT balance four.
+- No production key, live bureau call, positive client-certificate test, or go-live approval occurred. See `docs/tasks/binta-production-readiness.md` for open gates.

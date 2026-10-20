@@ -4,6 +4,26 @@ Status: isolated release build passes and the additive DB migration is applied;
 production traffic remains disabled. Do not issue or
 share the production key or URL until the release gates below are verified.
 
+## 20 October staging update
+
+- Confirmed in the authenticated hub console that Binta's production IP is
+  `3.109.33.183`, UAT sign-off and payload validation are done, and the
+  production certificate gate remains in progress.
+- Added the approved production certificate fingerprint to the Bureau Portal
+  Vercel Production environment. Set `BINTA_PRODUCTION_ENABLED=false`
+  explicitly and deployed the unchanged `main` release; deployment
+  `dpl_GVLQFqHyJbtxgSSMAGWCWztvDxNB` reached READY.
+- Allocated exactly five Binta production credits in the hub console. The
+  refreshed console showed `Live 5`; UAT credits remained at four. No
+  production key was issued.
+- The Vultr reserved IP `65.20.75.9` is attached to the gateway VM.
+  Public HTTPS rejects a request without a client certificate with HTTP 400;
+  the existing API rejects a request without a key with HTTP 401.
+- Remaining blockers: protected Vultr signing secret cannot yet be paired to
+  the Vercel app without VM shell access; Binta must perform the positive mTLS
+  test with its private key; complete the remaining archive, accounting, and
+  end-to-end gates before issuing the key or enabling production traffic.
+
 ## Contract
 
 - Keep the documented `POST /api/v1/source` endpoint and request headers/body unchanged.
