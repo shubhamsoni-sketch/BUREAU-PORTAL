@@ -67,8 +67,9 @@ export async function appendApiUsageLedger(supabase: SupabaseAdmin, entry: ApiUs
 
 export async function listApiUsageLedger(
   supabase: SupabaseAdmin,
-  options: { page: number; pageSize: number; clientId?: string; status?: string },
+  options: { page: number; pageSize: number; clientId?: string; clientIds?: string[]; status?: string },
 ) {
+  if (options.clientIds && !options.clientIds.length) return { rows: [], total: 0 };
   const from = (options.page - 1) * options.pageSize;
   let query = supabase
     .from('api_hub_usage_ledger')
@@ -76,6 +77,7 @@ export async function listApiUsageLedger(
     .order('created_at', { ascending: false })
     .range(from, from + options.pageSize - 1);
   if (options.clientId) query = query.eq('client_id', options.clientId);
+  if (options.clientIds) query = query.in('client_id', options.clientIds);
   if (options.status === 'success' || options.status === 'failed') query = query.eq('status', options.status);
   const { data, error, count } = await query;
   if (error) throw new Error(`Unable to load API usage ledger: ${error.message}`);

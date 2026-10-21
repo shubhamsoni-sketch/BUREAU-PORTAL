@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-10-20 - Developer - Bridge Admin Data Accuracy
+
+Summary:
+
+- Connected the Bridge admin Requests view and overview count to the persisted, Bridge-client-scoped API usage ledger, including request and response JSON inspection/download.
+- Removed placeholder SLA, stale endpoint/response examples, fake certificate CN fallback, and misleading security/status labels; distinguished the UAT sample from saved customer responses.
+- Kept live credits sourced from the backend wallet and stopped client autosave from resubmitting stale UAT credits or overwriting certificate status and notification-routing metadata.
+
+Verification:
+
+- `npm run build -- --no-lint`, `npm run type-check -- --pretty false`, and `git diff --check` passed.
+- Local admin API data check could not run because this checkout has no Supabase admin credentials; authenticated production UI check remains necessary after deployment.
+
 ## 2026-09-26 - Developer - Production Branch Alignment And Lead Finder Stability
 
 Summary:

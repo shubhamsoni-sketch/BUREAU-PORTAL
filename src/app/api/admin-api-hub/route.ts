@@ -363,8 +363,15 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, Number(request.nextUrl.searchParams.get('usage_page') || 1));
     const pageSize = Math.min(100, Math.max(10, Number(request.nextUrl.searchParams.get('usage_page_size') || 50)));
     const clientId = request.nextUrl.searchParams.get('usage_client_id') || undefined;
+    const bridgeOnly = request.nextUrl.searchParams.get('usage_scope') === 'bridge';
     const status = request.nextUrl.searchParams.get('usage_status') || undefined;
-    const ledger = await listApiUsageLedger(auth.supabase, { page, pageSize, clientId, status });
+    const ledger = await listApiUsageLedger(auth.supabase, {
+      page,
+      pageSize,
+      clientId,
+      clientIds: bridgeOnly ? store.clients.filter(isBridgeClient).map((client) => client.id) : undefined,
+      status,
+    });
     const balances = await listBintaLiveBalances(auth.supabase,
       store.clients.filter(isBridgeClient).map((client) => client.id));
 
@@ -529,7 +536,21 @@ export async function POST(request: NextRequest) {
       let metadata = existing.metadata || {};
       if (body.metadata !== undefined) {
         try {
-          metadata = parseJson(body.metadata, existing.metadata || {}) as Record<string, unknown>;
+          const incoming = parseJson(body.metadata, {}) as Record<string, unknown>;
+          const original = existing.metadata || {};
+          const mergeSection = (key: string) => ({
+            ...((original[key] && typeof original[key] === 'object' && !Array.isArray(original[key])) ? original[key] as Record<string, unknown> : {}),
+            ...((incoming[key] && typeof incoming[key] === 'object' && !Array.isArray(incoming[key])) ? incoming[key] as Record<string, unknown> : {}),
+          });
+          metadata = {
+            ...original,
+            ...incoming,
+            onboarding: mergeSection('onboarding'),
+            response: mergeSection('response'),
+            security: mergeSection('security'),
+            legal: mergeSection('legal'),
+            spoc: mergeSection('spoc'),
+          };
         } catch (error) {
           return jsonError(error instanceof Error ? error.message : 'Metadata must be valid JSON');
         }
