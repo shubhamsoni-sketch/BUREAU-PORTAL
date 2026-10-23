@@ -2,6 +2,19 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-10-23 - Developer - Partner Login Reload Loop
+
+Summary:
+
+- Prevented the globally mounted admin provider from calling the admin-only partners endpoint on public and partner pages.
+- Limited automatic auth clearing to unauthorized calls that actually carried a bearer token; a 403 permission denial no longer signs out the partner, and login routes do not redirect to themselves.
+- Investigated production request logs showing repeated admin-partners-list 401 responses alongside partner-login reloads.
+
+Verification:
+
+- `npm run build -- --no-lint`, `npm run type-check -- --pretty false`, and `git diff --check` passed.
+- Production release and authenticated partner-login verification pending.
+
 ## 2026-10-20 - Developer - Bridge Admin Data Accuracy
 
 Summary:

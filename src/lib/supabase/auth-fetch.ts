@@ -65,18 +65,19 @@ export async function authFetch(input: RequestInfo | URL, init: AuthFetchInit = 
     signal: init.signal || controller.signal,
   }).finally(() => clearTimeout(timer));
 
-  // The Bridge hub uses its own cookie session; a background portal request must not log it out.
-  if (typeof window !== 'undefined' && window.location.hostname !== 'hub.credittrust.in' && (response.status === 401 || response.status === 403)) {
+  // A forbidden API action is not an expired login, and anonymous calls on public
+  // pages must not keep redirecting the browser back to the same login page.
+  if (typeof window !== 'undefined' && window.location.hostname !== 'hub.credittrust.in' && response.status === 401 && headers.has('Authorization')) {
     const supabase = createClient();
-    await supabase.auth.signOut().catch(() => undefined);
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
     try {
-      window.localStorage.clear();
-      window.sessionStorage.clear();
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
     } catch {
       // Storage may be unavailable in restricted browser contexts.
     }
     const path = window.location.pathname;
-    window.location.href = path.startsWith('/admin') ? '/admin' : '/partner-login';
+    const loginPath = path.startsWith('/admin') ? '/admin' : '/partner-login';
+    if (path !== loginPath) window.location.href = loginPath;
   }
 
   return response;
