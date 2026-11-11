@@ -2,12 +2,13 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
-## 2026-11-11 - Developer - Fintech Admin Release Candidate (Not Deployed)
+## 2026-11-11 - Developer - Fintech Admin Release Candidate
 
 - Added an admin-only Fintech workspace and sidebar entry for lender onboarding, products, enquiries, offers, integrations, and consent/audit planning.
 - Kept customer-facing preview routes and backend integrations out of this scoped candidate.
 - `npm run build -- --no-lint` and `npm run type-check -- --pretty false` passed.
-- Production deployment is pending reconciliation: the currently live source differs substantially from `origin/main`, including live routes absent from `main`. Deploying this candidate directly would risk regressing unrelated functionality.
+- Aligned runtime files with the current production deployment before release. The Vercel preview build is Ready, and its only runtime source differences from production are the Fintech page, admin guard entry, and sidebar entry.
+- Verified the Fintech, existing CIBIL V1 DTC, and admin dashboard routes return HTTP 200 on the preview deployment. Production deployment follows from `main` after this verification.
 
 ## 2026-10-23 - Developer - Partner Login Reload Loop
 

@@ -61,17 +61,15 @@ export function middleware(request: NextRequest) {
   }
 
   if (isApiHubHost && !isAsset && !isApiRoute) {
-    if (normalizedPathname.startsWith('/client')) {
+    if (normalizedPathname === '/' || normalizedPathname.startsWith('/client')) {
       return NextResponse.rewrite(new URL('/api-client-portal', request.url));
     }
 
-    if (normalizedPathname === '/' || normalizedPathname.startsWith('/admin')) {
+    if (normalizedPathname.startsWith('/admin') || normalizedPathname.startsWith('/api-console')) {
       return NextResponse.rewrite(new URL('/api-console', request.url));
     }
 
-    if (!normalizedPathname.startsWith('/api-console')) {
-      return NextResponse.rewrite(new URL('/api-console', request.url));
-    }
+    return NextResponse.redirect(withSearch('/client', 'https://hub.credittrust.in'));
   }
 
   if (isApiClientPortalHost && !isAsset && !isApiRoute) {

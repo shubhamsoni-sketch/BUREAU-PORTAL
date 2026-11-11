@@ -37,6 +37,7 @@ const navGroups = [
     items: [
       { label: 'API Hub', href: '/admin-api-hub', icon: Network },
       { label: 'Bulk CIBIL Pull', href: '/admin-bulk-cibil', icon: FileSpreadsheet },
+      { label: 'CIBIL V1 DTC', href: '/admin-cibil-v1-dtc', icon: FileText },
     ],
   },
   {

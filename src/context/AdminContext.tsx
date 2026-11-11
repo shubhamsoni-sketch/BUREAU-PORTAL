@@ -4,7 +4,6 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { createClient } from '@/lib/supabase/client';
 import { normalizePartnerProductAccess, type PartnerProductAccess } from '@/lib/partner-access';
 import { authFetch } from '@/lib/supabase/auth-fetch';
-import { useAuth } from '@/context/AuthContext';
 
 export type PartnerStatus = 'Active' | 'Pending' | 'Suspended' | 'Terminated';
 
@@ -125,8 +124,6 @@ function mapDbStatus(dbStatus: string): PartnerStatus {
 }
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
-  const { user, isLoading: authLoading } = useAuth();
-  const isAdmin = !authLoading && user?.role === 'admin';
   const [partners, setPartners] = useState<Partner[]>([]);
   const [partnersLoading, setPartnersLoading] = useState(true);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
@@ -136,11 +133,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [integrations, setIntegrations] = useState<IntegrationService[]>([]);
 
   const loadPartners = useCallback(async () => {
-    if (!isAdmin) {
-      setPartners([]);
-      setPartnersLoading(false);
-      return;
-    }
     setPartnersLoading(true);
     try {
       const res = await authFetch('/api/admin-partners-list');
@@ -176,7 +168,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setPartnersLoading(false);
     }
-  }, [isAdmin]);
+  }, []);
 
   useEffect(() => {
     loadPartners();

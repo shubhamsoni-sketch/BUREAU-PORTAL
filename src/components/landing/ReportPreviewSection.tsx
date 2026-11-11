@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { trackMetaEvent } from '@/lib/meta-pixel';
 
 interface ReportPreviewSectionProps {
   lang: 'en' | 'hi';
@@ -159,6 +160,7 @@ export default function ReportPreviewSection({ lang }: ReportPreviewSectionProps
   const t = copy[lang];
   const c = t.cards;
   const sectionRef = useRef<HTMLElement>(null);
+  const viewTrackedRef = useRef(false);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -171,6 +173,26 @@ export default function ReportPreviewSection({ lang }: ReportPreviewSectionProps
     );
     const els = sectionRef.current?.querySelectorAll('.scroll-reveal');
     els?.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || viewTrackedRef.current) return;
+        viewTrackedRef.current = true;
+        trackMetaEvent('ViewContent', {
+          content_name: 'Report Preview Section',
+          content_category: 'credit_report',
+          page_path: window.location.pathname,
+        });
+        observer.disconnect();
+      },
+      { threshold: 0.45 },
+    );
+    observer.observe(section);
     return () => observer.disconnect();
   }, []);
 

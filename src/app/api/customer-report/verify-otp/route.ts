@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { otpHash, requireB2cSession } from '@/lib/b2c/security';
+import { otpHash, requireB2cSession, setB2cSession } from '@/lib/b2c/security';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
@@ -47,7 +47,9 @@ export async function POST(request: NextRequest) {
       supabase.from('b2c_otp_challenges').update({ attempts, status: 'verified', verified_at: now, updated_at: now }).eq('id', challenge.id),
       supabase.from('b2c_report_requests').update({ status: 'otp_verified', otp_verified_at: now, updated_at: now }).eq('id', requestId),
     ]);
-    return NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true, request_id: requestId });
+    setB2cSession(response, requestId);
+    return response;
   } catch (error) {
     console.error('[customer-report/verify-otp]', error);
     return NextResponse.json({ success: false, error: 'Unable to verify OTP.' }, { status: 500 });

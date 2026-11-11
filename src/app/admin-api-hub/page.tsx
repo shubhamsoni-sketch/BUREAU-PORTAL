@@ -519,6 +519,12 @@ export default function AdminApiHubPage() {
     if (json?.success) setNotice('Credits added.');
   };
 
+  const activateClient = async (client: ApiClient) => {
+    if (!window.confirm(`Activate API access for ${client.name}${client.company_name ? ` (${client.company_name})` : ''}? Credits will not change.`)) return;
+    const json = await authPost({ action: 'update_client', client_id: client.id, status: 'active' });
+    if (json?.success) setNotice(`${client.name} activated. Credits were not changed.`);
+  };
+
   const revokeKey = async (keyId: string) => {
     const json = await authPost({ action: 'revoke_key', key_id: keyId });
     if (json?.success) setNotice('API key revoked.');
@@ -683,7 +689,7 @@ export default function AdminApiHubPage() {
             </section>
             <section className="xl:col-span-2 rounded-lg border border-slate-200 bg-white p-5">
               <h2 className="text-lg font-bold text-slate-900 mb-4">Clients</h2>
-              <ClientsTable clients={data.clients} />
+              <ClientsTable clients={data.clients} activateClient={activateClient} saving={saving} />
             </section>
           </div>
         )}
@@ -836,13 +842,13 @@ function InfoLine({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function ClientsTable({ clients }: { clients: ApiClient[] }) {
+function ClientsTable({ clients, activateClient, saving }: { clients: ApiClient[]; activateClient: (client: ApiClient) => void; saving: boolean }) {
   if (!clients.length) return <EmptyState text="No clients yet." />;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
-          <tr><th className="py-2 pr-4">Client</th><th className="py-2 pr-4">Contact</th><th className="py-2 pr-4">Allowed IPs</th><th className="py-2 pr-4">Credits</th><th className="py-2">Status</th></tr>
+          <tr><th className="py-2 pr-4">Client</th><th className="py-2 pr-4">Contact</th><th className="py-2 pr-4">Allowed IPs</th><th className="py-2 pr-4">Credits</th><th className="py-2 pr-4">Status</th><th className="py-2">Action</th></tr>
         </thead>
         <tbody>
           {clients.map((client) => (
@@ -851,7 +857,8 @@ function ClientsTable({ clients }: { clients: ApiClient[] }) {
               <td className="py-3 pr-4 text-slate-600"><p>{client.email || '-'}</p><p className="text-xs">{client.mobile || '-'}</p></td>
               <td className="py-3 pr-4 text-xs font-mono text-slate-600">{client.allowed_ips?.length ? client.allowed_ips.join(', ') : 'Open'}</td>
               <td className="py-3 pr-4 font-bold text-slate-900">{client.credits}</td>
-              <td className="py-3"><StatusPill value={client.status} /></td>
+              <td className="py-3 pr-4"><StatusPill value={client.status} /></td>
+              <td className="py-3">{client.status === 'inactive' && <button type="button" disabled={saving} onClick={() => activateClient(client)} className="rounded-md border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">Activate</button>}</td>
             </tr>
           ))}
         </tbody>

@@ -3,6 +3,7 @@ import { getApiHubStore, hitMasterApi } from '@/lib/api-hub/simple-store';
 import { findB2cApis, type CibilPayload } from '@/lib/b2c/prefill';
 import { requireB2cSession, setB2cSession } from '@/lib/b2c/security';
 import { createReportTrackingLink, buildTrackingUrl } from '@/lib/marketing/report-tracking';
+import { sanitizeMetaAttribution } from '@/lib/meta-attribution';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   buildB2cReportRedirectUrl,
@@ -153,6 +154,7 @@ async function sendReportReadyWhatsApp(params: {
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const requestId = String(body.request_id ?? '').trim();
+  const metaAttribution = sanitizeMetaAttribution(body.meta_attribution);
   if (!requireB2cSession(request, requestId)) {
     return NextResponse.json({ success: false, error: 'This report session has expired.' }, { status: 401 });
   }
@@ -225,6 +227,7 @@ export async function POST(request: NextRequest) {
       api_status: String(result.status),
       api_error: null,
       credit_score: scoreFrom(result.data),
+      ...(metaAttribution ? { meta_attribution: metaAttribution } : {}),
       updated_at: new Date().toISOString(),
     }).eq('id', requestId);
     if (saveError) throw saveError;

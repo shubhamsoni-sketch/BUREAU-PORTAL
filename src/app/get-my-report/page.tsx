@@ -1,12 +1,24 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import AppLogo from '@/components/ui/AppLogo';
 import Icon from '@/components/ui/AppIcon';
+import { getMetaAttribution, persistMetaAttribution, trackMetaEvent } from '@/lib/meta-pixel';
 
 type Step = 'mobile' | 'otp' | 'payment' | 'prefill' | 'generating' | 'report';
 type Profile = { full_name: string; dob: string; gender: string; pan: string; address: string; state: string; pincode: string };
+type SavedJourney = {
+  step: Step;
+  mobile: string;
+  requestId: string;
+  orderId: string;
+  amount: number | null;
+  profile: Profile | null;
+  reportId: string;
+  updatedAt: string;
+};
 type CashfreeCheckout = (options: { paymentSessionId: string; redirectTarget: '_modal' }) => Promise<{ error?: { message?: string } }>;
 
 declare global {
@@ -22,6 +34,36 @@ const steps = [
   ['prefill', 'Confirm'],
   ['report', 'Report'],
 ] as const;
+const REQUEST_ID_STORAGE_KEY = 'ct_b2c_request_id';
+const JOURNEY_STORAGE_KEY = 'ct_b2c_journey';
+const PURCHASE_TRACKED_PREFIX = 'ct_meta_purchase_tracked_';
+
+function validStep(value: unknown): Step {
+  return value === 'mobile' || value === 'otp' || value === 'payment' || value === 'prefill' || value === 'generating' || value === 'report'
+    ? value
+    : 'mobile';
+}
+
+function readSavedJourney(): SavedJourney | null {
+  try {
+    const raw = window.sessionStorage.getItem(JOURNEY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SavedJourney>;
+    if (!parsed || typeof parsed !== 'object') return null;
+    return {
+      step: validStep(parsed.step),
+      mobile: String(parsed.mobile || ''),
+      requestId: String(parsed.requestId || ''),
+      orderId: String(parsed.orderId || ''),
+      amount: typeof parsed.amount === 'number' ? parsed.amount : null,
+      profile: parsed.profile || null,
+      reportId: String(parsed.reportId || ''),
+      updatedAt: String(parsed.updatedAt || ''),
+    };
+  } catch {
+    return null;
+  }
+}
 
 function loadCashfree() {
   return new Promise<void>((resolve, reject) => {
@@ -54,7 +96,12 @@ async function api(path: string, body: Record<string, unknown>) {
   return data;
 }
 
+function purchaseTrackedKey(orderId: string) {
+  return `${PURCHASE_TRACKED_PREFIX}${orderId || 'unknown'}`;
+}
+
 export default function GetMyReportPage() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>('mobile');
   const [mobile, setMobile] = useState('');
   const [consent, setConsent] = useState(false);
@@ -68,14 +115,54 @@ export default function GetMyReportPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const saved = window.sessionStorage.getItem('ct_b2c_request_id');
-    const returnedOrder = new URLSearchParams(window.location.search).get('order_id');
-    if (!saved || !returnedOrder) return;
-    setRequestId(saved);
-    setOrderId(returnedOrder);
-    setStep('payment');
-    void verifyPayment(saved, returnedOrder);
-  }, []);
+    persistMetaAttribution();
+    const params = new URLSearchParams(window.location.search);
+    const saved = readSavedJourney();
+    const returnedRequest = params.get('request_id') || '';
+    const returnedOrder = params.get('order_id') || '';
+    const savedRequest = window.sessionStorage.getItem(REQUEST_ID_STORAGE_KEY) || '';
+    const restoredRequestId = returnedRequest || saved?.requestId || savedRequest;
+    const restoredOrderId = returnedOrder || saved?.orderId || '';
+
+    if (saved?.mobile) setMobile(saved.mobile);
+    if (restoredRequestId) {
+      setRequestId(restoredRequestId);
+      window.sessionStorage.setItem(REQUEST_ID_STORAGE_KEY, restoredRequestId);
+    }
+    if (restoredOrderId) setOrderId(restoredOrderId);
+    if (typeof saved?.amount === 'number') setAmount(saved.amount);
+    if (saved?.profile) setProfile(saved.profile);
+    if (saved?.reportId) setReportId(saved.reportId);
+
+    if (restoredRequestId && returnedOrder) {
+      setStep('payment');
+      void verifyPayment(restoredRequestId, returnedOrder);
+      return;
+    }
+
+    if (restoredRequestId && saved?.step === 'report') {
+      router.replace(`/credit-intelligence?request_id=${encodeURIComponent(restoredRequestId)}`);
+      return;
+    }
+
+    if (saved?.step) setStep(saved.step === 'generating' ? 'prefill' : saved.step);
+  }, [router]);
+
+  useEffect(() => {
+    if (!requestId && !mobile) return;
+    const snapshot: SavedJourney = {
+      step,
+      mobile,
+      requestId,
+      orderId,
+      amount,
+      profile,
+      reportId,
+      updatedAt: new Date().toISOString(),
+    };
+    window.sessionStorage.setItem(JOURNEY_STORAGE_KEY, JSON.stringify(snapshot));
+    if (requestId) window.sessionStorage.setItem(REQUEST_ID_STORAGE_KEY, requestId);
+  }, [step, mobile, requestId, orderId, amount, profile, reportId]);
 
   const activeIndex = step === 'generating' ? 4 : Math.max(0, steps.findIndex(([id]) => id === step));
 
@@ -85,9 +172,14 @@ export default function GetMyReportPage() {
     if (!consent) return setError('Please provide consent to continue.');
     setLoading(true);
     try {
-      const data = await api('/api/customer-report/start', { mobile, consent: true });
+      const data = await api('/api/customer-report/start', { mobile, consent: true, meta_attribution: getMetaAttribution() });
       setRequestId(data.request_id);
-      window.sessionStorage.setItem('ct_b2c_request_id', data.request_id);
+      window.sessionStorage.setItem(REQUEST_ID_STORAGE_KEY, data.request_id);
+      trackMetaEvent('Lead', {
+        content_name: 'B2C report request',
+        content_category: 'credit_report',
+        request_id: data.request_id,
+      });
       setStep('otp');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to send OTP.');
@@ -114,9 +206,17 @@ export default function GetMyReportPage() {
     setError('');
     setLoading(true);
     try {
-      const order = await api('/api/customer-report/create-order', { request_id: requestId });
+      const order = await api('/api/customer-report/create-order', { request_id: requestId, meta_attribution: getMetaAttribution() });
       setOrderId(order.order_id);
       setAmount(order.amount);
+      trackMetaEvent('InitiateCheckout', {
+        content_name: 'Financial health report',
+        content_category: 'credit_report',
+        value: Number(order.amount ?? 999),
+        currency: order.currency || 'INR',
+        request_id: requestId,
+        order_id: order.order_id,
+      });
       await loadCashfree();
       if (!window.Cashfree) throw new Error('Payment gateway did not load.');
       const result = await window.Cashfree({ mode: order.mode }).checkout({
@@ -136,7 +236,18 @@ export default function GetMyReportPage() {
     setError('');
     setLoading(true);
     try {
-      await api('/api/customer-report/verify-payment', { request_id: id, order_id: order });
+      await api('/api/customer-report/verify-payment', { request_id: id, order_id: order, meta_attribution: getMetaAttribution() });
+      if (order && !window.sessionStorage.getItem(purchaseTrackedKey(order))) {
+        trackMetaEvent('Purchase', {
+          content_name: 'Financial health report',
+          content_category: 'credit_report',
+          value: Number(amount ?? 999),
+          currency: 'INR',
+          request_id: id,
+          order_id: order,
+        });
+        window.sessionStorage.setItem(purchaseTrackedKey(order), '1');
+      }
       const data = await api('/api/customer-report/prefill', { request_id: id });
       setProfile(data.profile);
       setStep('prefill');
@@ -154,10 +265,23 @@ export default function GetMyReportPage() {
     setStep('generating');
     setLoading(true);
     try {
-      const data = await api('/api/customer-report/generate', { request_id: requestId, confirm: true });
+      const data = await api('/api/customer-report/generate', { request_id: requestId, confirm: true, meta_attribution: getMetaAttribution() });
       if (!data.ready) throw new Error('Your report is still being prepared. Please try again shortly.');
+      const finalRequestId = String(data.request_id || requestId);
       setReportId(data.report_id);
       setStep('report');
+      window.sessionStorage.setItem(REQUEST_ID_STORAGE_KEY, finalRequestId);
+      window.sessionStorage.setItem(JOURNEY_STORAGE_KEY, JSON.stringify({
+        step: 'report',
+        mobile,
+        requestId: finalRequestId,
+        orderId,
+        amount,
+        profile,
+        reportId: String(data.report_id || ''),
+        updatedAt: new Date().toISOString(),
+      } satisfies SavedJourney));
+      router.push(`/credit-intelligence?request_id=${encodeURIComponent(finalRequestId)}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to generate the report.');
       setStep('prefill');
@@ -268,7 +392,7 @@ export default function GetMyReportPage() {
             <div className="py-4 text-center">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/15 text-primary"><Icon name="CheckCircleIcon" size={34} /></div>
               <h2 className="mt-6 text-2xl font-bold">Your report is ready</h2>
-              <p className="mt-2 text-sm text-fg-muted">Report reference: <span className="font-semibold text-fg">{reportId}</span></p>
+              <p className="mt-2 text-sm text-fg-muted">Opening your Credit Intelligence dashboard...</p>
               <div className="mt-7 grid gap-3 sm:grid-cols-2">
                 <a href={`/credit-intelligence?request_id=${encodeURIComponent(requestId)}`} className="btn-secondary w-full justify-center"><Icon name="ChartBarIcon" size={18} /> Open Credit Intelligence</a>
                 <a href={`/api/customer-report/download?request_id=${encodeURIComponent(requestId)}`} className="btn-primary w-full justify-center"><Icon name="ArrowDownTrayIcon" size={18} /> Download PDF report</a>

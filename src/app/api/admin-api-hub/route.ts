@@ -16,14 +16,14 @@ import { exportApiUsageLedger, listApiUsageLedger } from '@/lib/api-hub/usage-le
 import { hasHubConsoleSession } from '@/lib/api-hub/console-auth';
 import { addBintaLiveCredits, getBintaLiveBalance, listBintaLiveBalances } from '@/lib/api-hub/binta-live-ledger';
 
+function jsonError(message: string, status = 400) {
+  return NextResponse.json({ success: false, error: message }, { status });
+}
+
 function isBridgeClient(client: SimpleApiClient) {
   const metadata = client.metadata || {};
   return metadata.bridge_console_scope === 'binta_bridge'
     || `${client.name} ${client.company_name || ''}`.toLowerCase().includes('binta financial');
-}
-
-function jsonError(message: string, status = 400) {
-  return NextResponse.json({ success: false, error: message }, { status });
 }
 
 const SUPPORT_EMAIL = process.env.API_HUB_SUPPORT_EMAIL || process.env.SUPPORT_EMAIL || 'support@credittrust.in';
@@ -42,19 +42,93 @@ function ticketStatusLabel(status: SimpleSupportTicket['status']) {
   return status.replace(/_/g, ' ');
 }
 
-async function notifyTicketStatusUpdate(ticket: SimpleSupportTicket, clientName: string, mode: 'status' | 'response' = 'status') {
+function displayGreetingName(...items: unknown[]) {
+  for (const item of items) {
+    const text = String(item || '').trim();
+    if (text && !text.includes('@')) return text;
+  }
+  return 'there';
+}
+
+function nestedRecord(source: unknown, key: string) {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return {};
+  const value = (source as Record<string, unknown>)[key];
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function cleanEmail(value: unknown) {
+  return String(value || '').trim();
+}
+
+function cleanEmails(value: unknown) {
+  const rawItems = Array.isArray(value)
+    ? value
+    : String(value || '').split(/[\n,;]+/);
+  return rawItems
+    .map((item) => cleanEmail(item))
+    .filter(Boolean);
+}
+
+function firstNonEmptyEmailList(...items: unknown[]) {
+  for (const item of items) {
+    const emails = cleanEmails(item);
+    if (emails.length) return emails;
+  }
+  return [];
+}
+
+function notificationRecipientsForTicket(ticket: SimpleSupportTicket, client?: SimpleApiClient) {
+  const metadata = client?.metadata || {};
+  const notifications = nestedRecord(metadata, 'notification_emails');
+  const spoc = nestedRecord(metadata, 'spoc');
+  const primaryEmail = firstNonEmptyEmailList(client?.email, ticket.client_email);
+  const technicalEmails = firstNonEmptyEmailList(
+    notifications.technical_support
+    || notifications.support,
+    spoc.technical_email,
+    primaryEmail,
+  );
+  const billingEmails = firstNonEmptyEmailList(
+    notifications.billing
+    || notifications.invoice,
+    spoc.billing_email,
+    technicalEmails,
+  );
+  const certificateEmails = firstNonEmptyEmailList(
+    notifications.certificate
+    || notifications.security,
+    technicalEmails,
+  );
+  const apiAlertsEmails = firstNonEmptyEmailList(
+    notifications.api_alerts
+    || notifications.apiAlerts,
+    technicalEmails,
+  );
+
+  if (ticket.category === 'credits_billing') return billingEmails.length ? billingEmails : technicalEmails;
+  if (ticket.category === 'ip_certificate') return certificateEmails.length ? certificateEmails : technicalEmails;
+  if (ticket.category === 'response_mismatch' || ticket.category === 'api_issue' || ticket.category === 'auth_access') {
+    return apiAlertsEmails.length ? apiAlertsEmails : technicalEmails;
+  }
+  return technicalEmails.length ? technicalEmails : primaryEmail;
+}
+
+async function notifyTicketStatusUpdate(ticket: SimpleSupportTicket, client: SimpleApiClient | undefined, clientName: string, mode: 'status' | 'response' = 'status') {
   const resendApiKey = process.env.RESEND_API_KEY;
-  const recipient = String(ticket.client_email || '').trim();
+  const recipients = notificationRecipientsForTicket(ticket, client);
   if (!resendApiKey) return { success: false, error: 'RESEND_API_KEY is missing' };
-  if (!recipient) return { success: false, error: 'Client email is missing' };
+  if (!recipients.length) return { success: false, error: 'Client email is missing' };
   const heading = mode === 'response' ? 'CreditTrust response added' : 'CreditTrust Bridge support ticket update';
   const statusLine = mode === 'response'
     ? 'CreditTrust has added a response to your support ticket.'
     : `Your support ticket has been marked as <b>${escapeHtml(ticketStatusLabel(ticket.status))}</b>.`;
 
+  const greetingName = displayGreetingName(ticket.client_name, client?.contact_name, client?.name, clientName);
   const html = `
     <h2>${escapeHtml(heading)}</h2>
-    <p>Hello ${escapeHtml(ticket.client_name || clientName || 'there')},</p>
+    <p>Hello ${escapeHtml(greetingName)},</p>
     <p>${statusLine}</p>
     <p><b>Ticket:</b> ${escapeHtml(ticket.ticket_number)}</p>
     <p><b>Subject:</b> ${escapeHtml(ticket.subject)}</p>
@@ -70,7 +144,7 @@ async function notifyTicketStatusUpdate(ticket: SimpleSupportTicket, clientName:
     },
     body: JSON.stringify({
       from: FROM_EMAIL,
-      to: [recipient],
+      to: recipients,
       subject: `${heading} ${ticket.ticket_number} - CreditTrust Bridge`,
       html,
       reply_to: SUPPORT_EMAIL,
@@ -363,15 +437,8 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, Number(request.nextUrl.searchParams.get('usage_page') || 1));
     const pageSize = Math.min(100, Math.max(10, Number(request.nextUrl.searchParams.get('usage_page_size') || 50)));
     const clientId = request.nextUrl.searchParams.get('usage_client_id') || undefined;
-    const bridgeOnly = request.nextUrl.searchParams.get('usage_scope') === 'bridge';
     const status = request.nextUrl.searchParams.get('usage_status') || undefined;
-    const ledger = await listApiUsageLedger(auth.supabase, {
-      page,
-      pageSize,
-      clientId,
-      clientIds: bridgeOnly ? store.clients.filter(isBridgeClient).map((client) => client.id) : undefined,
-      status,
-    });
+    const ledger = await listApiUsageLedger(auth.supabase, { page, pageSize, clientId, status });
     const balances = await listBintaLiveBalances(auth.supabase,
       store.clients.filter(isBridgeClient).map((client) => client.id));
 
@@ -536,21 +603,7 @@ export async function POST(request: NextRequest) {
       let metadata = existing.metadata || {};
       if (body.metadata !== undefined) {
         try {
-          const incoming = parseJson(body.metadata, {}) as Record<string, unknown>;
-          const original = existing.metadata || {};
-          const mergeSection = (key: string) => ({
-            ...((original[key] && typeof original[key] === 'object' && !Array.isArray(original[key])) ? original[key] as Record<string, unknown> : {}),
-            ...((incoming[key] && typeof incoming[key] === 'object' && !Array.isArray(incoming[key])) ? incoming[key] as Record<string, unknown> : {}),
-          });
-          metadata = {
-            ...original,
-            ...incoming,
-            onboarding: mergeSection('onboarding'),
-            response: mergeSection('response'),
-            security: mergeSection('security'),
-            legal: mergeSection('legal'),
-            spoc: mergeSection('spoc'),
-          };
+          metadata = parseJson(body.metadata, existing.metadata || {}) as Record<string, unknown>;
         } catch (error) {
           return jsonError(error instanceof Error ? error.message : 'Metadata must be valid JSON');
         }
@@ -740,6 +793,7 @@ export async function POST(request: NextRequest) {
       const emailResult = shouldEmailClient && updatedTicket
         ? await notifyTicketStatusUpdate(
           updatedTicket,
+          client,
           client?.name || updatedTicket.client_name || 'API client',
           responseChanged && !shouldNotifyClient ? 'response' : 'status',
         )
@@ -751,6 +805,17 @@ export async function POST(request: NextRequest) {
         email_sent: emailResult?.success || false,
         email_error: emailResult && !emailResult.success ? emailResult.error : undefined,
       });
+    }
+
+    if (action === 'delete_ticket') {
+      const ticketId = String(body.ticket_id || '').trim();
+      if (!ticketId) return jsonError('Ticket is required');
+      const existing = (store.tickets || []).find((ticket) => ticket.id === ticketId);
+      if (!existing) return jsonError('Ticket not found', 404);
+
+      store.tickets = (store.tickets || []).filter((ticket) => ticket.id !== ticketId);
+      await saveApiHubStore(auth.supabase, rowId, store);
+      return NextResponse.json({ success: true, deleted_ticket_id: ticketId });
     }
 
     return jsonError('Unknown API Hub action');

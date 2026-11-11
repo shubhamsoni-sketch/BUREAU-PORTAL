@@ -10,6 +10,12 @@ import {
   updateTrackedWhatsAppMessageStatus,
   upsertWhatsAppLeadFromInbound,
 } from '@/lib/marketing/attribution';
+import {
+  buildWhatsAppRelayHeaders,
+  dispatchRupiqaWhatsAppRelay,
+  enqueueRupiqaWhatsAppRelay,
+  processPendingRupiqaWhatsAppRelays,
+} from '@/lib/whatsapp/rupiqa-relay';
 
 type WhatsAppMessage = {
   from?: string;
@@ -91,7 +97,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = await request.json();
+    const rawBody = await request.text();
+    const payload = JSON.parse(rawBody);
     const entries = Array.isArray(payload?.entry) ? payload.entry : [];
     const supabase = createAdminClient();
     let logged = 0;
@@ -200,7 +207,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return json({ success: true, logged });
+    let relay = { queued: false, duplicate: false, forwarded: false, error: null as string | null };
+    try {
+      const queued = await enqueueRupiqaWhatsAppRelay({
+        supabase,
+        rawBody,
+        payload,
+        headers: buildWhatsAppRelayHeaders(request),
+      });
+      relay = { ...relay, queued: queued.queued, duplicate: Boolean(queued.duplicate) };
+
+      if (queued.row) {
+        const forwarded = await dispatchRupiqaWhatsAppRelay({ supabase, row: queued.row });
+        relay.forwarded = Boolean(forwarded.ok);
+        relay.error = forwarded.ok ? null : forwarded.error || 'Rupiqa relay queued for retry';
+      }
+
+      await processPendingRupiqaWhatsAppRelays({ supabase, limit: 5 }).catch((error) => {
+        console.warn('[whatsapp-webhook] Rupiqa relay opportunistic retry failed:', error instanceof Error ? error.message : error);
+      });
+    } catch (error) {
+      relay.error = error instanceof Error ? error.message : 'Rupiqa relay enqueue failed';
+      console.warn('[whatsapp-webhook] Rupiqa relay failed; CreditTrust processing completed:', relay.error);
+    }
+
+    return json({ success: true, logged, relay });
   } catch (error) {
     console.error('[whatsapp-webhook] failed:', error);
     return json(

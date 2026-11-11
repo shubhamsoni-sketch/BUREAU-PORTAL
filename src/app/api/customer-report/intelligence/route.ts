@@ -2,21 +2,33 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { buildComparisonHistory, buildCreditIntelligence } from '@/lib/credit-intelligence/analytics'
-import { requireB2cSession } from '@/lib/b2c/security'
+import { requireB2cSession, setB2cSession } from '@/lib/b2c/security'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
-const SHAKTI_DEMO_IDS = new Set(['shakti', 'shakti-demo', 'demo-shakti'])
+const DEMO_REPORTS: Record<string, { fileName: string; fullName: string; createdAt: string }> = {
+  shakti: {
+    fileName: 'shakti-credit-response.json',
+    fullName: 'SHAKTI DEMO',
+    createdAt: '2026-07-11T16:45:37+05:30',
+  },
+}
 
-async function loadShaktiDemoReport() {
-  const filePath = path.join(process.cwd(), 'public', 'demo', 'shakti-credit-response.json')
+const DEMO_ALIASES = new Map([
+  ['shakti', DEMO_REPORTS.shakti],
+  ['shakti-demo', DEMO_REPORTS.shakti],
+  ['demo-shakti', DEMO_REPORTS.shakti],
+])
+
+async function loadDemoReport(config: { fileName: string; fullName: string; createdAt: string }) {
+  const filePath = path.join(process.cwd(), 'public', 'demo', config.fileName)
   const fixture = JSON.parse(await readFile(filePath, 'utf8'))
   const reportId = fixture?.data?.reportId || fixture?.requestId || 'shakti-demo'
-  const createdAt = '2026-07-11T16:45:37+05:30'
+  const createdAt = fixture?.data?.createdAt || config.createdAt
   const history = buildComparisonHistory([
     {
-      id: 'shakti-demo',
+      id: fixture?.requestId || reportId,
       report_id: reportId,
       credit_score: fixture?.data?.score ?? null,
       report_json: fixture,
@@ -29,7 +41,7 @@ async function loadShaktiDemoReport() {
       success: true,
       demo: true,
       intelligence: buildCreditIntelligence(fixture, {
-        fullName: 'SHAKTI DEMO',
+        fullName: config.fullName,
         reportId,
         createdAt,
       }),
@@ -42,7 +54,8 @@ async function loadShaktiDemoReport() {
 export async function GET(request: NextRequest) {
   const requestId = new URL(request.url).searchParams.get('request_id')
   if (!requestId) return NextResponse.json({ error: 'Missing report request.' }, { status: 400 })
-  if (SHAKTI_DEMO_IDS.has(requestId.toLowerCase())) return loadShaktiDemoReport()
+  const demoReport = DEMO_ALIASES.get(requestId.toLowerCase())
+  if (demoReport) return loadDemoReport(demoReport)
   if (!requireB2cSession(request, requestId)) {
     return NextResponse.json({ error: 'This report session has expired.' }, { status: 401 })
   }
@@ -51,5 +64,7 @@ export async function GET(request: NextRequest) {
   if (error || !report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 })
   if (report.status !== 'report_generated' || !report.report_json) return NextResponse.json({ error: 'Your report is still being prepared.' }, { status: 409 })
   const { data: history } = await supabase.from('b2c_report_requests').select('id,report_id,credit_score,report_json,created_at').eq('mobile', report.mobile).eq('status', 'report_generated').not('report_json', 'is', null).order('created_at', { ascending: true }).limit(12)
-  return NextResponse.json({ success: true, intelligence: buildCreditIntelligence(report.report_json, { fullName: report.full_name, reportId: report.report_id, createdAt: report.created_at }), history: buildComparisonHistory(history ?? []) }, { headers: { 'Cache-Control': 'private, no-store' } })
+  const response = NextResponse.json({ success: true, request_id: requestId, intelligence: buildCreditIntelligence(report.report_json, { fullName: report.full_name, reportId: report.report_id, createdAt: report.created_at }), history: buildComparisonHistory(history ?? []) }, { headers: { 'Cache-Control': 'private, no-store' } })
+  setB2cSession(response, requestId)
+  return response
 }

@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import { trackMetaEvent } from '@/lib/meta-pixel';
 
 const loanProducts = [
   'Personal Loan',
@@ -20,7 +21,6 @@ const emptyForm = {
 declare global {
   interface Window {
     gtag?: (...args: unknown[]) => void;
-    fbq?: (...args: unknown[]) => void;
   }
 }
 
@@ -78,7 +78,7 @@ export default function ContactForm() {
         event_label: 'book_demo_form',
         value: 1,
       });
-      window.fbq?.('track', 'Lead', {
+      trackMetaEvent('Lead', {
         content_name: 'CRM Demo Request',
         content_category: 'Book Demo',
       });

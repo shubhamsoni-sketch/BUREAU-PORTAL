@@ -206,6 +206,7 @@ export default function AdminEmailCampaignsPage() {
   const [activeView, setActiveView] = useState<'campaigns' | 'inbox' | 'audiences'>('campaigns');
   const [activeThreadKey, setActiveThreadKey] = useState('');
   const [activeAudienceId, setActiveAudienceId] = useState('');
+  const [showCampaignForm, setShowCampaignForm] = useState(false);
   const [showAudienceForm, setShowAudienceForm] = useState(false);
   const [audienceName, setAudienceName] = useState('New audience');
   const [csvText, setCsvText] = useState(sampleCsv);
@@ -330,8 +331,10 @@ export default function AdminEmailCampaignsPage() {
       setMessages(json.messages || messages);
       setConfig(json.config || config);
       setNotice(successMessage);
+      return true;
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : 'Action failed');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -418,8 +421,8 @@ export default function AdminEmailCampaignsPage() {
     setShowAudienceForm(false);
   }
 
-  function createCampaign() {
-    runAction({
+  async function createCampaign() {
+    const saved = await runAction({
       action: 'create_campaign',
       name: form.name,
       subject: form.subject,
@@ -429,6 +432,10 @@ export default function AdminEmailCampaignsPage() {
       attachments,
       inline_image: imageFile,
     }, 'Email campaign draft created');
+    if (saved) {
+      setShowCampaignForm(false);
+      resetCampaignForm();
+    }
   }
 
   function resetCampaignForm() {
@@ -459,24 +466,21 @@ export default function AdminEmailCampaignsPage() {
 
   return (
     <AdminLayout title="Email Campaigns">
-      <div className="space-y-5 p-4 sm:p-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Email marketing</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-900">Campaigns, inbox and replies</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Send campaigns through Resend, capture inbound replies, and respond from the admin panel.
-            </p>
+      <div className="flex h-[calc(100vh-5.5rem)] flex-col gap-3 overflow-hidden p-3 sm:p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-600">Email marketing</p>
+            <h1 className="truncate text-xl font-bold text-slate-900">Campaigns, inbox and replies</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => loadData(true)}
-              className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
             >
-              <RefreshCw size={15} /> Refresh
+              <RefreshCw size={14} /> Refresh
             </button>
-            <span className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold ${config?.resendConfigured ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+            <span className={`inline-flex h-8 items-center gap-2 rounded-lg border px-3 text-xs font-bold ${config?.resendConfigured ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
               {config?.resendConfigured ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
               Resend {config?.resendConfigured ? 'ready' : 'env missing'}
             </span>
@@ -489,7 +493,7 @@ export default function AdminEmailCampaignsPage() {
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {([
             ['Contacts', stats.contacts, Users],
             ['Audiences', stats.audiences, Users],
@@ -497,12 +501,12 @@ export default function AdminEmailCampaignsPage() {
             ['Sent', stats.sent, Send],
             ['Replies', stats.replies, Reply],
           ] as StatItem[]).map(([label, value, Icon]) => (
-            <div key={String(label)} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div key={String(label)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-500">{label as string}</p>
-                <Icon size={17} className="text-blue-600" />
+                <p className="text-xs font-bold text-slate-500">{label as string}</p>
+                <Icon size={15} className="text-blue-600" />
               </div>
-              <p className="mt-3 text-2xl font-bold text-slate-900">{Number(value).toLocaleString('en-IN')}</p>
+              <p className="mt-1 text-xl font-bold text-slate-900">{Number(value).toLocaleString('en-IN')}</p>
             </div>
           ))}
         </div>
@@ -517,163 +521,83 @@ export default function AdminEmailCampaignsPage() {
               key={String(id)}
               type="button"
               onClick={() => setActiveView(id as typeof activeView)}
-              className={`inline-flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-bold ${activeView === id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+              className={`inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-bold ${activeView === id ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
             >
               <Icon size={16} /> {label as string}
             </button>
           ))}
         </div>
 
+        <div className="min-h-0 flex-1 overflow-hidden">
         {loading ? (
-          <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading email marketing...</div>
+          <div className="h-full rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading email marketing...</div>
         ) : activeView === 'campaigns' ? (
-          <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
-            <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Plus size={17} className="text-blue-600" />
-                  <h2 className="font-bold text-slate-900">Create campaign</h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={resetCampaignForm}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-300 hover:text-blue-700"
-                >
-                  <Plus size={14} /> New
-                </button>
-              </div>
-              <div className="mt-4 space-y-3">
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Campaign name" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-                <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject, supports {name}" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-                <input value={form.preview_text} onChange={(e) => setForm({ ...form, preview_text: e.target.value })} placeholder="Preview text" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-                <textarea value={form.text_body} onChange={(e) => setForm({ ...form, text_body: e.target.value })} rows={9} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
-                    <span className="inline-flex items-center gap-2 font-bold text-slate-800">
-                      <Paperclip size={16} className="text-blue-600" /> Attach files
-                    </span>
-                    <span className="truncate text-xs text-slate-500">{attachments.length ? `${attachments.length} file(s) selected` : 'Any format, multiple files'}</span>
-                    <input
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={async (event) => {
-                        const files = Array.from(event.target.files || []);
-                        if (!files.length) return;
-                        const uploaded = await Promise.all(files.map((file) => toAttachment(file)));
-                        setAttachments((current) => [...current, ...uploaded]);
-                        event.target.value = '';
-                      }}
-                    />
-                  </label>
-                  <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
-                    <span className="inline-flex items-center gap-2 font-bold text-slate-800">
-                      <Image size={16} className="text-blue-600" /> Inline promo image
-                    </span>
-                    <span className="truncate text-xs text-slate-500">{imageFile?.filename || 'Shows inside email body'}</span>
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      className="hidden"
-                      onChange={async (event) => {
-                          const file = event.target.files?.[0];
-                          if (!file) return;
-                          await uploadInlineImage(file);
-                          event.target.value = '';
-                        }}
-                      />
-                  </label>
-                </div>
-                {(attachments.length > 0 || imageFile) && (
-                  <div className="space-y-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-                    {attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {attachments.map((file, index) => (
-                          <button
-                            key={`${file.filename}-${index}`}
-                            type="button"
-                            onClick={() => setAttachments((current) => current.filter((_, fileIndex) => fileIndex !== index))}
-                            className="inline-flex max-w-full items-center gap-1 rounded-full border border-blue-200 bg-white px-2 py-1 text-blue-800"
-                            title="Remove attachment"
-                          >
-                            <Paperclip size={12} />
-                            <span className="truncate">{file.filename}</span>
-                            <X size={12} />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {imageFile && (
-                      <div className="inline-flex max-w-full items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-1 text-emerald-800">
-                        <Image size={12} />
-                        <span className="truncate">inline image: {imageFile.filename}</span>
-                      </div>
-                    )}
+          <div className="flex h-full min-h-0 flex-col gap-3">
+            <div className="flex min-h-0 flex-col gap-3">
+              <div className="rounded-lg border border-blue-100 bg-white p-3 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Send size={17} className="text-blue-600" />
+                    <h2 className="font-bold text-slate-900">Run campaign</h2>
                   </div>
-                )}
-                <button disabled={saving || !schemaReady} onClick={createCampaign} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
-                  <Plus size={16} /> Save draft
-                </button>
-              </div>
-              <p className="mt-4 text-xs text-slate-500">
-                From: {config?.fromEmail || '-'}<br />Reply-to: {config?.replyTo || '-'}
-              </p>
-            </div>
-
-            <div className="space-y-5">
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <Send size={17} className="text-blue-600" />
-                  <h2 className="font-bold text-slate-900">Run campaign</h2>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetCampaignForm();
+                      setShowCampaignForm(true);
+                    }}
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700"
+                  >
+                    <Plus size={16} /> Create new campaign
+                  </button>
                 </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-                  <select value={selectedCampaignId} onChange={(event) => setSelectedCampaignId(event.target.value)} className="h-10 rounded-lg border border-slate-200 px-3 text-sm">
+                <div className="mt-2 grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,260px)_120px]">
+                  <select value={selectedCampaignId} onChange={(event) => setSelectedCampaignId(event.target.value)} className="h-9 rounded-lg border border-slate-200 px-3 text-sm">
                     <option value="">Select campaign</option>
                     {campaigns.map((campaign) => (
                       <option key={campaign.id} value={campaign.id}>{campaign.name} - {campaign.subject}</option>
                     ))}
                   </select>
-                  <select value={selectedAudienceId} onChange={(event) => setSelectedAudienceId(event.target.value)} className="h-10 rounded-lg border border-slate-200 px-3 text-sm">
+                  <select value={selectedAudienceId} onChange={(event) => setSelectedAudienceId(event.target.value)} className="h-9 rounded-lg border border-slate-200 px-3 text-sm">
                     <option value="">Select audience</option>
                     {audiences.map((audience) => (
                       <option key={audience.id} value={audience.id}>{audience.name} ({audience.contact_count})</option>
                     ))}
                   </select>
-                  <button disabled={saving || !schemaReady || !selectedCampaignId || !selectedAudienceId} onClick={sendSelectedCampaign} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
-                    <Send size={16} /> Send email
+                  <button disabled={saving || !schemaReady || !selectedCampaignId || !selectedAudienceId} onClick={sendSelectedCampaign} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                    <Send size={16} /> Send
                   </button>
                 </div>
-                <p className="mt-3 text-xs text-slate-500">Pehle campaign select karo, phir audience select karo. Mail sirf selected audience ko jayega.</p>
               </div>
 
-              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-200 px-5 py-4">
+              <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
                   <h2 className="font-bold text-slate-900">Saved campaigns</h2>
-                  <p className="text-sm text-slate-500">Send limit per click: {config?.sendLimit ?? 100}</p>
+                  <p className="text-xs font-semibold text-slate-500">Limit: {config?.sendLimit ?? 100}/click</p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="h-full overflow-auto">
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                       <tr>
-                        <th className="px-4 py-3">Campaign</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Sent</th>
-                        <th className="px-4 py-3">Replies</th>
+                        <th className="px-4 py-2.5">Campaign</th>
+                        <th className="px-4 py-2.5">Status</th>
+                        <th className="px-4 py-2.5">Sent</th>
+                        <th className="px-4 py-2.5">Replies</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {campaigns.map((campaign) => (
                         <tr key={campaign.id} className="align-top hover:bg-slate-50">
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-3">
                             <p className="font-bold text-slate-900">{campaign.name}</p>
                             <p className="mt-1 text-xs text-slate-500">{campaign.subject}</p>
                             <p className="mt-1 text-[11px] text-slate-400">Created {formatDate(campaign.created_at)}</p>
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-3">
                             <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(campaign.status)}`}>{campaign.status}</span>
                           </td>
-                          <td className="px-4 py-4 text-slate-700">{campaign.sent_count} sent<br /><span className="text-xs text-red-600">{campaign.failed_count} failed</span></td>
-                          <td className="px-4 py-4 text-slate-700">{campaign.reply_count}</td>
+                          <td className="px-4 py-3 text-slate-700">{campaign.sent_count} sent<br /><span className="text-xs text-red-600">{campaign.failed_count} failed</span></td>
+                          <td className="px-4 py-3 text-slate-700">{campaign.reply_count}</td>
                         </tr>
                       ))}
                       {!campaigns.length && <tr><td colSpan={4} className="px-4 py-10 text-center text-slate-500">No email campaigns yet.</td></tr>}
@@ -684,15 +608,15 @@ export default function AdminEmailCampaignsPage() {
             </div>
           </div>
         ) : activeView === 'inbox' ? (
-          <div className="grid min-h-[620px] gap-5 xl:grid-cols-[360px_1fr]">
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="grid h-full min-h-0 gap-3 xl:grid-cols-[340px_1fr]">
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-200 p-4">
                 <div className="relative">
                   <Search size={15} className="absolute left-3 top-2.5 text-slate-400" />
                   <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search inbox" className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm" />
                 </div>
               </div>
-              <div className="max-h-[560px] overflow-y-auto">
+              <div className="min-h-0 flex-1 overflow-y-auto">
                 {threads.map((thread) => (
                   <button key={thread.key} onClick={() => setActiveThreadKey(thread.key)} className={`block w-full border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50 ${activeThread?.key === thread.key ? 'bg-blue-50' : ''}`}>
                     <div className="flex items-center justify-between gap-3">
@@ -707,14 +631,14 @@ export default function AdminEmailCampaignsPage() {
               </div>
             </div>
 
-            <div className="flex min-h-[620px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
               {activeThread ? (
                 <>
                   <div className="border-b border-slate-200 px-5 py-4">
                     <p className="font-bold text-slate-900">{activeThread.customer}</p>
                     <p className="text-sm text-slate-500">{activeThread.campaign?.name || activeThread.last.subject}</p>
                   </div>
-                  <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-5">
+                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4">
                     {activeThread.messages.map((message) => (
                       <div key={message.id} className={`max-w-3xl rounded-lg border p-4 shadow-sm ${message.direction === 'inbound' ? 'border-blue-100 bg-white' : 'ml-auto border-emerald-100 bg-emerald-50'}`}>
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -743,8 +667,8 @@ export default function AdminEmailCampaignsPage() {
             </div>
           </div>
         ) : (
-          <div className="grid min-h-[620px] gap-5 xl:grid-cols-[340px_1fr]">
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="grid h-full min-h-0 gap-3 xl:grid-cols-[320px_1fr]">
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
               <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
                 <div>
                   <h2 className="font-bold text-slate-900">Audiences</h2>
@@ -763,7 +687,7 @@ export default function AdminEmailCampaignsPage() {
                   <Plus size={14} /> New
                 </button>
               </div>
-              <div className="max-h-[560px] overflow-y-auto">
+              <div className="min-h-0 flex-1 overflow-y-auto">
                 {audiences.map((audience) => (
                   <button
                     key={audience.id}
@@ -786,7 +710,7 @@ export default function AdminEmailCampaignsPage() {
             </div>
 
             {showAudienceForm ? (
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="h-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <Upload size={17} className="text-blue-600" />
@@ -832,7 +756,7 @@ export default function AdminEmailCampaignsPage() {
                 </div>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
                   <div>
                     <h2 className="font-bold text-slate-900">{activeAudience?.name || 'Audience detail'}</h2>
@@ -840,7 +764,7 @@ export default function AdminEmailCampaignsPage() {
                   </div>
                   {activeAudience && <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClass(activeAudience.status)}`}>{activeAudience.status}</span>}
                 </div>
-                <div className="overflow-x-auto">
+                <div className="min-h-0 flex-1 overflow-auto">
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                       <tr>
@@ -869,7 +793,116 @@ export default function AdminEmailCampaignsPage() {
             )}
           </div>
         )}
+        </div>
       </div>
+      {showCampaignForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+              <div className="flex items-center gap-2">
+                <Plus size={18} className="text-blue-600" />
+                <div>
+                  <h2 className="font-bold text-slate-900">Create new campaign</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">Draft save hote hi saved campaigns list me aa jayega.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCampaignForm(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-800"
+                title="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Campaign name" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm md:col-span-2" />
+                <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject, supports {name}" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" />
+                <input value={form.preview_text} onChange={(e) => setForm({ ...form, preview_text: e.target.value })} placeholder="Preview text" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" />
+                <textarea value={form.text_body} onChange={(e) => setForm({ ...form, text_body: e.target.value })} rows={7} className="min-h-44 w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-sm md:col-span-2" />
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
+                  <span className="inline-flex min-w-0 items-center gap-2 font-bold text-slate-800">
+                    <Paperclip size={16} className="text-blue-600" /> Attach files
+                  </span>
+                  <span className="truncate text-xs text-slate-500">{attachments.length ? `${attachments.length} selected` : 'Any format'}</span>
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={async (event) => {
+                      const files = Array.from(event.target.files || []);
+                      if (!files.length) return;
+                      const uploaded = await Promise.all(files.map((file) => toAttachment(file)));
+                      setAttachments((current) => [...current, ...uploaded]);
+                      event.target.value = '';
+                    }}
+                  />
+                </label>
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50">
+                  <span className="inline-flex min-w-0 items-center gap-2 font-bold text-slate-800">
+                    <Image size={16} className="text-blue-600" /> Inline promo image
+                  </span>
+                  <span className="truncate text-xs text-slate-500">{imageFile?.filename || 'Email body'}</span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={async (event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      await uploadInlineImage(file);
+                      event.target.value = '';
+                    }}
+                  />
+                </label>
+                {(attachments.length > 0 || imageFile) && (
+                  <div className="space-y-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800 md:col-span-2">
+                    {attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {attachments.map((file, index) => (
+                          <button
+                            key={`${file.filename}-${index}`}
+                            type="button"
+                            onClick={() => setAttachments((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                            className="inline-flex max-w-full items-center gap-1 rounded-full border border-blue-200 bg-white px-2 py-1 text-blue-800"
+                            title="Remove attachment"
+                          >
+                            <Paperclip size={12} />
+                            <span className="truncate">{file.filename}</span>
+                            <X size={12} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {imageFile && (
+                      <div className="inline-flex max-w-full items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-1 text-emerald-800">
+                        <Image size={12} />
+                        <span className="truncate">inline image: {imageFile.filename}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs leading-5 text-slate-500 md:col-span-2">
+                  From: {config?.fromEmail || '-'}<br />Reply-to: {config?.replyTo || '-'}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-white px-5 py-4">
+              <button
+                type="button"
+                onClick={() => setShowCampaignForm(false)}
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:border-slate-300"
+              >
+                Cancel
+              </button>
+              <button disabled={saving || !schemaReady} onClick={createCampaign} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                <Plus size={16} /> Save draft
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

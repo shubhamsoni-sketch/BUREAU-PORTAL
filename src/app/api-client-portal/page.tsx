@@ -13,6 +13,7 @@ import {
   Server,
   ShieldCheck,
   Ticket,
+  Trash2,
   WalletCards,
   X,
 } from 'lucide-react';
@@ -125,6 +126,35 @@ function LoginPanel({
 }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetNotice, setResetNotice] = useState('');
+  const [resetError, setResetError] = useState('');
+
+  const requestPasswordReset = async () => {
+    const loginId = username.trim();
+    setResetNotice('');
+    setResetError('');
+    if (!loginId) {
+      setResetError('Enter Login ID before requesting password reset.');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const response = await fetch('/api/api-client-portal-auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginId }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to send password reset request');
+      setResetNotice(json.message || 'Password reset request sent to CreditTrust support.');
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : 'Unable to send password reset request');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#07111f] px-5 py-8 text-white">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center">
@@ -207,6 +237,16 @@ function LoginPanel({
               {loading ? 'Verifying...' : 'Open Client Portal'}
               <ArrowRight size={18} />
             </button>
+            <button
+              type="button"
+              onClick={requestPasswordReset}
+              disabled={resetLoading}
+              className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-xs font-black text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {resetLoading ? 'Sending reset request...' : 'Request password reset'}
+            </button>
+            {resetNotice ? <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-bold leading-5 text-emerald-700">{resetNotice}</div> : null}
+            {resetError ? <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs font-bold leading-5 text-amber-700">{resetError}</div> : null}
           </form>
         </div>
       </div>
@@ -403,6 +443,34 @@ export default function ApiClientPortalPage() {
     }
   };
 
+  const deleteTicketFromClient = async (ticketId: string) => {
+    if (!window.confirm('Delete this support ticket from your portal?')) return;
+    setLoading(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch('/api/api-client-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_ticket', ticket_id: ticketId }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to delete support ticket');
+      setNotice('Support ticket deleted.');
+      setThreadTicketId((current) => (current === ticketId ? null : current));
+      setTicketActionDrafts((current) => {
+        const next = { ...current };
+        delete next[ticketId];
+        return next;
+      });
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete support ticket');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!checkedSession && !data) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#07111f] text-white">
@@ -448,7 +516,7 @@ export default function ApiClientPortalPage() {
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-emerald-300">CT</div>
             <div>
               <p className="text-sm font-black text-slate-950">CreditTrust Bridge</p>
-              <p className="text-xs font-bold text-slate-500">Binta Client Portal</p>
+              <p className="text-xs font-bold text-slate-500">Client Workspace</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -671,13 +739,25 @@ export default function ApiClientPortalPage() {
                       <p className="text-[11px] font-bold text-slate-400">{formatDate(ticket.updated_at)}</p>
                       {ticket.request_id ? <p className="mt-1 font-mono text-[11px] font-black text-blue-700">Request ID: {ticket.request_id}</p> : null}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setThreadTicketId(ticketId)}
-                      className="inline-flex h-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-black text-slate-700 hover:border-blue-200 hover:text-blue-700"
-                    >
-                      View
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setThreadTicketId(ticketId)}
+                        className="inline-flex h-8 items-center justify-center rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-black text-slate-700 hover:border-blue-200 hover:text-blue-700"
+                      >
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteTicketFromClient(ticketId)}
+                        disabled={loading}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition hover:border-red-200 hover:bg-red-100 disabled:opacity-50"
+                        aria-label={`Delete ticket ${ticket.ticket_number || ticket.subject}`}
+                        title="Delete ticket"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                   <p className="mt-3 h-12 overflow-hidden rounded-xl bg-white px-3 py-2 text-xs font-bold leading-5 text-slate-600">{ticket.message || '-'}</p>
                   {draft ? (

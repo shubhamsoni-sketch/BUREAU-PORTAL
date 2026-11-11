@@ -24,7 +24,6 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
-  Sparkles,
   TrendingUp,
   WalletCards,
   XCircle,
@@ -176,6 +175,10 @@ function maskAccount(accountNumber: string) {
   return `${accountNumber.slice(0, 3)}XXXX${accountNumber.slice(-4)}`;
 }
 
+function displayLender(lender: string) {
+  return lender || 'Lender hidden';
+}
+
 function deriveReport(data: CreditIntelligence, history: ReportHistory[]) {
   const accounts = data.accounts || [];
   const loans = accounts.filter((account) => account.category === 'loan' || account.category === 'overdraft');
@@ -200,7 +203,7 @@ function deriveReport(data: CreditIntelligence, history: ReportHistory[]) {
     : [Math.max(score - 47, 300), Math.max(score - 34, 300), Math.max(score - 18, 300), Math.max(score - 8, 300), score];
   const projectedScore = clamp((data.score ?? 650) + 36, 300, 900);
   const enquiries = data.enquiries || [];
-  const recentEnquiries = data.totals.recentEnquiries || enquiries.slice(0, 3).length;
+  const recentEnquiries = data.totals.recentEnquiries;
   const dpdRows = accounts.slice(0, 6).map((account, accountIndex) => ({
     account,
     values: monthLabels.map((_, index) => {
@@ -257,7 +260,7 @@ function CreditIntelligenceRoute() {
 
 function CreditIntelligenceApp() {
   const searchParams = useSearchParams();
-  const requestId = searchParams.get('request_id') || searchParams.get('report_id') || 'shakti-demo';
+  const requestId = searchParams.get('request_id') || searchParams.get('report_id') || '';
   const [payload, setPayload] = useState<ReportPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<Section>('dashboard');
@@ -267,14 +270,19 @@ function CreditIntelligenceApp() {
 
     async function loadReport() {
       setError(null);
+      if (!requestId) {
+        setError('Open this dashboard from your completed B2C report journey.');
+        return;
+      }
       try {
         const response = await fetch(`/api/customer-report/intelligence?request_id=${encodeURIComponent(requestId)}`, {
           cache: 'no-store',
+          credentials: 'same-origin',
         });
         const json = await response.json().catch(() => null);
         const report = json?.report ?? json?.intelligence;
         if (!response.ok || !report) {
-          throw new Error(json?.message || 'Unable to open this report');
+          throw new Error(json?.error || json?.message || 'Unable to open this report');
         }
         if (!mounted) return;
         setPayload({
@@ -405,17 +413,7 @@ function Sidebar({
       </nav>
 
       <div className="px-4 pb-5">
-        <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-black text-blue-700">
-            <Sparkles className="h-4 w-4" />
-            Unlock full potential
-          </div>
-          <p className="mt-2 text-xs font-medium leading-5 text-slate-600">
-            Get personalized insights and recommendations to improve your score faster.
-          </p>
-          <button className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-black text-white">Upgrade Now</button>
-        </div>
-        <div className="mt-4 flex items-center gap-3 rounded-xl bg-slate-950 p-3 text-white">
+        <div className="flex items-center gap-3 rounded-xl bg-slate-950 p-3 text-white">
           <div className="grid h-9 w-9 place-items-center rounded-full bg-blue-600 text-sm font-black">{firstName(customerName).slice(0, 1)}</div>
           <div className="min-w-0">
             <p className="truncate text-sm font-black">{customerName}</p>
@@ -694,7 +692,7 @@ function EnquirySection({ report, derived }: { report: CreditIntelligence; deriv
                 {derived.enquiries.map((enquiry, index) => (
                   <tr key={`${enquiry.lender}-${index}`}>
                     <td className="px-4 py-3 font-semibold text-slate-700">{safeDate(enquiry.date)}</td>
-                    <td className="px-4 py-3 font-bold">{enquiry.lender}</td>
+                    <td className="px-4 py-3 font-bold">{displayLender(enquiry.lender)}</td>
                     <td className="px-4 py-3 text-slate-600">{enquiry.purpose}</td>
                     <td className="px-4 py-3 text-slate-600">{formatCurrency(enquiry.amount)}</td>
                     <td className="px-4 py-3"><Pill tone={index < 2 ? 'amber' : 'green'}>{index < 2 ? 'Medium' : 'Low'}</Pill></td>
@@ -807,7 +805,7 @@ function NegativeSection({ report, derived }: { report: CreditIntelligence; deri
                 {items.map((item, index) => (
                   <tr key={`${item.account}-${index}`}>
                     <td className="px-4 py-3 font-bold">{item.issue}</td>
-                    <td className="px-4 py-3 text-slate-600">{item.lender}</td>
+                    <td className="px-4 py-3 text-slate-600">{displayLender(item.lender)}</td>
                     <td className="px-4 py-3 text-slate-600">{item.account}</td>
                     <td className="px-4 py-3"><Pill tone="red">High</Pill></td>
                   </tr>
@@ -1098,7 +1096,7 @@ function AccountsTable({ accounts, title = 'Account Performance' }: { accounts: 
                 return (
                   <tr key={account.id} className="align-top">
                     <td className="px-4 py-4">
-                      <p className="font-black">{account.lender}</p>
+                      <p className="font-black">{displayLender(account.lender)}</p>
                       <p className="text-xs font-semibold text-slate-500">{maskAccount(account.accountNumber)}</p>
                     </td>
                     <td className="px-4 py-4 font-semibold text-slate-700">{account.product}</td>
@@ -1146,7 +1144,7 @@ function DpdMatrix({ rows }: { rows: ReturnType<typeof deriveReport>['dpdRows'] 
           {rows.map(({ account, values }) => (
             <tr key={account.id}>
               <td className="px-3 py-3">
-                <p className="font-black text-slate-900">{account.lender}</p>
+                <p className="font-black text-slate-900">{displayLender(account.lender)}</p>
                 <p className="text-slate-500">{account.product}</p>
               </td>
               {values.map((value, index) => (

@@ -197,6 +197,14 @@ export async function POST(
       credits_deducted: cost,
       response_time_ms: responseTime,
     }, ...store.usage].slice(0, 200);
+    const outgoingResponse = {
+      success: true,
+      request_id: requestId,
+      api: api.code,
+      charged: { credits: cost, balance: remainingCredits },
+      access: remainingCredits === 0 ? 'inactive' : 'active',
+      data: response.data,
+    };
     await saveApiHubStore(supabase, rowId, store);
     await appendApiUsageLedger(supabase, {
       ...baseLog,
@@ -209,17 +217,10 @@ export async function POST(
       balance_after: remainingCredits,
       response_time_ms: responseTime,
       request_json: payloadObject,
-      response_json: response.data,
+      response_json: outgoingResponse,
     });
 
-    return NextResponse.json({
-      success: true,
-      request_id: requestId,
-      api: api.code,
-      charged: { credits: cost, balance: remainingCredits },
-      access: remainingCredits === 0 ? 'inactive' : 'active',
-      data: response.data,
-    });
+    return NextResponse.json(outgoingResponse);
   } catch (error) {
     console.error('[api-hub:generic] unexpected error:', error);
     const message = error instanceof Error ? error.message : 'Unexpected API Hub error';

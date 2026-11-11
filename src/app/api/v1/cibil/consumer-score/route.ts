@@ -79,9 +79,12 @@ function asNumber(value: unknown) {
 }
 
 function scoreRange(rawScore: string) {
-  const score = Number(rawScore);
+  const cleanedScore = cleanString(rawScore);
+  if (!cleanedScore) return { available: false, score_range: 'not_available', score_band: 'unknown' };
+  const score = Number(cleanedScore);
   if (!Number.isFinite(score)) return { available: false, score_range: 'not_available', score_band: 'unknown' };
   if (score === -1) return { available: false, score_range: '-1', score_band: 'no-hit' };
+  if (score < 300) return { available: false, score_range: 'not_available', score_band: 'unknown' };
   const lower = Math.floor(score / 5) * 5;
   const upper = lower + 5;
   const band = score >= 750 ? 'excellent' : score >= 700 ? 'good' : score >= 650 ? 'fair' : score >= 600 ? 'weak' : 'poor';
@@ -139,55 +142,149 @@ function collectTradelineCandidates(value: unknown, found: Record<string, unknow
 function normalizeBureauStandardResponse(params: {
   requestId: string;
   environment: string;
+  responseTimeMs: number;
   requestBody: Record<string, unknown>;
   payload: JaadugarCibilPayload;
   responseData: unknown;
 }) {
-  const { requestId, environment, requestBody, payload, responseData } = params;
+  const { requestId, environment, responseTimeMs, requestBody, payload, responseData } = params;
   const rawScore = firstValue(responseData, ['score', 'bureauScore', 'cibilScore', 'creditScore']) || firstValue(requestBody, ['score']);
-  const tradelines = collectTradelineCandidates(responseData).slice(0, 50).map((account) => {
+  const tradelines = collectTradelineCandidates(responseData).map((account) => {
     const currentBalance = asNumber(account.currentBalance ?? account.current_balance ?? account.balance ?? account.balanceAmount);
+    const highCreditAmount = amountOrNull(account.highCreditAmount ?? account.high_credit_amount ?? account.sanctionedAmount ?? account.sanctioned_amount ?? account.creditAmount);
+    const creditLimit = amountOrNull(account.creditLimit ?? account.credit_limit ?? account.limit);
     const overdue = asNumber(account.amountOverdue ?? account.amount_overdue ?? account.overdueAmount ?? account.overdue);
     const dpd = cleanString(account.dpd ?? account.dpdBucket ?? account.dpd_bucket ?? account.daysPastDue ?? account.paymentStatus) || '0';
+    const status = cleanString(account.accountStatus ?? account.account_status ?? account.status) || 'Not disclosed';
     return {
+      sequence: 0,
       loan_type: cleanString(account.accountType ?? account.account_type ?? account.loanType ?? account.loan_type) || 'Not disclosed',
-      account_status: cleanString(account.accountStatus ?? account.account_status ?? account.status) || 'Not disclosed',
+      account_category: cleanString(account.accountCategory ?? account.account_category ?? account.category) || 'not_disclosed',
+      ownership: cleanString(account.ownership ?? account.ownershipIndicator ?? account.ownership_indicator) || 'Not disclosed',
+      account_status: status,
+      date_opened: firstDate(account, ['dateOpened', 'date_opened', 'openedDate', 'open_date']),
+      date_closed: firstDate(account, ['dateClosed', 'date_closed', 'closedDate', 'close_date']),
+      last_payment_date: firstDate(account, ['lastPaymentDate', 'last_payment_date']),
+      date_reported: firstDate(account, ['dateReported', 'date_reported', 'reportedDate', 'reportingDate']),
       current_balance: currentBalance,
-      dpd_bucket: dpd,
-      delinquency_indicator: overdue > 0 || (dpd !== '0' && dpd !== '000' && dpd !== '-'),
+      high_credit_amount: highCreditAmount,
+      credit_limit: creditLimit,
+      amount_overdue: overdue,
+      emi_amount: amountOrNull(account.emiAmount ?? account.emi_amount ?? account.installmentAmount),
+      dpd: {
+        max_days_last_36_months: asNumber(account.maxDpd ?? account.max_dpd ?? account.maxDaysPastDue ?? dpd),
+        bucket: dpd,
+        delinquency_indicator: overdue > 0 || (dpd !== '0' && dpd !== '000' && dpd !== '-'),
+      },
+      payment_history: [],
     };
-  });
+  }).map((item, index) => ({ ...item, sequence: index + 1 }));
   const activeAccounts = tradelines.filter((item) => item.account_status.toLowerCase().includes('active')).length;
+  const overdueAccounts = tradelines.filter((item) => item.amount_overdue > 0).length;
+  const delinquentAccounts = tradelines.filter((item) => item.dpd.delinquency_indicator).length;
   const totalCurrentBalance = tradelines.reduce((sum, item) => sum + item.current_balance, 0);
+  const highCreditAmountTotal = tradelines.reduce((sum, item) => sum + Number(item.high_credit_amount || 0), 0);
+  const consent = consentSource(requestBody);
+  const generatedAt = new Date().toISOString();
+  const stateCode = cleanString(requestBody.state_code || requestBody.stateCode);
+  const stateName = payload.state || (stateCode ? STATE_NAME_BY_CODE[stateCode.padStart(2, '0')] : '') || '';
+  const inquiryCount = firstNumber(responseData, ['totalInquiries', 'total_inquiries', 'enquiryCount']);
+  const recentInquiryDate = firstDate(responseData, ['recentInquiryDate', 'recent_inquiry_date', 'enquiryDate']);
 
   return {
     success: true,
     request_id: requestId,
     environment,
+    response_version: 'binta-schedule-a-v1',
     status: 'completed',
-    source: 'CREDIT_SOURCE',
-    score: scoreRange(rawScore),
-    consumer: {
-      first_name: payload.firstName,
-      last_name: payload.lastName,
-      dob: payload.dob,
-      mobile_masked: maskMobile(payload.mobile),
-      pan_masked: maskPan(payload.pan),
+    source: 'BUREAU',
+    processing: {
+      response_time_ms: responseTimeMs,
+      generated_at: generatedAt,
+      source_raw_json_included: false,
+      normalization_policy: 'schedule_a_normalized_bureau_report',
     },
-    summary: {
-      total_accounts: tradelines.length,
-      active_accounts: activeAccounts,
-      closed_accounts: Math.max(0, tradelines.length - activeAccounts),
-      total_current_balance: totalCurrentBalance,
-      total_overdue_balance: tradelines.reduce((sum, item) => sum + (item.delinquency_indicator ? item.current_balance : 0), 0),
-      recent_enquiries_6_months: asNumber(firstValue(responseData, ['recentEnquiries6Months', 'recent_enquiries_6_months', 'enquiryCount'])),
-    },
-    tradelines,
     consent: {
       validated: Boolean(requestBody.consent ?? requestBody.consent_given ?? true),
       consent_timestamp: consentTimestamp(requestBody),
+      consent_reference: cleanString(consent.consent_reference || consent.consentReference || requestBody.consent_reference || requestBody.consentReference) || null,
     },
-    generated_at: new Date().toISOString(),
+    input: {
+      mandatory_fields_received: [
+        'firstName',
+        'lastName',
+        'dob',
+        'pan',
+        'mobile',
+        'gender',
+        'address',
+        'state',
+        'pincode',
+      ],
+      identity: {
+        first_name: payload.firstName,
+        middle_name: cleanString(requestBody.middleName || requestBody.middle_name).toUpperCase(),
+        last_name: payload.lastName,
+        dob: dateToIso(payload.dob),
+        gender: payload.gender,
+        pan_masked: bintaMaskPan(payload.pan),
+        mobile_masked: bintaMaskMobile(payload.mobile),
+      },
+    },
+    score: scoreRange(rawScore),
+    account_summary: {
+      total_accounts: tradelines.length,
+      active_accounts: activeAccounts,
+      closed_or_zero_balance_accounts: Math.max(0, tradelines.length - activeAccounts),
+      overdue_accounts: overdueAccounts,
+      delinquent_accounts: delinquentAccounts,
+      total_current_balance: totalCurrentBalance,
+      total_overdue_balance: tradelines.reduce((sum, item) => sum + item.amount_overdue, 0),
+      high_credit_amount_total: highCreditAmountTotal,
+      oldest_account_opened_on: tradelines.map((item) => item.date_opened).filter(Boolean).sort()[0] || null,
+      recent_account_opened_on: tradelines.map((item) => item.date_opened).filter(Boolean).sort().reverse()[0] || null,
+    },
+    inquiry_summary: {
+      total_inquiries: inquiryCount,
+      inquiries_past_30_days: firstNumber(responseData, ['inquiriesPast30Days', 'inquiries_past_30_days']),
+      inquiries_past_12_months: firstNumber(responseData, ['inquiriesPast12Months', 'inquiries_past_12_months', 'recentEnquiries12Months']),
+      inquiries_past_24_months: firstNumber(responseData, ['inquiriesPast24Months', 'inquiries_past_24_months']),
+      recent_inquiry_date: recentInquiryDate,
+    },
+    identities: [
+      {
+        type: 'PAN',
+        id_masked: bintaMaskPan(payload.pan),
+      },
+    ],
+    contacts: {
+      mobiles: [
+        {
+          mobile_masked: bintaMaskMobile(payload.mobile),
+          type: 'mobile',
+        },
+      ],
+      emails: cleanString(consent.email || requestBody.email)
+        ? [{ email_masked: cleanString(consent.email || requestBody.email).replace(/^(.{2}).*(@.*)$/, '$1***$2') }]
+        : [],
+    },
+    addresses: [
+      {
+        sequence: 1,
+        address_line_1: payload.address.toUpperCase(),
+        address_line_2: '',
+        address_line_3: '',
+        state_code: stateCode || null,
+        state: stateName,
+        pincode: payload.pincode,
+        address_category: 'residence',
+        date_reported: null,
+      },
+    ],
+    employment: [],
+    tradelines,
+    enquiries: [],
+    disputes: [],
   };
 }
 
@@ -703,6 +800,7 @@ export async function POST(request: NextRequest) {
       ? normalizeBureauStandardResponse({
           requestId,
           environment,
+          responseTimeMs: responseTime,
           requestBody,
           payload,
           responseData: response.data,

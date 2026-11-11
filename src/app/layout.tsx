@@ -18,9 +18,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Credit Trust - Financial Health Analysis Platform',
+  title: 'CreditTrust | Credit Report Analysis & Financial Health Insights',
   description:
-    'Credit Trust helps individuals and financial partners generate clear financial health reports with credit score insights, repayment analysis, and wallet-based partner workflows.',
+    'CreditTrust is a credit report analysis and financial health insights platform owned and operated by Fin Coopers Tech India Private Limited. No loan approval, score improvement, or lender decision is guaranteed.',
   icons: {
     icon: [
       { url: '/favicon.svg?v=2', type: 'image/svg+xml' },
@@ -37,6 +37,8 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const creditTrustMetaPixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID_CREDITTRUST?.trim() || '';
+
   return (
     <html lang="en">
       <body className="bg-background text-foreground antialiased">
@@ -71,7 +73,7 @@ export default function RootLayout({
           }}
         />
         <GoogleAnalytics />
-        <MetaPixel />
+        <MetaPixel pixelId={creditTrustMetaPixelId} />
         <ErrorBoundary label="App Root">
           <AuthProvider>
             <AdminGuard>

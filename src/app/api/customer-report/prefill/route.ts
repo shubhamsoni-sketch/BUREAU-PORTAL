@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiHubStore } from '@/lib/api-hub/simple-store';
 import { buildCibilPayload, findB2cApis, hitPrefill, prefillPreview, validateCibilPayload } from '@/lib/b2c/prefill';
-import { requireB2cSession } from '@/lib/b2c/security';
+import { requireB2cSession, setB2cSession } from '@/lib/b2c/security';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
@@ -27,7 +27,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (reportRequest.prefill_payload) {
-      return NextResponse.json({ success: true, profile: prefillPreview(reportRequest.prefill_payload) });
+      const response = NextResponse.json({ success: true, request_id: requestId, profile: prefillPreview(reportRequest.prefill_payload) });
+      setB2cSession(response, requestId);
+      return response;
     }
 
     const { store } = await getApiHubStore(supabase);
@@ -80,7 +82,9 @@ export async function POST(request: NextRequest) {
     }).eq('id', requestId);
     if (updateError) throw updateError;
 
-    return NextResponse.json({ success: true, profile: prefillPreview(payload) });
+    const response = NextResponse.json({ success: true, request_id: requestId, profile: prefillPreview(payload) });
+    setB2cSession(response, requestId);
+    return response;
   } catch (error) {
     console.error('[customer-report/prefill]', error);
     return NextResponse.json({ success: false, error: 'Unable to retrieve profile details.' }, { status: 500 });

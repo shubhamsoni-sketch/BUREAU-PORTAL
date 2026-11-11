@@ -15,12 +15,12 @@ import {
   LockKeyhole,
   Plus,
   ShieldCheck,
+  Trash2,
   WalletCards,
   X,
 } from 'lucide-react';
-import bintaSampleResponse from '@/lib/api-hub/binta-uat-normalized-response.json';
 
-type NavItem = 'Overview' | 'Onboarding' | 'Clients' | 'Environments' | 'API Keys' | 'IP Whitelist' | 'Credits' | 'Requests' | 'Support' | 'Docs';
+type NavItem = 'Overview' | 'Onboarding' | 'Clients' | 'Environments' | 'API Keys' | 'IP Whitelist' | 'Credits' | 'Response Master' | 'Support' | 'Docs';
 type Environment = 'UAT' | 'Production';
 type ClientStatus = 'Production' | 'UAT' | 'Review' | 'Suspended';
 type ApiProduct = 'Bureau Standard' | 'Bureau Advanced' | 'Mobile Prefill';
@@ -52,6 +52,14 @@ type ClientOnboarding = {
   uatSignoffAt: string;
 };
 
+type ClientNotificationEmails = {
+  technicalSupport: string;
+  billing: string;
+  certificate: string;
+  apiAlerts: string;
+  escalation: string;
+};
+
 type Client = {
   id: string;
   name: string;
@@ -67,7 +75,8 @@ type Client = {
   responseMode: ResponseMode;
   responseFields: string[];
   successRate: string;
-  metadata: Record<string, unknown>;
+  notificationEmails: ClientNotificationEmails;
+  metadata?: Record<string, unknown>;
 };
 
 type ApiKeyRecord = {
@@ -89,14 +98,40 @@ type UsageLog = {
   environment: Environment;
   api: ApiProduct;
   status: 'Success' | 'Failed';
-  latency: string;
-  charge: string;
-  ip: string;
   createdAt: string;
-  httpStatus: number | null;
-  error: string;
-  requestJson: unknown;
-  responseJson: unknown;
+  httpStatus: string;
+  providerStatus: string;
+  latency: string;
+  credits: number;
+  balanceAfter: string;
+  maskedPan: string;
+  maskedMobile: string;
+  ip: string;
+  errorMessage: string;
+  requestJson?: unknown;
+  responseJson?: unknown;
+};
+
+type HubUsageLedgerRow = {
+  id?: string;
+  request_id?: string;
+  client_id?: string | null;
+  api_id?: string | null;
+  api_code?: string | null;
+  environment?: string | null;
+  status?: string | null;
+  http_status?: number | null;
+  provider_status?: number | null;
+  credits_deducted?: number | null;
+  balance_after?: number | null;
+  masked_pan?: string | null;
+  masked_mobile?: string | null;
+  ip_address?: string | null;
+  response_time_ms?: number | null;
+  error_message?: string | null;
+  request_json?: unknown;
+  response_json?: unknown;
+  created_at?: string | null;
 };
 
 type HubApiConfig = {
@@ -138,8 +173,7 @@ type HubData = {
   clients: HubClient[];
   keys: HubKey[];
   tickets: SupportTicket[];
-  usage: Record<string, unknown>[];
-  usageTotal: number;
+  usage: HubUsageLedgerRow[];
 };
 
 type SupportTicket = {
@@ -166,10 +200,41 @@ type SupportTicket = {
   updated_at: string;
 };
 
-const navItems: NavItem[] = ['Overview', 'Onboarding', 'Clients', 'Environments', 'API Keys', 'IP Whitelist', 'Credits', 'Requests', 'Support', 'Docs'];
-const apiProducts: ApiProduct[] = ['Bureau Standard'];
+const navItems: NavItem[] = ['Overview', 'Onboarding', 'Clients', 'Environments', 'API Keys', 'IP Whitelist', 'Credits', 'Response Master', 'Support', 'Docs'];
+const apiProducts: ApiProduct[] = ['Bureau Standard', 'Bureau Advanced', 'Mobile Prefill'];
 const environments: Environment[] = ['UAT', 'Production'];
-const standardResponseFields = Object.keys(bintaSampleResponse);
+const standardResponseFields = ['success', 'request_id', 'score', 'status', 'report_id', 'customer_name', 'bureau_summary'];
+const responseFieldOptions = [
+  ['success', 'Request success'],
+  ['request_id', 'CreditTrust request id'],
+  ['score', 'Bureau score'],
+  ['status', 'Hit/no-hit status'],
+  ['report_id', 'Report id'],
+  ['customer_name', 'Customer name'],
+  ['pan_masked', 'Masked PAN'],
+  ['mobile_masked', 'Masked mobile'],
+  ['bureau_summary', 'Bureau summary'],
+  ['accounts_summary', 'Accounts summary'],
+  ['enquiries_summary', 'Enquiries summary'],
+  ['risk_band', 'Risk band'],
+  ['raw_report', 'Raw provider report'],
+] as const;
+
+const sampleFieldValues: Record<string, unknown> = {
+  success: true,
+  request_id: 'ct_req_20260706_1021',
+  score: 742,
+  status: 'hit',
+  report_id: 'ct_rpt_81f4',
+  customer_name: 'CUSTOMER NAME',
+  pan_masked: 'ABCDE****F',
+  mobile_masked: '98******10',
+  bureau_summary: { active_accounts: 4, overdue_amount: 0 },
+  accounts_summary: { total_accounts: 12, live_accounts: 4 },
+  enquiries_summary: { last_30_days: 2, last_90_days: 5 },
+  risk_band: 'low',
+  raw_report: { provider: 'cibil', response: 'full provider json' },
+};
 
 const onboardingSteps: Array<{ key: keyof ClientOnboarding; label: string; stage: OnboardingStage; description: string }> = [
   { key: 'csrStatus', label: 'CSR received', stage: 'CSR', description: 'Client CSR or hosted certificate plan captured' },
@@ -179,7 +244,7 @@ const onboardingSteps: Array<{ key: keyof ClientOnboarding; label: string; stage
   { key: 'payloadValidationStatus', label: 'Payload validation passed', stage: 'UAT', description: 'Mandatory fields, consent and schema verified' },
   { key: 'uatSignoffStatus', label: 'UAT sign-off', stage: 'Sign-Off', description: 'Client confirms UAT request-response round trips' },
   { key: 'productionIpStatus', label: 'Production IP whitelisted', stage: 'Production', description: 'Production static IPs approved' },
-  { key: 'productionCertificateStatus', label: 'Production mTLS installed', stage: 'Production', description: 'Client certificate pinned at the secure edge and independently verified' },
+  { key: 'productionCertificateStatus', label: 'Production mTLS installed', stage: 'Production', description: 'Client certificate pinned at the secure edge; missing and invalid certificates rejected' },
   { key: 'productionCredentialsStatus', label: 'Production credentials issued', stage: 'Production', description: 'Live key released after UAT sign-off' },
   { key: 'goLiveStatus', label: 'Go-live approved', stage: 'Production', description: 'Production traffic allowed and monitored' },
 ];
@@ -201,12 +266,23 @@ function defaultOnboarding(overrides: Partial<ClientOnboarding> = {}): ClientOnb
     uatSignoffStatus: 'pending',
     productionCredentialsStatus: 'pending',
     goLiveStatus: 'pending',
-    sslCommonName: '',
+    sslCommonName: 'api.credittrust.in',
     csrReference: '',
     certificateExpiry: '',
     productionCertificateFingerprint: '',
     uatSignoffBy: '',
     uatSignoffAt: '',
+    ...overrides,
+  };
+}
+
+function defaultNotificationEmails(overrides: Partial<ClientNotificationEmails> = {}): ClientNotificationEmails {
+  return {
+    technicalSupport: '',
+    billing: '',
+    certificate: '',
+    apiAlerts: '',
+    escalation: '',
     ...overrides,
   };
 }
@@ -238,7 +314,6 @@ function productionReady(client: Client) {
     'productionIpStatus',
     'productionCertificateStatus',
     'productionCredentialsStatus',
-    'goLiveStatus',
   ].every((key) => client.onboarding[key as keyof ClientOnboarding] === 'done');
 }
 
@@ -286,6 +361,18 @@ function asStringArray(value: unknown) {
     : [];
 }
 
+function emailText(value: unknown) {
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean).join(', ');
+  return String(value || '').trim();
+}
+
+function emailList(value: string) {
+  return value
+    .split(/[\n,;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function metadataObject(client: HubClient | Client) {
   const metadata = 'metadata' in client ? client.metadata : undefined;
   return metadata && typeof metadata === 'object' && !Array.isArray(metadata)
@@ -300,12 +387,28 @@ function nestedRecord(source: Record<string, unknown>, key: string) {
     : {};
 }
 
+function notificationEmailsFromMetadata(metadata: Record<string, unknown>, fallbackEmail = ''): ClientNotificationEmails {
+  const notifications = nestedRecord(metadata, 'notification_emails');
+  const spoc = nestedRecord(metadata, 'spoc');
+  const supportFallback = emailText(notifications.technical_support || notifications.support || spoc.technical_email || fallbackEmail || '');
+  const billingFallback = emailText(notifications.billing || notifications.invoice || spoc.billing_email || supportFallback);
+  return defaultNotificationEmails({
+    technicalSupport: supportFallback,
+    billing: billingFallback,
+    certificate: emailText(notifications.certificate || notifications.security || supportFallback),
+    apiAlerts: emailText(notifications.api_alerts || notifications.apiAlerts || supportFallback),
+    escalation: emailText(notifications.escalation || spoc.escalation_email || supportFallback),
+  });
+}
+
 function mapHubClient(client: HubClient, keys: HubKey[], apis: HubApiConfig[]): Client {
   const metadata = metadataObject(client);
   const onboarding = nestedRecord(metadata, 'onboarding');
   const legal = nestedRecord(metadata, 'legal');
   const spoc = nestedRecord(metadata, 'spoc');
   const security = nestedRecord(metadata, 'security');
+  const response = nestedRecord(metadata, 'response');
+  const contactEmail = client.email || String(spoc.technical_email || spoc.business_email || '');
   const enabledApiIds = new Set(keys.filter((key) => key.client_id === client.id && key.status === 'active').map((key) => key.api_id));
   const products = Array.from(new Set(
     (enabledApiIds.size ? Array.from(enabledApiIds) : ['bureau-api'])
@@ -326,10 +429,8 @@ function mapHubClient(client: HubClient, keys: HubKey[], apis: HubApiConfig[]): 
     id: client.id,
     name: client.name,
     country: String(legal.country_of_operation || metadata.country || '-'),
-    status: client.status === 'inactive' ? 'Suspended'
-      : onboarding.stage === 'Production' && keys.some((key) => key.client_id === client.id && key.environment === 'production' && key.status === 'active')
-        ? 'Production' : 'UAT',
-    contactEmail: client.email || String(spoc.technical_email || spoc.business_email || ''),
+    status: client.status === 'inactive' ? 'Suspended' : uatSignoffAt || onboarding.stage === 'Production' ? 'Production' : 'UAT',
+    contactEmail,
     uatCredits: Number(client.credits || 0),
     liveCredits: Number(metadata.live_credits || 0),
     ipWhitelistingRequired: Boolean(security.static_ip_required ?? true),
@@ -350,39 +451,23 @@ function mapHubClient(client: HubClient, keys: HubKey[], apis: HubApiConfig[]): 
       uatSignoffStatus: (onboarding.uatSignoffStatus as GateStatus) || 'pending',
       productionCredentialsStatus: (onboarding.productionCredentialsStatus as GateStatus) || (keys.some((key) => key.client_id === client.id && key.environment === 'production' && key.status === 'active') ? 'done' : 'pending'),
       goLiveStatus: (onboarding.goLiveStatus as GateStatus) || 'pending',
-      sslCommonName: String(onboarding.sslCommonName || security.csr_common_name || nestedRecord(security, 'binta_client_csr').common_name || ''),
-      csrReference: String(onboarding.csrReference || ''),
+      sslCommonName: String(onboarding.sslCommonName || security.csr_common_name || nestedRecord(security, 'binta_client_csr').common_name || 'api.credittrust.in'),
+      csrReference: String(onboarding.csrReference || security.certificate_status || ''),
       certificateExpiry: String(onboarding.certificateExpiry || security.certificate_expiry || ''),
       productionCertificateFingerprint: String(onboarding.productionCertificateFingerprint || security.production_certificate_fingerprint || ''),
       uatSignoffBy: String(onboarding.uatSignoffBy || ''),
       uatSignoffAt,
     }),
     apis: products.length ? products : ['Bureau Standard'],
-    responseMode: 'CreditTrust Standard',
-    responseFields: Object.keys(bintaSampleResponse),
+    responseMode: String(response.mode || metadata.response_mode || 'credittrust_standard') === 'custom'
+      ? 'Custom'
+      : String(response.mode || metadata.response_mode || '') === 'full_json'
+        ? 'Full JSON'
+        : 'CreditTrust Standard',
+    responseFields: asStringArray(response.fields).length ? asStringArray(response.fields) : standardResponseFields,
     successRate: '-',
+    notificationEmails: notificationEmailsFromMetadata(metadata, contactEmail),
     metadata,
-  };
-}
-
-function mapHubUsage(row: Record<string, unknown>, apis: HubApiConfig[]): UsageLog {
-  const requestId = String(row.request_id || row.id || '');
-  const apiId = String(row.api_id || row.api_code || 'bureau-api');
-  return {
-    id: String(row.id || requestId),
-    requestId,
-    clientId: String(row.client_id || ''),
-    environment: row.environment === 'production' ? 'Production' : 'UAT',
-    api: apiProductFromId(apiId, apis),
-    status: row.status === 'success' ? 'Success' : 'Failed',
-    latency: row.response_time_ms == null ? '-' : `${row.response_time_ms} ms`,
-    charge: String(row.credits_deducted ?? 0),
-    ip: String(row.ip_address || '-'),
-    createdAt: String(row.created_at || ''),
-    httpStatus: typeof row.http_status === 'number' ? row.http_status : null,
-    error: String(row.error_message || ''),
-    requestJson: row.request_json,
-    responseJson: row.response_json,
   };
 }
 
@@ -399,6 +484,39 @@ function mapHubKey(key: HubKey, apis: HubApiConfig[]): ApiKeyRecord {
   };
 }
 
+function mapLedgerRow(row: HubUsageLedgerRow, apis: HubApiConfig[]): UsageLog {
+  const createdAt = row.created_at
+    ? new Date(row.created_at).toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    : '-';
+
+  return {
+    id: row.id || row.request_id || randomId('log'),
+    requestId: row.request_id || '-',
+    clientId: row.client_id || '',
+    environment: String(row.environment || '').toLowerCase() === 'production' ? 'Production' : 'UAT',
+    api: apiProductFromId(row.api_id || row.api_code || '', apis),
+    status: row.status === 'success' ? 'Success' : 'Failed',
+    createdAt,
+    httpStatus: row.http_status ? String(row.http_status) : '-',
+    providerStatus: row.provider_status ? String(row.provider_status) : '-',
+    latency: typeof row.response_time_ms === 'number' ? `${row.response_time_ms} ms` : '-',
+    credits: Number(row.credits_deducted || 0),
+    balanceAfter: row.balance_after === null || row.balance_after === undefined ? '-' : String(row.balance_after),
+    maskedPan: row.masked_pan || '-',
+    maskedMobile: row.masked_mobile || '-',
+    ip: row.ip_address || '-',
+    errorMessage: row.error_message || '',
+    requestJson: row.request_json,
+    responseJson: row.response_json,
+  };
+}
+
 function isBridgeConsoleClient(client: HubClient) {
   const metadata = metadataObject(client);
   const legal = nestedRecord(metadata, 'legal');
@@ -409,6 +527,7 @@ function isBridgeConsoleClient(client: HubClient) {
 }
 
 function clientToHubPayload(client: Client) {
+  const existingMetadata = client.metadata || {};
   return {
     action: 'update_client',
     client_id: client.id,
@@ -417,14 +536,24 @@ function clientToHubPayload(client: Client) {
     contact_name: client.onboarding.techSpoc || client.contactEmail,
     email: client.contactEmail,
     allowed_ips: client.ips.join(','),
+    credits: client.uatCredits,
     status: client.status === 'Suspended' ? 'inactive' : 'active',
     metadata: {
+      ...existingMetadata,
       bridge_console_scope: 'binta_bridge',
       country: client.country,
+      live_credits: client.liveCredits,
       onboarding: client.onboarding,
+      notification_emails: {
+        technical_support: emailList(client.notificationEmails.technicalSupport || client.contactEmail),
+        billing: emailList(client.notificationEmails.billing || client.contactEmail),
+        certificate: emailList(client.notificationEmails.certificate || client.notificationEmails.technicalSupport || client.contactEmail),
+        api_alerts: emailList(client.notificationEmails.apiAlerts || client.notificationEmails.technicalSupport || client.contactEmail),
+        escalation: emailList(client.notificationEmails.escalation || client.notificationEmails.technicalSupport || client.contactEmail),
+      },
       response: {
-        mode: 'credittrust_standard',
-        fields: Object.keys(bintaSampleResponse),
+        mode: client.responseMode === 'Full JSON' ? 'full_json' : client.responseMode === 'Custom' ? 'custom' : 'credittrust_standard',
+        fields: client.responseFields,
       },
       security: {
         static_ip_required: client.ipWhitelistingRequired,
@@ -432,19 +561,34 @@ function clientToHubPayload(client: Client) {
         production_static_ips: client.onboarding.productionStaticIps,
         production_certificate_fingerprint: client.onboarding.productionCertificateFingerprint,
         csr_common_name: client.onboarding.sslCommonName,
+        certificate_status: client.onboarding.csrReference,
       },
       legal: {
         legal_entity_name: client.onboarding.legalEntity || client.name,
         country_of_operation: client.country,
       },
       spoc: {
+        ...nestedRecord(existingMetadata, 'spoc'),
         technical_email: client.onboarding.techSpoc || client.contactEmail,
+        billing_email: emailList(client.notificationEmails.billing || client.contactEmail)[0] || client.contactEmail,
+        escalation_email: emailList(client.notificationEmails.escalation || client.notificationEmails.technicalSupport || client.contactEmail)[0] || client.contactEmail,
       },
     },
   };
 }
 
-const normalizedResponse = JSON.stringify(bintaSampleResponse, null, 2);
+const normalizedResponse = `{
+  "success": true,
+  "request_id": "ct_req_20260704_9121",
+  "data": {
+    "score": 742,
+    "status": "hit",
+    "bureau": {
+      "provider": "CIBIL",
+      "report_id": "ct_rpt_81f4"
+    }
+  }
+}`;
 
 function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
@@ -463,19 +607,20 @@ function todayLabel() {
   return new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function keyValue(key: ApiKeyRecord) {
+  return key.secret || `${key.prefix}...`;
+}
+
 function maskedKeyValue(key: ApiKeyRecord) {
   const prefix = key.prefix || 'ct_key';
   return `${prefix}${'*'.repeat(18)}`;
 }
 
 function endpointFor(api: ApiProduct, environment: Environment) {
-  if (api === 'Bureau Standard') {
-    return environment === 'Production'
-      ? 'POST https://secure-api.credittrust.in/api/v1/source'
-      : 'POST https://api.credittrust.in/api/v1/source';
-  }
-  if (api === 'Bureau Advanced') return 'POST https://api.credittrust.in/api/v1/bureau-advanced';
-  return 'POST https://api.credittrust.in/api/v1/mobile-prefill';
+  const envQuery = environment === 'UAT' ? '?env=uat' : '';
+  if (api === 'Bureau Standard') return `POST https://api.credittrust.in/api/v1/bureau${envQuery}`;
+  if (api === 'Bureau Advanced') return `POST https://api.credittrust.in/api/v1/bureau-advanced${envQuery}`;
+  return `POST https://api.credittrust.in/api/v1/mobile-prefill${envQuery}`;
 }
 
 function payloadFor(api: ApiProduct) {
@@ -483,15 +628,14 @@ function payloadFor(api: ApiProduct) {
     return `{
   "firstName": "",
   "lastName": "",
-  "dob": "DD-MM-YYYY",
-  "gender_code": "2",
+  "dob": "YYYY-MM-DD",
+  "gender": "male",
   "pan": "",
   "mobile": "",
   "address": "",
-  "state_code": "23",
+  "state": "MADHYA PRADESH",
   "pincode": "",
-  "consent": true,
-  "consent_metadata": { "consent_timestamp": "2026-10-20T10:00:00Z" }
+  "consent": true
 }`;
   }
   if (api === 'Bureau Advanced') {
@@ -511,22 +655,29 @@ function fieldsForMode(mode: ResponseMode, fields: string[]) {
   return fields.length ? fields : ['success', 'request_id', 'status'];
 }
 
+function responsePreview(mode: ResponseMode, fields: string[]) {
+  const selectedFields = fieldsForMode(mode, fields);
+  return selectedFields.reduce<Record<string, unknown>>((preview, field) => {
+    preview[field] = sampleFieldValues[field] ?? 'value';
+    return preview;
+  }, {});
+}
+
 function buildApiDoc(client: Client, key: ApiKeyRecord) {
-  const responseFields = Object.keys(bintaSampleResponse);
+  const responseFields = fieldsForMode(client.responseMode, client.responseFields);
   return `CreditTrust API Documentation
 
 Client: ${client.name}
 Environment: ${key.environment}
 API: ${key.api}
-Response: Binta Schedule A normalized (${bintaSampleResponse.response_version})
+Response: ${client.responseMode}
 Fields: ${responseFields.join(', ')}
 Endpoint: ${endpointFor(key.api, key.environment)}
 
 Headers:
 content-type: application/json
 accept: application/json
-x-api-key: <use the full key from the secure handover; it cannot be recovered here>
-${key.environment === 'Production' ? 'Client certificate: required (mTLS)\nSource IP: registered production IP' : 'Source IP: registered UAT IP'}
+x-api-key: ${keyValue(key)}
 
 Payload:
 ${payloadFor(key.api)}
@@ -541,6 +692,15 @@ function downloadTextFile(filename: string, content: string) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function prettyJson(value: unknown) {
+  if (value === undefined || value === null) return '{}';
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
 }
 
 function MetricCard({ label, value, helper, icon: Icon, tone }: { label: string; value: string; helper: string; icon: React.ElementType; tone: string }) {
@@ -792,7 +952,7 @@ function ClientsTable({
               </td>
               <td className="px-4 py-4">
                 <div className="flex flex-col gap-1">
-                  <StatusPill tone="green">Schedule A Normalized</StatusPill>
+                  <StatusPill tone={client.responseMode === 'Full JSON' ? 'amber' : client.responseMode === 'Custom' ? 'blue' : 'green'}>{client.responseMode}</StatusPill>
                   <span className="text-xs font-700 text-muted-foreground">{fieldsForMode(client.responseMode, client.responseFields).length} fields</span>
                 </div>
               </td>
@@ -839,23 +999,14 @@ function ClientsTable({
   );
 }
 
-function LogsTable({ logs, clients, total, page, pageSize, onPageChange }: {
-  logs: UsageLog[];
-  clients: Client[];
-  total: number;
-  page: number;
-  pageSize: number;
-  onPageChange: (page: number) => void;
-}) {
-  const [selected, setSelected] = useState<UsageLog | null>(null);
+function LogsTable({ logs, clients }: { logs: UsageLog[]; clients: Client[] }) {
   const clientById = new Map(clients.map((client) => [client.id, client.name]));
   return (
-    <div>
-      <div className="overflow-x-auto">
-      <table className="w-full min-w-[900px]">
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[860px]">
         <thead className="bg-slate-50">
           <tr>
-            {['Request ID', 'Client', 'Env', 'API', 'Source IP', 'HTTP', 'Status', 'Latency', 'Credits', ''].map((head) => (
+            {['Request ID', 'Client', 'Env', 'API', 'Source IP', 'Status', 'Latency', 'Charge'].map((head) => (
               <th key={head} className="px-4 py-3 text-left text-[11px] font-900 uppercase tracking-wide text-slate-500">
                 {head}
               </th>
@@ -865,42 +1016,173 @@ function LogsTable({ logs, clients, total, page, pageSize, onPageChange }: {
         <tbody className="divide-y divide-border">
           {logs.map((log) => (
             <tr key={log.id}>
-              <td className="px-4 py-3 text-sm font-800 text-foreground"><span className="block">{log.requestId}</span><span className="text-xs font-600 text-muted-foreground">{log.createdAt ? new Date(log.createdAt).toLocaleString('en-IN') : '-'}</span></td>
+              <td className="px-4 py-3 text-sm font-800 text-foreground">{log.id}</td>
               <td className="px-4 py-3 text-sm font-700 text-foreground">{clientById.get(log.clientId) || 'Unknown'}</td>
               <td className="px-4 py-3 text-sm font-700 text-foreground">{log.environment}</td>
               <td className="px-4 py-3 text-sm font-700 text-foreground">{log.api}</td>
               <td className="px-4 py-3 text-sm font-700 text-muted-foreground">{log.ip}</td>
-              <td className="px-4 py-3 text-sm font-700 text-foreground">{log.httpStatus ?? '-'}</td>
               <td className="px-4 py-3"><StatusPill tone={log.status === 'Success' ? 'green' : 'red'}>{log.status}</StatusPill></td>
               <td className="px-4 py-3 text-sm font-700 text-foreground">{log.latency}</td>
-              <td className="px-4 py-3 text-sm font-700 text-foreground">{log.charge}</td>
-              <td className="px-4 py-3"><button type="button" onClick={() => setSelected(log)} className="rounded-lg border border-border px-3 py-2 text-xs font-900 text-foreground">View JSON</button></td>
+              <td className="px-4 py-3 text-sm font-700 text-foreground">{log.credits} / {log.balanceAfter}</td>
             </tr>
           ))}
-          {!logs.length && <tr><td colSpan={10} className="px-4 py-8 text-center text-sm font-700 text-muted-foreground">No request records for these clients yet.</td></tr>}
         </tbody>
       </table>
-      </div>
-      <div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs font-800 text-muted-foreground">
-        <span>Showing {total ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, total)} of {total} requests</span>
-        <div className="flex items-center gap-2">
-          <button type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)} className="rounded-lg border border-border px-3 py-2 disabled:opacity-40">Previous</button>
-          <span>Page {page} / {Math.max(1, Math.ceil(total / pageSize))}</span>
-          <button type="button" disabled={page * pageSize >= total} onClick={() => onPageChange(page + 1)} className="rounded-lg border border-border px-3 py-2 disabled:opacity-40">Next</button>
-        </div>
-      </div>
-      {selected && <Modal title={`Request ${selected.requestId}`} onClose={() => setSelected(null)}>
-        <p className="text-sm font-700 text-muted-foreground">{clientById.get(selected.clientId) || 'Client'} · {selected.environment} · HTTP {selected.httpStatus ?? '-'} · {selected.createdAt ? new Date(selected.createdAt).toLocaleString('en-IN') : '-'}</p>
-        {selected.error && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-800 text-red-800">{selected.error}</p>}
-        <div className="mt-4 flex justify-end">
-          <button type="button" disabled={selected.responseJson == null} onClick={() => downloadTextFile(`${selected.requestId.replace(/[^a-zA-Z0-9_-]/g, '_')}.json`, JSON.stringify(selected.responseJson, null, 2))} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-900 text-white disabled:opacity-40">Download Response JSON</button>
-        </div>
-        <p className="mt-4 text-xs font-900 uppercase text-muted-foreground">Request JSON</p>
-        <pre className="mt-2 max-h-52 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">{JSON.stringify(selected.requestJson ?? null, null, 2)}</pre>
-        <p className="mt-4 text-xs font-900 uppercase text-muted-foreground">Response JSON</p>
-        <pre className="mt-2 max-h-80 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">{JSON.stringify(selected.responseJson ?? null, null, 2)}</pre>
-      </Modal>}
     </div>
+  );
+}
+
+function ResponseMasterPanel({ logs, clients }: { logs: UsageLog[]; clients: Client[] }) {
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState<'all' | 'Success' | 'Failed'>('all');
+  const [clientId, setClientId] = useState('all');
+  const [selected, setSelected] = useState<UsageLog | null>(null);
+  const clientById = new Map(clients.map((client) => [client.id, client.name]));
+  const filteredLogs = logs.filter((log) => {
+    const clientName = clientById.get(log.clientId) || 'Unknown client';
+    const haystack = [
+      log.requestId,
+      clientName,
+      log.api,
+      log.environment,
+      log.status,
+      log.httpStatus,
+      log.providerStatus,
+      log.maskedPan,
+      log.maskedMobile,
+      log.ip,
+      log.errorMessage,
+    ].join(' ').toLowerCase();
+    if (clientId !== 'all' && log.clientId !== clientId) return false;
+    if (status !== 'all' && log.status !== status) return false;
+    return !query.trim() || haystack.includes(query.trim().toLowerCase());
+  });
+
+  const downloadResponse = (log: UsageLog) => {
+    downloadTextFile(`${log.requestId || log.id}-response.json`, prettyJson(log.responseJson));
+  };
+
+  return (
+    <Panel
+      title="Response Master"
+      subtitle="Admin-only archive of final API responses sent to partners. This section is not visible in the client portal."
+      action={<StatusPill tone="slate">{filteredLogs.length} records</StatusPill>}
+    >
+      <div className="border-b border-border bg-slate-50 p-4">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_190px_190px]">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search request id, client, mobile, PAN, IP..."
+            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-700 outline-none focus:border-blue-500"
+          />
+          <select
+            value={clientId}
+            onChange={(event) => setClientId(event.target.value)}
+            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-800 text-slate-700 outline-none focus:border-blue-500"
+          >
+            <option value="all">All clients</option>
+            {clients.map((client) => (
+              <option key={client.id} value={client.id}>{client.name}</option>
+            ))}
+          </select>
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value as 'all' | 'Success' | 'Failed')}
+            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-800 text-slate-700 outline-none focus:border-blue-500"
+          >
+            <option value="all">All status</option>
+            <option value="Success">Success</option>
+            <option value="Failed">Failed</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1180px]">
+          <thead className="bg-white">
+            <tr>
+              {['Time', 'Request ID', 'Client', 'API', 'Status', 'HTTP', 'Credits', 'Mobile', 'PAN', 'IP', 'Actions'].map((head) => (
+                <th key={head} className="px-4 py-3 text-left text-[11px] font-900 uppercase tracking-wide text-slate-500">
+                  {head}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {filteredLogs.length ? filteredLogs.map((log) => (
+              <tr key={log.id} className="align-top hover:bg-slate-50/70">
+                <td className="whitespace-nowrap px-4 py-3 text-xs font-800 text-muted-foreground">{log.createdAt}</td>
+                <td className="px-4 py-3 text-xs font-900 text-foreground">{log.requestId}</td>
+                <td className="px-4 py-3 text-sm font-900 text-foreground">{clientById.get(log.clientId) || 'Unknown client'}</td>
+                <td className="px-4 py-3 text-xs font-800 text-muted-foreground">{log.api}<br />{log.environment}</td>
+                <td className="px-4 py-3">
+                  <StatusPill tone={log.status === 'Success' ? 'green' : 'red'}>{log.status}</StatusPill>
+                  {log.errorMessage ? <p className="mt-2 max-w-[220px] text-xs font-700 text-red-700">{log.errorMessage}</p> : null}
+                </td>
+                <td className="px-4 py-3 text-xs font-900 text-foreground">
+                  <div>{log.httpStatus}</div>
+                  <div className="mt-1 text-muted-foreground">Source {log.providerStatus}</div>
+                </td>
+                <td className="px-4 py-3 text-xs font-900 text-foreground">
+                  <div>{log.credits}</div>
+                  <div className="mt-1 text-muted-foreground">Bal {log.balanceAfter}</div>
+                </td>
+                <td className="px-4 py-3 text-xs font-800 text-muted-foreground">{log.maskedMobile}</td>
+                <td className="px-4 py-3 text-xs font-800 text-muted-foreground">{log.maskedPan}</td>
+                <td className="px-4 py-3 text-xs font-800 text-muted-foreground">{log.ip}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setSelected(log)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-900 text-slate-700 hover:bg-slate-50"
+                    >
+                      <Eye size={13} />
+                      View JSON
+                    </button>
+                    <button
+                      onClick={() => downloadResponse(log)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-slate-950 px-3 text-xs font-900 text-white"
+                    >
+                      <Download size={13} />
+                      Download
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[11px] font-700 text-muted-foreground">{log.latency}</p>
+                </td>
+              </tr>
+            )) : (
+              <tr>
+                <td colSpan={11} className="px-4 py-12 text-center text-sm font-800 text-muted-foreground">
+                  No response records found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {selected ? (
+        <Modal title={`Response JSON - ${selected.requestId}`} onClose={() => setSelected(null)}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-slate-50 p-3 text-xs font-800 text-slate-600 md:grid-cols-3">
+              <div><span className="block text-slate-400">Client</span>{clientById.get(selected.clientId) || 'Unknown client'}</div>
+              <div><span className="block text-slate-400">Status</span>{selected.status} / HTTP {selected.httpStatus}</div>
+              <div><span className="block text-slate-400">Credits</span>{selected.credits} deducted</div>
+            </div>
+            <pre className="max-h-[58vh] overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 text-slate-100">
+              {prettyJson(selected.responseJson)}
+            </pre>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => downloadResponse(selected)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-900 text-white">
+                <Download size={15} />
+                Download JSON
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+    </Panel>
   );
 }
 
@@ -947,7 +1229,7 @@ function ClientKeyDirectory({
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <StatusPill tone={client.status === 'Production' ? 'green' : client.status === 'UAT' ? 'blue' : client.status === 'Suspended' ? 'red' : 'amber'}>{client.status}</StatusPill>
-                  <StatusPill tone="green">Schedule A Normalized</StatusPill>
+                  <StatusPill tone={client.responseMode === 'Full JSON' ? 'amber' : client.responseMode === 'Custom' ? 'blue' : 'green'}>{client.responseMode}</StatusPill>
                   <button onClick={() => onDeleteUatKeys(client.id)} className="h-9 rounded-lg border border-red-100 bg-red-50 px-3 text-xs font-900 text-red-700">Clear UAT Keys</button>
                   <button onClick={() => onCreateKey(client.id)} className="h-9 rounded-lg border border-border bg-white px-3 text-xs font-900 text-foreground">Generate Key</button>
                 </div>
@@ -1035,6 +1317,31 @@ function ClientKeyDirectory({
             </div>
           );
         })}
+      </div>
+    </Panel>
+  );
+}
+
+function ProductCatalog() {
+  const products = [
+    ['Bureau Standard', 'POST /api/v1/bureau', 'Live-ready'],
+    ['Bureau Advanced', 'POST /api/v1/bureau-advanced', 'Priority'],
+    ['Mobile Prefill', 'POST /api/v1/mobile-prefill', 'UAT'],
+  ];
+  return (
+    <Panel title="API Products">
+      <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-3">
+        {products.map(([name, endpoint, status]) => (
+          <div key={name} className="rounded-lg border border-border bg-slate-50 p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-900 text-foreground">{name}</p>
+                <p className="mt-1 text-xs font-800 text-muted-foreground">{endpoint}</p>
+              </div>
+              <StatusPill tone={status === 'Priority' ? 'green' : status === 'UAT' ? 'blue' : 'slate'}>{status}</StatusPill>
+            </div>
+          </div>
+        ))}
       </div>
     </Panel>
   );
@@ -1136,11 +1443,25 @@ function ClientDetailPanel({
           </div>
           <div className="rounded-lg bg-slate-50 p-3">
             <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Response</p>
-            <p className="mt-1 text-sm font-900 text-foreground">Schedule A Normalized</p>
+            <p className="mt-1 text-sm font-900 text-foreground">{client.responseMode}</p>
             <p className="mt-1 text-xs font-700 text-muted-foreground">{fieldsForMode(client.responseMode, client.responseFields).length} fields</p>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function NormalizedResponsePanel() {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-2">
+        <ShieldCheck className="text-emerald-700" size={18} />
+        <h3 className="text-base font-900 text-foreground">Response Format</h3>
+      </div>
+      <pre className="max-h-[260px] overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 text-slate-100 scrollbar-thin">
+        {normalizedResponse}
+      </pre>
     </div>
   );
 }
@@ -1165,8 +1486,13 @@ function ClientForm({
     ips: '',
     productionIps: '',
     csrReference: '',
-    sslCommonName: '',
+    sslCommonName: 'api.credittrust.in',
     apis: ['Bureau Standard'] as ApiProduct[],
+    technicalSupportEmail: '',
+    billingEmail: '',
+    certificateEmail: '',
+    apiAlertsEmail: '',
+    escalationEmail: '',
   });
 
   const toggleApi = (api: ApiProduct) => {
@@ -1186,7 +1512,7 @@ function ClientForm({
       id: randomId('client'),
       name,
       country: form.country.trim(),
-      contactEmail: form.contactEmail.trim(),
+      contactEmail: form.contactEmail.trim() || 'tech@example.com',
       status: form.status,
       uatCredits: Math.max(0, Number(form.uatCredits || 0)),
       liveCredits: Math.max(0, Number(form.liveCredits || 0)),
@@ -1202,12 +1528,19 @@ function ClientForm({
         uatIpStatus: uatIps.length ? 'in_progress' : 'pending',
         productionIpStatus: productionIps.length ? 'in_progress' : 'pending',
         csrReference: form.csrReference.trim(),
-        sslCommonName: form.sslCommonName.trim(),
+        sslCommonName: form.sslCommonName.trim() || 'api.credittrust.in',
       }),
       apis: form.apis.length ? form.apis : ['Bureau Standard'],
       responseMode: 'CreditTrust Standard',
-      responseFields: Object.keys(bintaSampleResponse),
+      responseFields: ['score', 'status', 'report_id', 'customer_name', 'accounts_summary'],
       successRate: '-',
+      notificationEmails: defaultNotificationEmails({
+        technicalSupport: form.technicalSupportEmail.trim() || form.contactEmail.trim(),
+        billing: form.billingEmail.trim() || form.contactEmail.trim(),
+        certificate: form.certificateEmail.trim() || form.technicalSupportEmail.trim() || form.contactEmail.trim(),
+        apiAlerts: form.apiAlertsEmail.trim() || form.technicalSupportEmail.trim() || form.contactEmail.trim(),
+        escalation: form.escalationEmail.trim() || form.technicalSupportEmail.trim() || form.contactEmail.trim(),
+      }),
       metadata: {},
     });
   };
@@ -1241,9 +1574,33 @@ function ClientForm({
         <Field label="UAT credits">
           <input value={form.uatCredits} onChange={(event) => setForm({ ...form, uatCredits: event.target.value })} className="input-base" type="number" min="0" />
         </Field>
-        <Field label="Production credits">
-          <input value={form.liveCredits} onChange={(event) => setForm({ ...form, liveCredits: event.target.value })} className="input-base" type="number" min="0" />
-        </Field>
+        <p className="text-xs text-muted-foreground">
+          Allocate production credits from the Credits section after creating the client.
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-border bg-slate-50 p-4">
+        <div className="mb-4">
+          <p className="text-sm font-900 text-foreground">Notification routing</p>
+          <p className="mt-1 text-xs font-700 text-muted-foreground">Add one or multiple email IDs separated by comma or new line.</p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Field label="Technical support email">
+            <textarea value={form.technicalSupportEmail} onChange={(event) => setForm({ ...form, technicalSupportEmail: event.target.value })} className="input-base min-h-20 py-3" placeholder="technical@client.com, devops@client.com" />
+          </Field>
+          <Field label="Invoice / billing email">
+            <textarea value={form.billingEmail} onChange={(event) => setForm({ ...form, billingEmail: event.target.value })} className="input-base min-h-20 py-3" placeholder="billing@client.com, accounts@client.com" />
+          </Field>
+          <Field label="Certificate / security email">
+            <textarea value={form.certificateEmail} onChange={(event) => setForm({ ...form, certificateEmail: event.target.value })} className="input-base min-h-20 py-3" placeholder="security@client.com, infra@client.com" />
+          </Field>
+          <Field label="API alerts email">
+            <textarea value={form.apiAlertsEmail} onChange={(event) => setForm({ ...form, apiAlertsEmail: event.target.value })} className="input-base min-h-20 py-3" placeholder="api-alerts@client.com, tech@client.com" />
+          </Field>
+          <Field label="Escalation email">
+            <textarea value={form.escalationEmail} onChange={(event) => setForm({ ...form, escalationEmail: event.target.value })} className="input-base min-h-20 py-3" placeholder="escalation@client.com, manager@client.com" />
+          </Field>
+        </div>
       </div>
 
       <div className="rounded-lg border border-border bg-slate-50 p-4">
@@ -1269,7 +1626,7 @@ function ClientForm({
             <input value={form.productionIps} onChange={(event) => setForm({ ...form, productionIps: event.target.value })} className="input-base" placeholder="Production IPs after UAT sign-off" />
           </Field>
           <Field label="SSL common name">
-            <input value={form.sslCommonName} onChange={(event) => setForm({ ...form, sslCommonName: event.target.value })} className="input-base" placeholder="Client certificate common name" />
+            <input value={form.sslCommonName} onChange={(event) => setForm({ ...form, sslCommonName: event.target.value })} className="input-base" placeholder="api.credittrust.in" />
           </Field>
         </div>
         <div className="mt-4">
@@ -1373,7 +1730,7 @@ function KeyForm({
           </div>
           {productionBlocked ? (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-800 text-amber-800">
-              Production credentials are locked until CSR, SSL, UAT IP, UAT credentials, payload validation, UAT sign-off and production IP gates are complete.
+              Production credentials are locked until UAT sign-off, production IP approval and installed mTLS certificate verification are complete.
             </div>
           ) : null}
         </div>
@@ -1407,10 +1764,36 @@ function ManageClientModal({
   const [prodIp, setProdIp] = useState('');
   const [credits, setCredits] = useState('10');
   const [creditEnv, setCreditEnv] = useState<Environment>('UAT');
-  const effectiveFields = Object.keys(bintaSampleResponse);
+  const effectiveFields = fieldsForMode(client.responseMode, client.responseFields);
+  const preview = responsePreview(client.responseMode, client.responseFields);
 
   const updateOnboarding = (patch: Partial<ClientOnboarding>) => {
     onUpdate({ ...client, onboarding: { ...client.onboarding, ...patch } });
+  };
+
+  const updateNotificationEmails = (patch: Partial<ClientNotificationEmails>) => {
+    onUpdate({
+      ...client,
+      notificationEmails: {
+        ...client.notificationEmails,
+        ...patch,
+      },
+    });
+  };
+
+  const updateResponseMode = (mode: ResponseMode) => {
+    onUpdate({
+      ...client,
+      responseMode: mode,
+      responseFields: mode === 'Full JSON' ? ['raw_report'] : mode === 'CreditTrust Standard' ? standardResponseFields : client.responseFields,
+    });
+  };
+
+  const toggleResponseField = (field: string) => {
+    const nextFields = client.responseFields.includes(field)
+      ? client.responseFields.filter((item) => item !== field)
+      : [...client.responseFields, field];
+    onUpdate({ ...client, responseMode: 'Custom', responseFields: nextFields });
   };
 
   return (
@@ -1453,7 +1836,7 @@ function ManageClientModal({
               <input value={client.onboarding.certificateExpiry} onChange={(event) => updateOnboarding({ certificateExpiry: event.target.value })} className="input-base" placeholder="Auto-renewed / YYYY-MM-DD" />
             </Field>
             <Field label="Production client certificate SHA-256">
-              <input value={client.onboarding.productionCertificateFingerprint} onChange={(event) => updateOnboarding({ productionCertificateFingerprint: event.target.value })} className="input-base" placeholder="Verified certificate fingerprint" />
+              <input value={client.onboarding.productionCertificateFingerprint} onChange={(event) => updateOnboarding({ productionCertificateFingerprint: event.target.value })} className="input-base font-mono text-xs" placeholder="Verified fingerprint after mTLS install" />
             </Field>
             <Field label="UAT sign-off by">
               <input value={client.onboarding.uatSignoffBy} onChange={(event) => updateOnboarding({ uatSignoffBy: event.target.value })} className="input-base" placeholder="Client approver" />
@@ -1499,6 +1882,58 @@ function ManageClientModal({
 
           <div className="mt-4">
             <OnboardingChecklist client={client} onUpdate={onUpdate} />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border p-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-900 text-foreground">Notification routing</p>
+            <p className="text-xs font-700 text-muted-foreground">Choose one or multiple client-side mailboxes. Separate IDs by comma or new line.</p>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Technical support mail">
+              <textarea
+                value={client.notificationEmails.technicalSupport}
+                onChange={(event) => updateNotificationEmails({ technicalSupport: event.target.value })}
+                className="input-base min-h-20 py-3"
+                placeholder="technical@client.com, devops@client.com"
+              />
+            </Field>
+            <Field label="Invoice / billing mail">
+              <textarea
+                value={client.notificationEmails.billing}
+                onChange={(event) => updateNotificationEmails({ billing: event.target.value })}
+                className="input-base min-h-20 py-3"
+                placeholder="billing@client.com, accounts@client.com"
+              />
+            </Field>
+            <Field label="Certificate / security mail">
+              <textarea
+                value={client.notificationEmails.certificate}
+                onChange={(event) => updateNotificationEmails({ certificate: event.target.value })}
+                className="input-base min-h-20 py-3"
+                placeholder="security@client.com, infra@client.com"
+              />
+            </Field>
+            <Field label="API alerts mail">
+              <textarea
+                value={client.notificationEmails.apiAlerts}
+                onChange={(event) => updateNotificationEmails({ apiAlerts: event.target.value })}
+                className="input-base min-h-20 py-3"
+                placeholder="api-alerts@client.com, tech@client.com"
+              />
+            </Field>
+            <Field label="Escalation mail">
+              <textarea
+                value={client.notificationEmails.escalation}
+                onChange={(event) => updateNotificationEmails({ escalation: event.target.value })}
+                className="input-base min-h-20 py-3"
+                placeholder="escalation@client.com, manager@client.com"
+              />
+            </Field>
+          </div>
+          <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-800 leading-5 text-blue-800">
+            Support ticket replies use technical support by default. Billing tickets use invoice mail. IP/certificate tickets use certificate mail.
           </div>
         </div>
 
@@ -1561,16 +1996,68 @@ function ManageClientModal({
 
         <div className="rounded-lg border border-border p-4">
           <div>
-            <p className="text-sm font-900 text-foreground">Binta Schedule A response contract</p>
-            <p className="mt-1 text-xs font-700 text-muted-foreground">The Binta contract uses the fixed normalized schema. Raw provider JSON and custom field selection are not available for this client.</p>
+            <p className="text-sm font-900 text-foreground">Response builder</p>
+            <p className="mt-1 text-xs font-700 text-muted-foreground">Is client ko API hit ke baad kya JSON milega yahan set karo.</p>
           </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {(['CreditTrust Standard', 'Full JSON', 'Custom'] as ResponseMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => updateResponseMode(mode)}
+                className={classNames(
+                  'rounded-lg border p-3 text-left transition',
+                  client.responseMode === mode ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-border bg-white text-slate-700 hover:bg-slate-50',
+                )}
+              >
+                <p className="text-sm font-900">{mode}</p>
+                <p className="mt-1 text-xs font-700">
+                  {mode === 'CreditTrust Standard' ? 'Safe fixed schema' : mode === 'Full JSON' ? 'Provider response pass-through' : 'Choose exact fields'}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_0.8fr]">
+            <div className={classNames('rounded-lg border border-border bg-slate-50 p-4', client.responseMode !== 'Custom' && 'opacity-60')}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-xs font-900 uppercase tracking-wide text-muted-foreground">Allowed fields</p>
+                <StatusPill tone={client.responseMode === 'Custom' ? 'blue' : 'slate'}>{effectiveFields.length}</StatusPill>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {responseFieldOptions.map(([field, label]) => {
+                  const checked = effectiveFields.includes(field);
+                  return (
+                    <label key={field} className={classNames('flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-xs font-800', checked ? 'border-blue-200 bg-white text-blue-800' : 'border-transparent bg-white text-slate-600')}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={client.responseMode !== 'Custom'}
+                        onChange={() => toggleResponseField(field)}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        <span className="block font-900">{field}</span>
+                        <span className="block text-muted-foreground">{label}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-white p-4">
+              <p className="text-xs font-900 uppercase tracking-wide text-muted-foreground">Response preview</p>
+              <pre className="mt-3 max-h-[320px] overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 text-slate-100">
+                {JSON.stringify(preview, null, 2)}
+              </pre>
+            </div>
+          </div>
+
           <div className="mt-3 flex flex-wrap gap-2">
             {effectiveFields.map((field) => <StatusPill key={field} tone="slate">{field}</StatusPill>)}
           </div>
-          <p className="mt-3 text-xs font-700 text-muted-foreground">UAT sample only, not a live report. For an actual response, open Requests and select View JSON.</p>
-          <pre className="mt-3 max-h-[320px] overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 text-slate-100">
-            {normalizedResponse}
-          </pre>
         </div>
 
         <div className="flex justify-end gap-2 border-t border-border pt-4">
@@ -1585,7 +2072,6 @@ function ManageClientModal({
 function OverviewSection({
   clients,
   keys,
-  requestTotal,
   selectedClientId,
   onNewClient,
   onCreateKey,
@@ -1594,7 +2080,6 @@ function OverviewSection({
 }: {
   clients: Client[];
   keys: ApiKeyRecord[];
-  requestTotal: number;
   selectedClientId?: string;
   onNewClient: () => void;
   onCreateKey: (clientId?: string) => void;
@@ -1603,7 +2088,7 @@ function OverviewSection({
 }) {
   const activeClients = clients.filter((client) => client.status !== 'Review' && client.status !== 'Suspended').length;
   const productionReadyClients = clients.filter(productionReady).length;
-  const ipEnforcedClients = clients.filter((client) => client.ipWhitelistingRequired && (client.onboarding.uatStaticIps.length || client.onboarding.productionStaticIps.length)).length;
+  const ipEnforcedClients = clients.filter((client) => client.ipWhitelistingRequired).length;
   const uatCredits = clients.reduce((sum, client) => sum + client.uatCredits, 0);
   const liveCredits = clients.reduce((sum, client) => sum + client.liveCredits, 0);
   const selectedClient = clients.find((client) => client.id === selectedClientId) || clients[0];
@@ -1621,9 +2106,9 @@ function OverviewSection({
           </p>
           <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <MetricCard label="Clients" value={`${activeClients}`} helper={`${clients.length} total`} icon={Globe2} tone="bg-blue-50 text-blue-700" />
-            <MetricCard label="Prod Gates" value={`${productionReadyClients}`} helper="console checklist; live test separate" icon={LockKeyhole} tone="bg-emerald-50 text-emerald-700" />
-            <MetricCard label="IP Configured" value={`${ipEnforcedClients}`} helper="required with IPs on file" icon={ShieldCheck} tone="bg-amber-50 text-amber-700" />
-            <MetricCard label="API Keys" value={keys.filter((key) => key.status === 'Active').length.toString()} helper="active" icon={KeyRound} tone="bg-violet-50 text-violet-700" />
+            <MetricCard label="Prod Ready" value={`${productionReadyClients}`} helper="fully gated clients" icon={LockKeyhole} tone="bg-emerald-50 text-emerald-700" />
+            <MetricCard label="IP Enforced" value={`${ipEnforcedClients}`} helper="static IP required" icon={ShieldCheck} tone="bg-amber-50 text-amber-700" />
+            <MetricCard label="API Keys" value={keys.length.toString()} helper="issued" icon={KeyRound} tone="bg-violet-50 text-violet-700" />
           </div>
         </div>
       </section>
@@ -1631,7 +2116,7 @@ function OverviewSection({
       <section className="mb-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
         <MetricCard label="UAT Credits" value={uatCredits.toLocaleString('en-IN')} helper="sandbox allocation" icon={WalletCards} tone="bg-blue-50 text-blue-700" />
         <MetricCard label="Live Credits" value={liveCredits.toLocaleString('en-IN')} helper="production allocation" icon={WalletCards} tone="bg-emerald-50 text-emerald-700" />
-        <MetricCard label="Requests" value={requestTotal.toLocaleString('en-IN')} helper="saved Bridge request records" icon={BarChart3} tone="bg-slate-100 text-slate-700" />
+        <MetricCard label="SLA Window" value="99.0%" helper="03:00-04:00 IST excluded" icon={BarChart3} tone="bg-slate-100 text-slate-700" />
       </section>
 
       <section className="grid grid-cols-1 gap-5 2xl:grid-cols-[1fr_380px]">
@@ -1666,15 +2151,17 @@ function DocsPanel({ clients, keys }: { clients: Client[]; keys: ApiKeyRecord[] 
         title="API Docs"
         action={<button onClick={downloadAllDocs} className="inline-flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-900 text-white"><Download size={15} />Download All</button>}
       >
-        <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-2">
-          {environments.map((environment) => (
-            <div key={environment} className="rounded-lg border border-border bg-slate-50 p-4">
-              <p className="text-sm font-900 text-foreground">Bureau Standard {environment}</p>
+        <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-3">
+          {apiProducts.map((api) => (
+            <div key={api} className="rounded-lg border border-border bg-slate-50 p-4">
+              <p className="text-sm font-900 text-foreground">{api}</p>
               <div className="mt-3 space-y-2">
-                <div className="rounded-lg bg-white px-3 py-2">
-                  <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Endpoint</p>
-                  <p className="mt-1 break-all text-xs font-900 text-foreground">{endpointFor('Bureau Standard', environment)}</p>
-                </div>
+                {environments.map((environment) => (
+                  <div key={environment} className="rounded-lg bg-white px-3 py-2">
+                    <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">{environment}</p>
+                    <p className="mt-1 break-all text-xs font-900 text-foreground">{endpointFor(api, environment)}</p>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
@@ -1750,10 +2237,12 @@ function SupportPanel({
   clients,
   tickets,
   onUpdateTicket,
+  onDeleteTicket,
 }: {
   clients: Client[];
   tickets: SupportTicket[];
   onUpdateTicket: (ticketId: string, patch: Partial<SupportTicket>) => void;
+  onDeleteTicket: (ticketId: string) => void;
 }) {
   const [drafts, setDrafts] = useState<Record<string, { internal_note: string; last_response: string }>>({});
   const [selectedTicketId, setSelectedTicketId] = useState('');
@@ -1769,6 +2258,12 @@ function SupportPanel({
       setSelectedTicketId(tickets[0].id);
     }
   }, [tickets, selectedTicketId]);
+
+  useEffect(() => {
+    if (detailTicketId && !tickets.some((ticket) => ticket.id === detailTicketId)) {
+      setDetailTicketId(null);
+    }
+  }, [detailTicketId, tickets]);
 
   const draftFor = (ticket: SupportTicket) => drafts[ticket.id] || {
     internal_note: ticket.internal_note || '',
@@ -1861,6 +2356,17 @@ function SupportPanel({
                       {detailTicket.request_id ? <p className="mt-2 font-mono text-xs font-900 text-blue-700">Request ID: {detailTicket.request_id}</p> : null}
                     </div>
                     <div className="flex w-full items-start gap-2 lg:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onDeleteTicket(detailTicket.id);
+                          setDetailTicketId(null);
+                        }}
+                        className="mt-5 inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-900 text-red-700 hover:bg-red-100"
+                      >
+                        <Trash2 size={15} />
+                        Delete
+                      </button>
                       <label className="block min-w-44 flex-1 lg:flex-none">
                         <span className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Status</span>
                         <select
@@ -1953,10 +2459,6 @@ function ActiveSection({
   clients,
   keys,
   logs,
-  requestTotal,
-  requestPage,
-  requestPageSize,
-  onRequestPageChange,
   tickets,
   selectedClientId,
   onNewClient,
@@ -1971,16 +2473,13 @@ function ActiveSection({
   onUpdateClient,
   onAddCredits,
   onUpdateTicket,
+  onDeleteTicket,
   revealedSecrets,
 }: {
   activeNav: NavItem;
   clients: Client[];
   keys: ApiKeyRecord[];
   logs: UsageLog[];
-  requestTotal: number;
-  requestPage: number;
-  requestPageSize: number;
-  onRequestPageChange: (page: number) => void;
   tickets: SupportTicket[];
   selectedClientId?: string;
   onNewClient: () => void;
@@ -1995,6 +2494,7 @@ function ActiveSection({
   onUpdateClient: (client: Client) => void;
   onAddCredits: (clientId: string, environment: Environment, credits: number) => void;
   onUpdateTicket: (ticketId: string, patch: Partial<SupportTicket>) => void;
+  onDeleteTicket: (ticketId: string) => void;
   revealedSecrets: Record<string, string>;
 }) {
   if (activeNav === 'Overview') {
@@ -2002,7 +2502,6 @@ function ActiveSection({
       <OverviewSection
         clients={clients}
         keys={keys}
-        requestTotal={requestTotal}
         selectedClientId={selectedClientId}
         onNewClient={onNewClient}
         onCreateKey={onCreateKey}
@@ -2044,14 +2543,14 @@ function ActiveSection({
           );
           const docs = environment === 'Production'
             ? [
-              ['Base URL', 'https://secure-api.credittrust.in'],
-              ['Bureau Standard', 'POST /api/v1/source'],
-              ['Security', 'Registered client certificate, API key and source IP'],
+              ['Base URL', 'https://api.credittrust.in'],
+              ['Standard', 'POST /api/v1/bureau'],
+              ['Advanced', 'POST /api/v1/bureau-advanced'],
             ]
             : [
               ['Base URL', 'https://api.credittrust.in'],
-              ['Bureau Standard UAT', 'POST /api/v1/source'],
-              ['Security', 'UAT API key and whitelisted source IP'],
+              ['Standard UAT', 'POST /api/v1/bureau?env=uat'],
+              ['Advanced UAT', 'POST /api/v1/bureau-advanced?env=uat'],
             ];
           return (
             <div key={environment} className="rounded-lg border border-border bg-card p-5 shadow-sm">
@@ -2059,9 +2558,7 @@ function ActiveSection({
                 <div>
                   <h3 className="text-lg font-900 text-foreground">{environment} Environment</h3>
                 </div>
-                <StatusPill tone={environmentKeys.some((key) => key.status === 'Active') ? 'green' : 'slate'}>
-                  {environmentKeys.some((key) => key.status === 'Active') ? 'Key configured' : 'No active key'}
-                </StatusPill>
+                <StatusPill tone={environment === 'Production' ? 'green' : 'blue'}>Active</StatusPill>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -2071,7 +2568,7 @@ function ActiveSection({
                 </div>
                 <div className="rounded-lg border border-border bg-slate-50 p-3">
                   <p className="text-[10px] font-900 uppercase tracking-wide text-muted-foreground">Keys</p>
-                  <p className="mt-2 text-2xl font-900 text-foreground">{environmentKeys.filter((key) => key.status === 'Active').length}</p>
+                  <p className="mt-2 text-2xl font-900 text-foreground">{environmentKeys.length}</p>
                 </div>
               </div>
 
@@ -2210,14 +2707,12 @@ function ActiveSection({
     );
   }
 
-  if (activeNav === 'Requests') {
-    return <Panel title="Bridge Requests" subtitle="Permanent API ledger. Open a row to view the saved request and normalized response.">
-      <LogsTable logs={logs} clients={clients} total={requestTotal} page={requestPage} pageSize={requestPageSize} onPageChange={onRequestPageChange} />
-    </Panel>;
+  if (activeNav === 'Response Master') {
+    return <ResponseMasterPanel logs={logs} clients={clients} />;
   }
 
   if (activeNav === 'Support') {
-    return <SupportPanel clients={clients} tickets={tickets} onUpdateTicket={onUpdateTicket} />;
+    return <SupportPanel clients={clients} tickets={tickets} onUpdateTicket={onUpdateTicket} onDeleteTicket={onDeleteTicket} />;
   }
 
   if (activeNav === 'Docs') {
@@ -2234,9 +2729,6 @@ export default function ApiConsolePage() {
   const [logs, setLogs] = useState<UsageLog[]>(initialLogs);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [hubApis, setHubApis] = useState<HubApiConfig[]>([]);
-  const [requestPage, setRequestPage] = useState(1);
-  const [requestTotal, setRequestTotal] = useState(0);
-  const requestPageSize = 20;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -2259,14 +2751,11 @@ export default function ApiConsolePage() {
     latestKeyId && latestSecret ? { [latestKeyId]: latestSecret } : {}
   ), [latestKeyId, latestSecret]);
 
-  const loadData = async (page = requestPage) => {
+  const loadData = async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`/api/admin-api-hub?usage_scope=bridge&usage_page=${page}&usage_page_size=${requestPageSize}`, {
-        cache: 'no-store',
-        signal: AbortSignal.timeout(15000),
-      });
+      const response = await fetch('/api/admin-api-hub?usage_page_size=100');
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to load Bridge console data');
       setAuthenticated(true);
@@ -2276,26 +2765,25 @@ export default function ApiConsolePage() {
         keys: json.keys || [],
         tickets: json.tickets || [],
         usage: json.usage || [],
-        usageTotal: Number(json.usage_pagination?.total ?? 0),
       };
       const bridgeClients = data.clients.filter(isBridgeConsoleClient);
       const bridgeClientIds = new Set(bridgeClients.map((client) => client.id));
       const bridgeKeys = data.keys.filter((key) => bridgeClientIds.has(key.client_id));
       const mappedKeys = bridgeKeys.map((key) => mapHubKey(key, data.apis));
       const mappedClients = bridgeClients.map((client) => mapHubClient(client, bridgeKeys, data.apis));
+      const mappedLogs = data.usage
+        .filter((row) => row.client_id && bridgeClientIds.has(row.client_id))
+        .map((row) => mapLedgerRow(row, data.apis));
       setHubApis(data.apis);
       setKeys(mappedKeys);
       setClients(mappedClients);
-      setTickets(data.tickets.filter((ticket) => bridgeClientIds.has(ticket.client_id)));
-      setLogs(data.usage.map((row) => mapHubUsage(row, data.apis)));
-      setRequestTotal(data.usageTotal);
+      setTickets(data.tickets);
+      setLogs(mappedLogs);
       setSelectedClientId((current) => current && mappedClients.some((client) => client.id === current)
         ? current
         : mappedClients[0]?.id);
     } catch (err) {
-      const message = err instanceof Error && err.name === 'TimeoutError'
-        ? 'Bridge backend timed out. Please refresh and try again.'
-        : err instanceof Error ? err.message : 'Unable to load Bridge console data';
+      const message = err instanceof Error ? err.message : 'Unable to load Bridge console data';
       if (message === 'Unauthorized') setAuthenticated(false);
       setError(message);
     } finally {
@@ -2306,16 +2794,11 @@ export default function ApiConsolePage() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await fetch('/api/hub-console-auth/session', {
-          cache: 'no-store',
-          signal: AbortSignal.timeout(10000),
-        });
-        if (!response.ok) throw new Error('Unable to verify Bridge console session.');
+        const response = await fetch('/api/hub-console-auth/session');
         const json = await response.json();
         setAuthenticated(Boolean(json.authenticated));
         if (!json.configured) setError('Bridge console login is not configured.');
-        setAuthChecked(true);
-        if (json.authenticated) void loadData();
+        if (json.authenticated) await loadData();
         else setLoading(false);
       } catch {
         setError('Unable to verify Bridge console session.');
@@ -2505,6 +2988,15 @@ export default function ApiConsolePage() {
     if (json?.success) setNotice('Support ticket updated.');
   };
 
+  const deleteTicket = async (ticketId: string) => {
+    if (!window.confirm('Delete this support ticket permanently from Bridge Console?')) return;
+    const json = await authPost({ action: 'delete_ticket', ticket_id: ticketId });
+    if (json?.success) {
+      setTickets((prev) => prev.filter((ticket) => ticket.id !== ticketId));
+      setNotice('Support ticket deleted.');
+    }
+  };
+
   if (!authChecked || (loading && !authenticated)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
@@ -2602,11 +3094,11 @@ export default function ApiConsolePage() {
             <p className="text-xs font-800 uppercase tracking-wide text-slate-400">Security posture</p>
             <div className="mt-3 flex items-center gap-2 text-sm font-800 text-emerald-300">
               <CheckCircle2 size={16} />
-              Certificate and IP settings
+              IP gated
             </div>
             <div className="mt-2 flex items-center gap-2 text-sm font-800 text-blue-300">
               <LockKeyhole size={16} />
-              Operator session
+              2FA ready
             </div>
           </div>
         </div>
@@ -2623,7 +3115,7 @@ export default function ApiConsolePage() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex h-10 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-900 text-emerald-700">
                 <ShieldCheck size={15} />
-                {loading ? 'Loading Backend' : error ? 'Backend unavailable' : 'Backend data loaded'}
+                {loading ? 'Loading Backend' : 'Backend Synced'}
               </span>
               <button disabled={saving} onClick={() => setClientModalOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-3 text-sm font-800 text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60">
                 <KeyRound size={16} />
@@ -2674,13 +3166,6 @@ export default function ApiConsolePage() {
               clients={clients}
               keys={keys}
               logs={logs}
-              requestTotal={requestTotal}
-              requestPage={requestPage}
-              requestPageSize={requestPageSize}
-              onRequestPageChange={(page) => {
-                setRequestPage(page);
-                void loadData(page);
-              }}
               tickets={tickets}
               selectedClientId={selectedClientId}
               onNewClient={() => setClientModalOpen(true)}
@@ -2698,6 +3183,7 @@ export default function ApiConsolePage() {
               onUpdateClient={updateClient}
               onAddCredits={addCredits}
               onUpdateTicket={updateTicket}
+              onDeleteTicket={deleteTicket}
               revealedSecrets={revealedSecrets}
             />
           )}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getPartnerRedirectPath, useAuth } from '@/context/AuthContext';
 import AppLogo from '@/components/ui/AppLogo';
@@ -15,12 +15,15 @@ export default function PartnerLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const redirectingRef = useRef(false);
 
   useEffect(() => {
     if (isLoading) return;
     if (submitting) return;
     if (!user) return;
+    if (redirectingRef.current) return;
     if (user.role === 'partner') {
+      redirectingRef.current = true;
       router.replace(getPartnerRedirectPath(user));
     }
   }, [user, isLoading, submitting, router]);
@@ -45,7 +48,7 @@ export default function PartnerLoginPage() {
         setSubmitting(false);
         return;
       }
-      setSubmitting(false);
+      redirectingRef.current = true;
       router.replace(getPartnerRedirectPath(result.user ?? null));
     } catch {
       setError('Login failed. Please try again.');
@@ -53,13 +56,8 @@ export default function PartnerLoginPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const checkingSession = isLoading && !submitting;
+  const formDisabled = checkingSession || submitting || redirectingRef.current;
 
   return (
     <div className="min-h-screen flex">
@@ -105,10 +103,11 @@ export default function PartnerLoginPage() {
                   type="text"
                   inputMode="email"
                   autoComplete="email"
+                  disabled={formDisabled}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-400"
+                  className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:cursor-not-allowed disabled:opacity-70 transition-all placeholder:text-slate-400"
                 />
               </div>
 
@@ -124,20 +123,29 @@ export default function PartnerLoginPage() {
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
+                    disabled={formDisabled}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full px-4 py-3 pr-11 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-400"
+                    className="w-full px-4 py-3 pr-11 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:cursor-not-allowed disabled:opacity-70 transition-all placeholder:text-slate-400"
                   />
                   <button
                     type="button"
+                    disabled={formDisabled}
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
+
+              {checkingSession && (
+                <div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                  <div className="h-4 w-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                  Checking secure partner session...
+                </div>
+              )}
 
               {/* Error */}
               {error && (
@@ -150,15 +158,15 @@ export default function PartnerLoginPage() {
               {/* Submit */}
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={formDisabled}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shadow-blue-600/20 mt-2"
               >
-                {submitting ? (
+                {submitting || redirectingRef.current ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <LogIn size={16} />
                 )}
-                {submitting ? 'Signing in...' : 'Sign In'}
+                {redirectingRef.current ? 'Opening portal...' : submitting ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
           </div>

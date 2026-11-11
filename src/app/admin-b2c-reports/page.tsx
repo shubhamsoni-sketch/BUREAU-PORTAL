@@ -39,10 +39,20 @@ function formatDateTime(iso: string | null) {
 
 function statusBadge(status: string) {
   if (status.includes('generated')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (status.includes('generating') || status.includes('prefill')) return 'bg-amber-50 text-amber-700 border-amber-200';
   if (status.includes('failed')) return 'bg-red-50 text-red-700 border-red-200';
   if (status.includes('payment')) return 'bg-blue-50 text-blue-700 border-blue-200';
-  if (status.includes('consent')) return 'bg-purple-50 text-purple-700 border-purple-200';
+  if (status.includes('otp') || status.includes('consent')) return 'bg-purple-50 text-purple-700 border-purple-200';
   return 'bg-slate-50 text-slate-700 border-slate-200';
+}
+
+function isPaidStatus(status: string) {
+  return [
+    'payment_verified',
+    'prefill_review',
+    'report_generating',
+    'report_generated',
+  ].includes(status);
 }
 
 export default function AdminB2CReportsPage() {
@@ -94,7 +104,7 @@ export default function AdminB2CReportsPage() {
     });
   }, [reports, search, statusFilter]);
 
-  const paidCount = reports.filter((r) => ['payment_success', 'report_processing', 'report_generated'].includes(r.status)).length;
+  const paidCount = reports.filter((r) => isPaidStatus(r.status)).length;
   const generatedCount = reports.filter((r) => r.status === 'report_generated').length;
   const revenue = paidCount * 199;
 

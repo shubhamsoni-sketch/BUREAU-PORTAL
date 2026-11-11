@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cashfreeMode, createCashfreeOrder } from '@/lib/b2c/cashfree';
-import { requireB2cSession } from '@/lib/b2c/security';
+import { requireB2cSession, setB2cSession } from '@/lib/b2c/security';
+import { sanitizeMetaAttribution } from '@/lib/meta-attribution';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
@@ -9,13 +10,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const requestId = String(body.request_id ?? '').trim();
+    const metaAttribution = sanitizeMetaAttribution(body.meta_attribution);
     if (!requireB2cSession(request, requestId)) {
       return NextResponse.json({ success: false, error: 'This report session has expired.' }, { status: 401 });
     }
     const supabase = createAdminClient();
     const { data: reportRequest } = await supabase
       .from('b2c_report_requests')
-      .select('id,mobile,consent_given,otp_verified_at')
+      .select('id,mobile,consent_given,otp_verified_at,meta_attribution')
       .eq('id', requestId)
       .maybeSingle();
     if (!reportRequest?.consent_given || !reportRequest.otp_verified_at) {
@@ -32,20 +34,28 @@ export async function POST(request: NextRequest) {
       order_id: orderId,
       amount,
       status: 'created',
+      meta_attribution: metaAttribution ?? reportRequest.meta_attribution ?? null,
       raw_response: order,
       updated_at: now,
     });
     if (error) throw error;
-    await supabase.from('b2c_report_requests').update({ status: 'payment_pending', updated_at: now }).eq('id', requestId);
+    await supabase.from('b2c_report_requests').update({
+      status: 'payment_pending',
+      ...(metaAttribution ? { meta_attribution: metaAttribution } : {}),
+      updated_at: now,
+    }).eq('id', requestId);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
+      request_id: requestId,
       order_id: orderId,
       amount,
       currency: 'INR',
       payment_session_id: order.payment_session_id,
       mode: cashfreeMode(),
     });
+    setB2cSession(response, requestId);
+    return response;
   } catch (error) {
     console.error('[customer-report/create-order]', error);
     const message = error instanceof Error ? error.message : 'Unable to create payment order';

@@ -48,7 +48,7 @@ export function createClientPortalPasswordRecord(password: string) {
   };
 }
 
-function portalMetadata(client: SimpleApiClient) {
+export function getClientPortalMetadata(client: SimpleApiClient) {
   const metadata = client.metadata && typeof client.metadata === 'object' && !Array.isArray(client.metadata)
     ? client.metadata as Record<string, unknown>
     : {};
@@ -65,7 +65,7 @@ export function findClientByPortalCredentials(store: SimpleApiHubStore, username
 
   for (const client of store.clients) {
     if (client.status !== 'active') continue;
-    const portal = portalMetadata(client);
+    const portal = getClientPortalMetadata(client);
     const configuredUsername = String(portal.username || '').trim().toLowerCase();
     const salt = String(portal.password_salt || '');
     const passwordHash = String(portal.password_hash || '');
@@ -81,7 +81,7 @@ export function findClientByPortalCredentials(store: SimpleApiHubStore, username
 export function verifyClientPortalPassword(client: SimpleApiClient, password: unknown) {
   const inputPassword = typeof password === 'string' ? password : '';
   if (!inputPassword) return false;
-  const portal = portalMetadata(client);
+  const portal = getClientPortalMetadata(client);
   const salt = String(portal.password_salt || '');
   const passwordHash = String(portal.password_hash || '');
   if (!salt || !passwordHash) return false;
@@ -89,7 +89,7 @@ export function verifyClientPortalPassword(client: SimpleApiClient, password: un
 }
 
 export function createClientPortalToken(client: SimpleApiClient) {
-  const portal = portalMetadata(client);
+  const portal = getClientPortalMetadata(client);
   const username = String(portal.username || client.email || client.id);
   const payload: ClientPortalSession = {
     client_id: client.id,

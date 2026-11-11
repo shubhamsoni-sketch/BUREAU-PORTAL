@@ -88,6 +88,10 @@ function list(value: unknown): unknown[] {
 function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : value == null ? '' : String(value);
 }
+function lenderName(...values: unknown[]): string {
+  const value = values.map(text).find(Boolean) || '';
+  return /^not\s+disclosed$/i.test(value) ? '' : value;
+}
 function amount(value: unknown): number {
   const n = Number(String(value ?? '').replace(/[^0-9.-]/g, ''));
   return Number.isFinite(n) ? n : 0;
@@ -95,6 +99,10 @@ function amount(value: unknown): number {
 function date(value: unknown): string | null {
   const raw = text(value);
   if (!raw) return null;
+  if (/^\d{8}$/.test(raw)) {
+    const [d, m, y] = [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4, 8)];
+    return `${y}-${m}-${d}`;
+  }
   if (/^\d{2}-\d{2}-\d{4}$/.test(raw)) {
     const [d, m, y] = raw.split('-');
     return `${y}-${m}-${d}`;
@@ -103,9 +111,19 @@ function date(value: unknown): string | null {
 }
 function masked(value: unknown, visible = 4): string | null {
   const raw = text(value);
-  return raw ? `${'•'.repeat(Math.max(0, raw.length - visible))}${raw.slice(-visible)}` : null;
+  return raw ? `${'X'.repeat(Math.max(0, raw.length - visible))}${raw.slice(-visible)}` : null;
 }
-
+function firstRecord(value: unknown): JsonRecord {
+  return record(list(value)[0]);
+}
+function genderLabel(value: unknown): string | null {
+  const raw = text(value);
+  if (!raw) return null;
+  if (raw === '1') return 'Female';
+  if (raw === '2') return 'Male';
+  if (raw === '3') return 'Transgender';
+  return raw;
+}
 function findBureauBody(raw: unknown): JsonRecord {
   const queue: unknown[] = [raw];
   const visited = new Set<unknown>();
@@ -130,10 +148,11 @@ function historyChunks(raw: unknown): string[] {
 function accountFlags(item: JsonRecord): string[] {
   const blob = Object.values(item).map(text).join(' ').toLowerCase();
   const flags: string[] = [];
-  if (/write.?off/.test(blob)) flags.push('Write-off reported');
-  if (/settled/.test(blob)) flags.push('Settled status reported');
+  if (/write.?off|written.?off/.test(blob) || amount(item.woAmountTotal) > 0 || amount(item.woAmountPrincipal) > 0)
+    flags.push('Write-off reported');
+  if (/settled|settlement/.test(blob) || amount(item.settlementAmount) > 0) flags.push('Settled status reported');
   if (/suit.?filed|wilful/.test(blob)) flags.push('Legal or suit-filed marker reported');
-  return flags;
+  return Array.from(new Set(flags));
 }
 
 export function formatCurrency(value: number): string {
@@ -167,13 +186,13 @@ export function buildCreditIntelligence(
   const credit = record(list(body.consumerCreditData)[0]);
   const summary = record(record(body.consumerSummaryData).accountSummary);
   const inquirySummary = record(record(body.consumerSummaryData).inquirySummary);
-  const names = record(credit.names);
-  const ids = record(credit.ids);
-  const phones = record(credit.telephones);
+  const names = firstRecord(credit.names);
+  const ids = list(credit.ids).map(record);
+  const phones = list(credit.telephones).map(record);
   const scoreData = record(list(credit.scores)[0]);
   const rawAccounts = list(credit.accounts);
-  const accounts = rawAccounts.map((entry, index) => {
-    const item = record(entry);
+  const accountRecords = rawAccounts.map(record);
+  const accounts = accountRecords.map((item, index) => {
     const type = text(item.accountType);
     const category =
       type === '06'
@@ -195,7 +214,7 @@ export function buildCreditIntelligence(
     const closed = Boolean(text(item.dateClosed) || text(item.closedDate));
     return {
       id: `${text(item.accountNumber) || index}-${type}`,
-      lender: text(item.memberShortName) || text(item.memberName) || 'Reported lender',
+      lender: lenderName(item.memberShortName, item.memberName),
       accountNumber: masked(item.accountNumber) || 'Masked account',
       product: productNames[type] || text(item.accountType) || 'Credit facility',
       category,
@@ -210,7 +229,7 @@ export function buildCreditIntelligence(
       paymentHistory: chunks,
       delayedPayments: delayed,
       severeDelays: severe,
-      status: closed ? 'closed' : currentBalance > 0 ? 'active' : 'unknown',
+      status: closed ? 'closed' : 'active',
       negativeFlags: accountFlags(item),
     } satisfies CreditAccount;
   });
@@ -218,13 +237,14 @@ export function buildCreditIntelligence(
   const enquiries = rawEnquiries.map((entry) => {
     const item = record(entry);
     return {
-      lender: text(item.memberShortName) || text(item.memberName) || 'Reported lender',
+      lender: lenderName(item.memberShortName, item.memberName),
       purpose: text(item.enquiryPurpose) || text(item.enquiryType) || 'Credit enquiry',
       amount: amount(item.enquiryAmount),
       date: date(item.enquiryDate),
     };
   });
-  const score = amount(scoreData.score) || null;
+  const scoreValue = amount(scoreData.score);
+  const score = scoreValue > 0 ? scoreValue : null;
   const overdueBalance =
     accounts.reduce((sum, account) => sum + account.overdue, 0) || amount(summary.overdueBalance);
   const currentBalance =
@@ -243,20 +263,13 @@ export function buildCreditIntelligence(
       issue,
     }))
   );
-  const recentEnquiries = Number(text(inquirySummary.past30Days)) || 0;
+  const recentEnquiries = amount(inquirySummary.past30Days) || amount(inquirySummary.inquiryPast30Days);
   const mix = {
-    secured: accounts.filter((a) =>
-      securedTypes.has(
-        Object.entries(productNames).find(([, name]) => name === a.product)?.[0] ?? ''
-      )
-    ).length,
-    unsecured: accounts.filter(
-      (a) =>
-        a.category === 'loan' &&
-        !securedTypes.has(
-          Object.entries(productNames).find(([, name]) => name === a.product)?.[0] ?? ''
-        )
-    ).length,
+    secured: accountRecords.filter((account) => securedTypes.has(text(account.accountType))).length,
+    unsecured: accountRecords.filter((account) => {
+      const type = text(account.accountType);
+      return productNames[type] && !securedTypes.has(type) && type !== '06' && type !== '10';
+    }).length,
     cards: accounts.filter((a) => a.category === 'credit_card').length,
     overdrafts: accounts.filter((a) => a.category === 'overdraft').length,
   };
@@ -325,6 +338,8 @@ export function buildCreditIntelligence(
       ? 'Avoid unnecessary fresh credit applications until recent enquiry activity reduces.'
       : 'Apply for new credit only when it is genuinely required.',
   ];
+  const idRecord = ids.find((item) => text(item.idType) === '01') || ids[0] || {};
+  const phoneRecord = phones.find((item) => text(item.telephoneNumber)) || phones[0] || {};
   return {
     customerName: meta.fullName || text(names.name) || 'CreditTrust customer',
     reportId: meta.reportId || 'CT report',
@@ -344,9 +359,9 @@ export function buildCreditIntelligence(
       .filter(Boolean),
     profile: {
       dob: date(names.birthDate),
-      gender: text(names.gender) || null,
-      pan: masked(list(ids)[0] && record(list(ids)[0]).idNumber) || null,
-      mobile: masked(list(phones)[0] && record(list(phones)[0]).telephoneNumber) || null,
+      gender: genderLabel(names.gender),
+      pan: masked(idRecord.idNumber) || null,
+      mobile: masked(phoneRecord.telephoneNumber) || null,
       addresses: list(credit.addresses).length,
     },
     totals: {
@@ -358,7 +373,7 @@ export function buildCreditIntelligence(
       overdueBalance,
       highCredit,
       creditLimit,
-      enquiries: enquiries.length || amount(inquirySummary.total),
+      enquiries: enquiries.length || amount(inquirySummary.total) || amount(inquirySummary.totalInquiry),
       recentEnquiries,
     },
     accounts,
@@ -401,3 +416,4 @@ export function buildComparisonHistory(
     };
   });
 }
+

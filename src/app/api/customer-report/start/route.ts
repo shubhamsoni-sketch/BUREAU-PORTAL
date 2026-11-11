@@ -1,6 +1,7 @@
 import { randomInt } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { otpHash, requestIp, setB2cSession } from '@/lib/b2c/security';
+import { sanitizeMetaAttribution } from '@/lib/meta-attribution';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWhatsAppTemplate } from '@/lib/whatsapp/cloud-api';
 
@@ -20,6 +21,7 @@ function whatsappFailureDetail(error: string | undefined, response: unknown) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const metaAttribution = sanitizeMetaAttribution(body.meta_attribution);
     const mobile = String(body.mobile ?? '').replace(/\D/g, '').slice(-10);
     if (!/^[6-9]\d{9}$/.test(mobile)) {
       return NextResponse.json({ success: false, error: 'Enter a valid 10-digit mobile number.' }, { status: 400 });
@@ -49,6 +51,7 @@ export async function POST(request: NextRequest) {
         consent_version: CONSENT_VERSION,
         consent_ip: requestIp(request),
         consent_user_agent: request.headers.get('user-agent'),
+        meta_attribution: metaAttribution,
         status: 'otp_sending',
         updated_at: now,
       })

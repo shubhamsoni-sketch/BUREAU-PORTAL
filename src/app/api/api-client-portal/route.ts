@@ -55,6 +55,14 @@ function ticketStatusLabel(status: SimpleSupportTicket['status']) {
   return status.replace(/_/g, ' ');
 }
 
+function displayClientName(...items: unknown[]) {
+  for (const item of items) {
+    const text = String(item || '').trim();
+    if (text && !text.includes('@')) return text;
+  }
+  return 'Client';
+}
+
 async function notifySupport(ticket: SimpleSupportTicket, clientName: string, mode: 'new' | 'reminder' | 'reopened' = 'new', latestMessage?: string) {
   const resendApiKey = process.env.RESEND_API_KEY;
   if (!resendApiKey) return { success: false, error: 'RESEND_API_KEY is missing' };
@@ -133,12 +141,12 @@ export async function GET(request: NextRequest) {
     const usage = ledger.rows || [];
     const successCount = usage.filter((row: Record<string, unknown>) => row.status === 'success').length;
     const failedCount = usage.filter((row: Record<string, unknown>) => row.status === 'failed').length;
-    const metadata = (auth.client.metadata || {}) as Record<string, unknown>;
-    const isBridgeClient = metadata.bridge_console_scope === 'binta_bridge'
+    const metadata = auth.client.metadata as Record<string, unknown> | undefined;
+    const isBridgeClient = metadata?.bridge_console_scope === 'binta_bridge'
       || `${auth.client.name} ${auth.client.company_name || ''}`.toLowerCase().includes('binta financial');
     const liveCredits = isBridgeClient
       ? await getBintaLiveBalance(auth.supabase, auth.client.id)
-      : Number(metadata.live_credits || 0);
+      : Number(metadata?.live_credits || 0);
 
     return NextResponse.json({
       success: true,
@@ -182,6 +190,17 @@ export async function POST(request: NextRequest) {
     if ('error' in auth) return jsonError(auth.error || 'Unauthorized', auth.status || 401);
     const body = await request.json();
     const action = String(body.action || '').trim();
+
+    if (action === 'delete_ticket') {
+      const ticketId = String(body.ticket_id || '').trim();
+      if (!ticketId) return jsonError('Ticket is required');
+      const existing = (auth.store.tickets || []).find((ticket) => ticket.id === ticketId && ticket.client_id === auth.client.id);
+      if (!existing) return jsonError('Ticket not found', 404);
+
+      auth.store.tickets = (auth.store.tickets || []).filter((ticket) => ticket.id !== ticketId);
+      await saveApiHubStore(auth.supabase, auth.rowId, auth.store);
+      return NextResponse.json({ success: true, deleted_ticket_id: ticketId });
+    }
 
     if (action === 'remind_ticket' || action === 'reopen_ticket') {
       const ticketId = String(body.ticket_id || '').trim();
@@ -248,7 +267,7 @@ export async function POST(request: NextRequest) {
       request_id: String(body.request_id || '').trim() || null,
       status: 'open',
       client_email: auth.client.email || null,
-      client_name: auth.client.contact_name || auth.client.name,
+      client_name: displayClientName(auth.client.contact_name, auth.client.name, auth.client.company_name),
       internal_note: null,
       last_response: null,
       thread: [{
