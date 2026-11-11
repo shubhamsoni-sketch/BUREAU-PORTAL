@@ -2,6 +2,13 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-11-11 - Developer - Standalone Fintech Workspace Shell
+
+- Moved Fintech out of the shared admin layout into its own full-height shell with dedicated desktop and mobile navigation.
+- Added separate Overview, Lenders, Loan Products, Enquiries, Offers, Integrations, and Consent/Audit pages. The main admin Fintech link remains the entry point.
+- All pages clearly identify backend-dependent areas as pending; no lender or customer data is fabricated.
+- `npm run build -- --no-lint` and `npm run type-check -- --pretty false` passed.
+
 ## 2026-11-11 - Developer - Fintech Admin Release Candidate
 
 - Added an admin-only Fintech workspace and sidebar entry for lender onboarding, products, enquiries, offers, integrations, and consent/audit planning.
