@@ -13,7 +13,7 @@ import {
 import { fintechSections } from '@/lib/fintech/workspace';
 
 export const metadata: Metadata = {
-  title: 'Fintech Workspace | CreditTrust Admin',
+  title: 'Fintech Dashboard | CreditTrust Admin',
   description: 'CreditTrust Fintech administration workspace.',
   robots: { index: false, follow: false },
 };
@@ -34,7 +34,7 @@ export default function AdminFintechPage() {
         <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full border border-teal-300/20 bg-teal-300/5" />
         <div className="pointer-events-none absolute -bottom-40 right-28 h-72 w-72 rounded-full border border-sky-300/10" />
         <div className="relative max-w-2xl">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-teal-300">Fintech operations</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-teal-300">Fintech dashboard</p>
           <h2 className="mt-3 font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">One workspace for the lending journey.</h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">Set up lenders and products, then manage customer enquiries, offers, integrations and consent in a dedicated area separate from the main admin portal.</p>
           <span className="mt-5 inline-flex rounded-full border border-teal-300/30 bg-teal-300/10 px-3 py-1 text-xs font-semibold text-teal-200">Workspace structure ready | Backend connection pending</span>

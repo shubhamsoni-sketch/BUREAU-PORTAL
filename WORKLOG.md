@@ -2,6 +2,11 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-11-11 - Developer - Fintech Dashboard Label
+
+- Renamed the Fintech workspace landing navigation and page title from Overview to Dashboard.
+- Kept `/admin-fintech` as the entry route, so existing admin links continue to work.
+
 ## 2026-11-11 - Developer - Standalone Fintech Workspace Shell
 
 - Moved Fintech out of the shared admin layout into its own full-height shell with dedicated desktop and mobile navigation.

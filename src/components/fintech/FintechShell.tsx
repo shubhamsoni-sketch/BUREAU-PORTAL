@@ -27,7 +27,7 @@ const sectionIcons: Record<(typeof fintechSections)[number]['slug'], LucideIcon>
 };
 
 const navigation = [
-  { label: 'Overview', href: '/admin-fintech', icon: LayoutDashboard },
+  { label: 'Dashboard', href: '/admin-fintech', icon: LayoutDashboard },
   ...fintechSections.map((section) => ({
     label: section.navLabel,
     href: `/admin-fintech/${section.slug}`,
@@ -42,7 +42,7 @@ export default function FintechShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-dvh overflow-hidden bg-[#f3f6fa] text-slate-900">
       <aside className="hidden w-64 shrink-0 flex-col bg-[#0d1930] text-white lg:flex">
-        <Link href="/admin-fintech" className="flex h-20 items-center gap-3 border-b border-white/10 px-6" aria-label="Fintech overview">
+        <Link href="/admin-fintech" className="flex h-20 items-center gap-3 border-b border-white/10 px-6" aria-label="Fintech dashboard">
           <AppLogo variant="light" width={135} height={40} />
         </Link>
         <div className="px-6 pb-4 pt-6">

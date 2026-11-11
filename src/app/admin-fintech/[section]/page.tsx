@@ -24,7 +24,7 @@ export default async function FintechAreaPage({ params }: Props) {
   return (
     <div className="space-y-6">
       <Link href="/admin-fintech" className="inline-flex items-center gap-2 text-xs font-bold text-teal-800 hover:text-teal-600">
-        <ArrowLeft size={14} aria-hidden="true" /> Workspace overview
+        <ArrowLeft size={14} aria-hidden="true" /> Fintech dashboard
       </Link>
 
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-6">
