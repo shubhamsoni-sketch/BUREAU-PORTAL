@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
-import { LayoutDashboard, Users, BookUser, Wallet, CreditCard, FileText, Plug, ScrollText, ChevronLeft, ChevronRight, LogOut, Shield, Receipt, UserRoundCheck, Network, FileSpreadsheet, Megaphone, BarChart3, Mail, SearchCheck } from 'lucide-react';
+import { LayoutDashboard, Users, BookUser, Building2, Wallet, CreditCard, FileText, Plug, ScrollText, ChevronLeft, ChevronRight, LogOut, Shield, Receipt, UserRoundCheck, Network, FileSpreadsheet, Megaphone, BarChart3, Mail, SearchCheck } from 'lucide-react';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 
@@ -37,6 +37,12 @@ const navGroups = [
     items: [
       { label: 'API Hub', href: '/admin-api-hub', icon: Network },
       { label: 'Bulk CIBIL Pull', href: '/admin-bulk-cibil', icon: FileSpreadsheet },
+    ],
+  },
+  {
+    label: 'Fintech',
+    items: [
+      { label: 'Fintech', href: '/admin-fintech', icon: Building2 },
     ],
   },
   {

@@ -2,6 +2,13 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-11-11 - Developer - Fintech Admin Release Candidate (Not Deployed)
+
+- Added an admin-only Fintech workspace and sidebar entry for lender onboarding, products, enquiries, offers, integrations, and consent/audit planning.
+- Kept customer-facing preview routes and backend integrations out of this scoped candidate.
+- `npm run build -- --no-lint` and `npm run type-check -- --pretty false` passed.
+- Production deployment is pending reconciliation: the currently live source differs substantially from `origin/main`, including live routes absent from `main`. Deploying this candidate directly would risk regressing unrelated functionality.
+
 ## 2026-10-23 - Developer - Partner Login Reload Loop
 
 Summary:

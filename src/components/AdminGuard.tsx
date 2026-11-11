@@ -14,6 +14,7 @@ const ADMIN_ONLY_PATHS = [
   '/admin-integrations',
   '/admin-api-hub',
   '/admin-bulk-cibil',
+  '/admin-fintech',
   '/admin-meta-marketing',
   '/admin-email-campaigns',
   '/admin-lead-finder',
