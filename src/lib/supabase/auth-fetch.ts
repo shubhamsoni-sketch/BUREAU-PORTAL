@@ -57,6 +57,14 @@ function authRedirectTarget() {
 
 function shouldSkipAuthRedirect(input: RequestInfo | URL) {
   const currentPathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  if (
+    currentPathname === '/' ||
+    currentPathname === '/about' ||
+    currentPathname.startsWith('/personal-loan/') ||
+    currentPathname.startsWith('/home/loan-hero-preview')
+  ) {
+    return true;
+  }
   if (currentPathname.startsWith('/client') || currentPathname.startsWith('/api-client-portal')) {
     return true;
   }

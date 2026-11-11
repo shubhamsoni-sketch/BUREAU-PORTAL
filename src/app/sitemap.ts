@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/get-my-report`, priority: 0.7, changeFrequency: 'monthly' },
     { url: `${baseUrl}/sample-report`, priority: 0.6, changeFrequency: 'monthly' },
     { url: `${baseUrl}/about`, priority: 0.5, changeFrequency: 'monthly' },
+    { url: `${baseUrl}/personal-loan/instant-personal-loan`, priority: 0.7, changeFrequency: 'monthly' },
     { url: `${baseUrl}/privacy-policy`, priority: 0.3, changeFrequency: 'yearly' },
     { url: `${baseUrl}/refund-policy`, priority: 0.3, changeFrequency: 'yearly' },
     { url: `${baseUrl}/terms-and-conditions`, priority: 0.3, changeFrequency: 'yearly' },

@@ -13,6 +13,7 @@ export default function robots(): MetadataRoute.Robots {
         '/partner-login',
         '/partner-dashboard',
         '/home/credittrust-preview',
+        '/home/loan-hero-preview/',
         '/credit-intelligence',
       ],
     },

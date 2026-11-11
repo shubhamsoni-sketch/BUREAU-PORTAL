@@ -2,6 +2,16 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-11-11 - Developer - CreditTrust Loan Website Release Candidate
+
+- Promoted the local loan-hero design to the public homepage with matching About and Instant Personal Loan pages and assets.
+- Scoped the new homepage and About view to `credittrust.in` and `www.credittrust.in`; other Vercel aliases retain their prior landing/About views.
+- Prevented unauthenticated background admin requests from redirecting public website/demo pages to partner login; protected admin and partner paths keep their existing behavior.
+- Kept existing admin, partner, API, CIBIL, and report code unchanged.
+- Kept the Apply journey explicitly demo-only: no SMS, no submitted application, and no real-data claim. The journey remains noindex.
+- Built and type-checked the candidate. Local production-server host checks returned 200 for both domains; the new site appeared only on `credittrust.in`, while `portal.credittrust.in` retained the legacy views.
+- Production release requires a clean `main` checkout and live smoke checks.
+
 ## 2026-11-11 - Developer - Fintech Dashboard Label
 
 - Renamed the Fintech workspace landing navigation and page title from Overview to Dashboard.
