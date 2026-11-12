@@ -2,6 +2,10 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-11-11 - Developer - Public Personal Loan Guard Fix
+
+- Added the new Instant Personal Loan route to the public-path allowlist after live smoke testing exposed an unintended partner-login redirect. Existing protected routes remain unchanged.
+
 ## 2026-11-11 - Developer - CreditTrust Loan Website Release Candidate
 
 - Promoted the local loan-hero design to the public homepage with matching About and Instant Personal Loan pages and assets.

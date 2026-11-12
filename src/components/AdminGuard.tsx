@@ -35,6 +35,7 @@ const PUBLIC_PATHS = [
   '/become-a-partner',
   '/admin',
   '/home',
+  '/personal-loan',
   '/for-individuals',
   '/for-partners',
   '/about',
