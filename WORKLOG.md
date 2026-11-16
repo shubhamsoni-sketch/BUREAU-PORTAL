@@ -2,6 +2,13 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-11-16 - CreditTrust public contact and policy navigation
+
+- Added a dedicated CreditTrust Contact page with the existing support email, company address, clear Fin Coopers Tech India Private Limited ownership statement, and direct links to Privacy, Terms and Refund policies.
+- Added Contact, Privacy Policy, Terms & Conditions and Refund Policy navigation to the new-site footer, plus Contact access in the new-site header and legacy public footers.
+- Kept CreditTrust's existing detailed legal policies rather than replacing them with Rupiqa's shorter loan-assistance wording; surfaced the parent-company relationship at the top of each legal page and linked grievance support to Contact.
+- Allowed `/contact` as a public route so visitors can open it without an admin or partner session.
+
 ## 2026-11-11 - Developer - Public Personal Loan Guard Fix
 
 - Added the new Instant Personal Loan route to the public-path allowlist after live smoke testing exposed an unintended partner-login redirect. Existing protected routes remain unchanged.

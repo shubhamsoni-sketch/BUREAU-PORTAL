@@ -40,6 +40,9 @@ export default function LegalPage({ eyebrow, title, intro, updatedAt, sections }
               {title}
             </h1>
             <p className="text-lg text-fg-muted leading-relaxed max-w-3xl">{intro}</p>
+            <p className="mt-4 text-sm text-fg-muted leading-relaxed max-w-3xl">
+              CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited.
+            </p>
             <p className="mt-6 text-sm text-fg-subtle">Last updated: {updatedAt}</p>
           </div>
         </section>
@@ -78,7 +81,7 @@ export default function LegalPage({ eyebrow, title, intro, updatedAt, sections }
             <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.045] p-6">
               <h2 className="text-lg font-bold text-fg mb-2">Contact and Grievance Support</h2>
               <p className="text-fg-muted leading-relaxed">
-                For policy questions, consent withdrawal, payment support, refund requests, or misuse reporting, contact us at support@credittrust.in or visit https://credittrust.in. We may ask for your registered mobile number, payment reference, report request ID, and identity verification before taking action on sensitive account or report requests.
+                For policy questions, consent withdrawal, payment support, refund requests, or misuse reporting, contact us at <a href="mailto:support@credittrust.in" className="text-primary hover:underline">support@credittrust.in</a> or visit <a href="/contact" className="text-primary hover:underline">our Contact page</a>. We may ask for your registered mobile number, payment reference, report request ID, and identity verification before taking action on sensitive account or report requests.
               </p>
             </div>
           </div>

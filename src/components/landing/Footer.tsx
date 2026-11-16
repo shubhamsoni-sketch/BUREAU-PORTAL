@@ -6,6 +6,7 @@ import AppLogo from '@/components/ui/AppLogo';
 
 const footerLinks = [
   { label: 'About Us', href: '/about' },
+  { label: 'Contact', href: '/contact' },
   { label: 'For Partners', href: '/partner-program' },
   { label: 'Partner Login', href: '/partner-login' },
   { label: 'Become a Partner', href: '/become-a-partner' },

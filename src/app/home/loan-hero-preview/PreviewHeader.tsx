@@ -7,7 +7,7 @@ const home = '/';
 const about = '/about';
 const instantLoan = '/personal-loan/instant-personal-loan';
 
-export default function PreviewHeader({ active }: { active: 'home' | 'about' | 'personal-loan' }) {
+export default function PreviewHeader({ active }: { active: 'home' | 'about' | 'personal-loan' | 'contact' }) {
   return (
     <header className={styles.header}>
       <div className={styles.navInner}>
@@ -23,6 +23,7 @@ export default function PreviewHeader({ active }: { active: 'home' | 'about' | '
           </details>
           <Link href={`${home}#how-it-works`}>How it works</Link>
           <Link href="/partner-program">Partners</Link>
+          {active === 'contact' ? <span className={styles.activeNav}>Contact</span> : <Link href="/contact">Contact</Link>}
         </nav>
         <div className={styles.navActions}>
           <details className={styles.mobileMenu}>
@@ -33,6 +34,7 @@ export default function PreviewHeader({ active }: { active: 'home' | 'about' | '
               <Link href={instantLoan}>Instant Personal Loan</Link>
               <Link href={`${home}#how-it-works`}>How it works</Link>
               <Link href="/partner-program">Partners</Link>
+              <Link href="/contact" aria-current={active === 'contact' ? 'page' : undefined}>Contact</Link>
             </nav>
           </details>
           <a className={styles.navCta} href="mailto:support@credittrust.in?subject=Loan%20options%20enquiry">Enquire now <ArrowRight size={16} /></a>
