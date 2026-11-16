@@ -1,80 +1,43 @@
+import type { Metadata } from 'next';
 import LegalPage from '@/components/legal/LegalPage';
+
+export const metadata: Metadata = {
+  title: 'Refund & Cancellation Policy | CreditTrust',
+  description: 'How CreditTrust handles refund requests for its own paid services and where lender or third-party payment policies apply.',
+};
 
 const sections = [
   {
-    title: 'Legal Entity',
-    body: 'CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited.',
+    title: 'Loan enquiries and lender charges',
+    body: 'Submitting a loan enquiry through CreditTrust does not itself create a refundable loan fee. Any fee, charge or repayment collected directly by a lender or other third party is governed by that provider\'s agreement and refund process. Contact that provider for a payment you made to them.',
   },
   {
-    title: 'Digital Service Nature',
-    body: 'CreditTrust provides digital financial health report services and partner platform services. Once a report request is processed, data-provider costs, payment gateway charges, technical processing, and compliance logging may already be incurred.',
-  },
-  {
-    title: 'B2C Financial Health Report Payments',
+    title: 'Payments made to CreditTrust',
+    body: 'If you pay CreditTrust directly for a separately priced digital service, such as a credit report, refund eligibility depends on the payment record, service status and applicable terms shown before purchase.',
     bullets: [
-      'A customer may request a refund if payment is deducted but the report request is not accepted by our system due to a technical failure.',
-      'A refund may be considered if duplicate payment is made for the same mobile number, PAN, and report request within the same transaction window.',
-      'No refund is normally available after the report has been generated, displayed, delivered, or made available for viewing, unless required by applicable law or a verified platform error.',
-      'Incorrect details entered by the customer, unauthorized use by the customer, or refusal to complete required consent/verification after payment may not qualify for refund.',
+      'We may approve a refund if payment was taken but a technical failure prevented the service request from being accepted or fulfilled.',
+      'A duplicate successful payment for the same service may be refunded or adjusted after verification.',
+      'Once a digital report has been generated, delivered or made available, a refund is normally not available unless applicable law or a verified platform error requires it.',
     ],
-  },
-  {
-    title: 'Partner Wallet, Invoice, And Credit Payments',
-    bullets: [
-      'Partner wallet recharge, invoice, or credit payments are business payments and are normally adjusted against wallet balance, invoices, or future usage.',
-      'Refunds for partner payments are reviewed case by case based on unused balance, contractual terms, invoice status, reconciliation records, and any applicable taxes or gateway charges.',
-      'If a partner account is suspended due to misuse, unauthorized report access, fraud, or policy violation, refund eligibility may be denied or adjusted against dues, losses, chargebacks, or investigation costs.',
-    ],
-  },
-  {
-    title: 'Refund Request Process',
-    bullets: [
-      'Raise a refund request at support@credittrust.in within 7 calendar days of payment.',
-      'Include registered mobile number, email, payment/order ID, amount, date of payment, report request ID if available, and reason for refund.',
-      'We may ask for additional verification before processing requests involving identity, PAN, payment, or report data.',
-      'Approved refunds will be initiated to the original payment method wherever supported by the payment gateway.',
-    ],
-  },
-  {
-    title: 'Refund Timelines',
-    body: 'Eligible refunds are normally reviewed within 3 to 5 business days. Once approved and initiated, the amount may take 5 to 10 business days to reflect in the original payment method depending on bank, card network, UPI provider, wallet, or payment gateway timelines.',
-  },
-  {
-    title: 'Failed, Pending, Or Duplicate Transactions',
-    bullets: [
-      'If money is debited but payment status remains failed or pending, wait for bank/gateway reconciliation before raising a duplicate payment.',
-      'If the gateway confirms failed status and no service was delivered, we will help initiate refund or closure based on the gateway record.',
-      'Duplicate successful payments for the same service may be refunded or adjusted after verification.',
-    ],
-  },
-  {
-    title: 'Non-Refundable Cases',
-    bullets: [
-      'Report generated, delivered, displayed, or made available after successful payment.',
-      'Customer entered wrong PAN, DOB, mobile number, address, or identity details.',
-      'Customer or partner attempted unauthorized report access or violated consent requirements.',
-      'Service could not be completed because the customer did not provide mandatory verification, consent, or required information.',
-      'Payment disputes raised without providing requested verification documents or transaction details.',
-    ],
-  },
-  {
-    title: 'Chargebacks And Disputes',
-    body: 'If a chargeback, bank dispute, or payment gateway dispute is raised, we may share transaction records, consent logs, access logs, report status, invoice data, and support communication with the payment gateway, bank, or relevant authority to resolve the matter.',
   },
   {
     title: 'Cancellation',
-    body: 'Because the product is a digital report and workflow service, cancellation is possible only before payment or before processing starts. Once processing starts or the report is generated, cancellation may not be available.',
+    body: 'You may stop a loan enquiry before submission. For a separately purchased digital service, cancellation may be possible before processing begins; it may not be possible after a report request is processed or a report is made available. A lender application or loan cancellation follows the lender\'s own process.',
+  },
+  {
+    title: 'How to request a refund',
+    body: 'Email support@credittrust.in within 7 calendar days of a payment made directly to CreditTrust. Include your registered mobile number, payment or order reference, amount, payment date and a brief explanation. Do not send passwords or OTPs. We may request additional information to verify the transaction.',
+  },
+  {
+    title: 'Review and payment timeline',
+    body: 'Eligible requests are normally reviewed within 3 to 5 business days. Once an approved refund is initiated to the original payment method where supported, your bank, UPI provider, card network or gateway may take another 5 to 10 business days to reflect it.',
+  },
+  {
+    title: 'Failed or disputed payments',
+    body: 'If money was debited but the payment appears failed or pending, allow bank and gateway reconciliation before paying again. We review duplicate or disputed transactions against payment and service records. If you paid a lender or another third party, their own policy applies.',
   },
 ];
 
 export default function RefundPolicyPage() {
-  return (
-    <LegalPage
-      eyebrow="Refund And Cancellation"
-      title="Refund And Cancellation Policy"
-      intro="This policy explains when refunds, cancellations, duplicate payment reversals, partner wallet adjustments, and payment disputes may be accepted or rejected."
-      updatedAt="12 May 2026"
-      sections={sections}
-    />
-  );
+  return <LegalPage eyebrow="Refund & Cancellation" title="Refund & Cancellation Policy" intro="Transparent refund handling for CreditTrust service payments, plus guidance on when a lender's policy applies instead." updatedAt="16 November 2026" sections={sections} />;
 }

@@ -1,87 +1,47 @@
+import type { Metadata } from 'next';
 import LegalPage from '@/components/legal/LegalPage';
+
+export const metadata: Metadata = {
+  title: 'Privacy Policy | CreditTrust',
+  description: 'How CreditTrust handles information shared during loan enquiries, lender journeys, credit report requests and customer support.',
+};
 
 const sections = [
   {
-    title: 'Legal Entity',
-    body: 'CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited.',
+    title: 'Who operates CreditTrust',
+    body: 'CreditTrust is a brand/platform owned, operated, and managed by Fin Coopers Tech India Private Limited. This policy covers information shared on the CreditTrust website, loan enquiry journey, customer and partner workspaces, and related support channels.',
   },
   {
-    title: 'Information We Collect',
-    body: 'We collect only the information required to provide financial health report services, partner services, payment processing, security controls, and customer support.',
+    title: 'Information we collect',
+    body: 'To help you explore loan options or request a separate credit-related service, we may collect:',
     bullets: [
-      'Identity and contact details such as name, mobile number, email address, date of birth, address, PIN code, PAN, gender, and consent confirmation.',
-      'Transaction information such as order ID, payment ID, amount, payment status, invoice details, wallet ledger entries, refund status, and gateway response data.',
-      'Report request information such as submitted form data, report status, generated report ID, normalized report insights, and raw provider response where required for audit and support.',
-      'Technical information such as IP address, device/browser metadata, timestamps, session data, logs, fraud signals, and security events.',
+      'Name, mobile number, email address, date of birth, PAN, address, PIN code, employment and income details supplied by you.',
+      'Loan amount, purpose, application details, verification inputs, documents and consent records where relevant to the journey.',
+      'Payment references and service status if you purchase a CreditTrust service, plus device, IP and security logs needed to operate the website.',
     ],
   },
   {
-    title: 'Why We Use Your Information',
-    bullets: [
-      'To verify the user, capture explicit consent, process payment, generate the requested financial health report, and show the result to the authorized user.',
-      'To maintain legally and operationally required records for payment reconciliation, dispute handling, report audit, fraud prevention, and customer support.',
-      'To operate partner accounts, wallet balances, invoices, agreements, notifications, and admin workflows.',
-      'To detect unauthorized access, suspicious activity, misuse, duplicate attempts, chargeback risk, and policy violations.',
-    ],
+    title: 'How we use your information',
+    body: 'We use information to respond to your enquiry, verify your details, present relevant journey steps, facilitate a request with an authorized lender or service provider, provide customer support, prevent misuse and maintain required records. We do not treat a loan enquiry as a promise of eligibility or approval.',
   },
   {
-    title: 'Consent-Based Report Access',
-    body: 'A financial health report must be requested only by the concerned individual or by an authorized partner with valid consent. When you submit details and provide consent, you authorize us to use and share the required information with authorized verification, payment, and report/data partners to process the requested report. We do not permit any user or partner to obtain, attempt to obtain, or store a report for another person without authorization.',
-    bullets: [
-      'Users must provide accurate personal details and consent before report processing.',
-      'Partners must collect and retain valid customer authorization before initiating any report request.',
-      'We may suspend, reject, or report accounts that attempt unauthorized report access.',
-    ],
+    title: 'Consent and sharing',
+    body: 'We may share the details needed for a requested service with relevant lenders, verification providers, technology partners or payment providers, subject to the consent and disclosures shown in the applicable journey. A credit report or bureau request requires its own applicable authorization; entering a loan enquiry alone does not authorize an unrelated report pull.',
   },
   {
-    title: 'Data Sharing',
-    body: 'We do not sell personal data. Data may be shared only when required to deliver the service, comply with law, process payments, prevent fraud, or resolve support requests.',
-    bullets: [
-      'Payment gateway or banking partners receive payment-related information required to process and verify transactions.',
-      'Report/data providers receive only the fields required to process an authorized report request.',
-      'Technology vendors may process limited data under security and confidentiality obligations.',
-      'Authorities, courts, regulators, or law enforcement may receive information when legally required.',
-    ],
+    title: 'Data protection and retention',
+    body: 'We limit access to teams and providers that need the information for the stated purpose and use reasonable technical and organizational safeguards. Records may be retained for service delivery, consent evidence, disputes, fraud prevention and applicable legal requirements. No internet service can promise absolute security.',
   },
   {
-    title: 'Sensitive Data Protection',
-    bullets: [
-      'PAN, report request data, payment identifiers, and raw provider responses are treated as sensitive records.',
-      'Admin access to sensitive records is restricted to operational need, audit, support, reconciliation, and compliance purposes.',
-      'Public user interfaces should mask sensitive values wherever full display is not required.',
-      'Production credentials, service keys, and payment secrets must never be exposed in frontend code.',
-    ],
+    title: 'Your choices',
+    body: 'You may ask for access, correction, support, deletion review or withdrawal of future consent by writing to support@credittrust.in. We may verify your identity first and may retain records that must be kept for legal, payment or dispute purposes. You can also opt out of optional communications through the available channel.',
   },
   {
-    title: 'Retention',
-    body: 'We retain records for as long as needed for service delivery, payment reconciliation, legal compliance, audit, fraud prevention, dispute handling, and customer support. Retention periods may vary depending on the record type and legal requirements.',
-  },
-  {
-    title: 'User Rights',
-    bullets: [
-      'You may request access, correction, support, or deletion review for your personal information subject to legal, contractual, payment, audit, and fraud-prevention retention requirements.',
-      'You may withdraw future consent, but withdrawal may not affect reports already generated, payments already processed, or records required for compliance.',
-      'We may verify identity before acting on any request involving sensitive financial or identity data.',
-    ],
-  },
-  {
-    title: 'Security',
-    body: 'We use reasonable administrative, technical, and operational safeguards to protect customer data. No online system is risk-free, so users and partners must also protect their login credentials and avoid sharing OTPs, passwords, or report access with unauthorized persons.',
-  },
-  {
-    title: 'Policy Updates',
-    body: 'We may update this Privacy Policy from time to time. Continued use of the platform after an update means you accept the revised policy.',
+    title: 'Updates and contact',
+    body: 'We may update this policy as our journeys, providers or legal requirements change. The updated version will appear here. For privacy questions, write to support@credittrust.in or use our Contact page.',
   },
 ];
 
 export default function PrivacyPolicyPage() {
-  return (
-    <LegalPage
-      eyebrow="Privacy Policy"
-      title="Privacy Policy"
-      intro="This Privacy Policy explains how CreditTrust collects, uses, protects, stores, and shares information when individuals, partners, admins, or website visitors use our financial health report and partner workflow platform."
-      updatedAt="12 May 2026"
-      sections={sections}
-    />
-  );
+  return <LegalPage eyebrow="Privacy Policy" title="Privacy Policy" intro="Your data should feel protected. Here is how we handle information shared while exploring a loan or using a CreditTrust service." updatedAt="16 November 2026" sections={sections} />;
 }

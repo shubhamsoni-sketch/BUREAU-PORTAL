@@ -60,6 +60,11 @@ function shouldSkipAuthRedirect(input: RequestInfo | URL) {
   if (
     currentPathname === '/' ||
     currentPathname === '/about' ||
+    currentPathname === '/contact' ||
+    currentPathname === '/privacy-policy' ||
+    currentPathname === '/terms-and-conditions' ||
+    currentPathname === '/refund-policy' ||
+    currentPathname === '/usage-policy' ||
     currentPathname.startsWith('/personal-loan/') ||
     currentPathname.startsWith('/home/loan-hero-preview')
   ) {

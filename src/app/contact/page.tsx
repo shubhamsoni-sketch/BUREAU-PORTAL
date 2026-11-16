@@ -9,7 +9,7 @@ import styles from './page.module.css';
 export const metadata: Metadata = {
   title: 'Contact CreditTrust | Fin Coopers Tech India Private Limited',
   description:
-    'Contact CreditTrust for customer support, privacy, payment and refund questions. CreditTrust is owned and operated by Fin Coopers Tech India Private Limited.',
+    'Contact CreditTrust about a loan enquiry, consent, privacy, payment or refund question. CreditTrust is owned and operated by Fin Coopers Tech India Private Limited.',
 };
 
 export default function ContactPage() {
@@ -21,13 +21,13 @@ export default function ContactPage() {
           <p className={styles.eyebrow}>CREDITTRUST SUPPORT</p>
           <h1 id="contact-title">We are here to <em>help you move forward.</em></h1>
           <p className={styles.lead}>
-            Questions about your CreditTrust journey, a report, privacy, or a payment? Reach our team using the details below.
+            Questions about a loan enquiry, application journey, consent, privacy, or a CreditTrust payment? Reach our team using the details below.
           </p>
           <div className={styles.cards}>
             <article className={styles.card}>
               <span className={styles.icon}><Mail size={23} /></span>
               <h2>Email support</h2>
-              <p>Share your concern and any relevant request or payment reference. Please do not email passwords or OTPs.</p>
+              <p>Share your concern and any relevant application or payment reference. Please do not email passwords or OTPs.</p>
               <a href="mailto:support@credittrust.in">support@credittrust.in <ArrowUpRight size={17} /></a>
             </article>
             <article className={styles.card}>

@@ -2,6 +2,12 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-11-16 - Loan website policy refresh
+
+- Restyled CreditTrust's Privacy, Terms and Refund pages to use the current loan-website header, footer, logo and light purple/gold design; aligned Contact copy with loan enquiries.
+- Reworked public policy copy around loan enquiries, lender decisions, consent, CreditTrust-paid services and lender/third-party payment boundaries, using Rupiqa's loan-assistance policies as a reference while retaining CreditTrust's existing refund request and processing timelines.
+- Prevented a shared admin-data 401 from redirecting logged-out visitors away from the public Contact and policy pages.
+
 ## 2026-11-16 - CreditTrust public contact and policy navigation
 
 - Added a dedicated CreditTrust Contact page with the existing support email, company address, clear Fin Coopers Tech India Private Limited ownership statement, and direct links to Privacy, Terms and Refund policies.

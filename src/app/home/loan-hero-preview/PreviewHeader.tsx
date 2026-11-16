@@ -7,7 +7,7 @@ const home = '/';
 const about = '/about';
 const instantLoan = '/personal-loan/instant-personal-loan';
 
-export default function PreviewHeader({ active }: { active: 'home' | 'about' | 'personal-loan' | 'contact' }) {
+export default function PreviewHeader({ active }: { active: 'home' | 'about' | 'personal-loan' | 'contact' | 'legal' }) {
   return (
     <header className={styles.header}>
       <div className={styles.navInner}>
