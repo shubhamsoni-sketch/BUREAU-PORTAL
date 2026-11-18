@@ -2,9 +2,9 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
-## 2026-11-18 - Admin and partner subdomain entry points
+## 2026-11-18 - Admin and partner portal subdomain entry points
 
-- Routed the root of `admin.credittrust.in` to the existing admin login and the root of `partner.credittrust.in` to the existing partner login.
+- Routed the root of `admin.credittrust.in` to the existing admin login and the root of `partnerportal.credittrust.in` to the existing partner login.
 - Kept the existing `credittrust.in/admin` and `credittrust.in/partner-login` paths as fallbacks during domain and DNS verification; no auth or API behavior changed.
 
 ## 2026-11-16 - Loan website policy refresh

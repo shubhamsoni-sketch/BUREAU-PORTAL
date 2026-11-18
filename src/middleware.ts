@@ -10,7 +10,7 @@ export function middleware(request: NextRequest) {
   const isApiHubHost = hostname === 'hub.credittrust.in';
   const isApiClientPortalHost = hostname === 'client.credittrust.in';
   const isAdminHost = hostname === 'admin.credittrust.in';
-  const isPartnerHost = hostname === 'partner.credittrust.in';
+  const isPartnerHost = hostname === 'partnerportal.credittrust.in';
   const isCrmHost = hostname === 'crm.credittrust.in';
   const isMainPortalHost = hostname === 'credittrust.in';
   const isWwwHost = hostname === 'www.credittrust.in';
