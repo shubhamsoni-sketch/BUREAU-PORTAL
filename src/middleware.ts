@@ -9,6 +9,8 @@ export function middleware(request: NextRequest) {
   const isApiConsoleHost = hostname === 'api.credittrust.in';
   const isApiHubHost = hostname === 'hub.credittrust.in';
   const isApiClientPortalHost = hostname === 'client.credittrust.in';
+  const isAdminHost = hostname === 'admin.credittrust.in';
+  const isPartnerHost = hostname === 'partner.credittrust.in';
   const isCrmHost = hostname === 'crm.credittrust.in';
   const isMainPortalHost = hostname === 'credittrust.in';
   const isWwwHost = hostname === 'www.credittrust.in';
@@ -74,6 +76,14 @@ export function middleware(request: NextRequest) {
 
   if (isApiClientPortalHost && !isAsset && !isApiRoute) {
     return NextResponse.rewrite(new URL('/api-client-portal', request.url));
+  }
+
+  if (isAdminHost && normalizedPathname === '/') {
+    return NextResponse.rewrite(new URL('/admin', request.url));
+  }
+
+  if (isPartnerHost && normalizedPathname === '/') {
+    return NextResponse.rewrite(new URL('/partner-login', request.url));
   }
 
   if (isCrmHost && normalizedPathname === '/login') {

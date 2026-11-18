@@ -2,6 +2,11 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-11-18 - Admin and partner subdomain entry points
+
+- Routed the root of `admin.credittrust.in` to the existing admin login and the root of `partner.credittrust.in` to the existing partner login.
+- Kept the existing `credittrust.in/admin` and `credittrust.in/partner-login` paths as fallbacks during domain and DNS verification; no auth or API behavior changed.
+
 ## 2026-11-16 - Loan website policy refresh
 
 - Restyled CreditTrust's Privacy, Terms and Refund pages to use the current loan-website header, footer, logo and light purple/gold design; aligned Contact copy with loan enquiries.
