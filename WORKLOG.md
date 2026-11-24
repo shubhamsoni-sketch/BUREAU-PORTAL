@@ -6,6 +6,7 @@ Keep this file updated for meaningful changes. Add newest entries at the top.
 
 - A live partner retry reached the new large-report renderer but returned HTTP 500 because Vercel omitted PDFKit's standard Helvetica font modules from its function bundle.
 - Explicitly register the two Helvetica font modules used by the renderer so Next includes them in the deployment; no report data, access rule, or wallet flow changed.
+- A follow-up live retry exposed PDFKit's CommonJS import requiring an ES module on Vercel. Switched the renderer back to PDFKit's ES-module entry while retaining explicit font registration.
 
 ## 2026-11-24 - Large bureau report PDF download fix
 

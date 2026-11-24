@@ -1,9 +1,11 @@
+import PDFDocument from 'pdfkit';
+import * as pdfkitRuntime from 'pdfkit';
 import type { BureauReportInput } from './report-template';
 
-const PDFDocument = require('pdfkit') as typeof import('pdfkit') & {
+const { registerStdFonts } = pdfkitRuntime as unknown as {
   registerStdFonts: (...fonts: unknown[]) => void;
 };
-PDFDocument.registerStdFonts(
+registerStdFonts(
   require('pdfkit/standard-fonts/Helvetica'),
   require('pdfkit/standard-fonts/HelveticaBold')
 );
