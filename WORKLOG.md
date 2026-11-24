@@ -2,6 +2,13 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-11-24 - Large bureau report PDF download fix
+
+- Reproduced a partner report PDF failure and confirmed Vercel function out-of-memory and 60-second timeout logs for a report with 3,398 accounts and 351 enquiries.
+- Added a lightweight PDFKit renderer for oversized reports; smaller reports keep the existing Chromium-based PDF layout. The large-report PDF includes every account and enquiry, with core consumer, contact, summary, and payment-history fields.
+- Kept report access checks and stored bureau data unchanged; no new bureau pull or wallet debit occurs.
+- Verified production build and type-check. A synthetic 3,398-account/351-enquiry PDF generated in seconds and produced a valid 351-page PDF.
+
 ## 2026-11-18 - Admin and partner portal subdomain entry points
 
 - Routed the root of `admin.credittrust.in` to the existing admin login and the root of `partnerportal.credittrust.in` to the existing partner login.

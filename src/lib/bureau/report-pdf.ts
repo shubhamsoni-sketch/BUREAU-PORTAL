@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { generateBureauReportHtml, type BureauReportInput } from './report-template';
+import { largeReportCounts, renderLargeBureauReportPdf } from './large-report-pdf';
 
 async function getBrowserRuntime() {
   const localChromePaths = [
@@ -29,6 +30,10 @@ async function getBrowserRuntime() {
 }
 
 export async function renderBureauReportPdf(input: BureauReportInput): Promise<Buffer> {
+  const counts = largeReportCounts(input.rawJson);
+  if (counts.accounts > 250 || counts.enquiries > 500) {
+    return renderLargeBureauReportPdf(input);
+  }
   const html = generateBureauReportHtml(withProviderLogo(input));
   return renderHtmlPdf(html, { scale: 0.94 });
 }
