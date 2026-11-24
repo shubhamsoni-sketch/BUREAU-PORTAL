@@ -2,6 +2,11 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-11-24 - Large report PDF production font packaging
+
+- A live partner retry reached the new large-report renderer but returned HTTP 500 because Vercel omitted PDFKit's standard Helvetica font modules from its function bundle.
+- Explicitly register the two Helvetica font modules used by the renderer so Next includes them in the deployment; no report data, access rule, or wallet flow changed.
+
 ## 2026-11-24 - Large bureau report PDF download fix
 
 - Reproduced a partner report PDF failure and confirmed Vercel function out-of-memory and 60-second timeout logs for a report with 3,398 accounts and 351 enquiries.
