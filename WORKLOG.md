@@ -2,6 +2,11 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-11-24 - Authenticated report download handoff
+
+- Confirmed the saved large report PDF endpoint returned HTTP 200 on the live partner domain, but the browser did not save a file.
+- Kept the temporary authenticated-download blob URL valid for 60 seconds after the click instead of revoking it immediately, avoiding a browser download race for generated PDFs.
+
 ## 2026-11-24 - Large report PDF production font packaging
 
 - A live partner retry reached the new large-report renderer but returned HTTP 500 because Vercel omitted PDFKit's standard Helvetica font modules from its function bundle.
