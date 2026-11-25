@@ -24,6 +24,25 @@ function field(value: unknown): string {
   return value == null || value === '' ? '-' : String(value).replace(/\s+/g, ' ').trim();
 }
 
+function date(value: unknown): string {
+  const raw = field(value);
+  return /^\d{8}$/.test(raw) ? `${raw.slice(0, 2)}-${raw.slice(2, 4)}-${raw.slice(4)}` : raw;
+}
+
+function money(value: unknown): string {
+  const raw = field(value);
+  const amount = Number(raw);
+  return raw === '-' || !Number.isFinite(amount) ? raw : new Intl.NumberFormat('en-IN').format(amount);
+}
+
+const accountTypes: Record<string, string> = {
+  '01': 'AUTO LOAN', '02': 'HOUSING LOAN', '03': 'PROPERTY LOAN',
+  '05': 'PERSONAL LOAN', '06': 'CONSUMER LOAN', '07': 'GOLD LOAN',
+  '08': 'EDUCATION LOAN', '10': 'CREDIT CARD', '13': 'TWO-WHEELER LOAN',
+  '17': 'COMMERCIAL VEHICLE LOAN', '32': 'BUSINESS LOAN',
+  '50': 'SECURED BUSINESS LOAN', '51': 'UNSECURED BUSINESS LOAN',
+};
+
 function reportBody(rawJson: unknown): RecordValue {
   const raw = record(rawJson);
   const response = record(raw.response);
@@ -68,76 +87,95 @@ export async function renderLargeBureauReportPdf(input: BureauReportInput): Prom
   const addPage = () => {
     doc.addPage();
     pageNumber += 1;
-    doc.font('Helvetica-Bold').fontSize(11).fillColor('#28355b').text('CREDIT BUREAU REPORT', 38, 30);
-    doc.font('Helvetica').fontSize(8).fillColor('#586174').text(`Report ID: ${reportId}    Page ${pageNumber}`, 38, 47);
-    doc.moveTo(38, 63).lineTo(557, 63).strokeColor('#d7deeb').stroke();
-    doc.y = 76;
+    doc.rect(38, 27, 519, 28).fill('#ffdd00');
+    doc.font('Helvetica-Bold').fontSize(12).fillColor('#20242b').text('CONSUMER CIR', 45, 34);
+    doc.font('Helvetica').fontSize(7).fillColor('#555555')
+      .text('CreditTrust-generated view of saved bureau data', 38, 61)
+      .text(`Report ID: ${reportId}    Page ${pageNumber}`, 38, 72);
+    doc.moveTo(38, 87).lineTo(557, 87).lineWidth(1.5).strokeColor('#00a3d7').stroke();
+    doc.y = 99;
   };
   const ensureSpace = (height: number) => {
     if (doc.y + height > 800) addPage();
   };
   const title = (label: string) => {
     ensureSpace(34);
-    doc.moveDown(0.6).font('Helvetica-Bold').fontSize(10).fillColor('#28355b').text(label);
+    doc.moveDown(0.6).font('Helvetica-Bold').fontSize(10).fillColor('#666666').text(label);
     doc.moveDown(0.35);
   };
   const line = (label: string, value: unknown) => {
     ensureSpace(17);
-    doc.font('Helvetica-Bold').fontSize(8).fillColor('#394057').text(`${label}: `, { continued: true });
-    doc.font('Helvetica').fillColor('#222222').text(field(value));
+    const y = doc.y;
+    doc.rect(38, y, 519, 15).fill('#eeeeee');
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#00a3d7').text(`${label}: `, 43, y + 3, { continued: true });
+    doc.font('Helvetica').fillColor('#222222').text(field(value), { width: 500 });
+    doc.y = Math.max(doc.y, y + 17);
   };
 
   addPage();
-  title('CONSUMER INFORMATION');
+  title('CONSUMER INFORMATION:');
   line('Name', customerName);
-  line('Date of birth', name.birthDate ?? name.dateOfBirth);
-  line('Report date', input.createdAt);
-  line('Score', score.score);
-  line('Total accounts', accountSummary.totalAccounts ?? accounts.length);
-  line('Total enquiries', enquirySummary.totalInquiry ?? enquiries.length);
-  title('IDENTIFICATION AND CONTACT');
+  line('Date of birth', date(name.birthDate ?? name.dateOfBirth));
+  line('Report date', date(input.createdAt));
+  title('CIBIL TRANSUNION SCORE(S):');
+  line(field(score.scoreName), score.score);
+  const reasons = rows(score.reasonCodes).map((reason) => field(reason.reasonCodeValue)).join(', ');
+  if (reasons) line('Scoring factors', reasons);
+  title('IDENTIFICATION(S):');
   rows(credit.ids).forEach((id) => line(`ID ${field(id.idType)}`, id.idNumber));
+  title('TELEPHONE(S):');
   rows(credit.telephones).forEach((phone) => line('Telephone', phone.telephoneNumber));
+  title('EMAIL CONTACT(S):');
   rows(credit.emails).forEach((email) => line('Email', email.emailID));
+  title('ADDRESS(ES):');
   rows(credit.addresses).forEach((address) => {
     line('Address', [address.line1, address.line2, address.line3, address.line4, address.line5, address.state, address.pinCode].filter(Boolean).join(', '));
   });
   const employment = rows(credit.employment)[0];
   if (employment) {
-    title('EMPLOYMENT');
+    title('EMPLOYMENT INFORMATION:');
     line('Occupation code', employment.occupationCode);
     line('Income', employment.income);
   }
 
-  title(`ACCOUNTS (${accounts.length})`);
+  title('SUMMARY:');
+  line('Total accounts', accountSummary.totalAccounts ?? accounts.length);
+  line('Current balance', money(accountSummary.currentBalance));
+  line('Overdue balance', money(accountSummary.overdueBalance));
+  line('Total enquiries', enquirySummary.totalInquiry ?? enquiries.length);
+  line('Enquiries past 30 days', enquirySummary.inquiryPast30Days);
+  line('Enquiries past 12 months', enquirySummary.inquiryPast12Months);
+
+  title(`ACCOUNT(S): ${accounts.length}`);
   accounts.forEach((account, index) => {
-    ensureSpace(100);
+    ensureSpace(account.paymentHistory ? 170 : 125);
     const memberName = field(account.memberShortName ?? account.memberName);
-    doc.font('Helvetica-Bold').fontSize(8).fillColor('#28355b')
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#00a3d7')
       .text(`${index + 1}. ${memberName}`, { width: 519 });
-    line('Account number / type', `${field(account.accountNumber)} / ${field(account.accountType)}`);
-    line('Opened / reported', `${field(account.dateOpened)} / ${field(account.dateReported)}`);
-    line('Last payment / ownership', `${field(account.lastPaymentDate)} / ${field(account.ownershipIndicator)}`);
-    line('High credit / current / overdue', `${field(account.highCreditAmount ?? account.creditLimit)} / ${field(account.currentBalance)} / ${field(account.amountOverdue)}`);
+    line('Account number / type', `${field(account.accountNumber)} / ${accountTypes[field(account.accountType)] ?? field(account.accountType)}`);
+    line('Opened / reported', `${date(account.dateOpened)} / ${date(account.dateReported)}`);
+    line('Last payment / ownership', `${date(account.lastPaymentDate)} / ${field(account.ownershipIndicator)}`);
+    line('Payment history start / end', `${date(account.paymentStartDate)} / ${date(account.paymentEndDate)}`);
+    line('High credit / current / overdue', `${money(account.highCreditAmount ?? account.creditLimit)} / ${money(account.currentBalance)} / ${money(account.amountOverdue)}`);
+    if (account.paymentFrequency) line('Payment frequency', account.paymentFrequency);
     if (account.suitFiledStatus) line('Suit filed status', account.suitFiledStatus);
     if (account.paymentHistory) {
-      const history = field(account.paymentHistory);
-      line('Payment history', `${history.slice(0, 108)}${history.length > 108 ? '...' : ''}`);
+      line('Days past due / asset classification (up to 36 months)', account.paymentHistory);
     }
     doc.moveDown(0.35);
   });
 
-  title(`ENQUIRIES (${enquiries.length})`);
+  title(`ENQUIRIES: ${enquiries.length}`);
   enquiries.forEach((enquiry, index) => {
     ensureSpace(37);
-    doc.font('Helvetica-Bold').fontSize(8).fillColor('#28355b')
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#00a3d7')
       .text(`${index + 1}. ${field(enquiry.memberShortName ?? enquiry.memberName)}`);
-    line('Date / purpose / amount', `${field(enquiry.enquiryDate)} / ${field(enquiry.enquiryPurpose)} / ${field(enquiry.enquiryAmount)}`);
+    line('Date / purpose / amount', `${date(enquiry.enquiryDate)} / ${accountTypes[field(enquiry.enquiryPurpose)] ?? field(enquiry.enquiryPurpose)} / ${money(enquiry.enquiryAmount)}`);
     doc.moveDown(0.2);
   });
 
   ensureSpace(24);
-  doc.font('Helvetica-Bold').fontSize(8).fillColor('#28355b').text('END OF REPORT');
+  doc.font('Helvetica-Bold').fontSize(8).fillColor('#00a3d7').text(`END OF REPORT ON ${customerName}`);
   doc.end();
   return finished;
 }

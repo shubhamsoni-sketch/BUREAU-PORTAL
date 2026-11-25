@@ -2,6 +2,11 @@
 
 Keep this file updated for meaningful changes. Add newest entries at the top.
 
+## 2026-11-25 - Detailed Consumer CIR layout for oversized saved reports
+
+- Updated the large-report PDF fallback to follow the existing Consumer CIR section hierarchy, yellow heading and blue section details.
+- Added account payment-history dates, full saved payment history, summary balances and enquiry details without re-pulling bureau data. Normal-sized reports still use the existing HTML template.
+
 ## 2026-11-24 - Authenticated report download handoff
 
 - Confirmed the saved large report PDF endpoint returned HTTP 200 on the live partner domain, but the browser did not save a file.
